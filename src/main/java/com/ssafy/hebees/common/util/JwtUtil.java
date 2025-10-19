@@ -29,9 +29,12 @@ public class JwtUtil {
     @Value("${jwt.refresh-token-expiration}")
     private long refreshTokenExpiration;
 
+    @Value("${jwt.secret:hebees-secret-key-for-jwt-token-generation-and-validation}")
+    private String secret;
+
     @PostConstruct
     public void initKey() {
-        this.key = Keys.secretKeyFor(SignatureAlgorithm.HS256);
+        this.key = Keys.hmacShaKeyFor(secret.getBytes());
     }
 
     public String generateToken(UUID userUuid, UserRole role) {
