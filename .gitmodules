@@ -1,3 +1,6 @@
 [submodule "backend-repo"]
 	path = backend-repo
 	url = https://lab.ssafy.com/gd10080008/backend-repo.git
+[submodule "spring-gateway-repo/spring-gateway-repo"]
+	path = spring-gateway-repo/spring-gateway-repo
+	url = https://lab.ssafy.com/gd10080008/spring-gateway-repo.git
