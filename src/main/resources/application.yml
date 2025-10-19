@@ -1,0 +1,49 @@
+spring:
+  application:
+    name: HEBEES SpringBoot GateWay
+  
+  # Gateway 설정
+  cloud:
+    gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowed-origins: "http://localhost:5173"
+            allowed-methods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowed-headers:
+              - "*"
+            allow-credentials: true
+  
+  # Redis 설정
+  data:
+    redis:
+      host: yaguhang.kro.kr
+      port: 16379
+
+# 서버 포트 설정
+server:
+  port: 8080
+
+# JWT 설정
+jwt:
+  secret: "hebees-secret-key-for-jwt-token-generation-and-validation-256-bits"
+
+# Gateway 라우팅 설정
+gateway:
+  backend:
+    uri: http://localhost:8081
+    path: /api/**
+    rewrite-enabled: false
+    rewrite-pattern: /api/(?<segment>.*)
+    rewrite-replacement: /api/$\{segment}
+
+# 로깅 설정
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.web.reactive: DEBUG
