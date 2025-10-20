@@ -3,8 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from . import __version__, __title__, __description__
 from .config import settings
 from .admin import router as admin_router
-from .data import router as data_router
-from .chat import router as chat_router
+from .extract import router as extract_router
 import httpx
 import logging
 
@@ -24,10 +23,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 라우터 연결 - 공통 prefix /api/ai 추가
+# 라우터 연결 - 공통 prefix /ai/api 추가
 app.include_router(admin_router, prefix="/ai/api")
-app.include_router(data_router, prefix="/ai/api")
-app.include_router(chat_router, prefix="/ai/api")
+app.include_router(extract_router, prefix="/ai/api")
 
 @app.get("/")
 async def root():
