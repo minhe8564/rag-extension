@@ -2,12 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from ..database import get_db
-from ..models import RunPod
-from ..schemas import RunPodResponse, RunPodUpdate, RunPodUrlOnly
+from .models import RunPod
+from .schemas import RunPodResponse, RunPodUpdate, RunPodUrlOnly
 
 router = APIRouter(
-    prefix="/api/admin",
-    tags=["Admin - RunPod Management"]
+    prefix="/admin",
+    tags=["AI Admin - RunPod Management"]
 )
 
 @router.get(
