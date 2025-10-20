@@ -7,3 +7,6 @@
 [submodule "frontend-repo"]
 	path = frontend-repo
 	url = https://lab.ssafy.com/gd10080008/frontend-repo.git
+[submodule "fastapi-gateway"]
+	path = fastapi-gateway
+	url = https://lab.ssafy.com/gd10080008/fastapi-gateway.git
