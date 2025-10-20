@@ -4,29 +4,36 @@ from starlette.background import BackgroundTask
 import httpx
 from ..config import settings
 
-router = APIRouter(prefix="/embedding", tags=["AI Embedding Service"])
+router = APIRouter(
+    prefix="/query-embedding",
+    tags=["AI Query Embedding Service"]
+)
 
 HOP_BY_HOP_HEADERS = {
     "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
     "te", "trailers", "transfer-encoding", "upgrade"
 }
-SMALL_BODY_THRESHOLD = 1_000_000
+SMALL_BODY_THRESHOLD = 1_000_000  # 1MB
 
 async def _iter_request_body(request: Request):
     async for chunk in request.stream():
         yield chunk
 
 @router.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
-async def proxy_embedding(request: Request, path: str):
+async def proxy_query_embedding(request: Request, path: str):
+    """
+    Query Embedding 서비스로 모든 요청 프록시
+    """
     try:
-        target_url = f"{settings.embedding_service_url}/{path}"
+        target_url = f"{settings.query_embedding_service_url}/{path}"
 
+        # 요청 헤더 정제 (hop-by-hop, host, accept-encoding 제거)
         headers = {
             k: v for k, v in request.headers.items()
             if k.lower() not in HOP_BY_HOP_HEADERS
         }
         headers.pop("host", None)
-        headers.pop("accept-encoding", None)
+        headers.pop("accept-encoding", None)  # 압축 강제 해제(스트리밍 안정성)
 
         has_body = request.method not in {"GET", "HEAD"}
         content = _iter_request_body(request) if has_body else None
@@ -41,12 +48,14 @@ async def proxy_embedding(request: Request, path: str):
             )
             resp = await client.send(req, stream=True)
 
+            # 응답 헤더 정제
             filtered_headers = {
                 k: v for k, v in resp.headers.items()
                 if k.lower() not in HOP_BY_HOP_HEADERS and k.lower() != "content-length"
             }
             media_type = resp.headers.get("content-type")
 
+            # 소용량은 버퍼링 후 그대로 반환(상태/헤더 유지)
             content_length = resp.headers.get("content-length")
             if content_length and content_length.isdigit() and int(content_length) <= SMALL_BODY_THRESHOLD:
                 body = await resp.aread()
@@ -57,6 +66,7 @@ async def proxy_embedding(request: Request, path: str):
                     async for chunk in resp.aiter_bytes():
                         yield chunk
                 except (httpx.ReadError, httpx.StreamError):
+                    # 업스트림이 조기 종료해도 여기서 quietly 종료
                     return
 
             return StreamingResponse(
@@ -68,8 +78,8 @@ async def proxy_embedding(request: Request, path: str):
             )
 
     except httpx.TimeoutException:
-        raise HTTPException(status_code=504, detail="Embedding service timeout")
+        raise HTTPException(status_code=504, detail="Query embedding service timeout")
     except httpx.ConnectError:
-        raise HTTPException(status_code=503, detail="Embedding service unavailable")
+        raise HTTPException(status_code=503, detail="Query embedding service unavailable")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Proxy error: {str(e)}")
