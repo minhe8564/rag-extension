@@ -4,6 +4,7 @@ from . import __version__, __title__, __description__
 from .config import settings
 from .admin import router as admin_router
 from .extract import router as extract_router
+from .chunking import router as chunking_router
 import httpx
 import logging
 
@@ -26,6 +27,7 @@ app.add_middleware(
 # 라우터 연결 - 공통 prefix /ai/api 추가
 app.include_router(admin_router, prefix="/ai/api")
 app.include_router(extract_router, prefix="/ai/api")
+app.include_router(chunking_router, prefix="/ai/api")
 
 @app.get("/")
 async def root():
