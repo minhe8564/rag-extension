@@ -1,0 +1,25 @@
+# Build outputs
+/build/
+/bin/
+
+# IDE
+.idea/
+.project
+.classpath
+.settings/
+.vscode/
+
+# OS
+.DS_Store
+
+# Gradle
+.gradle/
+gradle-app.setting
+
+# Logs
+*.log
+
+# Local env
+.env
+.env.*
+
