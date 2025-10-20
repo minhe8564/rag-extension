@@ -1,15 +1,24 @@
 [submodule "backend-repo"]
 	path = backend-repo
 	url = https://lab.ssafy.com/gd10080008/backend-repo.git
+	branch = main
+
 [submodule "spring-gateway-repo"]
 	path = spring-gateway-repo
 	url = https://lab.ssafy.com/gd10080008/spring-gateway-repo.git
+	branch = main
+
 [submodule "frontend-repo"]
 	path = frontend-repo
 	url = https://lab.ssafy.com/gd10080008/frontend-repo.git
+	branch = main
+
 [submodule "fastapi-gateway"]
 	path = fastapi-gateway
 	url = https://lab.ssafy.com/gd10080008/fastapi-gateway.git
+	branch = main
+
 [submodule "extract-repo"]
 	path = extract-repo
 	url = https://lab.ssafy.com/gd10080008/extract-repo.git
+	branch = main
