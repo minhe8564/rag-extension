@@ -7,7 +7,8 @@ from .extract import router as extract_router
 from .chunking import router as chunking_router
 from .embedding import router as embedding_router
 from .query_embedding import router as query_embedding_router
-import httpx
+from .search import router as search_router
+from .cross_encoder import router as cross_encoder_router
 import logging
 
 logger = logging.getLogger(__name__)
@@ -32,6 +33,8 @@ app.include_router(extract_router, prefix="/ai/api")
 app.include_router(chunking_router, prefix="/ai/api")
 app.include_router(embedding_router, prefix="/ai/api")
 app.include_router(query_embedding_router, prefix="/ai/api")
+app.include_router(search_router, prefix="/ai/api")
+app.include_router(cross_encoder_router, prefix="/ai/api")
 
 @app.get("/")
 async def root():

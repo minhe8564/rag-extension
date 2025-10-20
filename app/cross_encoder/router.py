@@ -5,8 +5,8 @@ import httpx
 from ..config import settings
 
 router = APIRouter(
-    prefix="/query-embedding",
-    tags=["AI Query Embedding Service"]
+    prefix="/cross-encoder",
+    tags=["AI Cross Encoder Service"]
 )
 
 HOP_BY_HOP_HEADERS = {
@@ -20,12 +20,12 @@ async def _iter_request_body(request: Request):
         yield chunk
 
 @router.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
-async def proxy_query_embedding(request: Request, path: str):
+async def proxy_cross_encoder(request: Request, path: str):
     """
-    Query Embedding 서비스로 모든 요청 프록시
+    Cross Encoder 서비스로 모든 요청 프록시
     """
     try:
-        target_url = f"{settings.query_embedding_service_url}/{path}"
+        target_url = f"{settings.cross_encoder_service_url}/{path}"
 
         # 요청 헤더 정제 (hop-by-hop, host, accept-encoding 제거)
         headers = {
@@ -78,8 +78,8 @@ async def proxy_query_embedding(request: Request, path: str):
             )
 
     except httpx.TimeoutException:
-        raise HTTPException(status_code=504, detail="Query embedding service timeout")
+        raise HTTPException(status_code=504, detail="Cross encoder service timeout")
     except httpx.ConnectError:
-        raise HTTPException(status_code=503, detail="Query embedding service unavailable")
+        raise HTTPException(status_code=503, detail="Cross encoder service unavailable")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Proxy error: {str(e)}")

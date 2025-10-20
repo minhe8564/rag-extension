@@ -19,10 +19,7 @@ async def _iter_request_body(request: Request):
 @router.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
 async def proxy_embedding(request: Request, path: str):
     try:
-        query_string = str(request.query_params) if request.query_params else ""
         target_url = f"{settings.embedding_service_url}/{path}"
-        if query_string:
-            target_url = f"{target_url}?{query_string}"
 
         headers = {
             k: v for k, v in request.headers.items()
@@ -39,7 +36,8 @@ async def proxy_embedding(request: Request, path: str):
                 method=request.method,
                 url=target_url,
                 headers=headers,
-                content=content
+                content=content,
+                params=request.query_params  # httpx가 자동으로 URL 인코딩 처리
             )
             resp = await client.send(req, stream=True)
 
