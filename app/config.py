@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     extract_service_url: str
     chunking_service_url: str
     embedding_service_url: str
+    query_embedding_service_url: str
 
     # RunPod 설정
     runpod_api_url: Optional[str] = None
