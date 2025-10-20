@@ -10,3 +10,6 @@
 [submodule "fastapi-gateway"]
 	path = fastapi-gateway
 	url = https://lab.ssafy.com/gd10080008/fastapi-gateway.git
+[submodule "extract-repo"]
+	path = extract-repo
+	url = https://lab.ssafy.com/gd10080008/extract-repo.git
