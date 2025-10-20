@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     embedding_service_url: str
     query_embedding_service_url: str
     search_service_url: str
+    cross_encoder_service_url: str
 
     # RunPod 설정
     runpod_api_url: Optional[str] = None
