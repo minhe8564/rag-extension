@@ -5,6 +5,7 @@ from .config import settings
 from .admin import router as admin_router
 from .extract import router as extract_router
 from .chunking import router as chunking_router
+from .embedding import router as embedding_router
 import httpx
 import logging
 
@@ -28,6 +29,7 @@ app.add_middleware(
 app.include_router(admin_router, prefix="/ai/api")
 app.include_router(extract_router, prefix="/ai/api")
 app.include_router(chunking_router, prefix="/ai/api")
+app.include_router(embedding_router, prefix="/ai/api")
 
 @app.get("/")
 async def root():
