@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from ..common.auth.dependencies import require_admin
+from ..common.auth.models import UserInfo
 from ..database import get_db
 from .models import RunPod
 from .schemas import RunPodResponse, RunPodUpdate, RunPodUrlOnly
@@ -16,7 +18,11 @@ router = APIRouter(
     summary="Get Runpod Url",
     description="현재 활성화된 RunPod URL을 조회합니다."
 )
-async def get_runpod_url(db: AsyncSession = Depends(get_db)):
+
+async def get_runpod_url(
+    db: AsyncSession = Depends(get_db),
+    current_user: UserInfo = Depends(require_admin)
+):
     """
     현재 활성화된 RunPod URL 조회
     
@@ -41,11 +47,12 @@ async def get_runpod_url(db: AsyncSession = Depends(get_db)):
     "/runpod",
     status_code=204,
     summary="Update Runpod Url",
-    description="RunPod URL을 업데이트합니다."
+    description="RunPod URL을 업데이트합니다.(관리자만 접근 가능)"
 )
 async def update_runpod_url(
     runpod_update: RunPodUpdate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: UserInfo = Depends(require_admin)
 ):
     """
     RunPod URL 업데이트
@@ -77,7 +84,8 @@ async def update_runpod_url(
 )
 async def create_runpod_url(
     runpod_update: RunPodUpdate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: UserInfo = Depends(require_admin)
 ):
     """
     새로운 RunPod URL 생성
@@ -102,7 +110,8 @@ async def create_runpod_url(
 )
 async def get_runpod_history(
     limit: int = 10,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: UserInfo = Depends(require_admin)
 ):
     """
     RunPod URL 변경 히스토리 조회
@@ -126,7 +135,8 @@ async def get_runpod_history(
 )
 async def delete_runpod_url(
     api_url: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: UserInfo = Depends(require_admin)
 ):
     """
     특정 RunPod URL 삭제
@@ -163,7 +173,8 @@ async def delete_runpod_url(
 )
 async def delete_all_runpod_urls(
     confirm: bool = False,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: UserInfo = Depends(require_admin)
 ):
     """
     모든 RunPod URL 삭제 (위험!)

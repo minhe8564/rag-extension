@@ -14,6 +14,13 @@ class Settings(BaseSettings):
     def allowed_origins_list(self) -> List[str]:
         return [origin.strip() for origin in self.allowed_origins.split(",")]
 
+    # JWT 설정 (개선된 버전)
+    jwt_secret: str = "hebees-secret-key-for-jwt-token-generation-and-validation-256-bits"
+    jwt_algorithm: str = "HS512"
+    jwt_supported_algorithms: List[str] = ["HS256", "HS512"]
+    jwt_access_token_expire_minutes: int = 30
+    jwt_refresh_token_expire_days: int = 7
+
     # EXTRACT SERVICE URL
     extract_service_url: str
     chunking_service_url: str
@@ -41,6 +48,6 @@ class Settings(BaseSettings):
         env_file = BASE_DIR / ".env"
         env_file_encoding = "utf-8"
         case_sensitive = False
-        extra = "ignore"  # 추가 필드 무시
+        extra = "ignore"
 
 settings = Settings()
