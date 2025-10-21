@@ -16,7 +16,8 @@ public class CookieUtil {
     private String activeProfile;
 
     // HttpOnly + Secure 쿠키 추가
-    public void addHttpOnlyCookie(HttpServletResponse response, String name, String value, int maxAge) {
+    public void addHttpOnlyCookie(HttpServletResponse response, String name, String value,
+        int maxAge) {
         boolean isProd = activeProfile.equalsIgnoreCase("prod");
 
         ResponseCookie cookie = ResponseCookie.from(name, value)
