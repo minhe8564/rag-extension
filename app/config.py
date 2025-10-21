@@ -15,7 +15,7 @@ class Settings(BaseSettings):
         return [origin.strip() for origin in self.allowed_origins.split(",")]
 
     # JWT 설정 (개선된 버전)
-    jwt_secret: str = "hebees-secret-key-for-jwt-token-generation-and-validation-256-bits"
+    jwt_secret: str
     jwt_algorithm: str = "HS512"
     jwt_supported_algorithms: List[str] = ["HS256", "HS512"]
     jwt_access_token_expire_minutes: int = 30
@@ -39,7 +39,15 @@ class Settings(BaseSettings):
     milvus_port: int
 
     # Database 설정
-    database_url: str
+    db_host: str
+    db_port: int
+    db_name: str
+    db_username: str
+    db_password: str
+    
+    @property
+    def database_url(self) -> str:
+        return f"mysql+aiomysql://{self.db_username}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
 
     # 로깅
     logging_level: str = "INFO"

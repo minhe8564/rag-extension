@@ -36,7 +36,6 @@ app.add_middleware(
 async def jwt_auth_middleware_handler(request: Request, call_next):
     return await jwt_auth_middleware(request, call_next)
 
-# 라우터 연결 - 공통 prefix /ai/api 추가
 app.include_router(admin_router, prefix="/ai/api")
 app.include_router(extract_router, prefix="/ai/api")
 app.include_router(chunking_router, prefix="/ai/api")
@@ -54,9 +53,10 @@ async def root():
 
 @app.get("/health")
 async def health_check():
+    """기본 헬스체크"""
     return {
         "status": "healthy",
-        "version": __version__,
+        "version": __version__
     }
 
 @app.get("/ai/api/me")
