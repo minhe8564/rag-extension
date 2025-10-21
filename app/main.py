@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from . import __version__, __title__, __description__
 from .config import settings
+from .common.auth.middleware import jwt_auth_middleware
 from .admin import router as admin_router
 from .extract import router as extract_router
 from .chunking import router as chunking_router
@@ -20,6 +21,7 @@ app = FastAPI(
     version=__version__,
 )
 
+# CORS 미들웨어
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins_list,
@@ -27,6 +29,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# JWT 인증 미들웨어
+@app.middleware("http")
+async def jwt_auth_middleware_handler(request: Request, call_next):
+    return await jwt_auth_middleware(request, call_next)
 
 # 라우터 연결 - 공통 prefix /ai/api 추가
 app.include_router(admin_router, prefix="/ai/api")
@@ -49,4 +57,18 @@ async def health_check():
     return {
         "status": "healthy",
         "version": __version__,
+    }
+
+@app.get("/ai/api/me")
+async def get_current_user(request: Request):
+    """현재 사용자 정보 조회"""
+    from .common.auth.models import UserInfo
+    user = getattr(request.state, 'user', None)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    return {
+        "user_uuid": user.user_uuid,
+        "role": user.role,
+        "is_authenticated": user.is_authenticated
     }
