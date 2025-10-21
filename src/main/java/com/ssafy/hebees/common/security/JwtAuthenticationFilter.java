@@ -1,83 +1,76 @@
 package com.ssafy.hebees.common.security;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.ssafy.hebees.common.exception.ErrorCode;
-import com.ssafy.hebees.common.exception.ErrorResponse;
 import com.ssafy.hebees.common.util.JwtUtil;
 import com.ssafy.hebees.user.entity.UserRole;
-import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.MediaType;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.AuthorityUtils;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import java.io.IOException;
+import java.util.List;
+import java.util.UUID;
+
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
-    private final ObjectMapper objectMapper;
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
-        FilterChain filterChain)
-        throws ServletException, IOException {
+    protected void doFilterInternal(
+        HttpServletRequest request,
+        HttpServletResponse response,
+        FilterChain filterChain
+    ) throws ServletException, IOException {
 
-        String accessToken = JwtUtil.extractAccessToken(request);
+        try {
+            // Gateway에서 전달한 JWT 토큰 추출
+            String jwtToken = request.getHeader("X-JWT-Token");
 
-        if (accessToken != null) {
-            try {
-                jwtUtil.validateToken(accessToken);
-
-                String userUuid = jwtUtil.getSubject(accessToken);
-                String roleClaim = jwtUtil.getRole(accessToken);
-
-                List<GrantedAuthority> authorities;
-                if (roleClaim == null || roleClaim.isBlank()) {
-                    authorities = AuthorityUtils.NO_AUTHORITIES;
-                } else {
-                    try {
-                        UserRole userRole = UserRole.valueOf(roleClaim);
-                        authorities = AuthorityUtils.createAuthorityList("ROLE_" + userRole.name());
-                    } catch (IllegalArgumentException e) {
-                        setErrorResponse(response, ErrorCode.INVALID_ACCESS_TOKEN);
-                        return;
-                    }
-                }
-
-                Authentication authentication =
-                    new UsernamePasswordAuthenticationToken(userUuid, null, authorities);
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-            } catch (JwtException | IllegalArgumentException e) {
-                setErrorResponse(response, ErrorCode.INVALID_ACCESS_TOKEN);
-                return;
+            if (jwtToken == null) {
+                // Gateway를 거치지 않은 직접 요청의 경우 Authorization 헤더 확인
+                jwtToken = JwtUtil.extractAccessToken(request);
             }
+
+            if (jwtToken != null) {
+                // 토큰에서 사용자 정보 추출
+                String userUuidStr = jwtUtil.getSubject(jwtToken);
+                String roleStr = jwtUtil.getRole(jwtToken);
+
+                UUID userUuid = UUID.fromString(userUuidStr);
+                UserRole userRole = UserRole.valueOf(roleStr);
+
+                log.debug("JWT 인증 성공: userUuid={}, role={}", userUuid, userRole);
+
+                // Spring Security 인증 객체 생성
+                List<SimpleGrantedAuthority> authorities = List.of(
+                    new SimpleGrantedAuthority("ROLE_" + userRole.name())
+                );
+
+                UsernamePasswordAuthenticationToken authentication =
+                    new UsernamePasswordAuthenticationToken(userUuid, null, authorities);
+
+                authentication.setDetails(
+                    new WebAuthenticationDetailsSource().buildDetails(request));
+
+                // SecurityContext에 인증 정보 설정
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+            }
+        } catch (Exception e) {
+            log.warn("JWT 인증 처리 중 오류 발생: {}", e.getMessage());
+            // 오류가 발생해도 필터 체인은 계속 진행 (SecurityConfig에서 인증 체크)
         }
 
         filterChain.doFilter(request, response);
     }
-
-    private void setErrorResponse(HttpServletResponse response, ErrorCode errorCode)
-        throws IOException {
-        response.setStatus(errorCode.getStatus().value());
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        response.setCharacterEncoding("UTF-8");
-
-        ErrorResponse body = ErrorResponse.of(errorCode);
-        String jsonResponse = objectMapper.writeValueAsString(body);
-
-        response.getWriter().write(jsonResponse);
-    }
-
 }
