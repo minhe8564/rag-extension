@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 FROM node:22-alpine AS base
+=======
+FROM node:22.10.0-alpine AS base
+>>>>>>> ec401138e455b8322d634d7c0fca76202c4ad7a8
 
 RUN npm install -g pnpm
 WORKDIR /app
