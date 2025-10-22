@@ -2,7 +2,7 @@ from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import StreamingResponse, Response
 from starlette.background import BackgroundTask
 import httpx
-from ..config import settings
+from ..common.cache.service_url_cache import service_url_cache
 
 router = APIRouter(
     prefix="/extract",
@@ -25,7 +25,12 @@ async def proxy_extract(request: Request, path: str):
     Extract 서비스로 모든 요청 프록시
     """
     try:
-        target_url = f"{settings.extract_service_url}/{path}"
+        base_url = await service_url_cache.get_service_url("extract")
+        
+        if not base_url:
+            raise HTTPException(status_code=503, detail="Extract service URL not configured")
+        
+        target_url = f"{base_url}/{path}"
 
         # 요청 헤더 정제 (hop-by-hop, host, accept-encoding 제거)
         headers = {

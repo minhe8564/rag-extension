@@ -1,8 +1,11 @@
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request, HTTPException, Depends
 from fastapi.responses import StreamingResponse, Response
 from starlette.background import BackgroundTask
 import httpx
-from ..config import settings
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from ..database import get_db
+from ..admin.models import BaseURL
 
 router = APIRouter(prefix="/embedding", tags=["AI Embedding Service"])
 
@@ -17,9 +20,16 @@ async def _iter_request_body(request: Request):
         yield chunk
 
 @router.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
-async def proxy_embedding(request: Request, path: str):
+async def proxy_embedding(request: Request, path: str, db: AsyncSession = Depends(get_db)):
     try:
-        target_url = f"{settings.embedding_service_url}/{path}"
+        # DB에서 embedding 서비스 URL 조회
+        result = await db.execute(select(BaseURL).where(BaseURL.service_name == "embedding"))
+        base_url = result.scalar_one_or_none()
+        
+        if not base_url:
+            raise HTTPException(status_code=503, detail="Embedding service URL not configured")
+        
+        target_url = f"{base_url.base_url}/{path}"
 
         headers = {
             k: v for k, v in request.headers.items()

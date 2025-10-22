@@ -23,7 +23,10 @@ class JWTAuthMiddleware:
     
     def is_public_path(self, path: str) -> bool:
         """공개 경로 확인"""
-        return path in self.public_paths or path.startswith("/ai/api/health")
+        return (path in self.public_paths or 
+                path.startswith("/ai/api/health") or
+                # AI 서비스 프록시 경로 (새 서비스 추가 시 자동으로 포함됨)
+                (path.startswith("/ai/api/") and not path.startswith("/ai/api/admin/") and not path.startswith("/ai/api/me")))
     
     async def __call__(self, request: Request, call_next):
         """미들웨어 호출"""
