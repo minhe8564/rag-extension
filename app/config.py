@@ -21,17 +21,7 @@ class Settings(BaseSettings):
     jwt_access_token_expire_minutes: int = 30
     jwt_refresh_token_expire_days: int = 7
 
-    # EXTRACT SERVICE URL
-    extract_service_url: str
-    chunking_service_url: str
-    embedding_service_url: str
-    query_embedding_service_url: str
-    search_service_url: str
-    cross_encoder_service_url: str
-    generation_service_url: str
-
     # RunPod 설정
-    runpod_api_url: Optional[str] = None
     runpod_api_key: str
 
     # Milvus 설정

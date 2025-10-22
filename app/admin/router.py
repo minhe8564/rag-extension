@@ -4,205 +4,130 @@ from sqlalchemy import select
 from ..common.auth.dependencies import require_admin
 from ..common.auth.models import UserInfo
 from ..database import get_db
-from .models import RunPod
-from .schemas import RunPodResponse, RunPodUpdate, RunPodUrlOnly
+from .models import BaseURL
+from .schemas import BaseURLResponse, BaseURLCreate, BaseURLUpdate, BaseURLSimple
+from ..common.cache.service_url_cache import service_url_cache
 
 router = APIRouter(
     prefix="/admin",
-    tags=["AI Admin - RunPod Management"]
+    tags=["AI Admin - Base URL Management"]
 )
 
 @router.get(
-    "/runpod",
-    response_model=RunPodUrlOnly,
-    summary="Get Runpod Url",
-    description="현재 활성화된 RunPod URL을 조회합니다."
+    "/base-urls",
+    response_model=list[BaseURLSimple],
+    summary="Get All Base URLs",
+    description="모든 서비스의 Base URL을 조회합니다."
 )
-
-async def get_runpod_url(
+async def get_all_base_urls(
     db: AsyncSession = Depends(get_db),
     current_user: UserInfo = Depends(require_admin)
 ):
-    """
-    현재 활성화된 RunPod URL 조회
-    
-    - 가장 최근에 등록된 RunPod URL을 반환합니다.
-    - URL만 반환됩니다 (ID, 시간 정보 제외).
-    """
-    result = await db.execute(
-        select(RunPod).order_by(RunPod.id.desc()).limit(1)
-    )
-    runpod = result.scalar_one_or_none()
-    
-    if not runpod:
-        raise HTTPException(
-            status_code=404, 
-            detail="RunPod URL not found. Please set it first."
-        )
-    
-    return runpod
+    """모든 Base URL 조회"""
+    result = await db.execute(select(BaseURL))
+    base_urls = result.scalars().all()
+    return base_urls
 
-
-@router.patch(
-    "/runpod",
-    status_code=204,
-    summary="Update Runpod Url",
-    description="RunPod URL을 업데이트합니다.(관리자만 접근 가능)"
+@router.get(
+    "/base-urls/{service_name}",
+    response_model=BaseURLSimple,
+    summary="Get Base URL by Service Name",
+    description="특정 서비스의 Base URL을 조회합니다."
 )
-async def update_runpod_url(
-    runpod_update: RunPodUpdate,
+async def get_base_url(
+    service_name: str,
     db: AsyncSession = Depends(get_db),
     current_user: UserInfo = Depends(require_admin)
 ):
-    """
-    RunPod URL 업데이트
+    """특정 서비스 Base URL 조회"""
+    result = await db.execute(select(BaseURL).where(BaseURL.service_name == service_name))
+    base_url = result.scalar_one_or_none()
     
-    - 기존 URL이 있으면 업데이트, 없으면 새로 생성합니다.
-    - 204 No Content를 반환합니다.
-    """
-    result = await db.execute(
-        select(RunPod).order_by(RunPod.id.desc()).limit(1)
-    )
-    runpod = result.scalar_one_or_none()
+    if not base_url:
+        raise HTTPException(status_code=404, detail=f"Base URL for service '{service_name}' not found")
     
-    if runpod:
-        runpod.api_url = runpod_update.api_url
-    else:
-        runpod = RunPod(api_url=runpod_update.api_url)
-        db.add(runpod)
-    
-    await db.commit()
-    
-    return Response(status_code=204)
-
+    return base_url
 
 @router.post(
-    "/runpod",
-    status_code=201,
-    summary="Create Runpod Url",
-    description="새로운 RunPod URL을 생성합니다 (히스토리 유지)."
-)
-async def create_runpod_url(
-    runpod_update: RunPodUpdate,
-    db: AsyncSession = Depends(get_db),
-    current_user: UserInfo = Depends(require_admin)
-):
-    """
-    새로운 RunPod URL 생성
-    
-    - 기존 URL을 유지하고 새로운 레코드를 추가합니다.
-    - 히스토리 관리에 유용합니다.
-    - 201 Created를 반환합니다 (응답 body 없음).
-    """
-    runpod = RunPod(api_url=runpod_update.api_url)
-    db.add(runpod)
-    
-    await db.commit()
-    
-    return Response(status_code=201)
-
-
-@router.get(
-    "/runpod/history",
-    response_model=list[RunPodResponse],
-    summary="Get Runpod History",
-    description="RunPod URL 변경 히스토리를 조회합니다."
-)
-async def get_runpod_history(
-    limit: int = 10,
-    db: AsyncSession = Depends(get_db),
-    current_user: UserInfo = Depends(require_admin)
-):
-    """
-    RunPod URL 변경 히스토리 조회
-    
-    - 최근 변경 내역을 시간 역순으로 조회합니다.
-    - ID, URL, 생성/수정 시간을 모두 포함합니다.
-    """
-    result = await db.execute(
-        select(RunPod).order_by(RunPod.id.desc()).limit(limit)
-    )
-    runpods = result.scalars().all()
-    
-    return runpods
-
-
-@router.delete(
-    "/runpod",
+    "/base-urls",
     status_code=204,
-    summary="Delete Runpod Url",
-    description="특정 URL의 RunPod를 삭제합니다."
+    summary="Create Base URL",
+    description="새로운 서비스의 Base URL을 생성합니다."
 )
-async def delete_runpod_url(
-    api_url: str,
+async def create_base_url(
+    base_url: BaseURLCreate,
     db: AsyncSession = Depends(get_db),
     current_user: UserInfo = Depends(require_admin)
 ):
-    """
-    특정 RunPod URL 삭제
+    """새 Base URL 생성"""
+    # 중복 확인
+    result = await db.execute(select(BaseURL).where(BaseURL.service_name == base_url.service_name))
+    existing = result.scalar_one_or_none()
     
-    - api_url 파라미터로 삭제할 URL을 지정합니다.
-    - 일치하는 URL이 없으면 404 에러를 반환합니다.
-    - 204 No Content를 반환합니다.
+    if existing:
+        raise HTTPException(status_code=400, detail=f"Base URL for service '{base_url.service_name}' already exists")
     
-    Example:
-        DELETE /api/admin/runpod?api_url=https://api.runpod.ai/v2/xxx
-    """
-    result = await db.execute(
-        select(RunPod).where(RunPod.api_url == api_url)
-    )
-    runpod = result.scalar_one_or_none()
-    
-    if not runpod:
-        raise HTTPException(
-            status_code=404,
-            detail=f"RunPod URL '{api_url}' not found"
-        )
-    
-    await db.delete(runpod)
+    db_base_url = BaseURL(**base_url.dict())
+    db.add(db_base_url)
     await db.commit()
+    
+    # 캐시 갱신
+    await service_url_cache.refresh_cache()
     
     return Response(status_code=204)
 
-
-@router.delete(
-    "/runpod/all",
+@router.patch(
+    "/base-urls/{service_name}",
     status_code=204,
-    summary="Delete All Runpod Urls",
-    description="모든 RunPod URL을 삭제합니다 (주의!)."
+    summary="Update Base URL",
+    description="특정 서비스의 Base URL을 수정합니다."
 )
-async def delete_all_runpod_urls(
-    confirm: bool = False,
+async def update_base_url(
+    service_name: str,
+    base_url_update: BaseURLUpdate,
     db: AsyncSession = Depends(get_db),
     current_user: UserInfo = Depends(require_admin)
 ):
-    """
-    모든 RunPod URL 삭제 (위험!)
+    """Base URL 수정"""
+    result = await db.execute(select(BaseURL).where(BaseURL.service_name == service_name))
+    base_url = result.scalar_one_or_none()
     
-    - confirm=True를 반드시 설정해야 합니다.
-    - 모든 히스토리가 삭제됩니다.
+    if not base_url:
+        raise HTTPException(status_code=404, detail=f"Base URL for service '{service_name}' not found")
     
-    Example:
-        DELETE /api/admin/runpod/all?confirm=true
-    """
-    if not confirm:
-        raise HTTPException(
-            status_code=400,
-            detail="Please set confirm=True to delete all RunPod URLs"
-        )
-    
-    result = await db.execute(select(RunPod))
-    runpods = result.scalars().all()
-    
-    if not runpods:
-        raise HTTPException(
-            status_code=404,
-            detail="No RunPod URLs found"
-        )
-    
-    for runpod in runpods:
-        await db.delete(runpod)
+    update_data = base_url_update.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(base_url, field, value)
     
     await db.commit()
+    
+    # 캐시 갱신
+    await service_url_cache.refresh_cache()
+    
+    return Response(status_code=204)
+
+@router.delete(
+    "/base-urls/{service_name}",
+    status_code=204,
+    summary="Delete Base URL",
+    description="특정 서비스의 Base URL을 삭제합니다."
+)
+async def delete_base_url(
+    service_name: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserInfo = Depends(require_admin)
+):
+    """Base URL 삭제"""
+    result = await db.execute(select(BaseURL).where(BaseURL.service_name == service_name))
+    base_url = result.scalar_one_or_none()
+    
+    if not base_url:
+        raise HTTPException(status_code=404, detail=f"Base URL for service '{service_name}' not found")
+    
+    await db.delete(base_url)
+    await db.commit()
+    
+    # 캐시 갱신
+    await service_url_cache.refresh_cache()
     
     return Response(status_code=204)
