@@ -19,21 +19,6 @@ pipeline {
     }
 
     stages {
-        /********************  디버그: Webhook 변수 확인  ********************/
-        stage('Debug Webhook Variables') {
-            steps {
-                script {
-                    echo "=== GitLab Webhook Variables ==="
-                    echo "MR_STATE: '${env.MR_STATE}'"
-                    echo "GITLAB_OBJECT_KIND: '${env.GITLAB_OBJECT_KIND}'"
-                    echo "TARGET_BRANCH: '${env.TARGET_BRANCH}'"
-                    echo "SOURCE_BRANCH: '${env.SOURCE_BRANCH}'"
-                    echo "All environment variables:"
-                    sh 'env | grep GITLAB || env | grep MR || true'
-                    echo "================================"
-                }
-            }
-        }
 
         /********************  변경 파일 확인  ********************/
         stage('Check for Changes') {
@@ -126,7 +111,7 @@ pipeline {
                                 docker service create \\
                                     --name ${FE_TEST_CONTAINER} \\
                                     --network ${APP_NETWORK_TEST} \\
-                                    --publish 7443:443 \\
+                                    --publish 7443:80 \\
                                     --replicas 1 \\
                                     --constraint 'node.hostname==worker' \\
                                     --update-failure-action rollback \\
