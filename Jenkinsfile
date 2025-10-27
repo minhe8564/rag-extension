@@ -28,7 +28,7 @@ pipeline {
                     env.DO_FRONTEND_BUILD = 'false'
 
                     sh "git fetch --all >/dev/null 2>&1 || true"
-                    def changed = sh(script: "git diff --name-only origin/\${env.TARGET_BRANCH}...origin/\${env.SOURCE_BRANCH}", returnStdout: true).trim()
+                    def changed = sh(script: "git diff --name-only origin/\\\${env.TARGET_BRANCH}...origin/\\\${env.SOURCE_BRANCH}", returnStdout: true).trim()
 
                     echo "=== 변경된 파일 목록 ==="
                     echo changed
