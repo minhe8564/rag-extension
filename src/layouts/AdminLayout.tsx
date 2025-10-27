@@ -101,9 +101,6 @@ export default function AdminLayout() {
       </aside>
 
       <main className="flex-1 bg-gray-50 transition-all duration-300">
-        <header className="sticky top-0 z-30 border-b bg-white px-6 py-4 text-sm text-gray-600">
-          관리자 페이지
-        </header>
         <div className="p-6">
           <Outlet />
         </div>
