@@ -1,17 +1,20 @@
 import { useState } from 'react';
 import { useNavigate, NavLink } from 'react-router-dom';
-import HebeesGif from '@/assets/images/hebees-main.gif'; // 로그인 페이지와 동일한 GIF
-import Hebees from '@/assets/hebees-logo.webp'; // 로그인 페이지와 동일한 로고
+import HebeesGif from '@/assets/images/hebees-main.gif';
+import Hebees from '@/assets/hebees-logo.webp';
+import { Eye, EyeOff } from 'lucide-react';
 
 export default function Signup() {
   const nav = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState(''); // 비밀번호 확인 추가
-  const [businessId, setBusinessId] = useState(''); // 사업자 번호 추가
-  const [serviceName, setServiceName] = useState(''); // 서비스 사용 이름 추가
-  const [userType, setUserType] = useState('personal'); // 사용자 유형 상태 (기본값 'personal')
-  const [agreeToTerms, setAgreeToTerms] = useState(false); // 약관 동의 상태
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [businessId, setBusinessId] = useState('');
+  const [serviceName, setServiceName] = useState('');
+  const [userType, setUserType] = useState('personal');
+  const [agreeToTerms, setAgreeToTerms] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,6 +28,13 @@ export default function Signup() {
     }
     console.log('signup', { email, password, businessId, serviceName, userType, agreeToTerms });
     nav('/login', { replace: true });
+  };
+
+  const togglePasswordVisibility = (
+    setter: React.Dispatch<React.SetStateAction<boolean>>,
+    current: boolean
+  ) => {
+    setter(!current);
   };
 
   return (
@@ -66,25 +76,41 @@ export default function Signup() {
               required
             />
           </div>
-          <div>
+          <div className="relative">
             <input
-              className="w-full rounded-md border border-gray-300 p-3 text-sm outline-none focus:border-[var(--color-hebees-blue)] focus:bg-[var(--color-hebees-blue-bg)]"
-              type="password"
+              className="w-full rounded-md border border-gray-300 p-3 text-sm outline-none focus:border-[var(--color-hebees-blue)] focus:bg-[var(--color-hebees-blue-bg)] pr-10" // pr-10으로 오른쪽에 패딩 추가
+              type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={e => setPassword(e.target.value)}
               placeholder="비밀번호를 입력하세요."
               required
             />
+            <button
+              type="button"
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400"
+              onClick={() => togglePasswordVisibility(setShowPassword, showPassword)}
+              aria-label={showPassword ? '비밀번호 숨기기' : '비밀번호 보기'}
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
           </div>
-          <div>
+          <div className="relative">
             <input
-              className="w-full rounded-md border border-gray-300 p-3 text-sm outline-none focus:border-[var(--color-hebees-blue)] focus:bg-[var(--color-hebees-blue-bg)]"
-              type="password"
+              className="w-full rounded-md border border-gray-300 p-3 text-sm outline-none focus:border-[var(--color-hebees-blue)] focus:bg-[var(--color-hebees-blue-bg)] pr-10" // pr-10으로 오른쪽에 패딩 추가
+              type={showConfirmPassword ? 'text' : 'password'}
               value={confirmPassword}
               onChange={e => setConfirmPassword(e.target.value)}
               placeholder="비밀번호를 다시 입력하세요."
               required
             />
+            <button
+              type="button"
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400"
+              onClick={() => togglePasswordVisibility(setShowConfirmPassword, showConfirmPassword)}
+              aria-label={showConfirmPassword ? '비밀번호 숨기기' : '비밀번호 보기'}
+            >
+              {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
           </div>
           <div>
             <input
