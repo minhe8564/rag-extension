@@ -19,6 +19,21 @@ pipeline {
     }
 
     stages {
+        /********************  디버그: Webhook 변수 확인  ********************/
+        stage('Debug Webhook Variables') {
+            steps {
+                script {
+                    echo "=== GitLab Webhook Variables ==="
+                    echo "MR_STATE: '${env.MR_STATE}'"
+                    echo "GITLAB_OBJECT_KIND: '${env.GITLAB_OBJECT_KIND}'"
+                    echo "TARGET_BRANCH: '${env.TARGET_BRANCH}'"
+                    echo "SOURCE_BRANCH: '${env.SOURCE_BRANCH}'"
+                    echo "All environment variables:"
+                    sh 'env | grep GITLAB || env | grep MR || true'
+                    echo "================================"
+                }
+            }
+        }
 
         /********************  변경 파일 확인  ********************/
         stage('Check for Changes') {
@@ -37,7 +52,7 @@ pipeline {
                     if (changed.contains('frontend-repo/')) env.DO_FRONTEND_BUILD = 'true'
 
                     echo "=== 빌드 결정 사항 ==="
-                    echo "DO_FRONTEND_BUILD: \${env.DO_FRONTEND_BUILD}"
+                    echo "DO_FRONTEND_BUILD: ${env.DO_FRONTEND_BUILD}"
                     echo "====================="
                 }
             }
@@ -58,13 +73,13 @@ pipeline {
                     
                     // Overlay 네트워크 생성
                     // Test 환경 네트워크
-                    sh "docker network create --driver overlay --attachable \${APP_NETWORK_TEST} || true"
+                    sh "docker network create --driver overlay --attachable ${APP_NETWORK_TEST} || true"
                     
                     // Production 환경 네트워크
-                    sh "docker network create --driver overlay --attachable \${APP_NETWORK_PROD} || true"
+                    sh "docker network create --driver overlay --attachable ${APP_NETWORK_PROD} || true"
                     
                     echo "✅ Docker Swarm 네트워크 준비 완료"
-                    echo "- Application Networks: \${APP_NETWORK_TEST}, \${APP_NETWORK_PROD}"
+                    echo "- Application Networks: ${APP_NETWORK_TEST}, ${APP_NETWORK_PROD}"
                 }
             }
         }
@@ -87,7 +102,7 @@ pipeline {
 
                     if (branch == 'develop') {
                         withCredentials([file(credentialsId: '.env.development', variable: 'ENV_FILE')]) {
-                            def tag = "\${FE_IMAGE_NAME}:test-\${BUILD_NUMBER}"
+                            def tag = "${FE_IMAGE_NAME}:test-${BUILD_NUMBER}"
 
                             sh """
                             set -eux
@@ -98,30 +113,30 @@ pipeline {
                             cp "\$ENV_FILE" _docker_ctx/.env
                             ls -la _docker_ctx/.env
                             cat _docker_ctx/.env
-                            docker build -t \${tag} --build-arg ENV=test _docker_ctx
+                            docker build -t ${tag} --build-arg ENV=test _docker_ctx
                             """
                             
                             // Test: 포트 7443
                             sh """
-                            if docker service inspect \${FE_TEST_CONTAINER} >/dev/null 2>&1; then
+                            if docker service inspect ${FE_TEST_CONTAINER} >/dev/null 2>&1; then
                                 docker service update \\
-                                    --image \${tag} \\
-                                    \${FE_TEST_CONTAINER}
+                                    --image ${tag} \\
+                                    ${FE_TEST_CONTAINER}
                             else
                                 docker service create \\
-                                    --name \${FE_TEST_CONTAINER} \\
-                                    --network \${APP_NETWORK_TEST} \\
+                                    --name ${FE_TEST_CONTAINER} \\
+                                    --network ${APP_NETWORK_TEST} \\
                                     --publish 7443:443 \\
                                     --replicas 1 \\
                                     --constraint 'node.hostname==worker' \\
                                     --update-failure-action rollback \\
-                                    \${tag}
+                                    ${tag}
                             fi
                             """
                         }
                     } else if (branch == 'main') {
                         withCredentials([file(credentialsId: '.env.production', variable: 'ENV_FILE')]) {
-                            def tag = "\${FE_IMAGE_NAME}:prod-\${BUILD_NUMBER}"
+                            def tag = "${FE_IMAGE_NAME}:prod-${BUILD_NUMBER}"
 
                             sh """
                             set -eux
@@ -132,30 +147,30 @@ pipeline {
                             cp "\$ENV_FILE" _docker_ctx/.env.production
                             ls -la _docker_ctx/.env.production
                             cat _docker_ctx/.env.production
-                            docker build -t \${tag} --build-arg ENV=prod _docker_ctx
+                            docker build -t ${tag} --build-arg ENV=prod _docker_ctx
                             """
                             
                             // Prod: 포트 80, 443
                             sh """
-                            if docker service inspect \${FE_PROD_CONTAINER} >/dev/null 2>&1; then
+                            if docker service inspect ${FE_PROD_CONTAINER} >/dev/null 2>&1; then
                                 docker service update \\
-                                    --image \${tag} \\
-                                    \${FE_PROD_CONTAINER}
+                                    --image ${tag} \\
+                                    ${FE_PROD_CONTAINER}
                             else
                                 docker service create \\
-                                    --name \${FE_PROD_CONTAINER} \\
-                                    --network \${APP_NETWORK_PROD} \\
+                                    --name ${FE_PROD_CONTAINER} \\
+                                    --network ${APP_NETWORK_PROD} \\
                                     --publish 80:80 \\
                                     --publish 443:443 \\
                                     --replicas 1 \\
                                     --constraint 'node.hostname==worker' \\
                                     --update-failure-action rollback \\
-                                    \${tag}
+                                    ${tag}
                             fi
                             """
                         }
                     } else {
-                        error "[Deploy Frontend] 지원하지 않는 브랜치='\${branch}'. (develop/main 만 지원)"
+                        error "[Deploy Frontend] 지원하지 않는 브랜치='${branch}'. (develop/main 만 지원)"
                     }
                 }
             }
@@ -164,7 +179,7 @@ pipeline {
     
     post {
         always {
-            echo "📦 Pipeline finished with status: \${currentBuild.currentResult}"
+            echo "📦 Pipeline finished with status: ${currentBuild.currentResult}"
         }
     }
 }
