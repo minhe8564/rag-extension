@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
-import { Menu, LayoutDashboard, FileText, FlaskConical, Settings } from 'lucide-react';
+import { Menu, Settings, Monitor, FolderCog, MessageCirclePlus, Bot} from 'lucide-react';
+import  hebesslogo  from '@/assets/hebesslogo.png';
 
 const linkCls = ({ isActive }: { isActive: boolean }) =>
   'flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ' +
-  (isActive ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-gray-100');
+  (isActive ? 'bg-[var(--color-hebees)] text-white' : 'text-gray-700 hover:bg-[var(--color-hebees-bg)] hover:text-[var(--color-hebees)]');
 
 export default function AdminLayout() {
   const [isOpen, setIsOpen] = useState(true);
@@ -18,7 +19,7 @@ export default function AdminLayout() {
       >
         <div className="flex items-center justify-between px-4 py-4">
           {isOpen ? (
-            <div className="text-lg font-semibold">Admin</div>
+            <div className="text-lg font-semibold"><img src={hebesslogo} alt="hebesslogo" className="w-24 h-12 object-contain" /></div>
           ) : (
             <div className="w-full flex justify-center">
               <button
@@ -39,23 +40,28 @@ export default function AdminLayout() {
 
         <nav className="flex flex-col gap-1 px-2">
           <NavLink to="/admin/dashboard" className={linkCls}>
-            <LayoutDashboard size={18} />
+            <Monitor size={18} />
             {isOpen && <span>대시보드</span>}
           </NavLink>
 
           <NavLink to="/admin/documents" className={linkCls}>
-            <FileText size={18} />
+            <FolderCog size={18} />
             {isOpen && <span>문서 관리</span>}
           </NavLink>
 
-          <NavLink to="/admin/rag/test" className={linkCls}>
-            <FlaskConical size={18} />
-            {isOpen && <span>RAG 테스트</span>}
+          <NavLink to="/admin/chat" className={linkCls}>
+            <MessageCirclePlus size={18} />
+            {isOpen && <span>새 채팅 시작하기</span>}
           </NavLink>
 
           <NavLink to="/admin/rag/settings" className={linkCls}>
             <Settings size={18} />
             {isOpen && <span>RAG 설정</span>}
+          </NavLink>
+
+          <NavLink to="/admin/rag/test" className={linkCls}>
+            <Bot size={18} />
+            {isOpen && <span>RAG 테스트</span>}
           </NavLink>
         </nav>
       </aside>
