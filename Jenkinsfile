@@ -1,3 +1,116 @@
+// Blue/Green 배포를 위한 헬퍼 함수들 (pipeline 블록 밖에 정의)
+def getCurrentActiveContainer(environment) {
+    def blueContainer = environment == 'test' ? env.BE_TEST_BLUE_CONTAINER : env.BE_PROD_BLUE_CONTAINER
+    def greenContainer = environment == 'test' ? env.BE_TEST_GREEN_CONTAINER : env.BE_PROD_GREEN_CONTAINER
+    def bluePort = environment == 'test' ? env.BE_TEST_BLUE_PORT : env.BE_PROD_BLUE_PORT
+    def greenPort = environment == 'test' ? env.BE_TEST_GREEN_PORT : env.BE_PROD_GREEN_PORT
+    
+    // 현재 활성 컨테이너 확인
+    def blueStatus = sh(script: "docker ps --filter name=${blueContainer} --format '{{.Status}}'", returnStdout: true).trim()
+    def greenStatus = sh(script: "docker ps --filter name=${greenContainer} --format '{{.Status}}'", returnStdout: true).trim()
+    
+    if (blueStatus.contains('Up')) {
+        return ['blue', blueContainer, greenContainer, bluePort, greenPort]
+    } else if (greenStatus.contains('Up')) {
+        return ['green', greenContainer, blueContainer, greenPort, bluePort]
+    } else {
+        // 둘 다 없으면 blue를 기본으로
+        return ['blue', blueContainer, greenContainer, bluePort, greenPort]
+    }
+}
+
+def deployToInactiveEnvironment(environment, credentials, inactiveContainer, networkName, port) {
+    withCredentials(credentials) {
+        def tag = "${env.BE_IMAGE_NAME}:${environment}-${env.BUILD_NUMBER}"
+        
+        sh """
+        # 비활성 환경에 새 컨테이너 배포
+        docker stop ${inactiveContainer} || true
+        docker rm ${inactiveContainer} || true
+        
+        docker run -d \\
+            --name ${inactiveContainer} \\
+            --restart unless-stopped \\
+            --network ${networkName} \\
+            --network-alias backend-${environment}-new \\
+            --publish ${port}:8080 \\
+            --env SPRING_PROFILES_ACTIVE=${environment} \\
+            --env DB_USERNAME=\$DB_USERNAME \\
+            --env DB_PASSWORD=\$DB_PASSWORD \\
+            --env DB_NAME=\$DB_NAME \\
+            --env REDIS_PASSWORD=\$REDIS_PASSWORD \\
+            --env JWT_SECRET=\$JWT_SECRET \\
+            --env JWT_ACCESS_EXPIRATION=\$JWT_ACCESS_EXPIRATION \\
+            --env JWT_REFRESH_EXPIRATION=\$JWT_REFRESH_EXPIRATION \\
+            ${tag}
+        
+        # DB 네트워크에도 연결
+        docker network connect ${env.DB_NETWORK} ${inactiveContainer} || true
+        """
+    }
+}
+
+def healthCheck(containerName, port) {
+    def maxRetries = 30
+    def retryCount = 0
+    
+    while (retryCount < maxRetries) {
+        try {
+            def response = sh(script: "curl -f http://localhost:${port}/actuator/health || exit 1", returnStatus: true)
+            if (response == 0) {
+                echo "✅ Health check passed for ${containerName}"
+                return true
+            }
+        } catch (Exception e) {
+            echo "⏳ Health check attempt ${retryCount + 1}/${maxRetries} failed for ${containerName}"
+        }
+        
+        retryCount++
+        sleep(2)
+    }
+    
+    echo "❌ Health check failed for ${containerName} after ${maxRetries} attempts"
+    return false
+}
+
+def switchTraffic(environment, activeContainer, inactiveContainer, networkName) {
+    sh """
+    # 기존 활성 컨테이너의 네트워크 별칭 제거
+    docker network disconnect ${networkName} ${activeContainer} || true
+    
+    # 새 컨테이너를 활성화 (네트워크 별칭 변경)
+    docker network connect --alias backend-${environment} ${networkName} ${inactiveContainer} || true
+    
+    # 기존 컨테이너 중지
+    docker stop ${activeContainer} || true
+    """
+    
+    echo "🔄 Traffic switched from ${activeContainer} to ${inactiveContainer}"
+}
+
+def cleanupOldResources() {
+    echo "🧹 Cleaning up old Docker resources..."
+    
+    sh """
+    # 중지된 컨테이너 제거 (Blue/Green 컨테이너 제외하고 오래된 것만)
+    docker container prune -f --filter "until=24h" || true
+    
+    # 사용하지 않는 이미지 제거 (최근 5개 빌드 제외)
+    docker images ${env.BE_IMAGE_NAME} --format "{{.ID}} {{.CreatedAt}}" | \\
+        tail -n +6 | \\
+        awk '{print \$1}' | \\
+        xargs -r docker rmi -f || true
+    
+    # 사용하지 않는 볼륨 제거
+    docker volume prune -f || true
+    
+    # 사용하지 않는 네트워크 제거 (db-network, app-network는 제외)
+    docker network prune -f || true
+    """
+    
+    echo "✅ Cleanup completed"
+}
+
 pipeline {
     agent any
 
@@ -5,6 +118,7 @@ pipeline {
         booleanParam(name: 'BUILD_BACKEND', defaultValue: false, description: '백엔드를 수동으로 빌드하고 배포하려면 체크하세요.')
         string(name: 'BRANCH_TO_BUILD', defaultValue: 'develop', description: '수동 빌드 시 기준 브랜치를 선택하세요 (develop 또는 main).')
         booleanParam(name: 'ROLLBACK_DEPLOYMENT', defaultValue: false, description: '이전 버전으로 롤백하려면 체크하세요.')
+        booleanParam(name: 'CLEANUP_ONLY', defaultValue: false, description: '오래된 컨테이너/이미지만 정리하려면 체크하세요.')
     }
 
     /********************  환경 변수  ********************/
@@ -28,96 +142,6 @@ pipeline {
         APP_NETWORK_TEST = "app-network-test"
         APP_NETWORK_PROD = "app-network-prod"
         DB_NETWORK       = "db-network"
-    }
-
-    // Blue/Green 배포를 위한 헬퍼 함수들
-    def getCurrentActiveContainer(environment) {
-        def blueContainer = environment == 'test' ? BE_TEST_BLUE_CONTAINER : BE_PROD_BLUE_CONTAINER
-        def greenContainer = environment == 'test' ? BE_TEST_GREEN_CONTAINER : BE_PROD_GREEN_CONTAINER
-        def bluePort = environment == 'test' ? BE_TEST_BLUE_PORT : BE_PROD_BLUE_PORT
-        def greenPort = environment == 'test' ? BE_TEST_GREEN_PORT : BE_PROD_GREEN_PORT
-        
-        // 현재 활성 컨테이너 확인
-        def blueStatus = sh(script: "docker ps --filter name=${blueContainer} --format '{{.Status}}'", returnStdout: true).trim()
-        def greenStatus = sh(script: "docker ps --filter name=${greenContainer} --format '{{.Status}}'", returnStdout: true).trim()
-        
-        if (blueStatus.contains('Up')) {
-            return ['blue', blueContainer, greenContainer, bluePort, greenPort]
-        } else if (greenStatus.contains('Up')) {
-            return ['green', greenContainer, blueContainer, greenPort, bluePort]
-        } else {
-            // 둘 다 없으면 blue를 기본으로
-            return ['blue', blueContainer, greenContainer, bluePort, greenPort]
-        }
-    }
-    
-    def deployToInactiveEnvironment(environment, credentials, inactiveContainer, networkName, port) {
-        withCredentials(credentials) {
-            def tag = "${BE_IMAGE_NAME}:${environment}-${BUILD_NUMBER}"
-            
-            sh """
-            # 비활성 환경에 새 컨테이너 배포
-            docker stop ${inactiveContainer} || true
-            docker rm ${inactiveContainer} || true
-            
-            docker run -d \\
-                --name ${inactiveContainer} \\
-                --restart unless-stopped \\
-                --network ${networkName} \\
-                --network-alias backend-${environment}-new \\
-                --publish ${port}:8080 \\
-                --env SPRING_PROFILES_ACTIVE=${environment} \\
-                --env DB_USERNAME=\$DB_USERNAME \\
-                --env DB_PASSWORD=\$DB_PASSWORD \\
-                --env DB_NAME=\$DB_NAME \\
-                --env REDIS_PASSWORD=\$REDIS_PASSWORD \\
-                --env JWT_SECRET=\$JWT_SECRET \\
-                --env JWT_ACCESS_EXPIRATION=\$JWT_ACCESS_EXPIRATION \\
-                --env JWT_REFRESH_EXPIRATION=\$JWT_REFRESH_EXPIRATION \\
-                ${tag}
-            
-            # DB 네트워크에도 연결
-            docker network connect ${DB_NETWORK} ${inactiveContainer} || true
-            """
-        }
-    }
-    
-    def healthCheck(containerName, port) {
-        def maxRetries = 30
-        def retryCount = 0
-        
-        while (retryCount < maxRetries) {
-            try {
-                def response = sh(script: "curl -f http://localhost:${port}/actuator/health || exit 1", returnStatus: true)
-                if (response == 0) {
-                    echo "✅ Health check passed for ${containerName}"
-                    return true
-                }
-            } catch (Exception e) {
-                echo "⏳ Health check attempt ${retryCount + 1}/${maxRetries} failed for ${containerName}"
-            }
-            
-            retryCount++
-            sleep(2)
-        }
-        
-        echo "❌ Health check failed for ${containerName} after ${maxRetries} attempts"
-        return false
-    }
-    
-    def switchTraffic(environment, activeContainer, inactiveContainer, networkName) {
-        sh """
-        # 기존 활성 컨테이너의 네트워크 별칭 제거
-        docker network disconnect ${networkName} ${activeContainer} || true
-        
-        # 새 컨테이너를 활성화 (네트워크 별칭 변경)
-        docker network connect --alias backend-${environment} ${networkName} ${inactiveContainer} || true
-        
-        # 기존 컨테이너 중지
-        docker stop ${activeContainer} || true
-        """
-        
-        echo "🔄 Traffic switched from ${activeContainer} to ${inactiveContainer}"
     }
 
     stages {
@@ -375,9 +399,44 @@ pipeline {
                 }
             }
         }
+
+        /******************** Cleanup  ********************/
+        stage('Cleanup Old Resources') {
+            when {
+                expression { params.CLEANUP_ONLY == true }
+            }
+            steps {
+                script {
+                    echo "🧹 Manual cleanup requested"
+                    cleanupOldResources()
+                }
+            }
+        }
     }
     
     post {
+        success {
+            script {
+                echo "✅ Pipeline succeeded!"
+                
+                // 성공 시에만 오래된 리소스 정리
+                if (env.GITLAB_OBJECT_KIND == 'push' || params.BUILD_BACKEND == true) {
+                    cleanupOldResources()
+                }
+            }
+        }
+        
+        failure {
+            script {
+                echo "❌ Pipeline failed!"
+                
+                // 실패 시 롤백 정보 출력
+                if (env.GITLAB_OBJECT_KIND == 'push' || params.BUILD_BACKEND == true) {
+                    echo "🔄 Consider running manual rollback with ROLLBACK_DEPLOYMENT parameter"
+                }
+            }
+        }
+        
         always {
             echo "📦 Pipeline finished with status: ${currentBuild.currentResult}"
         }
