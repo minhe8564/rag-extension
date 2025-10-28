@@ -101,12 +101,14 @@ pipeline {
                             docker build -t ${tag} --build-arg ENV=test _docker_ctx
                             """
                             
-                            // Test: 포트 7443
+                            // Test: 포트 17443
                             sh """
                             if docker service inspect ${FE_TEST_CONTAINER} >/dev/null 2>&1; then
                                 docker service update \\
                                     --image ${tag} \\
                                     ${FE_TEST_CONTAINER}
+                                # 종료된 컨테이너 정리
+                                docker container prune -f || true
                             else
                                 docker service create \\
                                     --name ${FE_TEST_CONTAINER} \\
@@ -135,12 +137,14 @@ pipeline {
                             docker build -t ${tag} --build-arg ENV=prod _docker_ctx
                             """
                             
-                            // Prod: 포트 80, 443
+                            // Prod: 포트 7443
                             sh """
                             if docker service inspect ${FE_PROD_CONTAINER} >/dev/null 2>&1; then
                                 docker service update \\
                                     --image ${tag} \\
                                     ${FE_PROD_CONTAINER}
+                                # 종료된 컨테이너 정리
+                                docker container prune -f || true
                             else
                                 docker service create \\
                                     --name ${FE_PROD_CONTAINER} \\
