@@ -5,10 +5,10 @@ import Tooltip from '@/shared/components/Tooltip';
 import HebeesLogo from '@/assets/hebees-logo.png';
 
 const linkCls = ({ isActive }: { isActive: boolean }) =>
-  'flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ' +
+  'flex items-center gap-2 rounded-md px-3 py-3 text-base transition-colors ' +
   (isActive
-    ? 'bg-[var(--color-hebees)] text-white'
-    : 'text-gray-700 hover:bg-[var(--color-hebees-bg)] hover:text-[var(--color-hebees)]');
+    ? 'bg-[var(--color-hebees-bg)] text-[var(--color-hebees)]'
+    : 'text-gray-700 hover:bg-[var(--color-hebees)] hover:text-white');
 
 export default function AdminLayout() {
   const [isOpen, setIsOpen] = useState(true);
@@ -17,13 +17,13 @@ export default function AdminLayout() {
     <div className="flex min-h-screen">
       <aside
         className={`flex flex-col bg-white transition-all duration-300 shadow-sm h-screen ${
-          isOpen ? 'w-60 border-r' : 'w-16 border-r'
+          isOpen ? 'w-72 border-r' : 'w-[72px] border-r'
         }`}
       >
-        <div className="flex items-center justify-between h-16 py-4 px-6">
+        <div className="flex items-center justify-between px-4 py-6">
           {isOpen ? (
             <div className="text-lg font-semibold">
-              <img src={HebeesLogo} alt="Hebees" className="w-24 h-8 object-contain" />
+              <img src={HebeesLogo} alt="Hebees" className="w-30 h-10 object-contain" />
             </div>
           ) : (
             <div className="w-full flex justify-center">
@@ -52,7 +52,7 @@ export default function AdminLayout() {
 
         <nav className="flex flex-col gap-1 px-2 mt-2 overflow-hidden whitespace-nowrap">
           <NavLink to="/admin/dashboard" className={linkCls}>
-            <Monitor size={18} className="flex-shrink-0" />
+            <Monitor size={20} className="flex-shrink-0" />
             <div
               className={`transition-[width] duration-300 overflow-hidden ${
                 isOpen ? 'w-32' : 'w-0'
@@ -63,7 +63,7 @@ export default function AdminLayout() {
           </NavLink>
 
           <NavLink to="/admin/documents" className={linkCls}>
-            <FolderCog size={18} className="flex-shrink-0" />
+            <FolderCog size={20} className="flex-shrink-0" />
             <div
               className={`transition-[width] duration-300 overflow-hidden ${
                 isOpen ? 'w-32' : 'w-0'
@@ -74,7 +74,7 @@ export default function AdminLayout() {
           </NavLink>
 
           <NavLink to="/admin/chat" className={linkCls}>
-            <MessageCirclePlus size={18} className="flex-shrink-0" />
+            <MessageCirclePlus size={20} className="flex-shrink-0" />
             <div
               className={`transition-[width] duration-300 overflow-hidden ${
                 isOpen ? 'w-32' : 'w-0'
@@ -85,7 +85,7 @@ export default function AdminLayout() {
           </NavLink>
 
           <NavLink to="/admin/rag/settings" className={linkCls}>
-            <Settings size={18} className="flex-shrink-0" />
+            <Settings size={20} className="flex-shrink-0" />
             <div
               className={`transition-[width] duration-300 overflow-hidden ${
                 isOpen ? 'w-32' : 'w-0'

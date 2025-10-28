@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
-import { Menu, MessageSquare, Image, FileText } from 'lucide-react';
+import { Menu, MessageSquare, Image, FolderCog } from 'lucide-react';
 import Tooltip from '@/shared/components/Tooltip';
 import RetinaLogo from '@/assets/retina-logo.png';
 
 const linkCls = ({ isActive }: { isActive: boolean }) =>
-  'flex items-center gap-3 rounded-md px-4 py-3 text-sm transition-colors ' +
+  'flex items-center gap-2 rounded-md px-3 py-3 text-base transition-colors ' +
   (isActive
-    ? 'bg-[var(--color-retina)] text-white'
-    : 'text-gray-700 hover:bg-[var(--color-retina-bg)] hover:text-[var(--color-retina)]');
+    ? 'bg-[var(--color-retina-bg)] text-[var(--color-retina)]'
+    : 'text-gray-700 hover:bg-[var(--color-retina)] hover:text-white');
 
 export default function UserLayout() {
   const [isOpen, setIsOpen] = useState(true);
@@ -17,7 +17,7 @@ export default function UserLayout() {
     <div className="flex min-h-screen">
       <aside
         className={`flex flex-col bg-white transition-all duration-300 shadow-sm h-screen ${
-          isOpen ? 'w-60 border-r' : 'w-16 border-r'
+          isOpen ? 'w-72 border-r' : 'w-[72px] border-r'
         }`}
       >
         <div className="flex items-center justify-between px-4 py-6">
@@ -50,18 +50,36 @@ export default function UserLayout() {
           )}
         </div>
 
-        <nav className="flex flex-col gap-1 px-2">
+        <nav className="flex flex-col gap-1 px-2 mt-2 overflow-hidden whitespace-nowrap">
           <NavLink to="/user/chat/text" className={linkCls}>
-            <MessageSquare size={20} />
-            {isOpen && <span>텍스트 채팅</span>}
+            <MessageSquare size={20} className="flex-shrink-0" />
+            <div
+              className={`transition-[width] duration-300 overflow-hidden ${
+                isOpen ? 'w-32' : 'w-0'
+              }`}
+            >
+              <span className="pl-2 inline-block">텍스트 채팅</span>
+            </div>
           </NavLink>
           <NavLink to="/user/chat/image" className={linkCls}>
-            <Image size={18} />
-            {isOpen && <span>이미지 채팅</span>}
+            <Image size={20} className="flex-shrink-0" />
+            <div
+              className={`transition-[width] duration-300 overflow-hidden ${
+                isOpen ? 'w-32' : 'w-0'
+              }`}
+            >
+              <span className="pl-2 inline-block">이미지 채팅</span>
+            </div>
           </NavLink>
           <NavLink to="/user/documents" className={linkCls}>
-            <FileText size={18} />
-            {isOpen && <span>내 문서</span>}
+            <FolderCog size={20} className="flex-shrink-0" />
+            <div
+              className={`transition-[width] duration-300 overflow-hidden ${
+                isOpen ? 'w-32' : 'w-0'
+              }`}
+            >
+              <span className="pl-2 inline-block">내 문서 관리</span>
+            </div>
           </NavLink>
         </nav>
       </aside>
