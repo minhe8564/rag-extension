@@ -107,7 +107,6 @@ pipeline {
                             docker build -t ${tag} --build-arg ENV=test _docker_ctx
                             """
                             
-                            // Test: 포트 17443
                             sh """
                             # 기존 컨테이너 중지 및 삭제
                             docker stop ${FE_TEST_CONTAINER} || true
@@ -138,7 +137,6 @@ pipeline {
                             docker build -t ${tag} --build-arg ENV=prod _docker_ctx
                             """
                             
-                            // Prod: 포트 7443
                             sh """
                             # 기존 컨테이너 중지 및 삭제
                             docker stop ${FE_PROD_CONTAINER} || true
