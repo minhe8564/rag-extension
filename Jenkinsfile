@@ -32,6 +32,7 @@ def deployToInactiveEnvironment(environment, credentials, inactiveContainer, net
             --name ${inactiveContainer} \\
             --restart unless-stopped \\
             --network ${networkName} \\
+            --network ${env.DB_NETWORK} \\
             --network-alias backend-${environment}-new \\
             --publish ${port}:8080 \\
             --env SPRING_PROFILES_ACTIVE=${environment} \\
@@ -43,9 +44,6 @@ def deployToInactiveEnvironment(environment, credentials, inactiveContainer, net
             --env JWT_ACCESS_TOKEN_EXPIRATION=\$JWT_ACCESS_EXPIRATION \\
             --env JWT_REFRESH_TOKEN_EXPIRATION=\$JWT_REFRESH_EXPIRATION \\
             ${tag}
-        
-        # DB 네트워크에도 연결
-        docker network connect ${env.DB_NETWORK} ${inactiveContainer} || true
         """
     }
 }
