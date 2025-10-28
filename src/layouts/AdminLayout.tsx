@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
-import { Menu, Settings, Monitor, FolderCog, MessageCirclePlus, Bot, Folder } from 'lucide-react';
+import { Menu, Settings, Monitor, FolderCog, MessageCirclePlus, Bot, Bell } from 'lucide-react';
 import hebesslogo from '@/assets/hebesslogo.png';
 
 const linkCls = ({ isActive }: { isActive: boolean }) =>
@@ -66,7 +66,7 @@ export default function AdminLayout() {
           </NavLink>
 
           <NavLink to="/admin/chat" className={linkCls}>
-            <MessageCirclePlus size={18} className="flex-shrink-0"/>
+            <MessageCirclePlus size={18} className="flex-shrink-0" />
             <div
               className={`transition-[width] duration-300 overflow-hidden ${
                 isOpen ? 'w-32' : 'w-0'
@@ -77,7 +77,7 @@ export default function AdminLayout() {
           </NavLink>
 
           <NavLink to="/admin/rag/settings" className={linkCls}>
-            <Settings size={18} className="flex-shrink-0"/>
+            <Settings size={18} className="flex-shrink-0" />
             <div
               className={`transition-[width] duration-300 overflow-hidden ${
                 isOpen ? 'w-32' : 'w-0'
@@ -88,7 +88,7 @@ export default function AdminLayout() {
           </NavLink>
 
           <NavLink to="/admin/rag/test" className={linkCls}>
-            <Bot size={18} className="flex-shrink-0"/>
+            <Bot size={18} className="flex-shrink-0" />
             <div
               className={`transition-[width] duration-300 overflow-hidden ${
                 isOpen ? 'w-32' : 'w-0'
@@ -101,7 +101,11 @@ export default function AdminLayout() {
       </aside>
 
       <main className="flex-1 transition-all duration-300">
-        <div className="p-6 flex flex-col gap-8 px-32 py-16">
+        <div className="flex flex-col gap-4 px-32">
+          <Bell
+            size={24}
+            className="self-end text-gray-600 hover:text-gray-800 cursor-pointer transition-colors shake-hover mt-10"
+          />
           <Outlet />
         </div>
       </main>

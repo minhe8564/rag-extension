@@ -21,6 +21,13 @@
 
 @font-face {
   font-family: 'Pretendard';
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/Pretendard-SemiBold.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Pretendard';
   font-weight: 700;
   font-display: swap;
   src: url('/fonts/Pretendard-Bold.woff2') format('woff2');
@@ -34,7 +41,8 @@
 }
 
 :root {
-  --font-sans: 'Pretendard', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-sans:
+    'Pretendard', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 body {
