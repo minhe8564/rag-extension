@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
 import { Menu, Settings, Monitor, FolderCog, MessageCirclePlus, Bot, Bell } from 'lucide-react';
-import hebesslogo from '@/assets/hebesslogo.png';
+import Tooltip from '@/shared/components/Tooltip';
+import HebeesLogo from '@/assets/hebees-logo.png';
 
 const linkCls = ({ isActive }: { isActive: boolean }) =>
   'flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ' +
@@ -22,23 +23,30 @@ export default function AdminLayout() {
         <div className="flex items-center justify-between h-16 py-4 px-6">
           {isOpen ? (
             <div className="text-lg font-semibold">
-              <img src={hebesslogo} alt="hebesslogo" className="w-24 h-8 object-contain" />
+              <img src={HebeesLogo} alt="Hebees" className="w-24 h-8 object-contain" />
             </div>
           ) : (
             <div className="w-full flex justify-center">
-              <button
-                onClick={() => setIsOpen(prev => !prev)}
-                className="text-gray-600 hover:text-gray-800"
-              >
-                <Menu size={20} />
-              </button>
+              <Tooltip content="사이드바 열기" side="bottom" shiftX={15}>
+                <button
+                  onClick={() => setIsOpen(prev => !prev)}
+                  className="text-[var(--color-hebees)] hover:text-[var(--color-hebees-dark)]"
+                >
+                  <Menu size={24} />
+                </button>
+              </Tooltip>
             </div>
           )}
 
           {isOpen && (
-            <button onClick={() => setIsOpen(false)} className="text-gray-600 hover:text-gray-800">
-              <Menu size={20} />
-            </button>
+            <Tooltip content="사이드바 닫기" side="bottom" shiftX={15}>
+              <button
+                onClick={() => setIsOpen(false)}
+                className="text-[var(--color-hebees)] hover:text-[var(--color-hebees-dark)]"
+              >
+                <Menu size={24} />
+              </button>
+            </Tooltip>
           )}
         </div>
 

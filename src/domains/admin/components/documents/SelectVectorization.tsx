@@ -1,21 +1,21 @@
 import { FileText } from 'lucide-react';
 export default function SelectVectorization() {
-  const dummyFiles = [
-    {
-      id: 1,
-      name: '보고서_1.pdf',
-      path: '/uploads/보고서_1.pdf',
-      currentProgress: 40,
-      totalProgress: 100,
-    },
-    {
-      id: 2,
-      name: '데이터_분석.csv',
-      path: '/uploads/데이터_분석.csv',
-      currentProgress: 70,
-      totalProgress: 100,
-    },
-  ];
+  // const dummyFiles = [
+  //   {
+  //     id: 1,
+  //     name: '보고서_1.pdf',
+  //     path: '/uploads/보고서_1.pdf',
+  //     currentProgress: 40,
+  //     totalProgress: 100,
+  //   },
+  //   {
+  //     id: 2,
+  //     name: '데이터_분석.csv',
+  //     path: '/uploads/데이터_분석.csv',
+  //     currentProgress: 70,
+  //     totalProgress: 100,
+  //   },
+  // ];
 
   return (
     <section className="flex flex-col w-full mt-3 p-4 border rounded-xl bg-white">
