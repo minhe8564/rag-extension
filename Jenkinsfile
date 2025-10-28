@@ -6,8 +6,8 @@ def getCurrentActiveContainer(environment) {
     def greenPort = environment == 'test' ? env.BE_TEST_GREEN_PORT : env.BE_PROD_GREEN_PORT
     
     // 현재 활성 컨테이너 확인 (더 정확한 필터 사용)
-    def blueRunning = sh(script: "docker ps --filter name=^${blueContainer}$ --format '{{.State}}'", returnStdout: true).trim()
-    def greenRunning = sh(script: "docker ps --filter name=^${greenContainer}$ --format '{{.State}}'", returnStdout: true).trim()
+    def blueRunning = sh(script: "docker ps --filter name=^${blueContainer}\\$ --format '{{.State}}'", returnStdout: true).trim()
+    def greenRunning = sh(script: "docker ps --filter name=^${greenContainer}\\$ --format '{{.State}}'", returnStdout: true).trim()
     
     if (blueRunning == 'running') {
         // Blue가 동작 중 → Green에 배포
