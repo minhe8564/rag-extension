@@ -25,6 +25,12 @@ pipeline {
             when { expression { (env.MR_STATE ?: '') == 'merged' } }
             steps {
                 script {
+                    echo "=== 환경 변수 확인 ==="
+                    echo "MR_STATE: ${env.MR_STATE}"
+                    echo "TARGET_BRANCH: ${env.TARGET_BRANCH}"
+                    echo "SOURCE_BRANCH: ${env.SOURCE_BRANCH}"
+                    echo "======================"
+                    
                     env.DO_FRONTEND_BUILD = 'false'
 
                     sh "git fetch --all >/dev/null 2>&1 || true"
