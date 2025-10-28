@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Query Service 실행 스크립트
+Ingest Service 실행 스크립트
 """
 import uvicorn
 
 if __name__ == "__main__":
-    print("Starting HEBEES Query Service")
+    print("Starting HEBEES Ingest Service")
     print("Server: http://0.0.0.0:8008")
     print("Docs: http://0.0.0.0:8008/docs")
     

@@ -11,7 +11,7 @@ app = FastAPI(
 @app.get("/")
 async def root():
     return {
-        "message": "Hebees Query Service is running"
+        "message": "Hebees Ingest Service is running"
     }
 
 @app.get("/health")
