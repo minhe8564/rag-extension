@@ -40,8 +40,8 @@ def deployToInactiveEnvironment(environment, credentials, inactiveContainer, net
             --env DB_NAME=\$DB_NAME \\
             --env REDIS_PASSWORD=\$REDIS_PASSWORD \\
             --env JWT_SECRET=\$JWT_SECRET \\
-            --env JWT_ACCESS_EXPIRATION=\$JWT_ACCESS_EXPIRATION \\
-            --env JWT_REFRESH_EXPIRATION=\$JWT_REFRESH_EXPIRATION \\
+            --env JWT_ACCESS_TOKEN_EXPIRATION=\$JWT_ACCESS_EXPIRATION \\
+            --env JWT_REFRESH_TOKEN_EXPIRATION=\$JWT_REFRESH_EXPIRATION \\
             ${tag}
         
         # DB 네트워크에도 연결
