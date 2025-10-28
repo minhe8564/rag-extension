@@ -111,7 +111,7 @@ pipeline {
                                 docker service create \\
                                     --name ${FE_TEST_CONTAINER} \\
                                     --network ${APP_NETWORK_TEST} \\
-                                    --publish 7443:80 \\
+                                    --publish 17443:80 \\
                                     --replicas 1 \\
                                     --constraint 'node.hostname==worker' \\
                                     --update-failure-action rollback \\
@@ -145,8 +145,7 @@ pipeline {
                                 docker service create \\
                                     --name ${FE_PROD_CONTAINER} \\
                                     --network ${APP_NETWORK_PROD} \\
-                                    --publish 80:80 \\
-                                    --publish 443:443 \\
+                                    --publish 7443:80 \\
                                     --replicas 1 \\
                                     --constraint 'node.hostname==worker' \\
                                     --update-failure-action rollback \\
