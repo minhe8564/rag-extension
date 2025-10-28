@@ -19,7 +19,7 @@ export default function FormInput({
   const [showPassword, setShowPassword] = useState(false);
   const inputType = type === 'password' ? (showPassword ? 'text' : 'password') : type;
   const inputClassName =
-    'w-full rounded-md border border-gray-300 p-3 text-sm outline-none focus:border-[var(--color-hebees-blue)] focus:bg-[var(--color-hebees-blue-bg)]';
+    'w-full rounded-md border border-gray-300 p-3 text-sm outline-none focus:border-[var(--color-hebees-blue)] focus:bg-[var(--color-hebees-blue-bg)] focus:ring-0';
 
   return (
     <div className="relative">

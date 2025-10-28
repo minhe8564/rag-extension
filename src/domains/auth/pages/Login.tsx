@@ -45,7 +45,7 @@ export default function Login() {
           </p>
         </div>
 
-        <form className="space-y-4 w-[60%]" onSubmit={onSubmit}>
+        <form className="space-y-4 w-[50%]" onSubmit={onSubmit}>
           <FormInput
             type="email"
             value={email}
