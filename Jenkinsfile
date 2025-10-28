@@ -5,17 +5,22 @@ def getCurrentActiveContainer(environment) {
     def bluePort = environment == 'test' ? env.BE_TEST_BLUE_PORT : env.BE_PROD_BLUE_PORT
     def greenPort = environment == 'test' ? env.BE_TEST_GREEN_PORT : env.BE_PROD_GREEN_PORT
     
-    // 현재 활성 컨테이너 확인
-    def blueStatus = sh(script: "docker ps --filter name=${blueContainer} --format '{{.Status}}'", returnStdout: true).trim()
-    def greenStatus = sh(script: "docker ps --filter name=${greenContainer} --format '{{.Status}}'", returnStdout: true).trim()
+    // 현재 활성 컨테이너 확인 (더 정확한 필터 사용)
+    def blueRunning = sh(script: "docker ps --filter name=^${blueContainer}$ --format '{{.State}}'", returnStdout: true).trim()
+    def greenRunning = sh(script: "docker ps --filter name=^${greenContainer}$ --format '{{.State}}'", returnStdout: true).trim()
     
-    if (blueStatus.contains('Up')) {
+    if (blueRunning == 'running') {
+        // Blue가 동작 중 → Green에 배포
+        echo "✅ Blue is running, deploying to Green"
         return ['blue', blueContainer, greenContainer, bluePort, greenPort]
-    } else if (greenStatus.contains('Up')) {
+    } else if (greenRunning == 'running') {
+        // Green이 동작 중 → Blue에 배포
+        echo "✅ Green is running, deploying to Blue"
         return ['green', greenContainer, blueContainer, greenPort, bluePort]
     } else {
-        // 둘 다 없으면 blue를 기본으로
-        return ['blue', blueContainer, greenContainer, bluePort, greenPort]
+        // 둘 다 없음 → Blue에 배포 (최초 배포)
+        echo "ℹ️ No active container, deploying to Blue"
+        return ['none', blueContainer, greenContainer, bluePort, greenPort]
     }
 }
 
