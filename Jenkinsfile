@@ -1,24 +1,19 @@
-// Blue/Green 배포를 위한 헬퍼 함수들 (pipeline 블록 밖에 정의)
 def getCurrentActiveContainer(environment) {
     def blueContainer = environment == 'test' ? env.BE_TEST_BLUE_CONTAINER : env.BE_PROD_BLUE_CONTAINER
     def greenContainer = environment == 'test' ? env.BE_TEST_GREEN_CONTAINER : env.BE_PROD_GREEN_CONTAINER
     def bluePort = environment == 'test' ? env.BE_TEST_BLUE_PORT : env.BE_PROD_BLUE_PORT
     def greenPort = environment == 'test' ? env.BE_TEST_GREEN_PORT : env.BE_PROD_GREEN_PORT
     
-    // 현재 활성 컨테이너 확인 (더 정확한 필터 사용)
     def blueRunning = sh(script: """docker ps --filter 'name=${blueContainer}' --format '{{.State}}'""", returnStdout: true).trim()
     def greenRunning = sh(script: """docker ps --filter 'name=${greenContainer}' --format '{{.State}}'""", returnStdout: true).trim()
     
     if (blueRunning == 'running') {
-        // Blue가 동작 중 → Green에 배포
         echo "✅ Blue is running, deploying to Green"
         return ['blue', blueContainer, greenContainer, bluePort, greenPort]
     } else if (greenRunning == 'running') {
-        // Green이 동작 중 → Blue에 배포
         echo "✅ Green is running, deploying to Blue"
         return ['green', greenContainer, blueContainer, greenPort, bluePort]
     } else {
-        // 둘 다 없음 → Green에 배포 (최초 배포)
         echo "ℹ️ No active container, deploying to Green"
         return ['none', blueContainer, greenContainer, bluePort, greenPort]
     }
@@ -184,7 +179,7 @@ pipeline {
             }
             steps {
                 script {
-                    // Docker 네트워크 생성 (호스트 Docker 사용)
+                    // Docker 네트워크 생성
                     sh "docker network create ${APP_NETWORK_TEST} || true"
                     sh "docker network create ${APP_NETWORK_PROD} || true"
                     sh "docker network create ${DB_NETWORK} || true"
@@ -219,7 +214,6 @@ pipeline {
 
                     echo "📝 빌드 대상 브랜치: ${branch}"
                     
-                    // 환경에 관계없이 동일한 이미지 빌드
                     def tag = "${BE_IMAGE_NAME}:${branch == 'main' ? 'prod' : 'test'}-${BUILD_NUMBER}"
                     
                     sh """
@@ -256,6 +250,10 @@ pipeline {
                     
                     echo "📝 Blue/Green 배포 대상 브랜치: ${branch}"
 
+                    def targetEnvironment = branch == 'main' ? 'prod' : 'test'
+                    env.DEPLOY_TARGET_ENV = targetEnvironment
+                    env.DEPLOY_NETWORK = branch == 'main' ? APP_NETWORK_PROD : APP_NETWORK_TEST
+
                     if (branch == 'develop') {
                         // Test 환경 Blue/Green 배포
                         def testCredentials = [
@@ -276,6 +274,11 @@ pipeline {
                         
                         // 비활성 환경에 새 버전 배포
                         deployToInactiveEnvironment('test', testCredentials, inactiveContainer, APP_NETWORK_TEST, inactivePort)
+
+                        env.DEPLOY_ACTIVE_CONTAINER = activeContainer
+                        env.DEPLOY_INACTIVE_CONTAINER = inactiveContainer
+                        env.DEPLOY_ACTIVE_PORT = activePort
+                        env.DEPLOY_INACTIVE_PORT = inactivePort
                         
                     } else if (branch == 'main') {
                         // Prod 환경 Blue/Green 배포
@@ -297,6 +300,11 @@ pipeline {
                         
                         // 비활성 환경에 새 버전 배포
                         deployToInactiveEnvironment('prod', prodCredentials, inactiveContainer, APP_NETWORK_PROD, inactivePort)
+
+                        env.DEPLOY_ACTIVE_CONTAINER = activeContainer
+                        env.DEPLOY_INACTIVE_CONTAINER = inactiveContainer
+                        env.DEPLOY_ACTIVE_PORT = activePort
+                        env.DEPLOY_INACTIVE_PORT = inactivePort
                         
                     } else {
                         error "[Blue/Green Deploy] 지원하지 않는 브랜치='${branch}'. (develop/main 만 지원)"
@@ -323,18 +331,20 @@ pipeline {
                         branch = (params.BRANCH_TO_BUILD ?: '').trim()
                     }
 
-                    def environment = branch == 'main' ? 'prod' : 'test'
+                    def targetContainer = env.DEPLOY_INACTIVE_CONTAINER
+                    def targetPort = env.DEPLOY_INACTIVE_PORT
+
+                    if (!targetContainer?.trim() || !targetPort?.trim()) {
+                        error "[Health Check] 배포 대상 정보를 찾을 수 없습니다."
+                    }
+
+                    echo "🏥 Health check for ${targetContainer} on port ${targetPort}"
                     
-                    // 현재 비활성 컨테이너 (새로 배포된 컨테이너) 확인
-                    def (currentEnv, activeContainer, inactiveContainer, activePort, inactivePort) = getCurrentActiveContainer(environment)
-                    
-                    echo "🏥 Health check for ${inactiveContainer} on port ${inactivePort}"
-                    
-                    if (!healthCheck(inactiveContainer, inactivePort)) {
-                        error "❌ Health check failed for ${inactiveContainer}. Rolling back..."
+                    if (!healthCheck(targetContainer, targetPort)) {
+                        error "❌ Health check failed for ${targetContainer}. Rolling back..."
                     }
                     
-                    echo "✅ Health check passed for ${inactiveContainer}"
+                    echo "✅ Health check passed for ${targetContainer}"
                 }
             }
         }
@@ -357,16 +367,19 @@ pipeline {
                         branch = (params.BRANCH_TO_BUILD ?: '').trim()
                     }
 
-                    def environment = branch == 'main' ? 'prod' : 'test'
-                    def networkName = branch == 'main' ? APP_NETWORK_PROD : APP_NETWORK_TEST
-                    
-                    // 현재 활성/비활성 컨테이너 확인
-                    def (currentEnv, activeContainer, inactiveContainer) = getCurrentActiveContainer(environment)
-                    
-                    echo "🔄 Switching traffic from ${activeContainer} to ${inactiveContainer}"
+                    def targetEnvironment = env.DEPLOY_TARGET_ENV
+                    def networkName = env.DEPLOY_NETWORK
+                    def activeContainer = env.DEPLOY_ACTIVE_CONTAINER
+                    def inactiveContainer = env.DEPLOY_INACTIVE_CONTAINER
+
+                    if (!inactiveContainer?.trim()) {
+                        error "[Switch Traffic] 전환할 대상 컨테이너 정보를 찾을 수 없습니다."
+                    }
+
+                    echo "🔄 Switching traffic from ${activeContainer ?: 'none'} to ${inactiveContainer}"
                     
                     // 트래픽 전환
-                    switchTraffic(environment, activeContainer, inactiveContainer, networkName)
+                    switchTraffic(targetEnvironment, activeContainer, inactiveContainer, networkName)
                     
                     echo "🎉 Blue/Green deployment completed successfully!"
                     echo "📊 New active container: ${inactiveContainer}"
