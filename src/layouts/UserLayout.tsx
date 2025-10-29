@@ -99,7 +99,7 @@ export default function UserLayout() {
             className="text-gray-600 hover:text-gray-800 cursor-pointer transition-colors shake-hover"
           />
         </div>
-        <div className="flex w-full flex-col gap-3 px-8">
+        <div className="flex flex-col w-full gap-3 px-8">
           <Outlet />
         </div>
       </main>

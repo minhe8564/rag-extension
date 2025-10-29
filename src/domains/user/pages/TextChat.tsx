@@ -36,8 +36,8 @@ export default function TextChat() {
       <section className="h-full flex flex-col">
         {hasMessages ? (
           <>
-            <div className="flex-1 min-h-0 overflow-y-auto w-full flex justify-center">
-              <div className="w-full max-w-[75%] space-y-6 px-2 py-4 pb-12">
+            <div className="flex-1 min-h-0 w-full flex justify-center overflow-y-scroll no-scrollbar">
+              <div className="w-full max-w-[75%] space-y-6 px-12 py-4">
                 {list.map((m, i) => {
                   const isUser = m.role === 'user';
 
@@ -122,10 +122,10 @@ export default function TextChat() {
         ) : (
           <div className="flex-1 min-h-0 flex items-center justify-center px-4">
             <div className="w-full max-w-[75%] flex flex-col items-center gap-6 text-center">
-              <div className="text-gray-600">
+              {/* <div className="text-gray-600">
                 <div className="text-xl font-semibold mb-1">레티나 챗봇에 오신 걸 환영합니다.</div>
                 <div className="text-sm">업로드된 문서를 기반으로 무엇이든 질문해보세요.</div>
-              </div>
+              </div> */}
 
               <ChatInput onSend={handleSend} />
             </div>
