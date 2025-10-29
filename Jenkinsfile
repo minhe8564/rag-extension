@@ -54,7 +54,7 @@ def healthCheck(containerName, port) {
     
     while (retryCount < maxRetries) {
         try {
-            def response = sh(script: "curl -f http://localhost:${port}/actuator/health || exit 1", returnStatus: true)
+            def response = sh(script: "curl -f http://localhost:${port}/api/actuator/health || exit 1", returnStatus: true)
             if (response == 0) {
                 echo "✅ Health check passed for ${containerName}"
                 return true
