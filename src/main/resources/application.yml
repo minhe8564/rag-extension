@@ -1,0 +1,45 @@
+spring:
+  application:
+    name: hebees-backend
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+  http:
+    client:
+      factory: simple
+  mvc:
+    servlet:
+      path: /api
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
+    show-sql: true
+
+cors:
+  allowed-origins:
+    - "http://localhost:5173"
+    - "http://localhost"
+
+springdoc:
+  swagger-ui:
+    persist-authorization: true
+
+# Actuator 설정
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+  health:
+    db:
+      enabled: true
+    redis:
+      enabled: true

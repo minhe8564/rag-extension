@@ -36,7 +36,11 @@ out/
 ### VS Code ###
 .vscode/
 
-src/main/resources
+# Application configuration files
+src/main/resources/application-local.yml
+src/main/resources/application*.properties
+
+# Test resources
 src/test/resources
 
 ### QueryDSL generated Q-types ###

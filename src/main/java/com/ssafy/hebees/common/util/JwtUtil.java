@@ -1,8 +1,6 @@
 package com.ssafy.hebees.common.util;
 
-import com.ssafy.hebees.user.entity.UserRole;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.HttpServletRequest;
@@ -37,22 +35,22 @@ public class JwtUtil {
         this.key = Keys.hmacShaKeyFor(secret.getBytes());
     }
 
-    public String generateToken(UUID userUuid, UserRole role) {
+    public String generateToken(UUID userUuid, String roleName) {
         long now = System.currentTimeMillis();
         return Jwts.builder()
             .setSubject(userUuid.toString())
-            .claim("role", role)
+            .claim("role", roleName)
             .setIssuedAt(new Date(now))
             .setExpiration(new Date(now + accessTokenExpiration))
             .signWith(key)
             .compact();
     }
 
-    public String generateRefreshToken(UUID userUuid, UserRole role) {
+    public String generateRefreshToken(UUID userUuid, String roleName) {
         long now = System.currentTimeMillis();
         String refreshToken = Jwts.builder()
             .setSubject(userUuid.toString())
-            .claim("role", role.name())
+            .claim("role", roleName)
             .setIssuedAt(new Date(now))
             .setExpiration(new Date(now + refreshTokenExpiration))
             .signWith(key)

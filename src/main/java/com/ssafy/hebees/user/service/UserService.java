@@ -1,9 +1,8 @@
 package com.ssafy.hebees.user.service;
 
-import com.ssafy.hebees.user.dto.UserSignupRequest;
-import com.ssafy.hebees.user.dto.UserSignupResponse;
+import com.ssafy.hebees.user.dto.request.UserSignupRequest;
+import com.ssafy.hebees.user.dto.response.UserSignupResponse;
 import com.ssafy.hebees.user.entity.User;
-import com.ssafy.hebees.user.entity.UserRole;
 
 import java.util.List;
 import java.util.UUID;
@@ -22,20 +21,20 @@ public interface UserService {
     UserSignupResponse signup(UserSignupRequest request);
 
     /**
-     * 사용자 ID로 사용자 조회
+     * 이메일로 사용자 조회
      *
-     * @param userId 사용자 ID
+     * @param email 사용자 이메일
      * @return 사용자 정보
      */
-    User findByUserId(String userId);
+    User findByEmail(String email);
 
     /**
      * 사용자명으로 사용자 조회
      *
-     * @param userName 사용자명
+     * @param name 사용자명
      * @return 사용자 정보
      */
-    User findByUserName(String userName);
+    User findByName(String name);
 
     /**
      * UUID로 사용자 조회
@@ -48,26 +47,26 @@ public interface UserService {
     /**
      * 사용자명 중복 확인
      *
-     * @param userName 확인할 사용자명
+     * @param name 확인할 사용자명
      * @return 중복 여부
      */
-    boolean isUserNameExists(String userName);
+    boolean isNameExists(String name);
 
     /**
-     * 사용자 ID 중복 확인
+     * 이메일 중복 확인
      *
-     * @param userId 확인할 사용자 ID
+     * @param email 확인할 이메일
      * @return 중복 여부
      */
-    boolean isUserIdExists(String userId);
+    boolean isEmailExists(String email);
 
     /**
      * 역할별 사용자 조회
      *
-     * @param role 사용자 역할
+     * @param roleName 사용자 역할명
      * @return 해당 역할의 사용자 목록
      */
-    List<User> findUsersByRole(UserRole role);
+    List<User> findUsersByRoleName(String roleName);
 
     /**
      * 활성 사용자 수 조회

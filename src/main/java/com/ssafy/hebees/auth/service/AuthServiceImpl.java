@@ -1,9 +1,9 @@
 package com.ssafy.hebees.auth.service;
 
-import com.ssafy.hebees.auth.dto.LoginRequest;
-import com.ssafy.hebees.auth.dto.LoginResponse;
-import com.ssafy.hebees.auth.dto.TokenRefreshRequest;
-import com.ssafy.hebees.auth.dto.TokenRefreshResponse;
+import com.ssafy.hebees.auth.dto.request.LoginRequest;
+import com.ssafy.hebees.auth.dto.response.LoginResponse;
+import com.ssafy.hebees.auth.dto.request.TokenRefreshRequest;
+import com.ssafy.hebees.auth.dto.response.TokenRefreshResponse;
 import com.ssafy.hebees.common.exception.BusinessException;
 import com.ssafy.hebees.common.exception.ErrorCode;
 import com.ssafy.hebees.common.util.JwtUtil;
@@ -41,34 +41,24 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public LoginResponse login(LoginRequest request) {
-        log.info("로그인 시도: userId={}", request.getUserId());
+        log.info("로그인 시도: email={}", request.email());
 
         // 사용자 조회
-        User user = userService.findByUserId(request.getUserId());
+        User user = userService.findByEmail(request.email());
 
         // 비밀번호 검증
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            log.warn("로그인 실패: 비밀번호 불일치 - userId={}", request.getUserId());
+        if (!passwordEncoder.matches(request.password(), user.getPassword())) {
+            log.warn("로그인 실패: 비밀번호 불일치 - email={}", request.email());
             throw new BusinessException(ErrorCode.INVALID_SIGNIN);
         }
 
         // JWT 토큰 생성
-        String accessToken = jwtUtil.generateToken(user.getUuid(), user.getRole());
-        String refreshToken = jwtUtil.generateRefreshToken(user.getUuid(), user.getRole());
+        String accessToken = jwtUtil.generateToken(user.getUuid(), user.getRoleName());
+        String refreshToken = jwtUtil.generateRefreshToken(user.getUuid(), user.getRoleName());
 
-        log.info("로그인 성공: userId={}, userUuid={}", user.getUserId(), user.getUuid());
+        log.info("로그인 성공: email={}, userUuid={}", user.getEmail(), user.getUuid());
 
-        return LoginResponse.builder()
-            .userUuid(user.getUuid())
-            .userId(user.getUserId())
-            .userName(user.getUserName())
-            .role(user.getRole())
-            .accessToken(accessToken)
-            .refreshToken(refreshToken)
-            .accessTokenExpiresIn(accessTokenExpiration)
-            .refreshTokenExpiresIn(refreshTokenExpiration)
-            .loginTime(LocalDateTime.now())
-            .build();
+        return LoginResponse.of(user, accessToken, refreshToken);
     }
 
     @Override
@@ -78,17 +68,17 @@ public class AuthServiceImpl implements AuthService {
 
         try {
             // 리프레시 토큰 검증
-            jwtUtil.validateToken(request.getRefreshToken());
+            jwtUtil.validateToken(request.refreshToken());
 
             // 토큰에서 사용자 정보 추출
-            String userUuidStr = jwtUtil.getSubject(request.getRefreshToken());
+            String userUuidStr = jwtUtil.getSubject(request.refreshToken());
             UUID userUuid = UUID.fromString(userUuidStr);
 
             // Redis에서 리프레시 토큰 확인
             String storedRefreshToken = redisTemplate.opsForValue()
                 .get("refresh_token:" + userUuid);
             if (storedRefreshToken == null || !storedRefreshToken.equals(
-                request.getRefreshToken())) {
+                request.refreshToken())) {
                 log.warn("토큰 갱신 실패: 유효하지 않은 리프레시 토큰");
                 throw new BusinessException(ErrorCode.INVALID_REFRESH_TOKEN);
             }
@@ -97,17 +87,13 @@ public class AuthServiceImpl implements AuthService {
             User user = userService.findByUuid(userUuid);
 
             // 새로운 토큰 생성
-            String newAccessToken = jwtUtil.generateToken(user.getUuid(), user.getRole());
-            String newRefreshToken = jwtUtil.generateRefreshToken(user.getUuid(), user.getRole());
+            String newAccessToken = jwtUtil.generateToken(user.getUuid(), user.getRoleName());
+            String newRefreshToken = jwtUtil.generateRefreshToken(user.getUuid(),
+                user.getRoleName());
 
             log.info("토큰 갱신 성공: userUuid={}", userUuid);
 
-            return TokenRefreshResponse.builder()
-                .accessToken(newAccessToken)
-                .refreshToken(newRefreshToken)
-                .accessTokenExpiresIn(accessTokenExpiration)
-                .refreshTokenExpiresIn(refreshTokenExpiration)
-                .build();
+            return TokenRefreshResponse.of(newAccessToken, newRefreshToken);
 
         } catch (Exception e) {
             log.warn("토큰 갱신 실패: {}", e.getMessage());

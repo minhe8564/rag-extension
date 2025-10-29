@@ -1,9 +1,9 @@
 package com.ssafy.hebees.auth.service;
 
-import com.ssafy.hebees.auth.dto.LoginRequest;
-import com.ssafy.hebees.auth.dto.LoginResponse;
-import com.ssafy.hebees.auth.dto.TokenRefreshRequest;
-import com.ssafy.hebees.auth.dto.TokenRefreshResponse;
+import com.ssafy.hebees.auth.dto.request.LoginRequest;
+import com.ssafy.hebees.auth.dto.response.LoginResponse;
+import com.ssafy.hebees.auth.dto.request.TokenRefreshRequest;
+import com.ssafy.hebees.auth.dto.response.TokenRefreshResponse;
 
 public interface AuthService {
 
