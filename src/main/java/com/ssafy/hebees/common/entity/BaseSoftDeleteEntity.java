@@ -9,7 +9,7 @@ import org.hibernate.annotations.SQLRestriction;
 @Getter
 @MappedSuperclass
 @SQLRestriction("deleted_at IS NULL")
-public abstract class BaseSoftDeleteEntity extends BaseTimeEntity {
+public abstract class BaseSoftDeleteEntity extends BaseEntity {
 
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
