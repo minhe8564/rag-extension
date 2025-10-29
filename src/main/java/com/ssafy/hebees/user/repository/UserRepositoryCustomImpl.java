@@ -2,8 +2,8 @@ package com.ssafy.hebees.user.repository;
 
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.ssafy.hebees.user.entity.QUser;
+import com.ssafy.hebees.user.entity.QUserRole;
 import com.ssafy.hebees.user.entity.User;
-import com.ssafy.hebees.user.entity.UserRole;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
@@ -16,12 +16,14 @@ public class UserRepositoryCustomImpl implements UserRepositoryCustom {
 
     private final JPAQueryFactory queryFactory;
     private final QUser user = QUser.user;
+    private final QUserRole userRole = QUserRole.userRole;
 
     @Override
-    public List<User> findByRole(UserRole role) {
+    public List<User> findByRoleName(String roleName) {
         return queryFactory
             .selectFrom(user)
-            .where(user.role.eq(role)
+            .join(user.userRole, userRole)
+            .where(userRole.name.eq(roleName)
                 .and(user.deletedAt.isNull()))
             .fetch();
     }
@@ -38,10 +40,10 @@ public class UserRepositoryCustomImpl implements UserRepositoryCustom {
     }
 
     @Override
-    public Optional<User> findByUserNameWithQueryDSL(String userName) {
+    public Optional<User> findByEmailWithQueryDSL(String email) {
         User result = queryFactory
             .selectFrom(user)
-            .where(user.userName.eq(userName)
+            .where(user.email.eq(email)
                 .and(user.deletedAt.isNull()))
             .fetchOne();
 
@@ -49,10 +51,10 @@ public class UserRepositoryCustomImpl implements UserRepositoryCustom {
     }
 
     @Override
-    public Optional<User> findByUserIdWithQueryDSL(String userId) {
+    public Optional<User> findByNameWithQueryDSL(String name) {
         User result = queryFactory
             .selectFrom(user)
-            .where(user.userId.eq(userId)
+            .where(user.name.eq(name)
                 .and(user.deletedAt.isNull()))
             .fetchOne();
 

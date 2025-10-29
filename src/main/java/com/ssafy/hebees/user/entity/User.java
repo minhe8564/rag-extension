@@ -1,10 +1,13 @@
 package com.ssafy.hebees.user.entity;
 
 import com.ssafy.hebees.common.entity.BaseSoftDeleteEntity;
+import com.ssafy.hebees.offer.entity.Offer;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
@@ -14,32 +17,49 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.SQLDelete;
 
+import java.util.UUID;
+
 @Entity
-@Table(name = "users")
+@Table(name = "USER")
 @Getter
 @Builder(toBuilder = true)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@SQLDelete(sql = "UPDATE users SET deleted_at = CURRENT_TIMESTAMP WHERE uuid = ?")
+@SQLDelete(sql = "UPDATE USER SET DELETED_AT = CURRENT_TIMESTAMP WHERE USER_NO = ?")
 public class User extends BaseSoftDeleteEntity {
 
-    @Column(name = "user_id", nullable = false, unique = true, length = 7)
-    private String userId;
-
-    @Column(nullable = false, length = 100)
-    private String password;
-
-    @Column(name = "user_name", nullable = false, length = 20)
-    private String userName;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "user_role", nullable = false)
-    private UserRole role;
+    @Id
+    @Column(name = "USER_NO", columnDefinition = "BINARY(16)", nullable = false)
+    private UUID uuid;
 
     @PrePersist
-    void applyDefaults() {
-        if (this.role == null) {
-            this.role = UserRole.ADMIN;
+    protected void generateUuid() {
+        if (uuid == null) {
+            uuid = UUID.randomUUID();
         }
+    }
+
+    @Column(name = "EMAIL", nullable = false, length = 254, unique = true)
+    private String email;
+
+    @Column(name = "PASSWORD", nullable = false, length = 255)
+    private String password;
+
+    @Column(name = "NAME", nullable = false, length = 50)
+    private String name;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "USER_ROLE_NO", nullable = false)
+    private UserRole userRole;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "OFFER_NO", nullable = false)
+    private Offer offer;
+
+    @Column(name = "BUSSINESS_TYPE", nullable = false, length = 20)
+    private String businessType;
+
+    public String getRoleName() {
+        return userRole != null ? userRole.getName() : null;
     }
 }
