@@ -63,13 +63,20 @@ def deployToInactiveEnvironment(environment, credentials, inactiveContainer, net
     }
 }
 
-def healthCheck(containerName, port) {
+def healthCheck(containerName, port, networkName) {
     def maxRetries = 30
     def retryCount = 0
     
     while (retryCount < maxRetries) {
         try {
-            def response = sh(script: "curl -f http://localhost:${port}/api/actuator/health || exit 1", returnStatus: true)
+            def response = sh(
+                script: """
+                docker run --rm --network ${networkName} curlimages/curl:8.8.0 \
+                    -f http://${containerName}:8080/api/actuator/health >/dev/null
+                """,
+                returnStatus: true
+            )
+
             if (response == 0) {
                 echo "✅ Health check passed for ${containerName}"
                 return true
@@ -348,6 +355,7 @@ pipeline {
 
                     def targetContainer = env.DEPLOY_INACTIVE_CONTAINER
                     def targetPort = env.DEPLOY_INACTIVE_PORT
+                    def networkName = env.DEPLOY_NETWORK
 
                     if (!targetContainer?.trim() || !targetPort?.trim()) {
                         error "[Health Check] 배포 대상 정보를 찾을 수 없습니다."
@@ -355,7 +363,7 @@ pipeline {
 
                     echo "🏥 Health check for ${targetContainer} on port ${targetPort}"
                     
-                    if (!healthCheck(targetContainer, targetPort)) {
+                    if (!healthCheck(targetContainer, targetPort, networkName)) {
                         error "❌ Health check failed for ${targetContainer}. Rolling back..."
                     }
                     
