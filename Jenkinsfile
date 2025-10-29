@@ -4,15 +4,30 @@ def getCurrentActiveContainer(environment) {
     def bluePort = environment == 'test' ? env.BE_TEST_BLUE_PORT : env.BE_PROD_BLUE_PORT
     def greenPort = environment == 'test' ? env.BE_TEST_GREEN_PORT : env.BE_PROD_GREEN_PORT
     
-    def blueRunning = sh(script: """docker ps --filter 'name=${blueContainer}' --format '{{.State}}'""", returnStdout: true).trim()
-    def greenRunning = sh(script: """docker ps --filter 'name=${greenContainer}' --format '{{.State}}'""", returnStdout: true).trim()
-    
-    if (blueRunning == 'running') {
+    def blueState = sh(script: """docker inspect --format='{{.State.Status}}' ${blueContainer} 2>/dev/null || echo 'none'""", returnStdout: true).trim()
+    def greenState = sh(script: """docker inspect --format='{{.State.Status}}' ${greenContainer} 2>/dev/null || echo 'none'""", returnStdout: true).trim()
+
+    echo "🔍 Blue container state: ${blueState}, Green container state: ${greenState}"
+
+    if (blueState == 'running' && greenState != 'running') {
         echo "✅ Blue is running, deploying to Green"
         return ['blue', blueContainer, greenContainer, bluePort, greenPort]
-    } else if (greenRunning == 'running') {
+    } else if (greenState == 'running' && blueState != 'running') {
         echo "✅ Green is running, deploying to Blue"
         return ['green', greenContainer, blueContainer, greenPort, bluePort]
+    } else if (blueState == 'running' && greenState == 'running') {
+        def blueUpdated = sh(script: """docker inspect --format='{{.State.StartedAt}}' ${blueContainer}""", returnStdout: true).trim()
+        def greenUpdated = sh(script: """docker inspect --format='{{.State.StartedAt}}' ${greenContainer}""", returnStdout: true).trim()
+
+        echo "⚖️ Both containers running. Blue started at ${blueUpdated}, Green started at ${greenUpdated}"
+
+        if (blueUpdated.compareTo(greenUpdated) > 0) {
+            echo "➡️ Blue is newer, treating Blue as active"
+            return ['blue', blueContainer, greenContainer, bluePort, greenPort]
+        } else {
+            echo "➡️ Green is newer, treating Green as active"
+            return ['green', greenContainer, blueContainer, greenPort, bluePort]
+        }
     } else {
         echo "ℹ️ No active container, deploying to Green"
         return ['none', blueContainer, greenContainer, bluePort, greenPort]
