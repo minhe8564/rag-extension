@@ -1,4 +1,5 @@
-import { FolderOpen, FileText } from 'lucide-react';
+import { useState } from 'react';
+import { FolderOpen, FileText, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 export default function ColList() {
   const dummyCollections = [
     {
@@ -51,18 +52,29 @@ export default function ColList() {
     },
   ];
 
+  const [open, setOpen] = useState<Record<string, boolean>>({});
+  const [page, setPage] = useState<Record<string, number>>({});
+  const FILES_PER_PAGE = 5;
+
+  const toggleOpen = (name: string) => setOpen((prev) => ({ ...prev, [name]: !prev[name] }));
+
   return (
     <>
-      <section className="flex items-center gap-2 mb-4">
+      <div className="flex items-center gap-2 mb-3">
         <h1 className="text-3xl font-bold bg-[linear-gradient(90deg,_#BE7DB1_10%,_#81BAFF_100%)] bg-clip-text text-transparent">
           HEBEES RAG
         </h1>
         <h1 className="text-2xl font-[600]">컬렉션 관리</h1>
-      </section>
-      <section>
-        <div className="border rounded-lg p-3 hover:bg-[var(--color-hebees-bg)]/50 transition">
-          <section className="space-y-4">
-            {dummyCollections.map((col) => (
+      </div>
+      <section className="flex flex-col p-4 border border-gray-200 rounded-xl bg-white">
+        <section className="space-y-4">
+          {dummyCollections.map((col) => {
+            const currentPage = page[col.name] || 1;
+            const totalPages = Math.ceil(col.files.length / FILES_PER_PAGE);
+            const start = (currentPage - 1) * FILES_PER_PAGE;
+            const visibleFiles = col.files.slice(start, start + FILES_PER_PAGE);
+
+            return (
               <div
                 key={col.id}
                 className="border rounded-lg p-3 hover:bg-[var(--color-hebees-bg)]/50 transition"
@@ -75,30 +87,89 @@ export default function ColList() {
                     </div>
                     {col.name}
                   </div>
-                  <input type="checkbox" className="accent-[var(--color-hebees)]" />
+                  <div className="flex items-center gap-3">
+                    <input type="checkbox" className="accent-[var(--color-hebees)]" />
+                    <button
+                      onClick={() => toggleOpen(col.name)}
+                      className="flex items-center text-sm text-gray-500 hover:text-[var(--color-hebees)] transition"
+                    >
+                      {open[col.name] ? (
+                        <>
+                          <ChevronDown size={15} className="" />
+                          접기
+                        </>
+                      ) : (
+                        <>
+                          <ChevronRight size={15} className="" />
+                          보기
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
 
                 {/* 파일 목록 */}
-                <ul className="pl-4 text-sm text-gray-700 space-y-2">
-                  {col.files.map((file) => (
-                    <li
-                      key={file.id}
-                      className="flex items-center justify-between border-b border-gray-100 pb-1 last:border-none"
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 bg-[var(--color-hebees)] rounded-md flex items-center justify-center">
-                          <FileText size={15} className="text-[var(--color-white)]" />
-                        </div>
-                        <span className="truncate max-w-[260px]">{file.name}</span>
+                {open[col.name] && (
+                  <>
+                    <ul className="pl-4 text-sm text-gray-700 space-y-2">
+                      {visibleFiles.map((file) => (
+                        <li
+                          key={file.id}
+                          className="flex items-center justify-between border-b border-gray-100 pb-1 last:border-none"
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 bg-[var(--color-hebees)] rounded-md flex items-center justify-center">
+                              <FileText size={15} className="text-[var(--color-white)]" />
+                            </div>
+                            <span className="truncate max-w-[260px]">{file.name}</span>
+                          </div>
+                          <input type="checkbox" className="accent-[var(--color-hebees)]" />
+                        </li>
+                      ))}
+                    </ul>
+
+                    {/* 페이지네이션 */}
+                    {totalPages >= 1 && (
+                      <div className="flex justify-center gap-2 items-center mt-3">
+                        <button
+                          onClick={() =>
+                            setPage((prev) => ({
+                              ...prev,
+                              [col.name]: Math.max((prev[col.name] || 1) - 1, 1),
+                            }))
+                          }
+                          disabled={currentPage === 1}
+                          className="flex items-center gap-1 px-2 py-1 text-gray-600 text-xs hover:text-[var(--color-hebees)] disabled:opacity-40 disabled:hover:text-gray-600"
+                        >
+                          <ChevronLeft size={15} />
+                          <span>이전</span>
+                        </button>
+
+                        <span className="text-xs font-medium">
+                          {currentPage} / {totalPages}
+                        </span>
+
+                        <button
+                          onClick={() =>
+                            setPage((prev) => ({
+                              ...prev,
+                              [col.name]: Math.min((prev[col.name] || 1) + 1, totalPages),
+                            }))
+                          }
+                          disabled={currentPage === totalPages}
+                          className="flex items-center gap-1 px-2 py-1 text-gray-600 text-xs hover:text-[var(--color-hebees)] disabled:opacity-30 disabled:hover:text-gray-600"
+                        >
+                          <span>다음</span>
+                          <ChevronRight size={15} />
+                        </button>
                       </div>
-                      <input type="checkbox" className="accent-[var(--color-hebees)]" />
-                    </li>
-                  ))}
-                </ul>
+                    )}
+                  </>
+                )}
               </div>
-            ))}
-          </section>
-        </div>
+            );
+          })}
+        </section>
       </section>
     </>
   );

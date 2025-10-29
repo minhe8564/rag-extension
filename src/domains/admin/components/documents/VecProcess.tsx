@@ -28,25 +28,25 @@ export default function VecProcess({ selectedFile }: VecProcessProps) {
 
       <div className="grid grid-cols-4 gap-6 mb-6">
         <div className="flex flex-col items-center">
-          <CloudUpload className="w-10 h-10 text-[var(--color-hebees-blue)]" />
+          <CloudUpload className="w-12 h-12 text-[var(--color-hebees-blue)]" />
           <span className="text-sm font-medium text-gray-700 mt-1">minIO 업로드</span>
           <span className="text-xs text-gray-500">100%</span>
         </div>
 
         <div className="flex flex-col items-center">
-          <Zap className="w-10 h-10 text-[var(--color-hebees-blue)]" />
+          <Zap className="w-12 h-12 text-[var(--color-hebees-blue)]" />
           <span className="text-sm font-medium text-gray-700 mt-1">데이터 정제</span>
           <span className="text-xs text-gray-500">100%</span>
         </div>
 
         <div className="flex flex-col items-center">
-          <Database className="w-10 h-10 text-[var(--color-hebees-blue)]" />
+          <Database className="w-12 h-12 text-[var(--color-hebees-blue)]" />
           <span className="text-sm font-medium text-gray-700 mt-1">임베딩 생성</span>
           <span className="text-xs text-gray-500">100%</span>
         </div>
 
         <div className="flex flex-col items-center">
-          <CircleCheck className="w-10 h-10 text-[var(--color-hebees-blue)]" />
+          <CircleCheck className="w-12 h-12 text-[var(--color-hebees-blue)]" />
           <span className="text-sm font-medium text-gray-700 mt-1">Vector DB 저장</span>
           <span className="text-xs text-gray-500">{selectedFile.currentProgress}%</span>
         </div>

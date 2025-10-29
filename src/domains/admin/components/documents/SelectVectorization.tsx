@@ -155,23 +155,23 @@ export default function SelectVectorization() {
         <button
           onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
           disabled={currentPage === 1}
-          className="flex items-center gap-1 px-2 py-1 text-gray-600 text-sm hover:text-[var(--color-hebees)] disabled:opacity-40 disabled:hover:text-gray-600"
+          className="flex items-center gap-1 px-2 py-1 text-gray-600 text-xs hover:text-[var(--color-hebees)] disabled:opacity-40 disabled:hover:text-gray-600"
         >
-          <ChevronLeft size={18} />
+          <ChevronLeft size={10} />
           <span>이전</span>
         </button>
 
-        <span className="text-sm font-medium">
+        <span className="text-xs font-medium">
           {currentPage} / {totalPages}
         </span>
 
         <button
           onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
           disabled={currentPage === totalPages}
-          className="flex items-center gap-1 px-2 py-1 text-gray-600 text-sm hover:text-[var(--color-hebees)] disabled:opacity-30 disabled:hover:text-gray-600"
+          className="flex items-center gap-1 px-2 py-1 text-gray-600 text-xs hover:text-[var(--color-hebees)] disabled:opacity-30 disabled:hover:text-gray-600"
         >
           <span>다음</span>
-          <ChevronRight size={18} />
+          <ChevronRight size={10} />
         </button>
       </div>
       <div className="flex justify-center">
