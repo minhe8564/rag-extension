@@ -46,3 +46,6 @@
 	path = generation-repo
 	url = https://lab.ssafy.com/gd10080008/generation-repo.git
 	branch = develop
+[submodule "ingest-repo"]
+	path = ingest-repo
+	url = https://lab.ssafy.com/dlwodnjs9354/ingest-repo.git
