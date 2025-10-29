@@ -1,9 +1,12 @@
 package com.ssafy.hebees.auth.controller;
 
-import com.ssafy.hebees.auth.dto.LoginRequest;
-import com.ssafy.hebees.auth.dto.LoginResponse;
-import com.ssafy.hebees.auth.dto.TokenRefreshRequest;
-import com.ssafy.hebees.auth.dto.TokenRefreshResponse;
+import com.ssafy.hebees.auth.dto.request.LoginRequest;
+import com.ssafy.hebees.auth.dto.response.LoginResponse;
+import com.ssafy.hebees.auth.dto.request.TokenRefreshRequest;
+import com.ssafy.hebees.auth.dto.response.TokenRefreshResponse;
+import com.ssafy.hebees.auth.dto.response.LogoutResponse;
+import com.ssafy.hebees.auth.dto.response.AuthInfoResponse;
+import com.ssafy.hebees.auth.dto.response.AuthHealthResponse;
 import com.ssafy.hebees.auth.service.AuthService;
 import com.ssafy.hebees.common.util.SecurityUtil;
 import io.swagger.v3.oas.annotations.Operation;
@@ -13,18 +16,16 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.HashMap;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "인증 관리", description = "로그인, 로그아웃, 토큰 갱신 관련 API")
+@Validated
 public class AuthController {
 
     private final AuthService authService;
@@ -37,11 +38,11 @@ public class AuthController {
         @ApiResponse(responseCode = "401", description = "인증 실패 (잘못된 사용자 ID 또는 비밀번호)")
     })
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        log.info("로그인 요청: userId={}", request.getUserId());
+        log.info("로그인 요청: email={}", request.email());
 
         LoginResponse response = authService.login(request);
 
-        log.info("로그인 성공: userId={}, userUuid={}", response.getUserId(), response.getUserUuid());
+        log.info("로그인 성공: name={}", response.name());
 
         return ResponseEntity.ok(response);
     }
@@ -70,7 +71,7 @@ public class AuthController {
         @ApiResponse(responseCode = "200", description = "로그아웃 성공"),
         @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자")
     })
-    public ResponseEntity<Map<String, String>> logout() {
+    public ResponseEntity<LogoutResponse> logout() {
         log.info("로그아웃 요청");
 
         // 현재 사용자 UUID 가져오기
@@ -80,12 +81,9 @@ public class AuthController {
 
         authService.logout(userUuid);
 
-        Map<String, String> response = new HashMap<>();
-        response.put("message", "로그아웃이 완료되었습니다.");
-
         log.info("로그아웃 성공: userUuid={}", userUuid);
 
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(LogoutResponse.of("로그아웃이 완료되었습니다."));
     }
 
     @GetMapping("/me")
@@ -94,20 +92,16 @@ public class AuthController {
         @ApiResponse(responseCode = "200", description = "사용자 정보 조회 성공"),
         @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자")
     })
-    public ResponseEntity<Map<String, Object>> getMyInfo() {
+    public ResponseEntity<AuthInfoResponse> getMyInfo() {
         log.info("내 정보 조회 요청");
 
         String userUuid = SecurityUtil.getCurrentUserUuid()
             .orElseThrow(() -> new RuntimeException("인증되지 않은 사용자입니다."))
             .toString();
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("userUuid", userUuid);
-        response.put("message", "현재 로그인한 사용자 정보입니다.");
-
         log.info("내 정보 조회 성공: userUuid={}", userUuid);
 
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(AuthInfoResponse.of(userUuid, "현재 로그인한 사용자 정보입니다."));
     }
 
     @GetMapping("/health")
@@ -115,12 +109,8 @@ public class AuthController {
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "서비스 정상")
     })
-    public ResponseEntity<Map<String, String>> healthCheck() {
-        Map<String, String> response = new HashMap<>();
-        response.put("status", "UP");
-        response.put("service", "Auth Service");
-        response.put("timestamp", String.valueOf(System.currentTimeMillis()));
-
-        return ResponseEntity.ok(response);
+    public ResponseEntity<AuthHealthResponse> healthCheck() {
+        String timestamp = String.valueOf(System.currentTimeMillis());
+        return ResponseEntity.ok(AuthHealthResponse.of("UP", "Auth Service", timestamp));
     }
 }

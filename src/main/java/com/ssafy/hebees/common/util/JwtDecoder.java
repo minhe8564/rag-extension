@@ -1,6 +1,5 @@
 package com.ssafy.hebees.common.util;
 
-import com.ssafy.hebees.user.entity.UserRole;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -45,16 +44,16 @@ public class JwtDecoder {
     }
 
     /**
-     * JWT 토큰에서 사용자 역할을 추출합니다.
+     * JWT 토큰에서 사용자 역할명을 추출합니다.
      *
      * @param token JWT 토큰
-     * @return 사용자 역할, 실패 시 Optional.empty()
+     * @return 사용자 역할명, 실패 시 Optional.empty()
      */
-    public Optional<UserRole> extractUserRole(String token) {
+    public Optional<String> extractUserRole(String token) {
         try {
             Claims claims = getClaimsFromToken(token);
             String roleClaim = claims.get("role", String.class);
-            return roleClaim != null ? Optional.of(UserRole.valueOf(roleClaim)) : Optional.empty();
+            return Optional.ofNullable(roleClaim);
         } catch (Exception e) {
             return Optional.empty();
         }

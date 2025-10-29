@@ -1,7 +1,6 @@
 package com.ssafy.hebees.common.security;
 
 import com.ssafy.hebees.common.util.JwtUtil;
-import com.ssafy.hebees.user.entity.UserRole;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -48,13 +47,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 String roleStr = jwtUtil.getRole(jwtToken);
 
                 UUID userUuid = UUID.fromString(userUuidStr);
-                UserRole userRole = UserRole.valueOf(roleStr);
+                String roleName = roleStr;
 
-                log.debug("JWT 인증 성공: userUuid={}, role={}", userUuid, userRole);
+                log.debug("JWT 인증 성공: userUuid={}, role={}", userUuid, roleName);
 
                 // Spring Security 인증 객체 생성
                 List<SimpleGrantedAuthority> authorities = List.of(
-                    new SimpleGrantedAuthority("ROLE_" + userRole.name())
+                    new SimpleGrantedAuthority("ROLE_" + roleName)
                 );
 
                 UsernamePasswordAuthenticationToken authentication =
