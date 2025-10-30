@@ -1,7 +1,7 @@
 package com.ssafy.hebees.user.service;
 
-import com.ssafy.hebees.common.exception.ErrorCode;
 import com.ssafy.hebees.common.exception.BusinessException;
+import com.ssafy.hebees.common.exception.ErrorCode;
 import com.ssafy.hebees.offer.entity.Offer;
 import com.ssafy.hebees.offer.repository.OfferRepository;
 import com.ssafy.hebees.user.dto.request.UserSignupRequest;
@@ -33,6 +33,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserSignupResponse signup(UserSignupRequest request) {
+        // 회원가입 비즈니스 로직: 이메일/이름 중복 확인 → OFFER 검증/생성 → USER 권한 부여 → 저장
         log.info("회원가입 시도: {}", request.email());
 
         // 이메일 중복 확인
@@ -48,20 +49,22 @@ public class UserServiceImpl implements UserService {
         // 비밀번호 암호화
         String encodedPassword = passwordEncoder.encode(request.password());
 
-        String businessNo = request.businessNumber().replace("-", "");
+        String offerNo = request.offerNo();
 
-        Offer offer = offerRepository.findByBusinessNoWithQueryDSL(businessNo)
+        // 입력받은 offerNo로 기존 OFFER 존재 여부 확인. 없으면 신규 OFFER 생성 후 진행
+        Offer offer = offerRepository.findByBusinessNoWithQueryDSL(offerNo)
             .orElseGet(() -> {
-                log.info("새로운 사업자 번호로 Offer 생성: {} (원본: {})", businessNo, request.businessNumber());
+                log.info("신규 OFFER 생성: {}", offerNo);
                 return offerRepository.save(Offer.builder()
-                    .offerNo(businessNo) // 하이픈 제거된 사업자 번호로 저장
+                    .offerNo(offerNo)
                     .version(1)
                     .build());
             });
 
+        // 기본 권한(USER)이 없으면 최초 1회 생성
         UserRole userRole = userRoleRepository.findByNameWithQueryDSL("USER")
             .orElseGet(() -> {
-                log.info("새로운 UserRole 생성: USER");
+                log.info("신규 UserRole 생성: USER");
                 return userRoleRepository.save(UserRole.builder()
                     .name("USER")
                     .mode(1)
@@ -124,3 +127,4 @@ public class UserServiceImpl implements UserService {
         return userRepository.countActiveUsers();
     }
 }
+
