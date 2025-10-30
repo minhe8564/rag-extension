@@ -21,7 +21,7 @@ public record UserSignupResponse(
     String roleName,
 
     @Schema(description = "비즈니스 타입", example = "개인 안경원")
-    String businessType,
+    int businessType,
 
     @Schema(description = "가입일시", example = "2024-01-01T12:00:00")
     LocalDateTime createdAt

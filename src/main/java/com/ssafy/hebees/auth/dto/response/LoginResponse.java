@@ -12,7 +12,7 @@ public record LoginResponse(
     String roleName,
 
     @Schema(description = "비즈니스 타입", example = "개인 안경원")
-    String businessType,
+    int businessType,
 
     @Schema(description = "액세스 토큰", example = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
     String accessToken,
