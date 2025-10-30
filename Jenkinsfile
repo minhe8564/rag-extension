@@ -20,6 +20,7 @@ pipeline {
         // Networks
         APP_NETWORK_TEST = "app-network-test"
         APP_NETWORK_PROD = "app-network-prod"
+        DB_NETWORK = "db-network"
     }
 
     stages {
@@ -93,6 +94,7 @@ pipeline {
                         --restart unless-stopped \
                         --network ${APP_NETWORK_TEST} \
                         --network ${APP_NETWORK_PROD} \
+                        --network ${DB_NETWORK} \
                         --publish ${GW_PORT}:8000 \
                         -v "${GW_ENV_FILE}:/app/.env:ro" \
                         ${GW_BUILD_TAG}
