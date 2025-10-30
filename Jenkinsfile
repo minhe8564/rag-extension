@@ -41,6 +41,7 @@ pipeline {
             steps {
                 sh "docker network create ${APP_NETWORK_TEST} || true"
                 sh "docker network create ${APP_NETWORK_PROD} || true"
+                sh "docker network create ${DB_NETWORK} || true"
             }
         }
 
@@ -82,23 +83,32 @@ pipeline {
                 }
             }
             steps {
-                withCredentials([file(credentialsId: 'fastapi-gateway.env', variable: 'GW_ENV_FILE')]) {
-                    sh """
-                    # 기존 컨테이너 종료/삭제
-                    docker stop ${GW_CONTAINER} || true
-                    docker rm ${GW_CONTAINER} || true
+                dir('fastapi-gateway') {
+                    withCredentials([file(credentialsId: 'fastapi-gateway.env', variable: 'GW_ENV_FILE')]) {
+                        sh """
+                        set -eux
+                        # 기존 컨테이너 종료/삭제
+                        docker stop ${GW_CONTAINER} || true
+                        docker rm ${GW_CONTAINER} || true
 
-                    # 새 컨테이너 실행 (test 네트워크로 시작, prod 네트워크에도 추가 연결)
-                    docker run -d \
-                        --name ${GW_CONTAINER} \
-                        --restart unless-stopped \
-                        --network ${APP_NETWORK_TEST} \
-                        --network ${APP_NETWORK_PROD} \
-                        --network ${DB_NETWORK} \
-                        --publish ${GW_PORT}:8000 \
-                        -v "${GW_ENV_FILE}:/app/.env:ro" \
-                        ${GW_BUILD_TAG}
-                    """
+                        # 자격증명 .env를 워크스페이스로 복사하고 권한 완화
+                        cp "${GW_ENV_FILE}" .env
+                        chmod 0644 .env
+
+                        # 컨테이너 실행: run 시에는 한 개 네트워크만 지정
+                        docker run -d \
+                            --name ${GW_CONTAINER} \
+                            --restart unless-stopped \
+                            --network ${APP_NETWORK_TEST} \
+                            --publish ${GW_PORT}:8000 \
+                            -v "$(pwd)/.env:/app/.env:ro" \
+                            ${GW_BUILD_TAG}
+
+                        # 추가 네트워크 연결 (prod, db)
+                        docker network connect ${APP_NETWORK_PROD} ${GW_CONTAINER} || true
+                        docker network connect ${DB_NETWORK} ${GW_CONTAINER} || true
+                        """
+                    }
                 }
             }
         }
@@ -139,4 +149,3 @@ pipeline {
         always { echo "Pipeline finished: ${currentBuild.currentResult}" }
     }
 }
-
