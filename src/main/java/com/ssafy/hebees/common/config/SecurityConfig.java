@@ -5,6 +5,7 @@ import com.ssafy.hebees.common.security.CustomAuthenticationEntryPoint;
 import com.ssafy.hebees.common.security.JwtAuthenticationFilter;
 import jakarta.servlet.DispatcherType;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,6 +19,12 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -28,6 +35,7 @@ public class SecurityConfig {
     private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
     private final CustomAccessDeniedHandler customAccessDeniedHandler;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final CorsProperties corsProperties;
 
     @Bean
     @Order(0)
@@ -60,8 +68,8 @@ public class SecurityConfig {
                     "/api/v1/v3/api-docs/**",
                     "/api/v1/swagger-ui/**",
                     "/api/v1/swagger-ui.html",
-                    "/user/signup",
-                    "/auth/**",
+                    "/api/v1/user/signup",
+                    "/api/v1/auth/**",
                     "/api/actuator/health",
                     "/api/actuator/health/**",
                     "/api/actuator/info"
@@ -72,6 +80,25 @@ public class SecurityConfig {
         ;
 
         return http.build();
+    }
+
+    @Bean
+    @ConfigurationProperties(prefix = "cors")
+    public CorsProperties corsProperties() {
+        return new CorsProperties();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedMethods(corsProperties.getAllowedMethods());
+        configuration.setAllowedHeaders(corsProperties.getAllowedHeaders());
+        configuration.setAllowCredentials(corsProperties.isAllowCredentials());
+        configuration.setExposedHeaders(corsProperties.getExposedHeaders());
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 
     @Bean("passwordEncoder")
