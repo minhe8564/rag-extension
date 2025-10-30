@@ -85,29 +85,29 @@ pipeline {
             steps {
                 dir('fastapi-gateway') {
                     withCredentials([file(credentialsId: 'fastapi-gateway.env', variable: 'GW_ENV_FILE')]) {
-                        sh """
+                        sh '''
                         set -eux
                         # 기존 컨테이너 종료/삭제
-                        docker stop ${GW_CONTAINER} || true
-                        docker rm ${GW_CONTAINER} || true
+                        docker stop "$GW_CONTAINER" || true
+                        docker rm "$GW_CONTAINER" || true
 
                         # 자격증명 .env를 워크스페이스로 복사하고 권한 완화
-                        cp "${GW_ENV_FILE}" .env
+                        cp "$GW_ENV_FILE" .env
                         chmod 0644 .env
 
                         # 컨테이너 실행: run 시에는 한 개 네트워크만 지정
                         docker run -d \
-                            --name ${GW_CONTAINER} \
+                            --name "$GW_CONTAINER" \
                             --restart unless-stopped \
-                            --network ${APP_NETWORK_TEST} \
-                            --publish ${GW_PORT}:8000 \
+                            --network "$APP_NETWORK_TEST" \
+                            --publish "$GW_PORT":8000 \
                             -v "$(pwd)/.env:/app/.env:ro" \
-                            ${GW_BUILD_TAG}
+                            "$GW_BUILD_TAG"
 
                         # 추가 네트워크 연결 (prod, db)
-                        docker network connect ${APP_NETWORK_PROD} ${GW_CONTAINER} || true
-                        docker network connect ${DB_NETWORK} ${GW_CONTAINER} || true
-                        """
+                        docker network connect "$APP_NETWORK_PROD" "$GW_CONTAINER" || true
+                        docker network connect "$DB_NETWORK" "$GW_CONTAINER" || true
+                        '''
                     }
                 }
             }
@@ -125,10 +125,10 @@ pipeline {
                     def maxRetries = 30
                     def ok = false
                     for (int i = 0; i < maxRetries; i++) {
-                        def status = sh(script: """
-                            docker run --rm --network ${APP_NETWORK_TEST} curlimages/curl:8.8.0 \
-                                -fsS http://${GW_CONTAINER}:8000/health >/dev/null
-                        """, returnStatus: true)
+                        def status = sh(script: '''
+                            docker run --rm --network "$APP_NETWORK_TEST" curlimages/curl:8.8.0 \
+                                -fsS http://$GW_CONTAINER:8000/health >/dev/null
+                        ''', returnStatus: true)
                         if (status == 0) { ok = true; break }
                         sleep 2
                     }
