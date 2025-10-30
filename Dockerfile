@@ -1,41 +1,45 @@
 FROM python:3.11-slim AS builder
 
-# 작업 디렉토리 설정
+# 작업 디렉터리 설정
 WORKDIR /app
 
-# 시스템 의존성 설치
+# uv 설치 및 빌드 도구 설치 (빌더 전용)
 RUN apt-get update && apt-get install -y \
-    gcc \
+    curl build-essential gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# 캐싱을 위해 requirements.txt 먼저 복사
-COPY requirements.txt .
+# 프로젝트 메타데이터와 잠금 파일만 먼저 복사 (레이어 캐시 최적화)
+COPY pyproject.toml uv.lock ./
 
-# Python 의존성 설치
-RUN pip install --no-cache-dir -r requirements.txt
+# uv 설치 후 가상환경(.venv)에 동기화
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh -s -- -y \
+    && export PATH="$HOME/.local/bin:$PATH" \
+    && uv --version \
+    && uv sync --frozen --no-dev
+
 
 FROM python:3.11-slim
 
-# 작업 디렉토리 설정
+# 작업 디렉터리 설정
 WORKDIR /app
 
-# 런타임 의존성 설치
-RUN apt-get update && apt-get install -y \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# 빌드 스테이지에서 Python 의존성 복사
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
+# 빌더에서 준비한 가상환경과 메타데이터 복사
+COPY --from=builder /app/.venv /app/.venv
+COPY --from=builder /app/pyproject.toml /app/uv.lock ./
 
 # 애플리케이션 코드 복사
 COPY . .
 
-# 비루트 사용자 생성
-RUN useradd --create-home --shell /bin/bash app && chown -R app:app /app
+# 가상환경 우선 사용
+ENV PATH="/app/.venv/bin:${PATH}"
+
+# 비루트 사용자 생성 및 권한 설정 + 로그 디렉터리 준비
+RUN useradd --create-home --shell /bin/bash app \
+    && mkdir -p /var/log/hebees \
+    && chown -R app:app /app /var/log/hebees
 USER app
 
-# 애플리케이션이 실행되는 포트 노출
+# 애플리케이션 포트 노출
 EXPOSE 8000
 
 # 애플리케이션 실행
