@@ -3,16 +3,17 @@
 Ingest Service 실행 스크립트
 """
 import uvicorn
+from app.config import settings
 
 if __name__ == "__main__":
-    print("Starting HEBEES Ingest Service")
-    print("Server: http://0.0.0.0:8008")
-    print("Docs: http://0.0.0.0:8008/docs")
-    
+    print(f"Starting {settings.app_name}")
+    print(f"Server: http://{settings.host}:{settings.port}")
+    print(f"Docs: http://{settings.host}:{settings.port}/docs")
+
     uvicorn.run(
         "app.main:app",
-        host="0.0.0.0",
-        port=8008,
-        reload=True,
-        log_level="info"
+        host=settings.host,
+        port=settings.port,
+        reload=False,
+        log_level=settings.logging_level.lower(),
     )

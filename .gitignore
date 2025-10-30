@@ -1,3 +1,17 @@
+# uv / venv / local caches (not for Git)
+.bin/
+.uv-cache/
+.cache/
+.venv/
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Do commit uv.lock and pyproject.toml
+# uv.lock
+# pyproject.toml
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
