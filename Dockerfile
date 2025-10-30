@@ -13,9 +13,11 @@ RUN apt-get update && apt-get install -y \
 COPY pyproject.toml uv.lock ./
 
 # uv 설치 후 가상환경(.venv)에 동기화 (--frozen: uv.lock 엄격 준수)
-ENV UV_BIN_DIR=/usr/local/bin
 RUN set -eux; \
-    curl -fsSL https://astral.sh/uv/install.sh | sh -s -- --yes --bin-dir "${UV_BIN_DIR}"; \
+    curl -fsSL https://astral.sh/uv/install.sh | sh -s -- -y; \
+    install -m 0755 /root/.local/bin/uv /usr/local/bin/uv || true; \
+    install -m 0755 /root/.local/bin/uvx /usr/local/bin/uvx || true; \
+    export PATH="/usr/local/bin:/root/.local/bin:$PATH"; \
     uv --version; \
     uv sync --frozen --no-dev
 
@@ -46,4 +48,3 @@ EXPOSE 8000
 
 # 애플리케이션 실행
 CMD ["python", "run.py"]
-
