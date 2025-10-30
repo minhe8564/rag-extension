@@ -8,7 +8,7 @@ import ImageResultPane from '@/domains/user/components/ImageResultPane';
 type GenerateReq = { prompt: string; size: GenSize; style?: StylePreset };
 type GenerateRes = { images: string[] };
 
-export default function ImageChat() {
+export default function ImageGenerator() {
   // 좌측 폼 상태
   const [prompt, setPrompt] = useState('');
   const [size, setSize] = useState<GenSize>('768x768');

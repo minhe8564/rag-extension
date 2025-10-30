@@ -17,6 +17,7 @@
   animation: shake 0.4s ease-in-out;
 }
 
+/* Toastify 커스텀 스타일 */
 .Toastify__toast {
   border-radius: 12px !important;
   font-size: 14px;
@@ -25,6 +26,30 @@
   font-weight: 500;
 }
 
+/* 스크롤바 숨기기 */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* Slider 스타일 */
+.slider-hebees::-webkit-slider-thumb {
+  appearance: none;
+  height: 18px;
+  width: 18px;
+  border-radius: 50%;
+  background: var(--color-hebees);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.15);
+}
+
+.slider-hebees::-moz-range-thumb {
+  height: 18px;
+  width: 18px;
+  border-radius: 50%;
+  background: var(--color-hebees);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.15);
+}
+
