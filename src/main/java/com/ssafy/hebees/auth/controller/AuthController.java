@@ -9,6 +9,7 @@ import com.ssafy.hebees.auth.dto.response.AuthInfoResponse;
 import com.ssafy.hebees.auth.dto.response.AuthHealthResponse;
 import com.ssafy.hebees.auth.service.AuthService;
 import com.ssafy.hebees.common.util.SecurityUtil;
+import com.ssafy.hebees.common.response.BaseResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -37,14 +38,14 @@ public class AuthController {
         @ApiResponse(responseCode = "400", description = "잘못된 요청 (유효성 검사 실패)"),
         @ApiResponse(responseCode = "401", description = "인증 실패 (잘못된 사용자 ID 또는 비밀번호)")
     })
-    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<BaseResponse<LoginResponse>> login(@Valid @RequestBody LoginRequest request) {
         log.info("로그인 요청: email={}", request.email());
 
         LoginResponse response = authService.login(request);
 
         log.info("로그인 성공: name={}", response.name());
 
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(BaseResponse.success(response));
     }
 
     @PostMapping("/refresh")
@@ -54,7 +55,7 @@ public class AuthController {
         @ApiResponse(responseCode = "400", description = "잘못된 요청"),
         @ApiResponse(responseCode = "401", description = "유효하지 않은 리프레시 토큰")
     })
-    public ResponseEntity<TokenRefreshResponse> refreshToken(
+    public ResponseEntity<BaseResponse<TokenRefreshResponse>> refreshToken(
         @Valid @RequestBody TokenRefreshRequest request) {
         log.info("토큰 갱신 요청");
 
@@ -62,7 +63,7 @@ public class AuthController {
 
         log.info("토큰 갱신 성공");
 
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(BaseResponse.success(response));
     }
 
     @PostMapping("/logout")
@@ -71,7 +72,7 @@ public class AuthController {
         @ApiResponse(responseCode = "200", description = "로그아웃 성공"),
         @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자")
     })
-    public ResponseEntity<LogoutResponse> logout() {
+    public ResponseEntity<BaseResponse<LogoutResponse>> logout() {
         log.info("로그아웃 요청");
 
         // 현재 사용자 UUID 가져오기
@@ -83,7 +84,7 @@ public class AuthController {
 
         log.info("로그아웃 성공: userUuid={}", userUuid);
 
-        return ResponseEntity.ok(LogoutResponse.of("로그아웃이 완료되었습니다."));
+        return ResponseEntity.ok(BaseResponse.success(LogoutResponse.of("로그아웃이 완료되었습니다.")));
     }
 
     @GetMapping("/me")
@@ -92,7 +93,7 @@ public class AuthController {
         @ApiResponse(responseCode = "200", description = "사용자 정보 조회 성공"),
         @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자")
     })
-    public ResponseEntity<AuthInfoResponse> getMyInfo() {
+    public ResponseEntity<BaseResponse<AuthInfoResponse>> getMyInfo() {
         log.info("내 정보 조회 요청");
 
         String userUuid = SecurityUtil.getCurrentUserUuid()
@@ -101,7 +102,7 @@ public class AuthController {
 
         log.info("내 정보 조회 성공: userUuid={}", userUuid);
 
-        return ResponseEntity.ok(AuthInfoResponse.of(userUuid, "현재 로그인한 사용자 정보입니다."));
+        return ResponseEntity.ok(BaseResponse.success(AuthInfoResponse.of(userUuid, "현재 로그인한 사용자 정보입니다.")));
     }
 
     @GetMapping("/health")
@@ -109,8 +110,8 @@ public class AuthController {
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "서비스 정상")
     })
-    public ResponseEntity<AuthHealthResponse> healthCheck() {
+    public ResponseEntity<BaseResponse<AuthHealthResponse>> healthCheck() {
         String timestamp = String.valueOf(System.currentTimeMillis());
-        return ResponseEntity.ok(AuthHealthResponse.of("UP", "Auth Service", timestamp));
+        return ResponseEntity.ok(BaseResponse.success(AuthHealthResponse.of("UP", "Auth Service", timestamp)));
     }
 }
