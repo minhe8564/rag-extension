@@ -15,7 +15,6 @@ pipeline {
         // Image & Container
         GW_IMAGE_NAME = "rag-extension/fastapi-gateway"
         GW_CONTAINER  = "rag-extension-gw"
-        GW_PORT       = "28000"
 
         // Networks
         APP_NETWORK_TEST = "app-network-test"
@@ -96,7 +95,6 @@ pipeline {
                             --name "$GW_CONTAINER" \
                             --restart unless-stopped \
                             --network "$APP_NETWORK_TEST" \
-                            --publish "$GW_PORT":8000 \
                             --env-file "$GW_ENV_FILE" \
                             "$GW_BUILD_TAG"
 
