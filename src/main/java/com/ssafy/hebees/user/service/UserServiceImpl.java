@@ -89,19 +89,19 @@ public class UserServiceImpl implements UserService {
     @Override
     public User findByEmail(String email) {
         return userRepository.findByEmailWithQueryDSL(email)
-            .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
+            .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_SIGNIN));
     }
 
     @Override
     public User findByName(String name) {
         return userRepository.findByNameWithQueryDSL(name)
-            .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
+            .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_SIGNIN));
     }
 
     @Override
     public User findByUuid(UUID userUuid) {
         return userRepository.findById(userUuid)
-            .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
+            .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_SIGNIN));
     }
 
     @Override

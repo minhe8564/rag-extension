@@ -6,7 +6,7 @@ def getCurrentActiveContainer(environment) {
     
     def blueState = sh(script: """docker inspect --format='{{.State.Status}}' ${blueContainer} 2>/dev/null || echo 'none'""", returnStdout: true).trim()
     def greenState = sh(script: """docker inspect --format='{{.State.Status}}' ${greenContainer} 2>/dev/null || echo 'none'""", returnStdout: true).trim()
-
+    
     echo "🔍 Blue container state: ${blueState}, Green container state: ${greenState}"
 
     if (blueState == 'running' && greenState != 'running') {
@@ -72,7 +72,7 @@ def healthCheck(containerName, port, networkName) {
             def response = sh(
                 script: """
                 docker run --rm --network ${networkName} curlimages/curl:8.8.0 \
-                    -f http://${containerName}:8080/api/actuator/health >/dev/null
+                    -f http://${containerName}:8080/api/v1/actuator/health >/dev/null
                 """,
                 returnStatus: true
             )
@@ -94,7 +94,25 @@ def healthCheck(containerName, port, networkName) {
 }
 
 def switchTraffic(environment, activeContainer, inactiveContainer, networkName) {
+    // Nginx upstream 설정 파일명
+    def upstreamFile = environment == 'test' ? 
+        'spring-dev-active-upstream.conf' : 
+        'spring-active-upstream.conf'
+    
+    def upstreamName = environment == 'test' ? 'spring_dev_active' : 'spring_active'
+    
     sh """
+    set -e
+    
+    # 임시 컨테이너로 호스트 파일시스템에 접근하여 upstream 설정 업데이트
+    docker run --rm -v /home/ubuntu/nginx/conf/upstreams:/upstreams alpine sh -c \
+        "echo 'upstream ${upstreamName} { server ${inactiveContainer}:8080; }' > /upstreams/${upstreamFile}"
+    
+    # Nginx 설정 리로드
+    docker exec nginx nginx -s reload
+    
+    echo "✅ Nginx upstream updated to ${inactiveContainer}"
+    
     # 기존 활성 컨테이너의 네트워크 별칭 제거
     docker network disconnect ${networkName} ${activeContainer} || true
     
@@ -356,11 +374,11 @@ pipeline {
                     def targetContainer = env.DEPLOY_INACTIVE_CONTAINER
                     def targetPort = env.DEPLOY_INACTIVE_PORT
                     def networkName = env.DEPLOY_NETWORK
-
+                    
                     if (!targetContainer?.trim() || !targetPort?.trim()) {
                         error "[Health Check] 배포 대상 정보를 찾을 수 없습니다."
                     }
-
+                    
                     echo "🏥 Health check for ${targetContainer} on port ${targetPort}"
                     
                     if (!healthCheck(targetContainer, targetPort, networkName)) {
@@ -398,7 +416,7 @@ pipeline {
                     if (!inactiveContainer?.trim()) {
                         error "[Switch Traffic] 전환할 대상 컨테이너 정보를 찾을 수 없습니다."
                     }
-
+                    
                     echo "🔄 Switching traffic from ${activeContainer ?: 'none'} to ${inactiveContainer}"
                     
                     // 트래픽 전환

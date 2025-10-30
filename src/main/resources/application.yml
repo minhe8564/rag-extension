@@ -10,9 +10,11 @@ spring:
       factory: simple
   mvc:
     servlet:
-      path: /api
+      path: /api/v1
   jpa:
     hibernate:
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
       ddl-auto: validate
     properties:
       hibernate:
@@ -24,6 +26,8 @@ cors:
   allowed-origins:
     - "http://localhost:5173"
     - "http://localhost"
+    - "https://dev-spring.ragextension.shop"
+    - "https://spring.ragextension.shop/"
 
 springdoc:
   swagger-ui:

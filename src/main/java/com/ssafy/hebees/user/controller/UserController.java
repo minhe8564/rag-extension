@@ -4,6 +4,7 @@ import com.ssafy.hebees.user.dto.request.UserSignupRequest;
 import com.ssafy.hebees.user.dto.response.UserSignupResponse;
 import com.ssafy.hebees.user.entity.User;
 import com.ssafy.hebees.user.service.UserService;
+import com.ssafy.hebees.common.response.BaseResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -36,7 +37,7 @@ public class UserController {
         @ApiResponse(responseCode = "400", description = "잘못된 요청 (유효성 검사 실패)"),
         @ApiResponse(responseCode = "409", description = "이미 존재하는 정보 (이메일, 전화번호, 사업자등록번호 중복)")
     })
-    public ResponseEntity<UserSignupResponse> signup(
+    public ResponseEntity<BaseResponse<UserSignupResponse>> signup(
         @Valid @RequestBody UserSignupRequest request) {
         log.info("회원가입 요청: {}", request.email());
 
@@ -44,7 +45,7 @@ public class UserController {
 
         log.info("회원가입 성공: {} (UUID: {})", response.email(), response.userUuid());
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return ResponseEntity.status(HttpStatus.CREATED).body(BaseResponse.of(HttpStatus.CREATED, response));
     }
 
     @GetMapping("/check-name")
@@ -53,13 +54,13 @@ public class UserController {
         @ApiResponse(responseCode = "200", description = "중복 확인 완료"),
         @ApiResponse(responseCode = "400", description = "잘못된 요청")
     })
-    public ResponseEntity<Boolean> checkName(
+    public ResponseEntity<BaseResponse<Boolean>> checkName(
         @RequestParam @NotBlank(message = "이름은 필수입니다") String name) {
         log.info("사용자명 중복 확인 요청: {}", name);
 
         boolean exists = userService.isNameExists(name);
 
-        return ResponseEntity.ok(exists);
+        return ResponseEntity.ok(BaseResponse.success(exists));
     }
 
     @GetMapping("/check-email")
@@ -68,13 +69,13 @@ public class UserController {
         @ApiResponse(responseCode = "200", description = "중복 확인 완료"),
         @ApiResponse(responseCode = "400", description = "잘못된 요청")
     })
-    public ResponseEntity<Boolean> checkEmail(
+    public ResponseEntity<BaseResponse<Boolean>> checkEmail(
         @RequestParam @NotBlank(message = "이메일은 필수입니다") String email) {
         log.info("이메일 중복 확인 요청: {}", email);
 
         boolean exists = userService.isEmailExists(email);
 
-        return ResponseEntity.ok(exists);
+        return ResponseEntity.ok(BaseResponse.success(exists));
     }
 
     @GetMapping("/by-role")
@@ -83,13 +84,13 @@ public class UserController {
         @ApiResponse(responseCode = "200", description = "조회 완료"),
         @ApiResponse(responseCode = "400", description = "잘못된 요청")
     })
-    public ResponseEntity<List<User>> getUsersByRole(
+    public ResponseEntity<BaseResponse<List<User>>> getUsersByRole(
         @RequestParam @NotBlank(message = "역할 이름은 필수입니다") String roleName) {
         log.info("역할별 사용자 조회 요청: {}", roleName);
 
         List<User> users = userService.findUsersByRoleName(roleName);
 
-        return ResponseEntity.ok(users);
+        return ResponseEntity.ok(BaseResponse.success(users));
     }
 
     @GetMapping("/count")
@@ -97,12 +98,12 @@ public class UserController {
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "조회 완료")
     })
-    public ResponseEntity<Long> getActiveUserCount() {
+    public ResponseEntity<BaseResponse<Long>> getActiveUserCount() {
         log.info("활성 사용자 수 조회 요청");
 
         long count = userService.getActiveUserCount();
 
-        return ResponseEntity.ok(count);
+        return ResponseEntity.ok(BaseResponse.success(count));
     }
 
     @GetMapping("/email/{email}")
@@ -111,13 +112,13 @@ public class UserController {
         @ApiResponse(responseCode = "200", description = "조회 완료"),
         @ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음")
     })
-    public ResponseEntity<User> getUserByEmail(
+    public ResponseEntity<BaseResponse<User>> getUserByEmail(
         @PathVariable @NotBlank(message = "이메일은 필수입니다") String email) {
         log.info("이메일로 조회 요청: {}", email);
 
         User user = userService.findByEmail(email);
 
-        return ResponseEntity.ok(user);
+        return ResponseEntity.ok(BaseResponse.success(user));
     }
 
     @GetMapping("/name/{name}")
@@ -126,12 +127,12 @@ public class UserController {
         @ApiResponse(responseCode = "200", description = "조회 완료"),
         @ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음")
     })
-    public ResponseEntity<User> getUserByName(
+    public ResponseEntity<BaseResponse<User>> getUserByName(
         @PathVariable @NotBlank(message = "이름은 필수입니다") String name) {
         log.info("사용자명으로 조회 요청: {}", name);
 
         User user = userService.findByName(name);
 
-        return ResponseEntity.ok(user);
+        return ResponseEntity.ok(BaseResponse.success(user));
     }
 }

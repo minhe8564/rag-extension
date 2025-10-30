@@ -56,8 +56,9 @@ public class User extends BaseSoftDeleteEntity {
     @JoinColumn(name = "OFFER_NO", nullable = false)
     private Offer offer;
 
-    @Column(name = "BUSSINESS_TYPE", nullable = false, length = 20)
-    private String businessType;
+    // 0 : 개인 안경원, 1 : 체인 안경원, 2 : 제조 유통사
+    @Column(name = "BUSINESS_TYPE", nullable = false)
+    private int businessType;
 
     public String getRoleName() {
         return userRole != null ? userRole.getName() : null;
