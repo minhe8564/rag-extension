@@ -1,5 +1,7 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from . import __version__, __title__, __description__
+from .config import settings
 from datetime import datetime
 
 app = FastAPI(
@@ -8,10 +10,20 @@ app = FastAPI(
     version=__version__,
 )
 
+# CORS 설정
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.allowed_origins_list,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 @app.get("/")
 async def root():
     return {
-        "message": "Hebees Ingest Service is running"
+        "message": "Hebees Python Backend Service is running",
+        "app_name": settings.app_name,
     }
 
 @app.get("/health")
@@ -19,4 +31,5 @@ async def health_check():
     return {
         "status": "healthy",
         "version": __version__,
+        "timestamp": datetime.now().isoformat(),
     }
