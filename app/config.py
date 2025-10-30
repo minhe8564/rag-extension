@@ -1,4 +1,4 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List, Optional
 from pathlib import Path
 
@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     def allowed_origins_list(self) -> List[str]:
         return [origin.strip() for origin in self.allowed_origins.split(",")]
 
-    # JWT 설정 (개선된 버전)
+    # JWT 설정
     jwt_secret: str
     jwt_algorithm: str = "HS512"
     jwt_supported_algorithms: List[str] = ["HS256", "HS512"]
@@ -41,11 +41,24 @@ class Settings(BaseSettings):
 
     # 로깅
     logging_level: str = "INFO"
+    log_file_enabled: bool = False
+    log_file_path: str = "/var/log/hebees/gateway.log"
+    log_file_max_bytes: int = 10_485_760  # 10MB
+    log_file_backup_count: int = 5
+    
+    model_config = SettingsConfigDict(
+        env_file=BASE_DIR / ".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
 
-    class Config:
-        env_file = BASE_DIR / ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
-        extra = "ignore"
+    @classmethod
+    def settings_customise_sources(cls, settings_cls, init_settings, env_settings, dotenv_settings, file_secret_settings):
+        return (
+            dotenv_settings,
+            init_settings,
+            file_secret_settings,
+        )
 
 settings = Settings()
