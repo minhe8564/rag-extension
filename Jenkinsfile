@@ -6,11 +6,7 @@ def getCurrentActiveContainer(environment) {
     
     def blueState = sh(script: """docker inspect --format='{{.State.Status}}' ${blueContainer} 2>/dev/null || echo 'none'""", returnStdout: true).trim()
     def greenState = sh(script: """docker inspect --format='{{.State.Status}}' ${greenContainer} 2>/dev/null || echo 'none'""", returnStdout: true).trim()
-<<<<<<< HEAD
-
-=======
     
->>>>>>> 13657d907ee14bea968345a7362c68ffcf6aefd7
     echo "🔍 Blue container state: ${blueState}, Green container state: ${greenState}"
 
     if (blueState == 'running' && greenState != 'running') {
