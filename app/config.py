@@ -56,8 +56,9 @@ class Settings(BaseSettings):
     @classmethod
     def settings_customise_sources(cls, settings_cls, init_settings, env_settings, dotenv_settings, file_secret_settings):
         return (
-            dotenv_settings,
             init_settings,
+            env_settings,
+            dotenv_settings,
             file_secret_settings,
         )
 
