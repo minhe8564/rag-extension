@@ -3,19 +3,21 @@ FROM python:3.11-slim AS builder
 # 작업 디렉터리 설정
 WORKDIR /app
 
-# uv 설치 및 빌드 도구 설치 (빌더 전용)
+# 필수 패키지 설치: curl, CA 인증서, venv, 빌드 도구
 RUN apt-get update && apt-get install -y \
-    curl build-essential gcc \
+    curl ca-certificates python3-venv build-essential gcc \
+    && update-ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # 프로젝트 메타데이터와 잠금 파일만 먼저 복사 (레이어 캐시 최적화)
 COPY pyproject.toml uv.lock ./
 
-# uv 설치 후 가상환경(.venv)에 동기화
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh -s -- -y \
-    && export PATH="$HOME/.local/bin:$PATH" \
-    && uv --version \
-    && uv sync --frozen --no-dev
+# uv 설치 후 가상환경(.venv)에 동기화 (--frozen: uv.lock 엄격 준수)
+ENV UV_BIN_DIR=/usr/local/bin
+RUN set -eux; \
+    curl -fsSL https://astral.sh/uv/install.sh | sh -s -- --yes --bin-dir "${UV_BIN_DIR}"; \
+    uv --version; \
+    uv sync --frozen --no-dev
 
 
 FROM python:3.11-slim
@@ -44,3 +46,4 @@ EXPOSE 8000
 
 # 애플리케이션 실행
 CMD ["python", "run.py"]
+
