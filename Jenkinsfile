@@ -91,17 +91,13 @@ pipeline {
                         docker stop "$GW_CONTAINER" || true
                         docker rm "$GW_CONTAINER" || true
 
-                        # 자격증명 .env를 워크스페이스로 복사하고 권한 완화
-                        cp "$GW_ENV_FILE" .env
-                        chmod 0644 .env
-
-                        # 컨테이너 실행: run 시에는 한 개 네트워크만 지정
+                        # 컨테이너 실행: --env-file로 환경 변수 주입
                         docker run -d \
                             --name "$GW_CONTAINER" \
                             --restart unless-stopped \
                             --network "$APP_NETWORK_TEST" \
                             --publish "$GW_PORT":8000 \
-                            -v "$(pwd)/.env:/app/.env:ro" \
+                            --env-file "$GW_ENV_FILE" \
                             "$GW_BUILD_TAG"
 
                         # 추가 네트워크 연결 (prod, db)
