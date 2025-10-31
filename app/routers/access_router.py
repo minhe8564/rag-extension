@@ -28,8 +28,8 @@ def require_role(*allowed_roles: str, allow_anonymous: bool = False):
 
 
 @router.get("/user")
-async def user_resource(role: str = Depends(require_role("USER", "ADMIN", allow_anonymous=True))):
-    """USER 혹은 ADMIN, 또는 익명 사용자까지 접근 가능한 엔드포인트."""
+async def user_resource(role: str = Depends(require_role("USER"))):
+    """USER 역할만 접근 가능한 엔드포인트."""
     return {
         "resource": "USER",
         "message": "USER 전용 리소스에 접근했습니다.",
