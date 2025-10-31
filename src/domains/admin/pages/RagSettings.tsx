@@ -13,7 +13,7 @@ export default function RagSettings() {
   };
 
   return (
-    <div className="space-y-8 px-4">
+    <div className="space-y-8 px-4 mb-20">
       <h1 className="text-2xl">
         <span className="font-bold bg-gradient-to-r from-[#BE7DB1] to-[#81BAFF] bg-clip-text text-transparent">
           HEBEES RAG

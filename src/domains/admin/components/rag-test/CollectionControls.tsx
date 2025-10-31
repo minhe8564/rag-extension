@@ -20,8 +20,8 @@ type Props = {
 };
 
 export function CollectionControls({
-  title = 'Collection 선택',
-  subtitle = 'RAG 모델을 테스트하는 컬렉션을 선택하거나 새로 만들어주세요.',
+  title = 'Collection 확인',
+  subtitle = 'RAG 모델을 테스트할 컬렉션 내 문서를 확인해주세요.',
   collections,
   selectedId,
   creatingNew = false,

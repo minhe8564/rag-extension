@@ -27,7 +27,7 @@ export default function RagTest() {
   };
 
   return (
-    <div className="space-y-8 px-4">
+    <div className="space-y-8 px-4 mb-20">
       <h1 className="text-2xl">
         <span className="font-bold bg-gradient-to-r from-[#BE7DB1] to-[#81BAFF] bg-clip-text text-transparent">
           HEBEES RAG
@@ -57,7 +57,7 @@ export default function RagTest() {
         <CreateCollectionForm
           onCancel={() => setCreatingNew(false)}
           onCreate={newCol => {
-            setCollections(prev => [newCol, ...prev]); // 실제로는 API 성공 후 반영
+            setCollections(prev => [newCol, ...prev]);
             setSelectedCollectionId(newCol.id);
             setCreatingNew(false);
           }}
@@ -77,8 +77,6 @@ export default function RagTest() {
           <RagStrategyCompare
             onRunCompare={async ({ question, left, right, mode }) => {
               // 여기서 실제 API 호출로 좌/우 결과 받아서 반환하면
-              // 하단 결과 박스에 즉시 표시됩니다.
-              // 예시:
               // const { leftText, rightText } = await api.compareStrategies({ question, left, right, mode });
               return {
                 left: `[${mode}] ${left.ingest?.name ?? '-'} × ${left.query?.name ?? '-'}\nQ: ${question}\n→ 좌측 실제 응답…`,
