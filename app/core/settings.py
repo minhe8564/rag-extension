@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     # RAG Orchestrator 설정
     rag_orchestrator_url: str
 
+    # Python Backend 설정
+    python_backend_url: str
+
     # Database 설정 (JWT 인증, 사용자 관리, RUNPOD 주소 관리)
     db_host: str
     db_port: int
