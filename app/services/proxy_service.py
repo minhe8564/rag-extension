@@ -31,10 +31,22 @@ async def proxy_request(
     else:
         target_url_full = f"{target_url.rstrip('/')}{target_path}"
     
-    # 요청 헤더 복사
-    headers = dict(request.headers)
+    # 요청 헤더 복사 (사용자 정보 헤더는 게이트웨이가 관리)
+    forwarded_headers = {
+        key: value
+        for key, value in request.headers.items()
+        if key.lower() not in {"x-user-role", "x-user-uuid"}
+    }
+
+    headers = dict(forwarded_headers)
     headers.pop("host", None)
     headers.pop("content-length", None)
+
+    # 사용자 역할 정보 헤더 주입
+    user_info = getattr(request.state, "user", None)
+    if user_info and getattr(user_info, "is_authenticated", False):
+        headers["x-user-role"] = str(user_info.role)
+        headers["x-user-uuid"] = str(user_info.user_uuid)
     
     # 요청 본문 처리
     body: Optional[bytes] = None
@@ -74,15 +86,15 @@ async def proxy_request(
                 media_type=upstream_response.headers.get("content-type"),
             )
         except httpx.TimeoutException:
-            logger.warning(f"Proxy timeout for {target_url_full}")
+            logger.warning(f"프록시 요청이 시간 초과되었습니다: {target_url_full}")
             raise HTTPException(
                 status_code=504,
-                detail="Gateway timeout"
+                detail="게이트웨이 요청이 시간 초과되었습니다."
             )
         except httpx.RequestError as e:
-            logger.error(f"Proxy request error for {target_url_full}: {str(e)}")
+            logger.error(f"프록시 요청 중 오류가 발생했습니다: {target_url_full} - {str(e)}")
             raise HTTPException(
                 status_code=502,
-                detail="Bad gateway"
+                detail="게이트웨이 요청 처리 중 오류가 발생했습니다."
             )
 

@@ -93,21 +93,21 @@ def verify_jwt_token(token: str) -> Dict[str, Any]:
         )
         return payload
     except jwt.ExpiredSignatureError:
-        logger.warning("JWT token expired")
+        logger.warning("JWT 토큰이 만료되었습니다.")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token has expired"
+            detail="토큰이 만료되었습니다."
         )
     except jwt.InvalidTokenError as e:
-        logger.warning(f"Invalid JWT token: {str(e)}")
+        logger.warning(f"유효하지 않은 JWT 토큰입니다: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token"
+            detail="토큰이 유효하지 않습니다."
         )
     except Exception as e:
-        logger.error(f"JWT verification error: {str(e)}")
+        logger.error(f"JWT 검증 중 오류가 발생했습니다: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token verification failed"
+            detail="토큰 검증에 실패했습니다."
         )
 
