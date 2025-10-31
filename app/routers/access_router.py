@@ -7,7 +7,7 @@ router = APIRouter(prefix="/access", tags=["Access"])
 
 
 def require_role(*allowed_roles: str, allow_anonymous: bool = False):
-    async def _validate_role(x_user_role: str = Header(None, convert_underscores=False)) -> str:
+    async def _validate_role(x_user_role: str = Header(None, alias="x-user-role")) -> str:
         if x_user_role is None:
             if allow_anonymous:
                 return "ANONYMOUS"
