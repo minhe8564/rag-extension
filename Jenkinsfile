@@ -30,6 +30,28 @@ pipeline {
             }
         }
 
+        stage('Update uv.lock') {
+            when {
+                anyOf {
+                    expression { env.GITLAB_OBJECT_KIND == 'push' }
+                    expression { params.BUILD_INGEST == true }
+                }
+            }
+            steps {
+                sh '''
+                set -eux
+                # Docker 컨테이너에서 uv lock 실행 (권한 문제 회피)
+                docker run --rm -v "$PWD":/app -w /app python:3.11-slim bash -c "
+                    apt-get update -qq && apt-get install -y -qq curl ca-certificates >/dev/null 2>&1 && \
+                    curl -fsSL https://astral.sh/uv/install.sh | sh && \
+                    /root/.local/bin/uv lock && \
+                    chown -R $(id -u):$(id -g) uv.lock 2>/dev/null || true
+                "
+                echo "uv.lock updated successfully"
+                '''
+            }
+        }
+
         stage('Prepare Docker Networks') {
             when {
                 anyOf {
