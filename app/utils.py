@@ -18,14 +18,12 @@ def custom_openapi(app: FastAPI):
 
     components = openapi_schema.setdefault("components", {})
     security_schemes = components.setdefault("securitySchemes", {})
-    security_schemes["BearerAuth"] = {
-        "type": "http",
-        "scheme": "bearer",
-        "bearerFormat": "JWT",
-        "description": "JWT 토큰을 입력하세요. 예: Bearer eyJhbGciOi...",
+    security_schemes["RoleHeader"] = {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-user-role",
+        "description": "게이트웨이가 추가하는 사용자 역할 헤더. 예: USER, ADMIN",
     }
-
-    openapi_schema["security"] = [{"BearerAuth": []}]
 
     app.openapi_schema = openapi_schema
     return app.openapi_schema
