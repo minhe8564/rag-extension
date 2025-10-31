@@ -19,7 +19,8 @@ PUBLIC_PATHS: List[str] = [
     "/docs",
     "/openapi.json",
     "/redoc",
-    "/rag/health",
+    "/rag/",  # RAG Orchestrator 프록시는 공개 경로
+    "/be/",   # Python Backend 프록시는 공개 경로
 ]
 
 

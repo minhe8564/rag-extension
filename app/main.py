@@ -7,7 +7,7 @@ from . import __version__, __title__, __description__
 from .core.settings import settings
 from .core.utils import custom_openapi
 from .common.auth.middleware import jwt_auth_middleware
-from .routers import rag_router
+from .routers import rag_router, backend_router
 import logging
 
 logger = logging.getLogger(__name__)
@@ -42,6 +42,7 @@ async def jwt_auth_middleware_handler(request: Request, call_next):
 
 # Include routers
 app.include_router(rag_router.router)
+app.include_router(backend_router.router)
 
 @app.get("/health")
 async def health_check():
