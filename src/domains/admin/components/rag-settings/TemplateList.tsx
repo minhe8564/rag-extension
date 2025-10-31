@@ -1,4 +1,4 @@
-import Card from '@/domains/admin/components/rag-settings/ui/Card';
+import Card from '@/shared/components/ui/Card';
 import { IconButton } from '@/domains/admin/components/rag-settings/ui/IconButton';
 import {
   ingestTemplateOptions,

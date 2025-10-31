@@ -57,3 +57,13 @@ export const llmModelsOptions = [
   { label: 'GPT-OSS', value: 'gpt-oss', desc: '오픈소스 기반 경량 언어모델' },
   { label: 'Qwen3', value: 'qwen3', desc: '알리바바의 다국어·멀티모달 언어모델' },
 ] as const;
+
+export const fileTypeOptions = [
+  { label: '전체', value: 'all' },
+  { label: 'PDF', value: 'pdf' },
+  { label: 'Word', value: 'docx' },
+  { label: 'PPT', value: 'pptx' },
+  { label: 'Excel', value: 'xlsx' },
+  { label: 'TXT', value: 'txt' },
+  { label: 'Image', value: 'image' },
+];

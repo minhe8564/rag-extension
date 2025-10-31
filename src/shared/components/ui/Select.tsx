@@ -4,7 +4,7 @@ import { ChevronDown } from 'lucide-react';
 type Option = { label: string; value: string; desc?: string };
 
 type SelectMenuProps = {
-  value?: string;
+  value?: string | null;
   onChange: (v: string) => void;
   options: Option[];
   placeholder?: string;
@@ -12,7 +12,7 @@ type SelectMenuProps = {
   disabled?: boolean;
 };
 
-export function Select({
+export default function Select({
   value,
   onChange,
   options,

@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
-import Card from '@/domains/admin/components/rag-settings/ui/Card';
+import { useState } from 'react';
+import Card from '@/shared/components/ui/Card';
+import Select from '@/shared/components/ui/Select';
 import { LabelRow } from '@/domains/admin/components/rag-settings/ui/labelRow';
-import { Select } from '@/domains/admin/components/rag-settings/ui/Select';
 import { Slider } from '@/domains/admin/components/rag-settings/ui/Slider';
 import { Save } from 'lucide-react';
 import {

@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import Card from '@/domains/admin/components/rag-settings/ui/Card';
+import Card from '@/shared/components/ui/Card';
 import { LabelRow } from '@/domains/admin/components/rag-settings/ui/labelRow';
-import { Select } from '@/domains/admin/components/rag-settings/ui/Select';
+import Select from '@/shared/components/ui/Select';
 import { Slider } from '@/domains/admin/components/rag-settings/ui/Slider';
 import { Toggle } from '@/domains/admin/components/rag-settings/ui/Toggle';
 import { Save } from 'lucide-react';
