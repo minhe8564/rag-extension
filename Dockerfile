@@ -1,38 +1,43 @@
-# 생성 서비스를 위한 멀티스테이지 빌드
-FROM python:3.11-slim AS base
+FROM python:3.11-slim AS builder
 
-# 환경 변수 설정
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
-
-# 시스템 의존성 설치
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# 작업 디렉토리 설정
 WORKDIR /app
 
-# 캐싱 최적화를 위해 requirements.txt 먼저 복사
-COPY requirements.txt .
+# 필수 패키지
+RUN apt-get update && apt-get install -y \
+    curl ca-certificates python3-venv build-essential gcc \
+    && update-ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
-# Python 의존성 설치
-RUN pip install --no-cache-dir -r requirements.txt
+# 메타데이터만 먼저 복사 (캐시 최적화)
+COPY pyproject.toml uv.lock ./
 
-# 애플리케이션 코드 복사
+# uv 설치 + 동기화
+RUN set -eux; \
+    curl -fsSL https://astral.sh/uv/install.sh | sh; \
+    install -m 0755 /root/.local/bin/uv /usr/local/bin/uv; \
+    install -m 0755 /root/.local/bin/uvx /usr/local/bin/uvx || true; \
+    uv --version; \
+    uv sync --frozen --no-dev
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# 빌더에서 준비한 venv 및 메타데이터 복사
+COPY --from=builder /app/.venv /app/.venv
+COPY --from=builder /app/pyproject.toml /app/uv.lock ./
+
+# 앱 코드 복사
 COPY . .
 
-# 비루트 사용자 생성
-RUN adduser --disabled-password --gecos '' appuser && \
-    chown -R appuser:appuser /app
-USER appuser
+# 가상환경 우선 사용
+ENV PATH="/app/.venv/bin:${PATH}"
 
-# 포트 노출
-EXPOSE 8000
+# 비루트 사용자 & 로그 디렉터리
+RUN useradd --create-home --shell /bin/bash app \
+    && mkdir -p /var/log/hebees \
+    && chown -R app:app /app /var/log/hebees
 
-# 애플리케이션 실행
+USER app
+
 CMD ["python", "run.py"]
