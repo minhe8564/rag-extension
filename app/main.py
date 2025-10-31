@@ -1,17 +1,14 @@
-from fastapi import FastAPI, Request, HTTPException
+"""
+Main FastAPI application
+"""
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer
 from . import __version__, __title__, __description__
-from .config import settings
+from .core.settings import settings
+from .core.utils import custom_openapi
 from .common.auth.middleware import jwt_auth_middleware
-from .admin import router as admin_router
-from .extract import router as extract_router
-from .chunking import router as chunking_router
-from .embedding import router as embedding_router
-from .query_embedding import router as query_embedding_router
-from .search import router as search_router
-from .cross_encoder import router as cross_encoder_router
-from .generation import router as generation_router
+from .routers import rag_router
 import logging
 
 logger = logging.getLogger(__name__)
@@ -29,36 +26,8 @@ app = FastAPI(
 security = HTTPBearer()
 app.openapi_schema = None
 
-def custom_openapi():
-    if app.openapi_schema:
-        return app.openapi_schema
-    
-    from fastapi.openapi.utils import get_openapi
-    
-    openapi_schema = get_openapi(
-        title=app.title,
-        version=app.version,
-        description=app.description,
-        routes=app.routes,
-    )
-    
-    # JWT 보안 스키마 추가
-    openapi_schema["components"]["securitySchemes"] = {
-        "BearerAuth": {
-            "type": "http",
-            "scheme": "bearer",
-            "bearerFormat": "JWT",
-            "description": "JWT 토큰을 입력하세요. 예: Bearer eyJhbGciOiJIUzUxMiJ9..."
-        }
-    }
-    
-    # 보안 요구사항 추가
-    openapi_schema["security"] = [{"BearerAuth": []}]
-    
-    app.openapi_schema = openapi_schema
-    return app.openapi_schema
-
-app.openapi = custom_openapi
+# Custom OpenAPI schema
+app.openapi = lambda: custom_openapi(app)
 
 # CORS 미들웨어
 app.add_middleware(
@@ -69,20 +38,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 # JWT 인증 미들웨어
 @app.middleware("http")
 async def jwt_auth_middleware_handler(request: Request, call_next):
     return await jwt_auth_middleware(request, call_next)
 
-app.include_router(admin_router, prefix="/ai/api")
-app.include_router(extract_router, prefix="/ai/api")
-app.include_router(chunking_router, prefix="/ai/api")
-app.include_router(embedding_router, prefix="/ai/api")
-app.include_router(query_embedding_router, prefix="/ai/api")
-app.include_router(search_router, prefix="/ai/api")
-app.include_router(cross_encoder_router, prefix="/ai/api")
-app.include_router(generation_router, prefix="/ai/api")
+# Include routers
+app.include_router(rag_router.router)
 
 @app.get("/")
 async def root():
@@ -96,18 +58,4 @@ async def health_check():
     return {
         "status": "healthy",
         "version": __version__
-    }
-
-@app.get("/ai/api/me")
-async def get_current_user(request: Request):
-    """현재 사용자 정보 조회"""
-    from .common.auth.models import UserInfo
-    user = getattr(request.state, 'user', None)
-    if not user:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    
-    return {
-        "user_uuid": user.user_uuid,
-        "role": user.role,
-        "is_authenticated": user.is_authenticated
     }

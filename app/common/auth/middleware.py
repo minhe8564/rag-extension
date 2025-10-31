@@ -1,85 +1,86 @@
 """
-JWT 인증 미들웨어
+JWT Authentication Middleware
 """
 from fastapi import Request, HTTPException, status
-from fastapi.responses import JSONResponse
-from typing import Optional
+from typing import List
 import logging
-from .jwt_handler import jwt_handler
-from .models import UserInfo, AuthError, UserRole
+from uuid import UUID
+
+from ...core.utils import extract_token_from_header, verify_jwt_token
+from .models import UserInfo
 
 logger = logging.getLogger(__name__)
 
-class JWTAuthMiddleware:
-    """JWT 인증 미들웨어"""
-    def __init__(self):
-        self.public_paths = {
-            "/",
-            "/health",
-            "/docs",
-            "/redoc",
-            "/openapi.json"
-        }
+
+# 인증이 필요하지 않은 공개 경로
+PUBLIC_PATHS: List[str] = [
+    "/",
+    "/health",
+    "/docs",
+    "/openapi.json",
+    "/redoc",
+    "/rag/health",
+]
+
+
+def is_public_path(path: str) -> bool:
+    """경로가 공개 경로인지 확인"""
+    return any(path.startswith(public_path) for public_path in PUBLIC_PATHS)
+
+
+async def jwt_auth_middleware(request: Request, call_next):
+    """
+    JWT 인증 미들웨어
     
-    def is_public_path(self, path: str) -> bool:
-        """공개 경로 확인"""
-        return (path in self.public_paths or 
-                path.startswith("/ai/api/health") or
-                # AI 서비스 프록시 경로 (새 서비스 추가 시 자동으로 포함됨)
-                (path.startswith("/ai/api/") and not path.startswith("/ai/api/admin/") and not path.startswith("/ai/api/me")))
-    
-    async def __call__(self, request: Request, call_next):
-        """미들웨어 호출"""
-        path = request.url.path
-
-        # 공개 경로는 인증 없이 통과
-        if self.is_public_path(path):
-            return await call_next(request)
-        
-         # JWT 토큰 추출
-        token = self.extract_token(request)
-
-        if not token:
-            return self.create_auth_error("Token not provided", status.HTTP_401_UNAUTHORIZED)
-        
-        # 토큰 검증
-        token_data = jwt_handler.verify_token(token)
-        if not token_data:
-            return self.create_auth_error("Invalid token", status.HTTP_401_UNAUTHORIZED)
-        
-        # 사용자 정보를 request state에 저장
-        user_info = UserInfo(
-            user_uuid = token_data.user_uuid,
-            role = token_data.role,
-            is_authenticated = True
-        )
-
-        request.state.user = user_info
-        
-        logger.info(f"Authenticated user: {user_info.user_uuid} with role: {user_info.role}")
-        
+    공개 경로는 인증 없이 통과시키고,
+    보호된 경로는 JWT 토큰 검증 후 사용자 정보를 request.state에 저장합니다.
+    """
+    # 공개 경로는 인증 없이 통과
+    if is_public_path(request.url.path):
         return await call_next(request)
-
-    def extract_token(self, request: Request) -> Optional[str]:
-        """요청에서 JWT 토큰 추출"""
-        # Authorization 헤더에서 Bearer 토큰 추출
-        authorization = request.headers.get("Authorization")
-        if authorization:
-            return jwt_handler.extract_token_from_header(authorization)
+    
+    # Authorization 헤더에서 토큰 추출
+    authorization = request.headers.get("Authorization")
+    token = extract_token_from_header(authorization)
+    
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authorization header missing or invalid",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # JWT 토큰 검증
+    try:
+        payload = verify_jwt_token(token)
         
-        return None
-
-    def create_auth_error(self, message: str, status_code: int) -> JSONResponse:
-        """인증 에러 생성"""
-        error_response = AuthError(
-            error = "Authentication Error",
-            message = message,
-            status_code = status_code
+        # 사용자 정보 추출
+        user_uuid = payload.get("sub")  # subject에 user_uuid가 저장됨
+        role = payload.get("role")
+        
+        if not user_uuid or not role:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token payload"
+            )
+        
+        # request.state에 사용자 정보 저장
+        request.state.user = UserInfo(
+            user_uuid=UUID(user_uuid),
+            role=role,
+            is_authenticated=True
+        )
+        
+        # 요청 계속 처리
+        response = await call_next(request)
+        return response
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in JWT middleware: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
         )
 
-        return JSONResponse(
-            status_code = status_code,
-            content = error_response.dict()
-        )
-
-jwt_auth_middleware = JWTAuthMiddleware()
