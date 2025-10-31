@@ -3,7 +3,6 @@ Main FastAPI application
 """
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPBearer
 from . import __version__, __title__, __description__
 from .core.settings import settings
 from .core.utils import custom_openapi
@@ -22,8 +21,6 @@ app = FastAPI(
     }
 )
 
-# JWT 보안 스키마 정의
-security = HTTPBearer()
 app.openapi_schema = None
 
 # Custom OpenAPI schema
@@ -45,12 +42,6 @@ async def jwt_auth_middleware_handler(request: Request, call_next):
 
 # Include routers
 app.include_router(rag_router.router)
-
-@app.get("/")
-async def root():
-    return {
-        "message": "Hebees API Gateway is running"
-    }
 
 @app.get("/health")
 async def health_check():

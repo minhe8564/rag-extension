@@ -26,6 +26,10 @@ def custom_openapi(app: FastAPI):
         routes=app.routes,
     )
     
+    # components가 없으면 생성
+    if "components" not in openapi_schema:
+        openapi_schema["components"] = {}
+    
     # JWT 보안 스키마 추가
     openapi_schema["components"]["securitySchemes"] = {
         "BearerAuth": {
@@ -36,7 +40,6 @@ def custom_openapi(app: FastAPI):
         }
     }
     
-    # 보안 요구사항 추가
     openapi_schema["security"] = [{"BearerAuth": []}]
     
     app.openapi_schema = openapi_schema

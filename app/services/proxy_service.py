@@ -6,8 +6,6 @@ from fastapi import HTTPException
 from typing import Dict, Any
 import logging
 
-from ..core.settings import settings
-
 logger = logging.getLogger(__name__)
 
 
@@ -39,7 +37,8 @@ async def proxy_health_check(service_url: str, timeout: float = 5.0) -> Dict[str
                 detail=f"Health check timeout for {service_url}"
             )
         except httpx.HTTPStatusError as e:
-            logger.error(f"Health check failed for {service_url}: {e.response.text}")
+            logger.error(f"Health check failed for {service_url}: status={e.response.status_code}")
+            # 보안: response.text 직접 노출 방지
             raise HTTPException(
                 status_code=e.response.status_code, 
                 detail=f"Health check failed: {e.response.text}"
