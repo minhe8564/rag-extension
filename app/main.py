@@ -2,13 +2,21 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from . import __version__, __title__, __description__
 from .config import settings
+from .utils import custom_openapi
+from .routers import access_router
 from datetime import datetime
 
 app = FastAPI(
     title=__title__,
     description=__description__,
     version=__version__,
+    swagger_ui_parameters={
+        "persistAuthorization": True,
+    },
 )
+
+app.openapi_schema = None
+app.openapi = lambda: custom_openapi(app)
 
 # CORS 설정
 app.add_middleware(
@@ -18,6 +26,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include application routers
+app.include_router(access_router.router)
 
 @app.get("/")
 async def root():
