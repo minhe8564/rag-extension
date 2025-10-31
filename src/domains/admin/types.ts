@@ -7,3 +7,8 @@ export type FileType = {
   currentPercent: number | null;
   totalProgress: number | null;
 };
+
+export type CustomTooltipContext = {
+  series: Highcharts.Series;
+  point: { x: number; y: number; value: number };
+};
