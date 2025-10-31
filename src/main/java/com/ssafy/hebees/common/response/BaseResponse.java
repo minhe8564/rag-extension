@@ -23,7 +23,8 @@ public record BaseResponse<T>(
         return new BaseResponse<>(status.value(), code, message, success, result);
     }
 
-    public static <T> BaseResponse<T> error(HttpStatus status, String code, String message, T result) {
+    public static <T> BaseResponse<T> error(HttpStatus status, String code, String message,
+        T result) {
         return new BaseResponse<>(status.value(), code, message, false, result);
     }
 }

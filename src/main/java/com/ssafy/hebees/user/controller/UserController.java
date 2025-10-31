@@ -1,8 +1,8 @@
 package com.ssafy.hebees.user.controller;
 
 import com.ssafy.hebees.user.dto.request.UserSignupRequest;
+import com.ssafy.hebees.user.dto.response.UserResponse;
 import com.ssafy.hebees.user.dto.response.UserSignupResponse;
-import com.ssafy.hebees.user.entity.User;
 import com.ssafy.hebees.user.service.UserService;
 import com.ssafy.hebees.common.response.BaseResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -45,7 +45,8 @@ public class UserController {
 
         log.info("회원가입 성공: {} (UUID: {})", response.email(), response.userUuid());
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(BaseResponse.of(HttpStatus.CREATED, response));
+        return ResponseEntity.status(HttpStatus.CREATED)
+            .body(BaseResponse.of(HttpStatus.CREATED, response));
     }
 
     @GetMapping("/check-name")
@@ -84,11 +85,13 @@ public class UserController {
         @ApiResponse(responseCode = "200", description = "조회 완료"),
         @ApiResponse(responseCode = "400", description = "잘못된 요청")
     })
-    public ResponseEntity<BaseResponse<List<User>>> getUsersByRole(
+    public ResponseEntity<BaseResponse<List<UserResponse>>> getUsersByRole(
         @RequestParam @NotBlank(message = "역할 이름은 필수입니다") String roleName) {
         log.info("역할별 사용자 조회 요청: {}", roleName);
 
-        List<User> users = userService.findUsersByRoleName(roleName);
+        List<UserResponse> users = userService.findUsersByRoleName(roleName).stream()
+            .map(UserResponse::from)
+            .toList();
 
         return ResponseEntity.ok(BaseResponse.success(users));
     }
@@ -112,11 +115,11 @@ public class UserController {
         @ApiResponse(responseCode = "200", description = "조회 완료"),
         @ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음")
     })
-    public ResponseEntity<BaseResponse<User>> getUserByEmail(
+    public ResponseEntity<BaseResponse<UserResponse>> getUserByEmail(
         @PathVariable @NotBlank(message = "이메일은 필수입니다") String email) {
         log.info("이메일로 조회 요청: {}", email);
 
-        User user = userService.findByEmail(email);
+        UserResponse user = UserResponse.from(userService.findByEmail(email));
 
         return ResponseEntity.ok(BaseResponse.success(user));
     }
@@ -127,11 +130,11 @@ public class UserController {
         @ApiResponse(responseCode = "200", description = "조회 완료"),
         @ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음")
     })
-    public ResponseEntity<BaseResponse<User>> getUserByName(
+    public ResponseEntity<BaseResponse<UserResponse>> getUserByName(
         @PathVariable @NotBlank(message = "이름은 필수입니다") String name) {
         log.info("사용자명으로 조회 요청: {}", name);
 
-        User user = userService.findByName(name);
+        UserResponse user = UserResponse.from(userService.findByName(name));
 
         return ResponseEntity.ok(BaseResponse.success(user));
     }
