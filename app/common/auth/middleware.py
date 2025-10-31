@@ -55,7 +55,7 @@ async def jwt_auth_middleware(request: Request, call_next):
         payload = verify_jwt_token(token)
         
         # 사용자 정보 추출
-        user_uuid = payload.get("sub")  # subject에 user_uuid가 저장됨
+        user_uuid = payload.get("sub")
         role = payload.get("role")
         
         if not user_uuid or not role:
@@ -65,11 +65,18 @@ async def jwt_auth_middleware(request: Request, call_next):
             )
         
         # request.state에 사용자 정보 저장
-        request.state.user = UserInfo(
-            user_uuid=UUID(user_uuid),
-            role=role,
-            is_authenticated=True
-        )
+        try:
+            request.state.user = UserInfo(
+                user_uuid=UUID(str(user_uuid)),
+                role=str(role),
+                is_authenticated=True
+            )
+        except (ValueError, TypeError) as e:
+            logger.warning(f"Invalid UUID format in token: {user_uuid}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token payload: invalid user UUID format"
+            )
         
         # 요청 계속 처리
         response = await call_next(request)
