@@ -38,7 +38,8 @@ public class AuthController {
         @ApiResponse(responseCode = "400", description = "잘못된 요청 (유효성 검사 실패)"),
         @ApiResponse(responseCode = "401", description = "인증 실패 (잘못된 사용자 ID 또는 비밀번호)")
     })
-    public ResponseEntity<BaseResponse<LoginResponse>> login(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<BaseResponse<LoginResponse>> login(
+        @Valid @RequestBody LoginRequest request) {
         log.info("로그인 요청: email={}", request.email());
 
         LoginResponse response = authService.login(request);
@@ -102,7 +103,8 @@ public class AuthController {
 
         log.info("내 정보 조회 성공: userUuid={}", userUuid);
 
-        return ResponseEntity.ok(BaseResponse.success(AuthInfoResponse.of(userUuid, "현재 로그인한 사용자 정보입니다.")));
+        return ResponseEntity.ok(
+            BaseResponse.success(AuthInfoResponse.of(userUuid, "현재 로그인한 사용자 정보입니다.")));
     }
 
     @GetMapping("/health")
@@ -112,6 +114,7 @@ public class AuthController {
     })
     public ResponseEntity<BaseResponse<AuthHealthResponse>> healthCheck() {
         String timestamp = String.valueOf(System.currentTimeMillis());
-        return ResponseEntity.ok(BaseResponse.success(AuthHealthResponse.of("UP", "Auth Service", timestamp)));
+        return ResponseEntity.ok(
+            BaseResponse.success(AuthHealthResponse.of("UP", "Auth Service", timestamp)));
     }
 }

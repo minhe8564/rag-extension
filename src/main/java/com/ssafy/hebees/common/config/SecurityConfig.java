@@ -22,7 +22,6 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
- 
 
 @Configuration
 @EnableWebSecurity
@@ -60,20 +59,24 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
                 .requestMatchers(
+                    // Swagger 문서 (인프라)
                     "/v3/api-docs/**",
                     "/swagger-ui/**",
                     "/swagger-ui.html",
                     "/api/v1/v3/api-docs/**",
                     "/api/v1/swagger-ui/**",
                     "/api/v1/swagger-ui.html",
-                    "/api/v1/user/signup",
-                    "/api/v1/auth/**",
+
+                    "/auth/login",
+                    "/auth/refresh",
+                    "/auth/health",
+
+                    // - 회원가입 및 중복 확인
                     "/user/signup",
-                    "/auth/**",
-                    "/api/actuator/health",
-                    "/api/actuator/health/**",
-                    "/api/actuator/info"
+                    "/user/check-name",
+                    "/user/check-email"
                 ).permitAll()
+                // 나머지는 기본 인증 필요
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)

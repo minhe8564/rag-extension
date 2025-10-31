@@ -1,5 +1,6 @@
 package com.ssafy.hebees.user.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.ssafy.hebees.common.entity.BaseSoftDeleteEntity;
 import com.ssafy.hebees.offer.entity.Offer;
 import jakarta.persistence.Column;
@@ -42,6 +43,7 @@ public class User extends BaseSoftDeleteEntity {
     @Column(name = "EMAIL", nullable = false, length = 254, unique = true)
     private String email;
 
+    @JsonIgnore
     @Column(name = "PASSWORD", nullable = false, length = 255)
     private String password;
 
