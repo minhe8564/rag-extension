@@ -1,4 +1,4 @@
-import Card from '@/shared/components/ui/Card';
+import Card from '@/shared/components/Card';
 import { ChevronDown, Loader2, BarChart3 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 

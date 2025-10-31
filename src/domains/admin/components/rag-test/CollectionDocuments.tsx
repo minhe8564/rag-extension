@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import type { Collection } from '@/domains/admin/components/rag-test/types';
 import { Upload, Download, Trash2, FileText, Folder, RefreshCw } from 'lucide-react';
 import Checkbox from '@/shared/components/Checkbox';
-import Select from '@/shared/components/ui/Select';
+import Select from '@/shared/components/Select';
 import { fileTypeOptions } from '@/domains/admin/components/rag-settings/options';
 import Tooltip from '@/shared/components/Tooltip';
 

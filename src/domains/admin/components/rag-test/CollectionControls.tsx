@@ -1,5 +1,5 @@
-import Card from '@/shared/components/ui/Card';
-import Select from '@/shared/components/ui/Select';
+import Card from '@/shared/components/Card';
+import Select from '@/shared/components/Select';
 import { Plus } from 'lucide-react';
 
 export type Collection = {
@@ -21,7 +21,7 @@ type Props = {
 
 export function CollectionControls({
   title = 'Collection 확인',
-  subtitle = 'RAG 모델을 테스트할 컬렉션 내 문서를 확인해주세요.',
+  subtitle = 'RAG 모델을 테스트할 Collection 내 문서를 확인해주세요.',
   collections,
   selectedId,
   creatingNew = false,
@@ -37,7 +37,7 @@ export function CollectionControls({
             value={selectedId ?? ''}
             onChange={(value: string) => onSelect(value || null)}
             options={[
-              { label: '기존 컬렉션 선택', value: '' },
+              { label: '기존 Collection 선택', value: '' },
               ...collections.map(c => ({
                 label: `${c.name}${c.ingestTemplate ? ` · [${c.ingestTemplate}]` : ''}`,
                 value: c.id,
@@ -52,13 +52,13 @@ export function CollectionControls({
             className="inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm hover:bg-gray-50"
             onClick={onCreateNew}
           >
-            <Plus size={14} className="text-gray-700" />새 컬렉션 추가하기
+            <Plus size={14} className="text-gray-700" />새 Collection 추가하기
           </button>
 
           {!selectedId && !creatingNew && (
             <span className="ml-auto inline-flex items-center gap-2 rounded-md bg-[#f7e8f3] px-3 py-1.5 text-xs text-[#8a2e6e]">
               <span className="inline-block h-2 w-2 rounded-full bg-[#BE7DB1]" />
-              컬렉션을 선택하거나 새로 만들어주세요.
+              Collection을 선택하거나 새로 만들어주세요.
             </span>
           )}
         </div>

@@ -12,10 +12,10 @@ export function CreateCollectionForm({ onCancel, onCreate }: Props) {
 
   return (
     <div className="space-y-4 rounded-xl border bg-white p-4">
-      <div className="text-sm font-semibold text-gray-800">새 컬렉션 생성</div>
+      <div className="text-sm font-semibold text-gray-800">새 Collection 생성</div>
 
       <div className="grid gap-3 sm:grid-cols-[200px_1fr] sm:items-center">
-        <label className="text-sm text-gray-600">컬렉션 이름</label>
+        <label className="text-sm text-gray-600">Collection 이름</label>
         <input
           className="w-full rounded-md border px-3 py-2 text-sm"
           value={name}

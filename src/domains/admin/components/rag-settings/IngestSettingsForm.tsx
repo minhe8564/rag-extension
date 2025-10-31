@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import Card from '@/shared/components/ui/Card';
-import Select from '@/shared/components/ui/Select';
+import Card from '@/shared/components/Card';
+import Select from '@/shared/components/Select';
 import { LabelRow } from '@/domains/admin/components/rag-settings/ui/labelRow';
 import { Slider } from '@/domains/admin/components/rag-settings/ui/Slider';
 import { Save } from 'lucide-react';
