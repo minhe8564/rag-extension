@@ -29,7 +29,7 @@ export default function NumberBoard() {
         errorCount: Math.floor(Math.random() * 5),
       };
       animateNumbers(newData);
-    }, 4000);
+    }, 8000);
     return () => clearInterval(interval);
   }, []);
 

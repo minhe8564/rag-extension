@@ -18,7 +18,7 @@ export default function MonthlyUsage() {
       }
     }
 
-    //  2. 차트 생성
+    // 차트 부분
     chartRef.current = Highcharts.chart('monthly-usage-chart', {
       chart: {
         type: 'heatmap',
@@ -45,7 +45,7 @@ export default function MonthlyUsage() {
         min: 0,
         max: 100,
         stops: [
-          [0, '#E8EFF6'], // 가장 밝은색 (거의 없음)
+          [0, 'var(--color-retina-bg)'], // 가장 밝은색 (거의 없음)
           [0.33, '#8FB8D9'], // 약간 진함
           [0.66, '#3E7FB8'], // 중간
           [1, '#135D9C'], // 가장 진함 (#135D9C)
