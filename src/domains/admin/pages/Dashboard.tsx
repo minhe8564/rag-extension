@@ -3,6 +3,7 @@ import NumberBoard from '@/domains/admin/components/dashboard/NumberBoard';
 import ChatbotUsage from '@/domains/admin/components/dashboard/ChatbotUsage';
 import MonthlyUsage from '@/domains/admin/components/dashboard/MonthlyUsage';
 import AiModel from '@/domains/admin/components/dashboard/AiModel';
+import KeywordMap from '@/domains/admin/components/dashboard/KeywordMap';
 export default function Dashboard() {
   return (
     <section>
@@ -10,7 +11,10 @@ export default function Dashboard() {
       <NumberBoard />
       <ChatbotUsage />
       <AiModel />
-      <MonthlyUsage />
+      <section className="grid grid-cols-2 gap-4 my-3">
+        <MonthlyUsage />
+        <KeywordMap />
+      </section>
     </section>
   );
 }
