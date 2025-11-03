@@ -7,8 +7,7 @@ WORKDIR /app
 # 의존성 파일만 먼저 복사 (레이어 캐싱 최적화)
 COPY package.json pnpm-lock.yaml ./
 
-# 의존성 설치 (lockfile이 이미 업데이트되어 있으므로 frozen-lockfile 사용)
-# 만약 lockfile이 최신이 아니라면 일반 install로 자동 전환
+# 의존성 설치
 RUN pnpm install --frozen-lockfile || pnpm install
 
 # 소스 코드 복사 (코드 변경 시에만 이 레이어가 재빌드됨)
@@ -16,9 +15,14 @@ COPY . .
 
 FROM base AS builder
 
-# 빌드 모드 전달 (default=production). Jenkins에서 --build-arg MODE=development 로 변경 가능
-ARG MODE=production
-RUN pnpm run build -- --mode $MODE
+# 빌드 모드 전달. Jenkins에서 --build-arg MODE=development/production 로 넘길 수 있음
+# 값이 비어있으면 Vite 기본값(production)으로 빌드
+ARG MODE
+RUN if [ -n "$MODE" ]; then \
+      echo "Vite build mode=$MODE" && pnpm run build -- --mode "$MODE"; \
+    else \
+      echo "Vite build default (production)" && pnpm run build; \
+    fi
 
 # Nginx를 사용한 정적 파일 서빙
 FROM nginx:alpine AS production
