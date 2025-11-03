@@ -19,6 +19,24 @@ pipeline {
     }
 
     stages {
+        /********************  서브모듈 체크아웃  ********************/
+        stage('Checkout Submodules') {
+            when {
+                anyOf {
+                    expression { env.GITLAB_OBJECT_KIND == 'push' }
+                    expression { params.BUILD_FRONTEND == true }
+                }
+            }
+            steps {
+                sh '''
+                set -eux
+                git submodule sync --recursive
+                git submodule update --init --recursive
+                git submodule status
+                ls -la frontend-repo || true
+                '''
+            }
+        }
 
         /********************  변경 파일 확인  ********************/
         stage('Check for Changes') {
