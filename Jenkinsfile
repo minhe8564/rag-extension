@@ -77,15 +77,15 @@ pipeline {
                 sh '''
                 set -eux
                 # Docker 컨테이너에서 pnpm install 실행하여 lockfile 업데이트 (권한 문제 회피)
-                docker run --rm -v "$PWD":/app -w /app node:22.10.0-alpine sh -c "
+                docker run --rm -v "$PWD/frontend-repo":/app -w /app node:22.10.0-alpine sh -c "
                     npm install -g pnpm && \
                     pnpm install && \
                     chown -R $(id -u):$(id -g) pnpm-lock.yaml 2>/dev/null || true
                 "
                 # 업데이트 확인
-                if [ -f pnpm-lock.yaml ]; then
+                if [ -f frontend-repo/pnpm-lock.yaml ]; then
                     echo "✅ pnpm-lock.yaml updated successfully"
-                    ls -lh pnpm-lock.yaml
+                    ls -lh frontend-repo/pnpm-lock.yaml
                 else
                     echo "❌ pnpm-lock.yaml not found after update"
                     exit 1
@@ -129,7 +129,7 @@ pipeline {
                             # Docker 빌드 컨텍스트 준비
                             rm -rf _docker_ctx
                             mkdir -p _docker_ctx
-                            tar --no-same-owner -cf - --exclude=.git --exclude=_docker_ctx --exclude=.env . | (cd _docker_ctx && tar -xf -)
+                            (cd frontend-repo && tar --no-same-owner -cf - --exclude=.git --exclude=_docker_ctx --exclude=.env .) | (cd _docker_ctx && tar -xf -)
                             chmod -R 755 _docker_ctx
                             cp "\$ENV_FILE" _docker_ctx/.env
                             
@@ -168,7 +168,7 @@ pipeline {
                             # Docker 빌드 컨텍스트 준비
                             rm -rf _docker_ctx
                             mkdir -p _docker_ctx
-                            tar --no-same-owner -cf - --exclude=.git --exclude=_docker_ctx --exclude=.env* . | (cd _docker_ctx && tar -xf -)
+                            (cd frontend-repo && tar --no-same-owner -cf - --exclude=.git --exclude=_docker_ctx --exclude=.env* .) | (cd _docker_ctx && tar -xf -)
                             chmod -R 755 _docker_ctx
                             cp "\$ENV_FILE" _docker_ctx/.env.production
                             
@@ -230,18 +230,10 @@ pipeline {
                 } else if (currentBuild.result == 'FAILURE') {
                     echo "🚨 POST: 빌드 실패 – 로그 추출 후 Mattermost 알림 전송"
                     
-                    // Jenkins 로그 파일 직접 읽기 (마지막 150줄)
+                    // Jenkins 내장 API로 로그 추출 (마지막 150줄)
                     try {
-                        def logText = sh(
-                            script: """
-                                if [ -f "\${JENKINS_HOME}/jobs/\${JOB_NAME}/builds/\${BUILD_NUMBER}/log" ]; then
-                                    tail -n 150 "\${JENKINS_HOME}/jobs/\${JOB_NAME}/builds/\${BUILD_NUMBER}/log"
-                                else
-                                    echo "로그 파일을 찾을 수 없습니다."
-                                fi
-                            """,
-                            returnStdout: true
-                        ).trim()
+                        def rawBuild = currentBuild.rawBuild
+                        def logText = rawBuild.getLog(150).join('\n')
                         
                         // 민감정보 마스킹
                         logText = logText
@@ -298,7 +290,7 @@ def sendMMNotify(boolean success, Map info) {
     
     def text = "${titleLine}\n" + (lines ? ("\n" + lines.join("\n")) : "")
     
-    // 안전 전송(크리덴셜 경고 없음)
+    // 안전 전송
     writeFile file: 'payload.json', text: groovy.json.JsonOutput.toJson([
         text      : text,
         username  : "Jenkins",
@@ -313,4 +305,3 @@ def sendMMNotify(boolean success, Map info) {
         ''')
     }
 }
-
