@@ -95,15 +95,15 @@ pipeline {
                 sh '''
                 set -eux
                 # Docker 컨테이너에서 pnpm install 실행하여 lockfile 업데이트 (권한 문제 회피)
-                docker run --rm -v "$PWD/frontend-repo":/app -w /app node:22.10.0-alpine sh -c "
+                docker run --rm -v "$PWD":/app -w /app node:22.10.0-alpine sh -c "
                     npm install -g pnpm && \
                     pnpm install && \
                     chown -R $(id -u):$(id -g) pnpm-lock.yaml 2>/dev/null || true
                 "
                 # 업데이트 확인
-                if [ -f frontend-repo/pnpm-lock.yaml ]; then
+                if [ -f pnpm-lock.yaml ]; then
                     echo "✅ pnpm-lock.yaml updated successfully"
-                    ls -lh frontend-repo/pnpm-lock.yaml
+                    ls -lh pnpm-lock.yaml
                 else
                     echo "❌ pnpm-lock.yaml not found after update"
                     exit 1
