@@ -12,6 +12,7 @@ import com.ssafy.hebees.domain.chat.repository.MessageRepository;
 import com.ssafy.hebees.domain.chat.repository.SessionRepository;
 import com.ssafy.hebees.global.exception.BusinessException;
 import com.ssafy.hebees.global.exception.ErrorCode;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -55,6 +56,7 @@ public class MessageServiceImpl implements MessageService {
             .messageNo(UUID.randomUUID())
             .role(request.role())
             .content(request.content())
+            .createdAt(LocalDateTime.now())
             .seq(nextSeq)
             .userNo(author)
             .llmNo(request.llmNo())
