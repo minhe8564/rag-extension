@@ -170,7 +170,7 @@ pipeline {
                             docker build -t "$TAG" --build-arg ENV=test _docker_ctx
                             '''
                             
-                            sh """
+                            sh '''
                             # 기존 컨테이너 중지 및 삭제
                             TAG="${FE_IMAGE_NAME}:test-${BUILD_NUMBER}"
                             docker stop ${FE_TEST_CONTAINER} || true
@@ -183,7 +183,7 @@ pipeline {
                                 --network ${APP_NETWORK_TEST} \\
                                 --publish 17443:80 \\
                                 "$TAG"
-                            """
+                            '''
                         }
                     } else if (branch == 'main') {
                         withCredentials([file(credentialsId: '.env.production', variable: 'ENV_FILE')]) {
@@ -213,7 +213,7 @@ pipeline {
                             docker build -t "$TAG" --build-arg ENV=prod _docker_ctx
                             '''
                             
-                            sh """
+                            sh '''
                             # 기존 컨테이너 중지 및 삭제
                             TAG="${FE_IMAGE_NAME}:prod-${BUILD_NUMBER}"
                             docker stop ${FE_PROD_CONTAINER} || true
@@ -226,7 +226,7 @@ pipeline {
                                 --network ${APP_NETWORK_PROD} \\
                                 --publish 7443:80 \\
                                 "$TAG"
-                            """
+                            '''
                         }
                     } else {
                         error "[Deploy Frontend] 지원하지 않는 브랜치='${branch}'. (develop/main 만 지원)"
