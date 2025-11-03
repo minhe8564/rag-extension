@@ -1,18 +1,11 @@
 package com.ssafy.hebees.chat.controller;
 
-//import com.ssafy.hebees.domain.chat.dto.request.MessageCreateRequest;
-//import com.ssafy.hebees.domain.chat.dto.request.MessageCursorRequest;
 import com.ssafy.hebees.chat.dto.request.SessionCreateRequest;
 import com.ssafy.hebees.chat.dto.request.SessionListRequest;
 import com.ssafy.hebees.chat.dto.request.SessionUpdateRequest;
-//import com.ssafy.hebees.domain.chat.dto.response.MessageCursorResponse;
-//import com.ssafy.hebees.domain.chat.dto.response.MessageResponse;
-//import com.ssafy.hebees.domain.chat.dto.response.ReferencedDocumentListResponse;
-//import com.ssafy.hebees.domain.chat.dto.response.ReferencedDocumentResponse;
 import com.ssafy.hebees.chat.dto.response.SessionCreateResponse;
 import com.ssafy.hebees.chat.dto.response.SessionResponse;
 import com.ssafy.hebees.chat.service.ChatService;
-//import com.ssafy.hebees.domain.chat.service.MessageService;
 import com.ssafy.hebees.common.dto.PageRequest;
 import com.ssafy.hebees.common.dto.PageResponse;
 import com.ssafy.hebees.common.exception.BusinessException;
@@ -50,7 +43,6 @@ import org.springframework.web.bind.annotation.RestController;
 public class ChatController {
 
     private final ChatService chatService;
-//    private final MessageService chatMessageService;
 
     @GetMapping("/sessions")
     @Operation(summary = "세션 목록 조회", description = "세션 목록을 조회합니다.")
@@ -129,79 +121,4 @@ public class ChatController {
 
         return ResponseEntity.noContent().build();
     }
-
-//    @PostMapping("/sessions/{sessionNo}/messages")
-//    @Operation(summary = "[TEST] 메시지 생성", description = "세션에 메시지를 추가합니다.")
-//    @ApiResponses({
-//        @ApiResponse(responseCode = "201", description = "메시지 생성 성공"),
-//    })
-//    public ResponseEntity<BaseResponse<MessageResponse>> createMessage(
-//        @PathVariable UUID sessionNo,
-//        @Valid @RequestBody MessageCreateRequest request) {
-//        UUID userNo = SecurityUtil.getCurrentUserUuid()
-//            .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_ACCESS_TOKEN));
-//        MessageResponse created = chatMessageService.createMessage(userNo, sessionNo, request);
-//
-//        URI location = URI.create(String.format("/chat/sessions/%s/messages/%s", sessionNo,
-//            created.messageNo()));
-//        return ResponseEntity.created(location)
-//            .body(BaseResponse.of(HttpStatus.CREATED, created, "메시지 생성 성공"));
-//    }
-//
-//    @GetMapping("/sessions/{sessionNo}/messages")
-//    @Operation(summary = "메시지 목록 조회", description = "메시지 목록을 조회합니다.")
-//    @ApiResponses({
-//        @ApiResponse(responseCode = "200", description = "메시지 목록 조회 성공"),
-//    })
-//    public ResponseEntity<BaseResponse<MessageCursorResponse>> listSessionMessages(
-//        @PathVariable UUID sessionNo,
-//        @Valid @ModelAttribute MessageCursorRequest cursorRequest) {
-//        UUID userNo = SecurityUtil.getCurrentUserUuid()
-//            .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_ACCESS_TOKEN));
-//        MessageCursorResponse messages = chatMessageService.listMessages(userNo, sessionNo,
-//            cursorRequest);
-//        return ResponseEntity.ok(BaseResponse.of(HttpStatus.OK, messages, "메시지 목록 조회 성공"));
-//    }
-//
-//    @GetMapping("/sessions/{sessionNo}/messages/{messageNo}")
-//    @Operation(summary = "메시지 조회", description = "메시지를 조회합니다.")
-//    @ApiResponses({
-//        @ApiResponse(responseCode = "200", description = "메시지 조회 성공"),
-//    })
-//    public ResponseEntity<BaseResponse<MessageResponse>> getMessage(
-//        @PathVariable UUID sessionNo, @PathVariable UUID messageNo) {
-//        UUID userNo = SecurityUtil.getCurrentUserUuid()
-//            .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_ACCESS_TOKEN));
-//        MessageResponse message = chatMessageService.getMessage(userNo, sessionNo, messageNo);
-//        return ResponseEntity.ok(BaseResponse.of(HttpStatus.OK, message, "메시지 조회 성공"));
-//    }
-//
-//    @GetMapping("/sessions/{sessionNo}/messages/{messageNo}/documents")
-//    @Operation(summary = "참조 문서 목록 조회", description = "참조된 문서의 목록을 조회합니다.")
-//    @ApiResponses({
-//        @ApiResponse(responseCode = "200", description = "참조 문서 목록 조회 성공."),
-//    })
-//    public ResponseEntity<BaseResponse<ReferencedDocumentListResponse>> listReferencedDocuments(
-//        @PathVariable UUID sessionNo, @PathVariable UUID messageNo) {
-//        UUID userNo = SecurityUtil.getCurrentUserUuid()
-//            .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_ACCESS_TOKEN));
-//
-//        ReferencedDocumentListResponse documents = chatMessageService.listReferencedDocuments(
-//            userNo, sessionNo, messageNo);
-//        return ResponseEntity.ok(BaseResponse.of(HttpStatus.OK, documents, "참조 문서 목록 조회 성공"));
-//    }
-//
-//    @GetMapping("/sessions/{sessionNo}/messages/{messageNo}/documents/{documentNo}")
-//    @Operation(summary = "참조 문서 조회", description = "참조된 문서를 조회합니다.")
-//    @ApiResponses({
-//        @ApiResponse(responseCode = "200", description = "참조 문서 조회 성공."),
-//    })
-//    public ResponseEntity<BaseResponse<ReferencedDocumentResponse>> getReferencedDocument(
-//        @PathVariable UUID sessionNo, @PathVariable UUID messageNo, @PathVariable UUID documentNo) {
-//        UUID userNo = SecurityUtil.getCurrentUserUuid()
-//            .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_ACCESS_TOKEN));
-//        ReferencedDocumentResponse document = chatMessageService.getReferencedDocument(userNo,
-//            sessionNo, messageNo, documentNo);
-//        return ResponseEntity.ok(BaseResponse.of(HttpStatus.OK, document, "참조 문서 조회 성공"));
-//    }
 }
