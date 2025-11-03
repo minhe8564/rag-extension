@@ -5,6 +5,7 @@ import AdminLayout from '@/layouts/AdminLayout';
 
 const AdminDashboard = lazy(() => import('@/domains/admin/pages/Dashboard'));
 const AdminDocuments = lazy(() => import('@/domains/admin/pages/Documents'));
+const AdminChat = lazy(() => import('@/domains/admin/pages/TextChat'));
 const AdminRagTest = lazy(() => import('@/domains/admin/pages/RagTest'));
 const AdminRagSettings = lazy(() => import('@/domains/admin/pages/RagSettings'));
 
@@ -27,6 +28,7 @@ export const adminRoutes = {
           children: [
             { path: '/admin/dashboard', element: <AdminDashboard /> },
             { path: '/admin/documents', element: <AdminDocuments /> },
+            { path: '/admin/chat', element: <AdminChat /> },
             { path: '/admin/rag/test', element: <AdminRagTest /> },
             { path: '/admin/rag/settings', element: <AdminRagSettings /> },
           ],
