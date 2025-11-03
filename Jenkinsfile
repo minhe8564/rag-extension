@@ -161,13 +161,15 @@ pipeline {
                             ls -la _docker_ctx | sed -n '1,120p'
                             test -f _docker_ctx/package.json || { echo "missing package.json in _docker_ctx"; exit 1; }
                             chmod -R 755 _docker_ctx
-                            cp "$ENV_FILE" _docker_ctx/.env
+                            # 개발 브랜치: Vite가 자동으로 읽는 파일명(.env.development)으로 복사
+                            cp "$ENV_FILE" _docker_ctx/.env.development
                             
                             # 사전 pnpm 설치는 생략 (Dockerfile에서 처리)
-                            ls -la _docker_ctx/.env
+                            ls -la _docker_ctx/.env.development || true
                             ls -lh _docker_ctx/pnpm-lock.yaml
                             TAG="${FE_IMAGE_NAME}:test-${BUILD_NUMBER}"
-                            docker build -t "$TAG" --build-arg ENV=test _docker_ctx
+                            # develop은 --mode development로 빌드되도록 build-arg 전달
+                            docker build -t "$TAG" --build-arg MODE=development _docker_ctx
                             '''
                             
                             sh '''
@@ -204,13 +206,15 @@ pipeline {
                             ls -la _docker_ctx | sed -n '1,120p'
                             test -f _docker_ctx/package.json || { echo "missing package.json in _docker_ctx"; exit 1; }
                             chmod -R 755 _docker_ctx
+                            # 운영 브랜치: .env.production 파일명 유지
                             cp "$ENV_FILE" _docker_ctx/.env.production
                             
                             # 사전 pnpm 설치는 생략 (Dockerfile에서 처리)
-                            ls -la _docker_ctx/.env.production
+                            ls -la _docker_ctx/.env.production || true
                             ls -lh _docker_ctx/pnpm-lock.yaml
                             TAG="${FE_IMAGE_NAME}:prod-${BUILD_NUMBER}"
-                            docker build -t "$TAG" --build-arg ENV=prod _docker_ctx
+                            # main은 기본 production 모드지만 명시적으로 전달
+                            docker build -t "$TAG" --build-arg MODE=production _docker_ctx
                             '''
                             
                             sh '''
