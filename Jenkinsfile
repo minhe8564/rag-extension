@@ -471,74 +471,62 @@ pipeline {
     }
     
     post {
-        success {
-            echo "🎉 POST: 빌드 성공 – Mattermost 알림 전송"
-            script {
-                // 성공 시에만 오래된 리소스 정리
-                if (env.GITLAB_OBJECT_KIND == 'push' || params.BUILD_BACKEND == true) {
-                    cleanupOldResources()
-                }
-                
-                def branch    = resolveBranch()
-                def mention   = resolvePusherMention()
-                def commitMsg = sh(script: "git log -1 --pretty=%s", returnStdout: true).trim()
-                def commitUrl = env.GIT_COMMIT_URL ?: ""
-                
-                sendMMNotify(true, [
-                    branch   : branch,
-                    mention  : mention,
-                    buildUrl : env.BUILD_URL,
-                    commit   : [msg: commitMsg, url: commitUrl],
-                ])
-            }
-        }
-        
-        failure {
-            echo "🚨 POST: 빌드 실패 – 로그 tail 후 Mattermost 알림 전송"
-            script {
-                def branch    = resolveBranch()
-                def mention   = resolvePusherMention()
-                def commitMsg = sh(script: "git log -1 --pretty=%s", returnStdout: true).trim()
-                def commitUrl = env.GIT_COMMIT_URL ?: ""
-                
-                // Jenkins 콘솔 로그의 마지막 150줄 추출
-                def tail = sh(
-                    script: """
-                        # Jenkins 빌드 로그 파일 경로 추출
-                        BUILD_LOG="\${JENKINS_HOME}/jobs/\${JOB_NAME}/builds/\${BUILD_NUMBER}/log"
-                        if [ -f "\$BUILD_LOG" ]; then
-                            tail -n 150 "\$BUILD_LOG" 2>/dev/null || echo "로그 파일을 읽을 수 없습니다."
-                        else
-                            echo "로그 파일을 찾을 수 없습니다."
-                        fi
-                    """,
-                    returnStdout: true
-                ).trim()
-                
-                // 민감정보 간단 마스킹
-                tail = tail
-                    .replaceAll(/(?i)(token|secret|password|passwd|apikey|api_key)\s*[:=]\s*\S+/, '$1=[REDACTED]')
-                    .replaceAll(/AKIA[0-9A-Z]{16}/, 'AKIA[REDACTED]')
-                
-                def detailsBlock = tail ? "```text\n${tail}\n```" : ""
-                
-                sendMMNotify(false, [
-                    branch   : branch,
-                    mention  : mention,
-                    buildUrl : env.BUILD_URL,
-                    commit   : [msg: commitMsg, url: commitUrl],
-                    details  : detailsBlock
-                ])
-                
-                // 실패 시 롤백 정보 출력
-                if (env.GITLAB_OBJECT_KIND == 'push' || params.BUILD_BACKEND == true) {
-                    echo "🔄 Consider running manual rollback with ROLLBACK_DEPLOYMENT parameter"
-                }
-            }
-        }
-        
         always {
-            echo "📦 Pipeline finished with status: ${currentBuild.currentResult}"
+            script {
+                // 공통 정보 수집 (한 번만 실행)
+                def branch    = resolveBranch()
+                def mention   = resolvePusherMention()
+                def commitMsg = sh(script: "git log -1 --pretty=%s", returnStdout: true).trim()
+                def commitUrl = env.GIT_COMMIT_URL ?: ""
+                
+                def buildInfo = [
+                    branch   : branch,
+                    mention  : mention,
+                    buildUrl : env.BUILD_URL,
+                    commit   : [msg: commitMsg, url: commitUrl]
+                ]
+                
+                // 빌드 결과에 따라 알림 전송
+                if (currentBuild.result == 'SUCCESS' || currentBuild.result == null) {
+                    echo "🎉 POST: 빌드 성공 – Mattermost 알림 전송"
+                    
+                    // 성공 시에만 오래된 리소스 정리
+                    if (env.GITLAB_OBJECT_KIND == 'push' || params.BUILD_BACKEND == true) {
+                        cleanupOldResources()
+                    }
+                    
+                    sendMMNotify(true, buildInfo)
+                    
+                } else if (currentBuild.result == 'FAILURE') {
+                    echo "🚨 POST: 빌드 실패 – 로그 추출 후 Mattermost 알림 전송"
+                    
+                    // Jenkins 내장 API로 로그 추출 (마지막 150줄)
+                    def logLines = []
+                    try {
+                        def rawBuild = currentBuild.rawBuild
+                        def logText = rawBuild.getLog(150).join('\n')
+                        
+                        // 민감정보 마스킹
+                        logText = logText
+                            .replaceAll(/(?i)(token|secret|password|passwd|apikey|api_key)\s*[:=]\s*\S+/, '$1=[REDACTED]')
+                            .replaceAll(/AKIA[0-9A-Z]{16}/, 'AKIA[REDACTED]')
+                        
+                        buildInfo.details = "```text\n${logText}\n```"
+                    } catch (Exception e) {
+                        echo "⚠️ 로그 추출 실패: ${e.message}"
+                        buildInfo.details = "```text\n로그를 가져올 수 없습니다.\n```"
+                    }
+                    
+                    sendMMNotify(false, buildInfo)
+                    
+                    // 실패 시 롤백 정보 출력
+                    if (env.GITLAB_OBJECT_KIND == 'push' || params.BUILD_BACKEND == true) {
+                        echo "🔄 Consider running manual rollback with ROLLBACK_DEPLOYMENT parameter"
+                    }
+                }
+                
+                echo "📦 Pipeline finished with status: ${currentBuild.currentResult}"
+            }
         }
     }
 }
@@ -557,20 +545,19 @@ def resolvePusherMention() {
     return sh(script: "git --no-pager show -s --format='%an <%ae>' HEAD", returnStdout: true).trim()
 }
 
-// ✅/❌ 제목을 "## :jenkins7: Jenkins Build Success ✅ / Failed ❌" 로 출력하고
-// 아래에 pusher / Target Branch / Commit (실패 시 Error)만 표시
+// 매터모스트 알림 전송
 def sendMMNotify(boolean success, Map info) {
-    def titleLine = success ? "## :jenkins7: Backend Build Success ✅"
-                            : "## :angry_jenkins: Backend Build Failed ❌"
+    def titleLine = success ? "## :jenkins7: 백엔드 빌드 성공 ✅"
+                            : "## :angry_jenkins: 백엔드 빌드 실패 ❌"
     def lines = []
-    if (info.mention) lines << "**Author**: ${info.mention}"
-    if (info.branch)  lines << "**Target Branch**: `${info.branch}`"
+    if (info.mention) lines << "**작성자**: ${info.mention}"
+    if (info.branch)  lines << "**대상 브랜치**: `${info.branch}`"
     if (info.commit?.msg) {
         def commitLine = info.commit?.url ? "[${info.commit.msg}](${info.commit.url})" : info.commit.msg
-        lines << "**Commit**: ${commitLine}"
+        lines << "**커밋**: ${commitLine}"
     }
     if (!success && info.details) {
-        lines << "**Error Message**:\n${info.details}"
+        lines << "**에러 로그**:\n${info.details}"
     }
     
     def text = "${titleLine}\n" + (lines ? ("\n" + lines.join("\n")) : "")
