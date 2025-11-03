@@ -49,7 +49,7 @@ def deployToInactiveEnvironment(environment, credentials, inactiveContainer, net
             --network ${networkName} \\
             --network ${env.DB_NETWORK} \\
             --network-alias backend-${environment}-new \\
-            --env SPRING_PROFILES_ACTIVE=docker \\
+                   --env SPRING_PROFILES_ACTIVE=docker \\
             --env DB_USERNAME=\$DB_USERNAME \\
             --env DB_PASSWORD=\$DB_PASSWORD \\
             --env DB_NAME=\$DB_NAME \\
@@ -489,11 +489,11 @@ pipeline {
                 // 빌드 결과에 따라 알림 전송
                 if (currentBuild.result == 'SUCCESS' || currentBuild.result == null) {
                     echo "🎉 POST: 빌드 성공 – Mattermost 알림 전송"
-                    
-                    // 성공 시에만 오래된 리소스 정리
-                    if (env.GITLAB_OBJECT_KIND == 'push' || params.BUILD_BACKEND == true) {
-                        cleanupOldResources()
-                    }
+                
+                // 성공 시에만 오래된 리소스 정리
+                if (env.GITLAB_OBJECT_KIND == 'push' || params.BUILD_BACKEND == true) {
+                    cleanupOldResources()
+                }
                     
                     sendMMNotify(true, buildInfo)
                     
@@ -518,15 +518,15 @@ pipeline {
                     }
                     
                     sendMMNotify(false, buildInfo)
-                    
-                    // 실패 시 롤백 정보 출력
-                    if (env.GITLAB_OBJECT_KIND == 'push' || params.BUILD_BACKEND == true) {
-                        echo "🔄 Consider running manual rollback with ROLLBACK_DEPLOYMENT parameter"
-                    }
-                }
                 
-                echo "📦 Pipeline finished with status: ${currentBuild.currentResult}"
+                // 실패 시 롤백 정보 출력
+                if (env.GITLAB_OBJECT_KIND == 'push' || params.BUILD_BACKEND == true) {
+                    echo "🔄 Consider running manual rollback with ROLLBACK_DEPLOYMENT parameter"
             }
+        }
+        
+            echo "📦 Pipeline finished with status: ${currentBuild.currentResult}"
+        }
         }
     }
 }
@@ -555,6 +555,9 @@ def sendMMNotify(boolean success, Map info) {
     if (info.commit?.msg) {
         def commitLine = info.commit?.url ? "[${info.commit.msg}](${info.commit.url})" : info.commit.msg
         lines << "**커밋**: ${commitLine}"
+    }
+    if (info.buildUrl) {
+        lines << "**빌드 상세**: [Details](${info.buildUrl})"
     }
     if (!success && info.details) {
         lines << "**에러 로그**:\n${info.details}"
