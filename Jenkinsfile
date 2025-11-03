@@ -134,12 +134,11 @@ pipeline {
                             cp "\$ENV_FILE" _docker_ctx/.env
                             
                             # lockfile이 최신인지 확인하고 필요시 업데이트
-                            cd _docker_ctx
-                            docker run --rm -v "\$PWD":/app -w /app node:22.10.0-alpine sh -c "
+                            DOCKER_CTX_PATH="\$(pwd)/_docker_ctx"
+                            docker run --rm -v "\${DOCKER_CTX_PATH}":/app -w /app node:22.10.0-alpine sh -c "
                                 npm install -g pnpm && \
                                 pnpm install
                             "
-                            cd ..
                             
                             ls -la _docker_ctx/.env
                             ls -lh _docker_ctx/pnpm-lock.yaml
@@ -174,12 +173,11 @@ pipeline {
                             cp "\$ENV_FILE" _docker_ctx/.env.production
                             
                             # lockfile이 최신인지 확인하고 필요시 업데이트
-                            cd _docker_ctx
-                            docker run --rm -v "\$PWD":/app -w /app node:22.10.0-alpine sh -c "
+                            DOCKER_CTX_PATH="\$(pwd)/_docker_ctx"
+                            docker run --rm -v "\${DOCKER_CTX_PATH}":/app -w /app node:22.10.0-alpine sh -c "
                                 npm install -g pnpm && \
                                 pnpm install
                             "
-                            cd ..
                             
                             ls -la _docker_ctx/.env.production
                             ls -lh _docker_ctx/pnpm-lock.yaml
