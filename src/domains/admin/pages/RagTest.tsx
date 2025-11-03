@@ -1,29 +1,91 @@
 import { useState } from 'react';
+import type { Collection } from '@/domains/admin/components/rag-test/types';
+import { CollectionControls } from '@/domains/admin/components/rag-test/CollectionControls';
+import { EmptyState } from '@/domains/admin/components/rag-test/EmptyState';
+import { CreateCollectionForm } from '@/domains/admin/components/rag-test/CreateCollectionForm';
+import { SelectedCollection } from '@/domains/admin/components/rag-test/SelectedCollection';
+import { RagStrategyCompare } from '@/domains/admin/components/rag-test/rag-strategy-compare/RagStrategyCompare';
+
+const mockCollections: Collection[] = [
+  { id: 'c1', name: 'HEBEES Test', ingestTemplate: 'ingest-기본' },
+  { id: 'c2', name: 'Finance Doc Set', ingestTemplate: 'ingest-텐서' },
+];
 
 export default function RagTest() {
+  const [collections, setCollections] = useState<Collection[]>(mockCollections);
+  const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
+  const [creatingNew, setCreatingNew] = useState(false);
+
   const [query, setQuery] = useState('');
   const [answer, setAnswer] = useState<string | null>(null);
 
+  const selected = collections.find(c => c.id === selectedCollectionId) || null;
+
   const run = async () => {
-    // API 호출 연결
+    if (!selected && !creatingNew) return;
     setAnswer(`(샘플 응답) "${query}" 에 대한 RAG 결과`);
   };
 
   return (
-    <section className="space-y-4">
-      <h1 className="text-xl font-semibold">RAG 테스트</h1>
-      <div className="flex gap-2">
-        <input
-          className="flex-1 rounded-md border px-3 py-2"
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          placeholder="질문을 입력하세요"
+    <div className="space-y-8 px-4 mb-20">
+      <h1 className="text-2xl">
+        <span className="font-bold bg-gradient-to-r from-[#BE7DB1] to-[#81BAFF] bg-clip-text text-transparent">
+          HEBEES RAG
+        </span>{' '}
+        <span className="font-semibold text-black">모델 테스트</span>
+      </h1>
+
+      <CollectionControls
+        collections={collections}
+        selectedId={selectedCollectionId}
+        creatingNew={creatingNew}
+        onSelect={id => {
+          setSelectedCollectionId(id);
+          setCreatingNew(false);
+          setAnswer(null);
+        }}
+        onCreateNew={() => {
+          setCreatingNew(true);
+          setSelectedCollectionId(null);
+          setAnswer(null);
+        }}
+      />
+
+      {!selected && !creatingNew && <EmptyState />}
+
+      {creatingNew && !selected && (
+        <CreateCollectionForm
+          onCancel={() => setCreatingNew(false)}
+          onCreate={newCol => {
+            setCollections(prev => [newCol, ...prev]);
+            setSelectedCollectionId(newCol.id);
+            setCreatingNew(false);
+          }}
         />
-        <button className="rounded-md bg-gray-900 px-4 py-2 text-white" onClick={run}>
-          실행
-        </button>
-      </div>
-      {answer && <div className="rounded-md border bg-white p-4">{answer}</div>}
-    </section>
+      )}
+
+      {selected && !creatingNew && (
+        <>
+          <SelectedCollection
+            collection={selected}
+            query={query}
+            setQuery={setQuery}
+            run={run}
+            answer={answer}
+          />
+
+          <RagStrategyCompare
+            onRunCompare={async ({ question, left, right, mode }) => {
+              // 여기서 실제 API 호출로 좌/우 결과 받아서 반환하면
+              // const { leftText, rightText } = await api.compareStrategies({ question, left, right, mode });
+              return {
+                left: `[${mode}] ${left.ingest?.name ?? '-'} × ${left.query?.name ?? '-'}\nQ: ${question}\n→ 좌측 실제 응답…`,
+                right: `[${mode}] ${right.ingest?.name ?? '-'} × ${right.query?.name ?? '-'}\nQ: ${question}\n→ 우측 실제 응답…`,
+              };
+            }}
+          />
+        </>
+      )}
+    </div>
   );
 }

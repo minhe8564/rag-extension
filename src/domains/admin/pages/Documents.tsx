@@ -6,7 +6,7 @@ export default function Documents() {
   const [activeTab, setActiveTab] = useState<'upload' | 'collection'>('upload');
 
   return (
-    <main className="p-6">
+    <main>
       {/* 상단 헤더 + 탭 */}
       <section className="flex items-center gap-4 mb-6">
         <h1 className="text-3xl font-bold bg-[linear-gradient(90deg,#BE7DB1_10%,#81BAFF_100%)] bg-clip-text text-transparent">

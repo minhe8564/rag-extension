@@ -3,7 +3,7 @@ import RequireAuth from '@/guards/RequireAuth';
 import UserLayout from '@/layouts/UserLayout';
 
 const UserTextChat = lazy(() => import('@/domains/user/pages/TextChat'));
-const UserImageChat = lazy(() => import('@/domains/user/pages/ImageChat'));
+const UserImageChat = lazy(() => import('@/domains/user/pages/ImageGenerator'));
 const UserDocuments = lazy(() => import('@/domains/user/pages/Documents'));
 
 const Fallback = () => (
