@@ -1,62 +1,39 @@
 from __future__ import annotations
 
 from typing import List
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Path
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_session
-from ..models.file_category import FileCategory
-from ..schemas.file_category import FileCategoryOut
+from ..schemas.common import BaseResponse
+from ..schemas.file_category import FileCategoryListItem
+from ..service.file_category_service import list_file_categories as list_file_categories_service
 
 
-router = APIRouter(prefix="/file-categories", tags=["FileCategory"])
+router = APIRouter(prefix="/files/categories", tags=["FileCategory"])
 
 
-@router.get("/", response_model=List[FileCategoryOut])
+def _bytes_to_uuid_str(b: bytes) -> str:
+    try:
+        return str(uuid.UUID(bytes=b))
+    except Exception:
+        # Fallback to hex if not valid UUID layout
+        return b.hex()
+
+
+@router.get("/", response_model=BaseResponse[List[FileCategoryListItem]])
 async def list_file_categories(
     session: AsyncSession = Depends(get_session),
 ):
-    stmt = select(FileCategory).order_by(FileCategory.name.asc())
-    result = await session.execute(stmt)
-    rows = result.scalars().all()
-    # Convert PK to hex strings
-    return [
-        FileCategoryOut(
-            file_category_no=row.pk_hex(),
-            name=row.name,
-            created_at=row.created_at,
-            updated_at=row.updated_at,
-        )
-        for row in rows
-    ]
+    items: List[FileCategoryListItem] = await list_file_categories_service(session)
 
-
-@router.get("/{file_category_no}", response_model=FileCategoryOut)
-async def get_file_category(
-    file_category_no: str = Path(..., description="16-byte hex string"),
-    session: AsyncSession = Depends(get_session),
-):
-    # Accept both 32-char hex and UUID with hyphens
-    hex_str = file_category_no.replace("-", "").lower()
-    if len(hex_str) != 32:
-        raise HTTPException(status_code=400, detail="file_category_no must be 32-char hex")
-    try:
-        pk_bytes = bytes.fromhex(hex_str)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid hex for file_category_no")
-
-    stmt = select(FileCategory).where(FileCategory.file_category_no == pk_bytes)
-    result = await session.execute(stmt)
-    row = result.scalars().first()
-    if not row:
-        raise HTTPException(status_code=404, detail="FileCategory not found")
-
-    return FileCategoryOut(
-        file_category_no=row.pk_hex(),
-        name=row.name,
-        created_at=row.created_at,
-        updated_at=row.updated_at,
+    return BaseResponse[List[FileCategoryListItem]](
+        status=200,
+        code="OK",
+        message="문서 목록 조회에 성공하였습니다.",
+        isSuccess=True,
+        result={"data": items},
     )
 
