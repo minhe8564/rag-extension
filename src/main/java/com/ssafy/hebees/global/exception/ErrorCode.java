@@ -27,6 +27,7 @@ public enum ErrorCode {
 
     // 중복 / 상태 충돌 (409)
     ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 존재하는 데이터입니다"),
+    USER_ROLE_IN_USE(HttpStatus.CONFLICT, "사용 중인 사용자 역할은 삭제할 수 없습니다"),
 
     // 리소스 없음 (404)
     NOT_FOUND(HttpStatus.NOT_FOUND, "대상 데이터를 찾을 수 없습니다"),

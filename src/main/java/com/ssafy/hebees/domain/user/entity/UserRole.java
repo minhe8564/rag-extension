@@ -48,5 +48,10 @@ public class UserRole extends BaseEntity {
     @OneToMany(mappedBy = "userRole", fetch = FetchType.LAZY)
     @Builder.Default
     private List<User> users = new ArrayList<>();
+
+    public void update(Integer mode, String name) {
+        this.mode = mode;
+        this.name = name;
+    }
 }
 
