@@ -26,9 +26,8 @@ spring:
 cors:
   allowed-origins:
     - "http://localhost:5173"
-    - "http://localhost"
-    - "https://dev-spring.ragextension.shop"
-    - "https://spring.ragextension.shop"
+    - "https://dev.ragextension.shop"
+    - "https://www.ragextension.shop"
 
 springdoc:
   swagger-ui:
