@@ -1,11 +1,11 @@
-"""Utility helpers for the Python Backend service."""
+"""Utility helpers for OpenAPI schema customization."""
 
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
 
 
 def custom_openapi(app: FastAPI):
-    """Generate an OpenAPI schema with JWT bearer security definition."""
+    """Generate an OpenAPI schema with role header security definition."""
     if app.openapi_schema:
         return app.openapi_schema
 
@@ -22,7 +22,7 @@ def custom_openapi(app: FastAPI):
         "type": "apiKey",
         "in": "header",
         "name": "x-user-role",
-        "description": "게이트웨이가 추가하는 사용자 역할 헤더. 예: USER, ADMIN",
+        "description": "역할(Role) 헤더. 예: USER, ADMIN",
     }
 
     app.openapi_schema = openapi_schema
