@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from . import __version__, __title__, __description__
 from .config import settings
 from .utils import custom_openapi
-from .routers import access_router
+from .routers import access_router, file_category_router
 from datetime import datetime
 
 app = FastAPI(
@@ -29,6 +29,7 @@ app.add_middleware(
 
 # Include application routers
 app.include_router(access_router.router)
+app.include_router(file_category_router.router)
 
 @app.get("/")
 async def root():
