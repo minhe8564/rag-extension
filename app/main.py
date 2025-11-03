@@ -5,6 +5,8 @@ from .common.config import settings
 from .common.utils.openapi import custom_openapi
 
 from .domains.file.routers.file_category import router as file_router
+from .domains.rag_setting.routers.strategy_router import router as strategy_router
+
 from datetime import datetime
 
 app = FastAPI(
@@ -29,6 +31,7 @@ app.add_middleware(
 )
 
 app.include_router(file_router)
+app.include_router(strategy_router)
 
 @app.get("/")
 async def root():
