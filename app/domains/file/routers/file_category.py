@@ -6,10 +6,10 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Path
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..db import get_session
-from ..schemas.common import BaseResponse
+from ....common.db import get_session
+from ....common.schemas import BaseResponse
 from ..schemas.file_category import FileCategoryListItem
-from ..service.file_category_service import list_file_categories as list_file_categories_service
+from ..services.file_category import list_file_categories as list_file_categories_service
 
 
 router = APIRouter(prefix="/files/categories", tags=["FileCategory"])
@@ -36,4 +36,3 @@ async def list_file_categories(
         isSuccess=True,
         result={"data": items},
     )
-

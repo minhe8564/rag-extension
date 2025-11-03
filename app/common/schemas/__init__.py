@@ -17,3 +17,4 @@ class BaseResponse(BaseModel, Generic[T]):
     message: str
     isSuccess: bool
     result: Result[T]
+

@@ -9,3 +9,4 @@ class FileCategoryListItem(BaseModel):
 
     class Config:
         from_attributes = True
+
