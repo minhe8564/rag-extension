@@ -1,89 +1,160 @@
 import { useEffect, useRef } from 'react';
 import Highcharts from 'highcharts';
 import _Heatmap from 'highcharts/modules/heatmap';
+import Card from '@/shared/components/Card';
 
-export default function MonthlyUsage() {
+export default function WeeklyTimeHeatmap() {
   const chartRef = useRef<Highcharts.Chart | null>(null);
 
   useEffect(() => {
-    const days = 30;
-    const hours = 24;
-    const hourLabels = Array.from({ length: 24 }, (_, i) => `${i}시`);
+    // 더미 API 응답
+    const dummyResponse = (() => {
+      const days = ['월', '화', '수', '목', '금', '토', '일'];
+      const slots = Array.from({ length: 24 }, (_, i) => `${i}시`);
 
+      // 7 × 24 랜덤 사용량
+      const cells = Array.from({ length: days.length }, () =>
+        Array.from({ length: slots.length }, () => Math.floor(Math.random() * 100))
+      );
+
+      return {
+        timeframe: {
+          start: new Date().toISOString(),
+          end: new Date().toISOString(),
+        },
+        labels: { days, slots },
+        cells,
+      };
+    })();
+
+    const { labels, cells } = dummyResponse;
+    const flatValues = cells.flat();
+    const min = Math.min(...flatValues);
+    const max = Math.max(...flatValues);
+    const range = max - min;
+
+    // 색상 레벨 계산
+    const getLevel = (value: number) => {
+      if (range === 0) return 0;
+      const step = range / 5;
+      const level = Math.floor((value - min) / step);
+      return Math.max(0, Math.min(4, level));
+    };
+
+    // 색상 단계 (밝은 파랑 → 진한 파랑)
+    // const colorLevels = ['#F0F7FF', '#D6E8FF', '#A9D0FF', '#72B0FF', '#3A83E0'];
+
+    // heatmap 데이터 변환
     const data: [number, number, number][] = [];
-    for (let d = 0; d < days; d++) {
-      for (let h = 0; h < hours; h++) {
-        const usage = Math.floor(Math.random() * 100); // 0~100 랜덤
-        data.push([d, h, usage]);
+    for (let d = 0; d < labels.days.length; d++) {
+      for (let h = 0; h < labels.slots.length; h++) {
+        const value = cells[d][h];
+        const level = getLevel(value);
+        data.push([h, d, level]); // X=시간, Y=요일 (순서 바꿈)
       }
     }
 
-    // 차트 부분
-    chartRef.current = Highcharts.chart('monthly-usage-chart', {
+    // 🔹 Highcharts Heatmap
+    chartRef.current = Highcharts.chart('weekly-usage-chart', {
       chart: {
         type: 'heatmap',
         backgroundColor: 'transparent',
-        height: 400,
-        width: 620,
+        height: 420,
+        spacing: [20, 10, 10, 10],
         style: { fontFamily: 'Pretendard, sans-serif' },
       },
       title: { text: '' },
       credits: { enabled: false },
-
       xAxis: {
-        categories: Array.from({ length: days }, (_, i) => `${i}일`),
-        labels: { style: { color: '#6B7280', fontSize: '10px' } },
-        tickInterval: 1, // 1일 단위로 표시
+        categories: labels.slots,
+        tickInterval: 3,
+        labels: { style: { color: '#6B7280', fontSize: '12px' } },
       },
       yAxis: {
-        categories: hourLabels, //  4시간 단위 시간대
+        categories: labels.days,
         title: { text: '' },
         reversed: true,
-        labels: { style: { color: '#6B7280', fontSize: '10px' } },
+        labels: {
+          align: 'right',
+          style: { color: '#6B7280', fontSize: '12px', fontWeight: 500 },
+        },
       },
       colorAxis: {
         min: 0,
-        max: 100,
+        max: 4,
         stops: [
-          [0, 'var(--color-retina-bg)'], // 가장 밝은색 (거의 없음)
-          [0.33, '#8FB8D9'], // 약간 진함
-          [0.66, '#3E7FB8'], // 중간
-          [1, '#135D9C'], // 가장 진함 (#135D9C)
+          [0, '#F0F7FF'],
+          [0.25, '#D6E8FF'],
+          [0.5, '#A9D0FF'],
+          [0.75, '#72B0FF'],
+          [1, '#3A83E0'],
         ],
+        labels: {
+          style: {
+            color: '#374151',
+            fontSize: '12px',
+            fontWeight: 600,
+          },
+          // 색상바 아래쪽 텍스트 (왼쪽/오른쪽 끝)
+          formatter: function (this: Highcharts.AxisLabelsFormatterContextObject) {
+            if (this.value === 0) return '적음';
+            if (this.value === 4) return '많음';
+            return '';
+          },
+        },
       },
       legend: {
         align: 'center',
         layout: 'horizontal',
-        margin: 10,
-        symbolWidth: 250,
-        itemStyle: { color: '#374151', fontSize: '11px' },
+        verticalAlign: 'bottom',
+        symbolWidth: 200,
+        symbolHeight: 10,
+        margin: 20,
+        padding: 10,
+        title: {
+          text: '사용량 (토큰 수)', // 색상 옆에 표시되는 설명 텍스트
+          style: {
+            color: '#374151', // 진한 회색
+            fontSize: '12px',
+            fontWeight: 600,
+          },
+        },
+        itemStyle: {
+          color: '#374151',
+          fontSize: '12px',
+          fontWeight: 600,
+        },
       },
       tooltip: {
-        hideDelay: 20,
         backgroundColor: '#fff',
         borderColor: '#E5E7EB',
         borderRadius: 8,
         shadow: false,
         style: { color: '#111827', fontSize: '12px' },
         formatter: function (this: Highcharts.Point) {
-          const series = this.series as Highcharts.Series;
-          const xCategory = series.xAxis?.categories?.[this.x as number];
-          const yCategory = series.yAxis?.categories?.[this.y as number];
-          return `
-              <b>${xCategory}</b> / <b>${yCategory}</b><br/>
-              사용량: <b>${this.y}</b>
-            `;
+          const xCategory = this.series.xAxis?.categories?.[this.x as number];
+          const yCategory = this.series.yAxis?.categories?.[this.y as number];
+          const rawValue = cells[this.y as number][this.x as number];
+          return `<b>${yCategory}</b>요일 ${xCategory}<br/>사용량: <b>${rawValue}</b>`;
         } as Highcharts.TooltipFormatterCallbackFunction,
+      },
+      plotOptions: {
+        series: {
+          borderWidth: 4,
+          borderColor: '#fff',
+          pointPadding: 0.3, // 셀 간 간격
+          dataLabels: { enabled: false },
+          clip: false,
+          crisp: false,
+          borderRadius: 8 as unknown as number,
+        },
       },
       series: [
         {
-          name: '시간대별 챗봇 사용량',
-          borderWidth: 1,
-          borderColor: '#fff',
+          name: '요일·시간별 사용량',
           data,
-          dataLabels: { enabled: false },
           type: 'heatmap',
-        },
+        } as Highcharts.SeriesHeatmapOptions,
       ],
     });
 
@@ -91,18 +162,12 @@ export default function MonthlyUsage() {
   }, []);
 
   return (
-    <section className="flex flex-col gap-2 my-3">
-      <div className="flex flex-col w-full items-start justify-center p-4 border border-gray-200 rounded-xl bg-white">
-        <h2 className="text-xl font-bold text-gray-800 mb-1">시간대별 챗봇 사용량</h2>
-        <p className="text-xs text-gray-400">
-          (일별, 주별, 월별) 사용량을 색의 진함으로 확인할 수 있습니다.
-        </p>
-        {/* Heatmap 영역 */}
-        <div
-          id="monthly-usage-chart"
-          className="w-full border border-gray-200 rounded-xl p-2 bg-white shadow-sm"
-        />
-      </div>
-    </section>
+    <Card
+      title="시간대별 챗봇 사용량"
+      subtitle="요일별 · 시간대별 사용량을 색의 진함으로 확인할 수 있습니다"
+      className="p-4"
+    >
+      <div id="weekly-usage-chart" className="w-full" />
+    </Card>
   );
 }

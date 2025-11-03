@@ -1,95 +1,165 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Highcharts from 'highcharts';
+import Card from '@/shared/components/Card';
+import Select from '@/shared/components/Select';
 
-export default function ModelResponse() {
+export default function ModelResponseTimeChart() {
   const chartRef = useRef<Highcharts.Chart | null>(null);
+  const periods = ['daily', 'weekly', 'monthly'] as const;
+  const [period, setPeriod] = useState<(typeof periods)[number]>('daily');
 
+  // 🔹 더미 데이터 생성 함수 (API 구조 기반)
+  const generateDummyResponseData = (type: 'daily' | 'weekly' | 'monthly') => {
+    const now = new Date();
+    const models = [
+      { modelId: 'gpt-4o-mini', modelName: 'GPT-4o Mini' },
+      { modelId: 'gpt-4o', modelName: 'GPT-4o' },
+      { modelId: 'gpt-3.5', modelName: 'GPT-3.5 Turbo' },
+    ];
+
+    let length = 0;
+    let interval = 0;
+    let granularity = '';
+
+    if (type === 'daily') {
+      length = 7;
+      interval = 24 * 3600 * 1000;
+      granularity = 'daily';
+    } else if (type === 'weekly') {
+      length = 5;
+      interval = 7 * 24 * 3600 * 1000;
+      granularity = 'weekly';
+    } else {
+      length = 3;
+      interval = 30 * 24 * 3600 * 1000;
+      granularity = 'monthly';
+    }
+
+    const start = new Date(now.getTime() - interval * length);
+    const timeframe = {
+      start: start.toISOString(),
+      end: now.toISOString(),
+      granularity,
+    };
+
+    // 모델별 시계열 데이터
+    const modelData = models.map((model) => ({
+      modelId: model.modelId,
+      modelName: model.modelName,
+      usageTokens: Array.from({ length }, (_, i) => ({
+        x: start.getTime() + interval * (i + 1),
+        y: Math.floor(Math.random() * 5000) + 1000, // 예시용 (token용)
+      })),
+      averageResponseTimesMs: Array.from({ length }, (_, i) => ({
+        x: start.getTime() + interval * (i + 1),
+        y: Math.floor(Math.random() * 400) + 150, // 150~550ms
+      })),
+    }));
+
+    return { timeframe, models: modelData };
+  };
+
+  // 🔹 차트 초기화
   useEffect(() => {
     chartRef.current = Highcharts.chart('model-response-chart', {
       chart: {
-        type: 'spline',
-        animation: true,
-        backgroundColor: '#fff',
+        type: 'line',
+        backgroundColor: 'transparent',
         height: 300,
-        style: { fontFamily: 'Pretendard, sans-serif' },
+        animation: true,
       },
       title: { text: '' },
       credits: { enabled: false },
-      colors: ['var(--color-hebees)', 'var(--color-hebees-blue) ', 'var(--color-loading)'], // HEEBEES, BLUE, ORANGE
-
       xAxis: {
         type: 'datetime',
-        tickPixelInterval: 150,
-        lineColor: '#E5E7EB',
-        gridLineColor: '#F3F4F6',
-        labels: { style: { color: '#6B7280', fontSize: '11px' } },
+        labels: { style: { fontSize: '11px', color: '#6B7280' } },
       },
       yAxis: {
-        title: { text: '응답 시간 (ms)', style: { color: '#6B7280', fontSize: '12px' } },
-        gridLineDashStyle: 'Dash',
+        title: { text: '평균 응답 시간 (ms)' },
+        labels: { style: { color: '#6B7280' } },
         gridLineColor: '#E5E7EB',
-        labels: { style: { color: '#6B7280', fontSize: '11px' } },
-        min: 0,
       },
       tooltip: {
         shared: true,
-        backgroundColor: '#fff',
+        xDateFormat: '%Y-%m-%d',
+        pointFormat: '<b>{series.name}</b>: {point.y} ms<br/>',
+        backgroundColor: 'rgba(255,255,255,0.9)',
         borderColor: '#E5E7EB',
-        borderRadius: 10,
-        shadow: false,
-        style: { color: '#111827', fontSize: '12px' },
-        xDateFormat: '%H:%M:%S',
-        pointFormat:
-          "<b>{point.y}</b> ms<br/><span style='color:{series.color}'>●</span> {series.name}<br/>",
       },
       legend: {
-        layout: 'horizontal',
         align: 'center',
         verticalAlign: 'bottom',
         itemStyle: { color: '#374151', fontSize: '12px' },
       },
       plotOptions: {
-        spline: {
+        line: {
           lineWidth: 2,
-          marker: { radius: 3, lineWidth: 1, lineColor: '#fff' },
-          states: { hover: { lineWidth: 3 } },
-          animation: { duration: 500 },
+          marker: { enabled: true, radius: 3 },
         },
       },
-      series: [
-        { name: 'claude-3-haiku', data: [], type: 'spline' },
-        { name: 'gpt-4.1-mini', data: [], type: 'spline' },
-        { name: 'gemini-1.5-pro', data: [], type: 'spline' },
-      ],
+      series: [],
     });
 
-    // 🔹 실시간 더미 데이터 시뮬레이션
-    const interval = setInterval(() => {
-      const x = new Date().getTime();
-      const responseData = [
-        Math.floor(Math.random() * 250) + 100, // claude
-        Math.floor(Math.random() * 180) + 80, // gpt
-        Math.floor(Math.random() * 300) + 50, // gemini
-      ];
-
-      chartRef.current?.series.forEach((series, i) => {
-        series.addPoint([x, responseData[i]], true, series.data.length > 20);
-      });
-    }, 2000);
-
-    return () => clearInterval(interval);
+    handlePeriodChange('daily'); // 초기: 일별
   }, []);
 
+  // 🔹 기간 변경 핸들러
+  const handlePeriodChange = (type: (typeof periods)[number]) => {
+    setPeriod(type);
+    const chart = chartRef.current;
+    if (!chart) return;
+
+    const dummy = generateDummyResponseData(type);
+
+    // X축 포맷 업데이트
+    if (type === 'daily') {
+      chart.xAxis[0].update({
+        tickInterval: 24 * 3600 * 1000,
+        labels: { format: '{value:%m/%d}', style: { fontSize: '11px', color: '#6B7280' } },
+      });
+    } else if (type === 'weekly') {
+      chart.xAxis[0].update({
+        tickInterval: 7 * 24 * 3600 * 1000,
+        labels: { format: '{value:%m/%d}', style: { fontSize: '11px', color: '#6B7280' } },
+      });
+    } else {
+      chart.xAxis[0].update({
+        tickInterval: 30 * 24 * 3600 * 1000,
+        labels: { format: '{value:%Y-%m}', style: { fontSize: '11px', color: '#6B7280' } },
+      });
+    }
+
+    // 모델별 응답 시간 시계열 데이터 반영
+    const newSeries = dummy.models.map((model) => ({
+      name: model.modelName,
+      type: 'line' as const,
+      data: model.averageResponseTimesMs.map((point) => [point.x, point.y]),
+    }));
+
+    chart.update({ series: newSeries }, true, true);
+  };
+
   return (
-    <section className="flex flex-col gap-2 my-3">
-      <div className="flex flex-col w-full items-start justify-center p-4 border border-gray-200 rounded-xl bg-white">
-        <h2 className="text-xl font-bold text-gray-800 mb-1">모델별 응답 시간</h2>
-        <p className="text-xs text-gray-400">(claude, gpt, gemini 실시간 응답 속도)</p>
-        <div
-          id="model-response-chart"
-          className="w-full border border-gray-200 rounded-xl p-2 bg-white shadow-sm"
-        />
+    <Card
+      title="모델별 평균 응답 시간"
+      subtitle="일별, 주별, 월별 평균 응답 시간 추이"
+      className="p-4"
+    >
+      <div className="flex items-center justify-between mb-3">
+        <div className="ml-auto w-40">
+          <Select
+            value={period}
+            onChange={(v) => handlePeriodChange(v as (typeof periods)[number])}
+            options={[
+              { label: '일별', value: 'daily' },
+              { label: '주별', value: 'weekly' },
+              { label: '월별', value: 'monthly' },
+            ]}
+          />
+        </div>
       </div>
-    </section>
+
+      <div id="model-response-chart" className="w-full" />
+    </Card>
   );
 }

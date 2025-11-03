@@ -1,50 +1,53 @@
 import { useState, useEffect, useRef } from 'react';
+import { Users, FileText, TriangleAlert, TrendingUp, TrendingDown } from 'lucide-react';
+import Card from '@/shared/components/Card';
 
 export default function NumberBoard() {
   const [data, setData] = useState({
-    currentUsers: 12,
-    totalUsers: 128,
-    uploadedDocs: 34,
-    errorCount: 1,
+    currentUsers: 24,
+    uploadedDocs: 58,
+    errorCount: 3,
   });
 
   const [displayData, setDisplayData] = useState({ ...data });
   const [prevData, setPrevData] = useState({ ...data });
   const [animatingKey, setAnimatingKey] = useState<string | null>(null);
 
+  const yesterday = {
+    currentUsers: 20,
+    uploadedDocs: 40,
+    errorCount: 5,
+  };
+
   const animRefs = useRef<Record<string, number | null>>({
     currentUsers: null,
-    totalUsers: null,
     uploadedDocs: null,
     errorCount: null,
   });
 
-  // 더미 데이터 (SSE 연결 전 시뮬레이션)
+  const formatNumber = (n: number | undefined) => (n ?? 0).toLocaleString();
+
   useEffect(() => {
     const interval = setInterval(() => {
       const newData = {
-        currentUsers: Math.floor(Math.random() * 50) + 10,
-        totalUsers: 200,
-        uploadedDocs: Math.floor(Math.random() * 100),
-        errorCount: Math.floor(Math.random() * 5),
+        currentUsers: Math.floor(Math.random() * 100) + 10,
+        uploadedDocs: Math.floor(Math.random() * 200),
+        errorCount: Math.floor(Math.random() * 8),
       };
       animateNumbers(newData);
-    }, 8000);
+    }, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [displayData]);
 
-  // 숫자 애니메이션 로직
   const animateNumbers = (newData: typeof data) => {
     (Object.keys(newData) as (keyof typeof newData)[]).forEach((key) => {
       const start = displayData[key] ?? 0;
       const end = newData[key];
-      const duration = 800;
+      const duration = 1000;
       const startTime = performance.now();
 
-      if (start !== end) {
-        setPrevData((prev) => ({ ...prev, [key]: start }));
-        setAnimatingKey(key); // 해당 key만 스와이프 모션
-      }
+      setPrevData((prev) => ({ ...prev, [key]: start }));
+      setAnimatingKey(key);
 
       if (animRefs.current[key]) cancelAnimationFrame(animRefs.current[key]!);
 
@@ -59,7 +62,7 @@ export default function NumberBoard() {
         } else {
           animRefs.current[key] = null;
           setDisplayData((prev) => ({ ...prev, [key]: end }));
-          setTimeout(() => setAnimatingKey(null), 500); // 모션 끝나면 초기화
+          setTimeout(() => setAnimatingKey(null), 300);
         }
       };
       animRefs.current[key] = requestAnimationFrame(animate);
@@ -68,51 +71,102 @@ export default function NumberBoard() {
     setData(newData);
   };
 
-  const isLoading = Object.values(data).some((v) => v === null);
+  const renderCard = (
+    key: keyof typeof data,
+    title: string,
+    icon: JSX.Element,
+    total: number,
+    totalLabel: string
+  ) => {
+    const delta = (displayData[key] ?? 0) - (yesterday[key] ?? 0);
+    const IconArrow = delta > 0 ? TrendingUp : delta < 0 ? TrendingDown : null;
+    const sign = delta > 0 ? '+' : '';
+    const color = delta > 0 ? 'text-green-600' : delta < 0 ? 'text-red-600' : 'text-gray-500';
 
-  return (
-    <section className="flex justify-between gap-4 my-4">
-      {[
-        { title: '현재 사용자 수', key: 'currentUsers' },
-        { title: '전체 사용자 수', key: 'totalUsers' },
-        { title: '오늘 업로드 문서 수', key: 'uploadedDocs' },
-        { title: '오늘 오류 발생', key: 'errorCount' },
-      ].map((item) => (
-        <div
-          key={item.key}
-          className="flex flex-col w-1/4 p-4 border border-gray-200 rounded-xl shadow-sm bg-white"
-        >
-          <h2 className="text-base font-semibold text-gray-700 mb-1">{item.title}</h2>
+    return (
+      <Card title="" className="p-4 sm:p-5">
+        {/* 헤더 */}
+        <div className="mb-3 flex items-center gap-2">
+          {icon}
+          <span className="text-lg font-bold text-gray-900">{title}</span>
+        </div>
 
-          {isLoading ? (
-            <div className="w-1/2 h-6 bg-gray-200 animate-pulse rounded-md" />
-          ) : (
-            <div className="relative h-8 overflow-hidden">
-              {/* 이전 숫자 (위로 사라짐) */}
+        {/* 메인 숫자 */}
+        <div className="flex flex-col  space-y-1">
+          <div className="flex items-end gap-0.5">
+            <div className="relative h-9 overflow-hidden w-16 sm:w-20">
+              {/* 이전 값 */}
               <p
-                className={`absolute left-0 right-0 text-2xl font-bold text-gray-800 transition-all duration-300 ${
-                  animatingKey === item.key
-                    ? '-translate-y-full opacity-0'
-                    : 'translate-y-0 opacity-100'
+                className={`absolute left-0 right-0 text-2xl sm:text-3xl font-extrabold text-gray-900 transition-all duration-500 ${
+                  animatingKey === key ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'
                 }`}
               >
-                {prevData[item.key as keyof typeof prevData]}
+                {formatNumber(prevData[key])}
               </p>
-
-              {/* 새 숫자 (아래에서 올라옴) */}
+              {/* 새 값 */}
               <p
-                className={`absolute left-0 right-0 text-2xl font-bold text-gray-800 transition-all duration-300 ${
-                  animatingKey === item.key
-                    ? 'translate-y-0 opacity-100'
-                    : 'translate-y-full opacity-0'
+                className={`absolute left-4 right-0 text-2xl sm:text-3xl font-extrabold text-gray-900 transition-all duration-500 ${
+                  animatingKey === key ? 'translate-y-full opacity-0' : 'translate-y-0 opacity-100'
                 }`}
               >
-                {displayData[item.key as keyof typeof displayData]}
+                {formatNumber(displayData[key])}
               </p>
             </div>
-          )}
+            <span className="text-sm text-gray-400 mx-0.5">/</span>
+            <span className="text-xs text-gray-500 font-medium">
+              {totalLabel} {formatNumber(total)}
+            </span>
+          </div>
+
+          <div className=" flex items-center">
+            <div className="flex items-center gap-2 border rounded-lg px-2 py-1.5 shadow-sm bg-white">
+              {IconArrow && (
+                <IconArrow
+                  size={12}
+                  className={`${delta > 0 ? 'text-green-600' : delta < 0 ? 'text-red-600' : 'text-gray-400'}`}
+                />
+              )}
+              <span className="text-gray-600 text-xs sm:text-sm">하루 전 대비</span>
+              <span className={`text-xs sm:text-sm font-semibold ${color}`}>
+                {sign}
+                {Math.abs(delta)}
+              </span>
+            </div>
+          </div>
         </div>
-      ))}
+      </Card>
+    );
+  };
+
+  return (
+    <section className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-5 my-4 max-w-5xl mx-auto">
+      {renderCard(
+        'currentUsers',
+        '현재 사용자 수',
+        <div className="h-12 w-12 rounded-lg bg-[var(--color-hebees-blue-bg)] flex items-center justify-center shadow-sm">
+          <Users size={26} className="text-[var(--color-hebees-blue)]" />
+        </div>,
+        5000,
+        '총'
+      )}
+      {renderCard(
+        'uploadedDocs',
+        '오늘 업로드 문서 수',
+        <div className="h-12 w-12 rounded-lg bg-[var(--color-hebees-bg)] flex items-center justify-center shadow-sm">
+          <FileText size={26} className="text-[var(--color-hebees)]" />
+        </div>,
+        3705,
+        '총'
+      )}
+      {renderCard(
+        'errorCount',
+        '오늘 오류 발생',
+        <div className="h-12 w-12 rounded-lg bg-red-50 flex items-center justify-center shadow-sm">
+          <TriangleAlert size={26} className="text-red-500" />
+        </div>,
+        156,
+        '총'
+      )}
     </section>
   );
 }

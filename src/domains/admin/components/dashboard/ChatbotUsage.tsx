@@ -1,33 +1,87 @@
 import { useEffect, useRef, useState } from 'react';
 import Highcharts from 'highcharts';
+import Card from '@/shared/components/Card';
+import Select from '@/shared/components/Select';
 
 export default function ChatbotUsage() {
   const chartRef = useRef<Highcharts.Chart | null>(null);
   const periods = ['daily', 'weekly', 'monthly'] as const;
   const [period, setPeriod] = useState<(typeof periods)[number]>('daily');
-  const [_connection, setConnection] = useState<
-    EventSource | ReturnType<typeof setInterval> | null
-  >(null);
 
-  // 주별 / 월별 더미 데이터
-  // const staticData = {
-  //   weekly: Array.from({ length: 8 }, (_, i) => ({
-  //     x: Date.UTC(2025, 10, 2 - i * 7),
-  //     y: Math.floor(Math.random() * 700),
-  //   })),
-  //   monthly: Array.from({ length: 6 }, (_, i) => ({
-  //     x: Date.UTC(2025, 10 - i, 1),
-  //     y: Math.floor(Math.random() * 3000),
-  //   })),
-  // };
+  // 🔹 더미 데이터 생성 함수
+  const generateDummyData = (type: 'daily' | 'weekly' | 'monthly') => {
+    const now = new Date();
 
-  // 차트 부분
+    if (type === 'daily') {
+      // 어제부터 30일치
+      const start = new Date(now);
+      start.setDate(now.getDate() - 30);
+      return {
+        timeframe: {
+          start: start.toISOString(),
+          end: now.toISOString(),
+          granularity: 'daily',
+        },
+        items: Array.from({ length: 30 }, (_, i) => {
+          const date = new Date(start);
+          date.setDate(start.getDate() + i + 1);
+          return {
+            x: date.getTime(),
+            y: Math.floor(Math.random() * 500) + 200, // 200~700 토큰
+          };
+        }),
+      };
+    }
+
+    if (type === 'weekly') {
+      // 지난주부터 12주
+      const start = new Date(now);
+      start.setDate(now.getDate() - 7 * 12);
+      return {
+        timeframe: {
+          start: start.toISOString(),
+          end: now.toISOString(),
+          granularity: 'weekly',
+        },
+        items: Array.from({ length: 12 }, (_, i) => {
+          const date = new Date(start);
+          date.setDate(start.getDate() + i * 7);
+          return {
+            x: date.getTime(),
+            y: Math.floor(Math.random() * 5000) + 1000, // 1,000~6,000
+          };
+        }),
+      };
+    }
+
+    // monthly
+    const start = new Date(now);
+    start.setMonth(now.getMonth() - 12);
+    return {
+      timeframe: {
+        start: start.toISOString(),
+        end: now.toISOString(),
+        granularity: 'monthly',
+      },
+      items: Array.from({ length: 12 }, (_, i) => {
+        const date = new Date(start);
+        date.setMonth(start.getMonth() + i + 1);
+        return {
+          x: date.getTime(),
+          y: Math.floor(Math.random() * 15000) + 5000, // 5,000~20,000
+        };
+      }),
+    };
+  };
+
+  // 차트 초기화
   useEffect(() => {
     chartRef.current = Highcharts.chart('chatbot-usage-chart', {
       chart: {
-        type: 'areaspline',
+        type: 'line',
         backgroundColor: 'transparent',
-        height: 300,
+        height: 320,
+        marginRight: 10,
         animation: true,
       },
       title: { text: '' },
@@ -40,132 +94,88 @@ export default function ChatbotUsage() {
       yAxis: {
         title: { text: '사용량 (토큰 수)' },
         min: 0,
+        labels: { style: { color: '#6B7280' } },
       },
       tooltip: {
-        xDateFormat: '%H:%M:%S',
+        xDateFormat: '%Y-%m-%d',
         pointFormat: '<b>{point.y}</b> 토큰',
+      },
+      plotOptions: {
+        line: {
+          color: '#EE5B01',
+          lineWidth: 2,
+          marker: {
+            enabled: true,
+            radius: 3,
+          },
+        },
       },
       series: [
         {
-          type: 'areaspline',
+          type: 'line',
           name: '챗봇 사용량',
-          color: 'var(--color-hebees)',
+          color: '#EE5B01',
           data: [],
         },
       ],
     });
+
+    handlePeriodChange('daily'); // 초기 로드
   }, []);
 
-  // 기간 변경 핸들러
+  // 🔹 기간 전환 함수
   const handlePeriodChange = (type: (typeof periods)[number]) => {
     setPeriod(type);
-
     const chart = chartRef.current;
     if (!chart) return;
 
-    // 통계 기간에 따른 x,t축 변경
+    const dummy = generateDummyData(type);
+
+    // 축 포맷 & 단위 변경
     if (type === 'daily') {
       chart.xAxis[0].update({
-        tickInterval: 3600 * 1000, // 1시간 간격 (24시간)
-        labels: { format: '{value:%H:%M}', style: { fontSize: '11px', color: '#6B7280' } },
+        tickInterval: 24 * 3600 * 1000,
+        labels: { format: '{value:%m/%d}', style: { fontSize: '11px', color: '#6B7280' } },
       });
-      chart.update({
-        tooltip: { xDateFormat: '%H:%M', pointFormat: '<b>{point.y}</b> 토큰' },
-        yAxis: { title: { text: '시간당 사용량 (토큰)' } },
-      });
+      chart.yAxis[0].setTitle({ text: '일별 토큰 사용량' });
     } else if (type === 'weekly') {
       chart.xAxis[0].update({
-        tickInterval: 24 * 3600 * 1000, // 하루 간격 (7일)
+        tickInterval: 7 * 24 * 3600 * 1000,
         labels: { format: '{value:%m/%d}', style: { fontSize: '11px', color: '#6B7280' } },
       });
-      chart.update({
-        tooltip: { xDateFormat: '%m/%d', pointFormat: '<b>{point.y}</b> 토큰' },
-        yAxis: { title: { text: '일별 총 사용량 (토큰)' } },
-      });
-    } else if (type === 'monthly') {
-      chart.xAxis[0].update({
-        tickInterval: 7 * 24 * 3600 * 1000, // 1주 간격 (5주)
-        labels: { format: '{value:%m/%d}', style: { fontSize: '11px', color: '#6B7280' } },
-      });
-      chart.update({
-        tooltip: { xDateFormat: '%m/%d', pointFormat: '<b>{point.y}</b> 토큰' },
-        yAxis: { title: { text: '주별 총 사용량 (토큰)' } },
-      });
-    }
-
-    // 실시간 interval 정리
-    // if (intervalId instanceof EventSource) intervalId.close();
-    // else if (intervalId) clearInterval(intervalId);
-
-    // 일별
-    if (type === 'daily') {
-      const eventSource = new EventSource('');
-      setConnection(eventSource);
-
-      eventSource.onmessage = (event) => {
-        try {
-          const { timestamp, value } = JSON.parse(event.data);
-          chart.series[0].addPoint([timestamp, value], true, chart.series[0].data.length > 50);
-        } catch (error) {
-          console.error('챗봇 사용량 데이터 파싱 오류:', error);
-        }
-      };
-
-      eventSource.onerror = (err) => {
-        console.error('챗봇 사용량 데이터 수신 오류: SSE 연결도 끄겠음', err);
-        eventSource.close();
-        setConnection(null);
-      };
+      chart.yAxis[0].setTitle({ text: '주별 총 토큰 사용량' });
     } else {
-      fetch(``)
-        .then((res) => res.json())
-        .then((data) => {
-          // [{ timestamp, value }] 형태라고 가정
-          chart.series[0].setData(
-            data.map((d: { timestamp: number; value: number }) => [d.timestamp, d.value]),
-            true
-          );
-        })
-        .catch((err) => console.error(`${type} 데이터 불러오기 오류:`, err));
+      chart.xAxis[0].update({
+        tickInterval: 30 * 24 * 3600 * 1000,
+        labels: { format: '{value:%Y-%m}', style: { fontSize: '11px', color: '#6B7280' } },
+      });
+      chart.yAxis[0].setTitle({ text: '월별 총 토큰 사용량' });
     }
+
+    // 데이터 반영
+    chart.series[0].setData(
+      dummy.items.map((item) => [item.x, item.y]),
+      true
+    );
   };
 
-  // 초기 상태 일별 시작
-  useEffect(() => {
-    handlePeriodChange('daily');
-    return () => {
-      // if (intervalId instanceof EventSource) intervalId.close();
-      // else if (intervalId) clearInterval(intervalId);
-    };
-  }, []);
-
   return (
-    <section className="flex flex-col gap-2 my-3">
-      <div className="flex flex-col w-full p-4 border border-gray-200 rounded-xl bg-white">
-        <h2 className="text-xl font-bold text-gray-800 mb-2">챗봇 사용량</h2>
-
-        {/* 기간 전환 버튼 */}
-        <div className="flex gap-2 mb-3">
-          {['daily', 'weekly', 'monthly'].map((p) => (
-            <button
-              key={p}
-              onClick={() => handlePeriodChange(p as (typeof periods)[number])}
-              className={`px-3 py-1 text-sm rounded-lg transition ${
-                period === p
-                  ? 'bg-[var(--color-hebees)] text-white'
-                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-              }`}
-            >
-              {p === 'daily' ? '일별' : p === 'weekly' ? '주별' : '월별'}
-            </button>
-          ))}
+    <Card title="챗봇 사용량 추이" subtitle="일별, 주별, 월별 사용량 추이" className="p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="ml-auto w-40">
+          <Select
+            value={period}
+            onChange={(v) => handlePeriodChange(v as (typeof periods)[number])}
+            options={[
+              { label: '일별', value: 'daily' },
+              { label: '주별', value: 'weekly' },
+              { label: '월별', value: 'monthly' },
+            ]}
+          />
         </div>
-
-        <div
-          id="chatbot-usage-chart"
-          className="w-full border border-gray-200 rounded-xl p-2 bg-white shadow-sm"
-        />
       </div>
-    </section>
+
+      <div id="chatbot-usage-chart" className="w-full" />
+    </Card>
   );
 }
