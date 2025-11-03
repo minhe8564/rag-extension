@@ -28,6 +28,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(file_category_router_router)
+
 @app.get("/")
 async def root():
     return {
