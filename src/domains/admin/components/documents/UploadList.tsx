@@ -1,6 +1,6 @@
 import { Trash2, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import type { FileType } from '@/domains/admin/types';
+// import type { FileType } from '@/domains/admin/types';
 
 interface UploadedDocumentsProps {
   files: File[];

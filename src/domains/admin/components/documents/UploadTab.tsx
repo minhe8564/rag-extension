@@ -13,7 +13,7 @@ export default function UploadTab() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // 컬렉션 선택된 파일 상태 관리
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [_selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
   const handleFilesSelected = (merged: File[]) => {
     setUploadedFiles(merged);

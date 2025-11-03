@@ -10,7 +10,7 @@ export default function ModelResponse() {
         type: 'spline',
         animation: true,
         backgroundColor: '#fff',
-        height: 280,
+        height: 300,
         style: { fontFamily: 'Pretendard, sans-serif' },
       },
       title: { text: '' },

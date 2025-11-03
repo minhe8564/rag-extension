@@ -140,14 +140,16 @@ export default function KeywordMap() {
   }
 
   return (
-    <div className="flex flex-col w-full p-4 border border-gray-200 rounded-xl bg-white transition-all">
-      <h2 className="text-xl font-bold text-gray-800 mb-2">키워드 맵</h2>
-      <p className="text-sm text-gray-500 mb-3">최근 자주 등장한 주요 키워드</p>
+    <section className="flex flex-col gap-2 my-3">
+      <div className="flex flex-col w-full p-4 border border-gray-200 rounded-xl bg-white transition-all">
+        <h2 className="text-xl font-bold text-gray-800 mb-2">키워드 맵</h2>
+        <p className="text-sm text-gray-500 mb-3">최근 자주 등장한 주요 키워드</p>
 
-      <div
-        id="keyword-map"
-        className="w-full h-[340px] border border-gray-200 rounded-xl bg-white shadow-sm"
-      />
-    </div>
+        <div
+          id="keyword-map"
+          className="w-full h-[340px] border border-gray-200 rounded-xl bg-white shadow-sm"
+        />
+      </div>
+    </section>
   );
 }

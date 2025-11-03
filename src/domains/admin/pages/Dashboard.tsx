@@ -11,7 +11,7 @@ export default function Dashboard() {
       <NumberBoard />
       <ChatbotUsage />
       <AiModel />
-      <section className="grid grid-cols-2 gap-4 my-3">
+      <section className="grid grid-cols-2 gap-4">
         <MonthlyUsage />
         <KeywordMap />
       </section>

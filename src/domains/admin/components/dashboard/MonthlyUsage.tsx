@@ -24,7 +24,7 @@ export default function MonthlyUsage() {
         type: 'heatmap',
         backgroundColor: 'transparent',
         height: 400,
-        width: 760,
+        width: 620,
         style: { fontFamily: 'Pretendard, sans-serif' },
       },
       title: { text: '' },

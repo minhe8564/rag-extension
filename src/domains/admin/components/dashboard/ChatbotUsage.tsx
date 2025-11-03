@@ -5,9 +5,9 @@ export default function ChatbotUsage() {
   const chartRef = useRef<Highcharts.Chart | null>(null);
   const periods = ['daily', 'weekly', 'monthly'] as const;
   const [period, setPeriod] = useState<(typeof periods)[number]>('daily');
-  const [connection, setConnection] = useState<EventSource | ReturnType<typeof setInterval> | null>(
-    null
-  );
+  const [_connection, setConnection] = useState<
+    EventSource | ReturnType<typeof setInterval> | null
+  >(null);
 
   // 주별 / 월별 더미 데이터
   // const staticData = {

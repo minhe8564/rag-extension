@@ -1,5 +1,5 @@
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import { useAuthStore } from '@/domains/auth/store/auth.store';
+import { Outlet } from 'react-router-dom';
+// import { useAuthStore } from '@/domains/auth/store/auth.store';
 
 /**
  * 로그인 여부를 확인하고
