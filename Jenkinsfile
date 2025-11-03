@@ -158,7 +158,98 @@ pipeline {
     }
 
     post {
-        always { echo "Pipeline finished: ${currentBuild.currentResult}" }
+        always {
+            script {
+                // 공통 정보 수집 (한 번만 실행)
+                def branch    = resolveBranch()
+                def mention   = resolvePusherMention()
+                def commitMsg = sh(script: "git log -1 --pretty=%s", returnStdout: true).trim()
+                def commitUrl = env.GIT_COMMIT_URL ?: ""
+                
+                def buildInfo = [
+                    branch   : branch,
+                    mention  : mention,
+                    buildUrl : env.BUILD_URL,
+                    commit   : [msg: commitMsg, url: commitUrl]
+                ]
+                
+                // 빌드 결과에 따라 알림 전송
+                if (currentBuild.result == 'SUCCESS' || currentBuild.result == null) {
+                    echo "🎉 POST: 빌드 성공 – Mattermost 알림 전송"
+                    sendMMNotify(true, buildInfo)
+                    
+                } else if (currentBuild.result == 'FAILURE') {
+                    echo "🚨 POST: 빌드 실패 – 로그 추출 후 Mattermost 알림 전송"
+                    
+                    // Jenkins 내장 API로 로그 추출 (마지막 150줄)
+                    try {
+                        def rawBuild = currentBuild.rawBuild
+                        def logText = rawBuild.getLog(150).join('\n')
+                        
+                        // 민감정보 마스킹
+                        logText = logText
+                            .replaceAll(/(?i)(token|secret|password|passwd|apikey|api_key)\s*[:=]\s*\S+/, '$1=[REDACTED]')
+                            .replaceAll(/AKIA[0-9A-Z]{16}/, 'AKIA[REDACTED]')
+                        
+                        buildInfo.details = "```text\n${logText}\n```"
+                    } catch (Exception e) {
+                        echo "⚠️ 로그 추출 실패: ${e.message}"
+                        buildInfo.details = "```text\n로그를 가져올 수 없습니다.\n```"
+                    }
+                    
+                    sendMMNotify(false, buildInfo)
+                }
+                
+                echo "📦 Pipeline finished with status: ${currentBuild.currentResult}"
+            }
+        }
+    }
+}
+
+// 브랜치 해석: BRANCH_NAME → GIT_REF → git
+def resolveBranch() {
+    if (env.BRANCH_NAME) return env.BRANCH_NAME
+    if (env.REF) return env.REF.replaceFirst(/^refs\/heads\//, '')
+    return sh(script: "git name-rev --name-only HEAD || git rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
+}
+
+// @username (웹훅의 user_username) 우선, 없으면 커밋 작성자 표시
+def resolvePusherMention() {
+    def u = env.GIT_PUSHER_USERNAME?.trim()
+    if (u) return "@${u}"
+    return sh(script: "git --no-pager show -s --format='%an <%ae>' HEAD", returnStdout: true).trim()
+}
+
+// 매터모스트 알림 전송
+def sendMMNotify(boolean success, Map info) {
+    def titleLine = success ? "## :jenkins7: Chunking 서비스 빌드 성공 ✅"
+                            : "## :angry_jenkins: Chunking 서비스 빌드 실패 ❌"
+    def lines = []
+    if (info.mention) lines << "**작성자**: ${info.mention}"
+    if (info.branch)  lines << "**대상 브랜치**: `${info.branch}`"
+    if (info.commit?.msg) {
+        def commitLine = info.commit?.url ? "[${info.commit.msg}](${info.commit.url})" : info.commit.msg
+        lines << "**커밋**: ${commitLine}"
+    }
+    if (!success && info.details) {
+        lines << "**에러 로그**:\n${info.details}"
+    }
+    
+    def text = "${titleLine}\n" + (lines ? ("\n" + lines.join("\n")) : "")
+    
+    // 안전 전송(크리덴셜 경고 없음)
+    writeFile file: 'payload.json', text: groovy.json.JsonOutput.toJson([
+        text      : text,
+        username  : "Jenkins",
+        icon_emoji: ":jenkins7:"
+    ])
+    
+    withCredentials([string(credentialsId: 'mattermost-webhook', variable: 'MM_WEBHOOK')]) {
+        sh(script: '''
+            curl -sS -f -X POST -H 'Content-Type: application/json' \
+                --data-binary @payload.json \
+                "$MM_WEBHOOK" || true
+        ''')
     }
 }
 
