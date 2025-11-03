@@ -17,9 +17,12 @@ public record BaseResponse<T>(
     }
 
     public static <T> BaseResponse<T> of(HttpStatus status, T result) {
+        return of(status, result, "요청에 성공하였습니다.");
+    }
+
+    public static <T> BaseResponse<T> of(HttpStatus status, T result, String message) {
         boolean success = status.is2xxSuccessful();
         String code = status.name();
-        String message = "요청에 성공하였습니다.";
         return new BaseResponse<>(status.value(), code, message, success, result);
     }
 
