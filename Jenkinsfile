@@ -149,7 +149,14 @@ pipeline {
                             mkdir -p _docker_ctx
                             SRC_DIR="."
                             if [ -d frontend-repo ]; then SRC_DIR="frontend-repo"; fi
-                            (cd "\$SRC_DIR" && tar --no-same-owner -cf - --exclude=.git --exclude=_docker_ctx --exclude=.env .) | (cd _docker_ctx && tar -xf -)
+                            ARCHIVE_NAME="_ctx.tar"
+                            rm -f "\$ARCHIVE_NAME"
+                            tar -C "\$SRC_DIR" --no-same-owner -cf "\$ARCHIVE_NAME" --exclude=.git --exclude=_docker_ctx --exclude=.env .
+                            tar -C _docker_ctx -xf "\$ARCHIVE_NAME"
+                            rm -f "\$ARCHIVE_NAME"
+                            # 컨텍스트 점검
+                            ls -la _docker_ctx | sed -n '1,120p'
+                            test -f _docker_ctx/package.json || { echo "missing package.json in _docker_ctx"; exit 1; }
                             chmod -R 755 _docker_ctx
                             cp "\$ENV_FILE" _docker_ctx/.env
                             
@@ -190,7 +197,14 @@ pipeline {
                             mkdir -p _docker_ctx
                             SRC_DIR="."
                             if [ -d frontend-repo ]; then SRC_DIR="frontend-repo"; fi
-                            (cd "\$SRC_DIR" && tar --no-same-owner -cf - --exclude=.git --exclude=_docker_ctx --exclude=.env* .) | (cd _docker_ctx && tar -xf -)
+                            ARCHIVE_NAME="_ctx.tar"
+                            rm -f "\$ARCHIVE_NAME"
+                            tar -C "\$SRC_DIR" --no-same-owner -cf "\$ARCHIVE_NAME" --exclude=.git --exclude=_docker_ctx --exclude=.env* .
+                            tar -C _docker_ctx -xf "\$ARCHIVE_NAME"
+                            rm -f "\$ARCHIVE_NAME"
+                            # 컨텍스트 점검
+                            ls -la _docker_ctx | sed -n '1,120p'
+                            test -f _docker_ctx/package.json || { echo "missing package.json in _docker_ctx"; exit 1; }
                             chmod -R 755 _docker_ctx
                             cp "\$ENV_FILE" _docker_ctx/.env.production
                             
