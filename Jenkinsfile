@@ -94,18 +94,22 @@ pipeline {
             steps {
                 sh '''
                 set -eux
-                # Docker 컨테이너에서 pnpm install 실행하여 lockfile 업데이트 (권한 문제 회피)
-                docker run --rm -v "$PWD":/app -w /app node:22.10.0-alpine sh -c "
-                    npm install -g pnpm && \
-                    pnpm install && \
-                    chown -R $(id -u):$(id -g) pnpm-lock.yaml 2>/dev/null || true
-                "
-                # 업데이트 확인
+                # package.json 존재 시에만 lockfile 업데이트 시도
+                if [ -f package.json ]; then
+                  docker run --rm -v "$PWD":/app -w /app node:22.10.0-alpine sh -c "
+                      npm install -g pnpm && \
+                      pnpm install && \
+                      chown -R $(id -u):$(id -g) pnpm-lock.yaml 2>/dev/null || true
+                  "
+                else
+                  echo "skip pnpm install: package.json not found in workspace"
+                fi
+                # 업데이트 확인 (존재만 확인)
                 if [ -f pnpm-lock.yaml ]; then
-                    echo "✅ pnpm-lock.yaml updated successfully"
+                    echo "✅ pnpm-lock.yaml present"
                     ls -lh pnpm-lock.yaml
                 else
-                    echo "❌ pnpm-lock.yaml not found after update"
+                    echo "❌ pnpm-lock.yaml missing"
                     exit 1
                 fi
                 '''
@@ -149,24 +153,17 @@ pipeline {
                             mkdir -p _docker_ctx
                             SRC_DIR="."
                             if [ -d frontend-repo ]; then SRC_DIR="frontend-repo"; fi
-                            ARCHIVE_NAME="_ctx.tar"
-                            rm -f "\$ARCHIVE_NAME"
-                            tar -C "\$SRC_DIR" --no-same-owner -cf "\$ARCHIVE_NAME" --exclude=.git --exclude=_docker_ctx --exclude=.env .
-                            tar -C _docker_ctx -xf "\$ARCHIVE_NAME"
-                            rm -f "\$ARCHIVE_NAME"
+                            TMP_ARCHIVE="$(mktemp -t ctx.XXXXXX.tar)"
+                            tar -C "\$SRC_DIR" --no-same-owner -cf "\$TMP_ARCHIVE" --exclude=.git --exclude=_docker_ctx --exclude=.env .
+                            tar -C _docker_ctx -xf "\$TMP_ARCHIVE"
+                            rm -f "\$TMP_ARCHIVE"
                             # 컨텍스트 점검
                             ls -la _docker_ctx | sed -n '1,120p'
                             test -f _docker_ctx/package.json || { echo "missing package.json in _docker_ctx"; exit 1; }
                             chmod -R 755 _docker_ctx
                             cp "\$ENV_FILE" _docker_ctx/.env
                             
-                            # lockfile이 최신인지 확인하고 필요시 업데이트
-                            DOCKER_CTX_PATH="\$(pwd)/_docker_ctx"
-                            docker run --rm -v "\${DOCKER_CTX_PATH}":/app -w /app node:22.10.0-alpine sh -c "
-                                npm install -g pnpm && \
-                                pnpm install
-                            "
-                            
+                            # 사전 pnpm 설치는 생략 (Dockerfile에서 처리)
                             ls -la _docker_ctx/.env
                             ls -lh _docker_ctx/pnpm-lock.yaml
                             docker build -t ${tag} --build-arg ENV=test _docker_ctx
@@ -197,24 +194,17 @@ pipeline {
                             mkdir -p _docker_ctx
                             SRC_DIR="."
                             if [ -d frontend-repo ]; then SRC_DIR="frontend-repo"; fi
-                            ARCHIVE_NAME="_ctx.tar"
-                            rm -f "\$ARCHIVE_NAME"
-                            tar -C "\$SRC_DIR" --no-same-owner -cf "\$ARCHIVE_NAME" --exclude=.git --exclude=_docker_ctx --exclude=.env* .
-                            tar -C _docker_ctx -xf "\$ARCHIVE_NAME"
-                            rm -f "\$ARCHIVE_NAME"
+                            TMP_ARCHIVE="$(mktemp -t ctx.XXXXXX.tar)"
+                            tar -C "\$SRC_DIR" --no-same-owner -cf "\$TMP_ARCHIVE" --exclude=.git --exclude=_docker_ctx --exclude=.env* .
+                            tar -C _docker_ctx -xf "\$TMP_ARCHIVE"
+                            rm -f "\$TMP_ARCHIVE"
                             # 컨텍스트 점검
                             ls -la _docker_ctx | sed -n '1,120p'
                             test -f _docker_ctx/package.json || { echo "missing package.json in _docker_ctx"; exit 1; }
                             chmod -R 755 _docker_ctx
                             cp "\$ENV_FILE" _docker_ctx/.env.production
                             
-                            # lockfile이 최신인지 확인하고 필요시 업데이트
-                            DOCKER_CTX_PATH="\$(pwd)/_docker_ctx"
-                            docker run --rm -v "\${DOCKER_CTX_PATH}":/app -w /app node:22.10.0-alpine sh -c "
-                                npm install -g pnpm && \
-                                pnpm install
-                            "
-                            
+                            # 사전 pnpm 설치는 생략 (Dockerfile에서 처리)
                             ls -la _docker_ctx/.env.production
                             ls -lh _docker_ctx/pnpm-lock.yaml
                             docker build -t ${tag} --build-arg ENV=prod _docker_ctx
