@@ -4,8 +4,10 @@ import VecProcess from './VecProcess';
 import type { FileType } from '../../types';
 export default function SelectVectorization({
   finalSelectedFiles,
+  onRemove,
 }: {
   finalSelectedFiles: FileType[];
+  onRemove?: (name: string) => void;
 }) {
   // 복사본 데이터(보내줄 데이터임)
   const [localFiles, setLocalFiles] = useState<FileType[]>(finalSelectedFiles);
@@ -20,6 +22,7 @@ export default function SelectVectorization({
   const [_selectedFile, _setSelectedFile] = useState(finalSelectedFiles[0]);
 
   const handleRemove = (name: string) => {
+    if (onRemove) onRemove(name);
     setLocalFiles((prev) => prev.filter((file) => file.name !== name));
   };
 
