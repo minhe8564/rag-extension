@@ -4,6 +4,7 @@ import com.ssafy.hebees.domain.user.entity.User;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * QueryDSL을 사용한 커스텀 Repository 인터페이스
@@ -40,4 +41,12 @@ public interface UserRepositoryCustom {
      * @return 사용자 정보 (Optional)
      */
     Optional<User> findByNameWithQueryDSL(String name);
+
+    /**
+     * 특정 역할을 사용하는 사용자가 존재하는지 확인 (QueryDSL)
+     *
+     * @param userRoleUuid 역할 UUID
+     * @return 해당 역할을 사용하는 사용자의 존재 여부
+     */
+    boolean existsByRoleUuid(UUID userRoleUuid);
 }

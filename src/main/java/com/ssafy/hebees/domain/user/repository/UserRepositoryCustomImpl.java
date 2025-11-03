@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
 @RequiredArgsConstructor
@@ -59,5 +60,18 @@ public class UserRepositoryCustomImpl implements UserRepositoryCustom {
             .fetchOne();
 
         return Optional.ofNullable(result);
+    }
+
+    @Override
+    public boolean existsByRoleUuid(UUID userRoleUuid) {
+        Integer result = queryFactory
+            .selectOne()
+            .from(user)
+            .join(user.userRole, userRole)
+            .where(userRole.uuid.eq(userRoleUuid)
+                .and(user.deletedAt.isNull()))
+            .fetchFirst();
+
+        return result != null;
     }
 }
