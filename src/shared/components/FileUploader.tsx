@@ -3,7 +3,7 @@ import type { DragEvent } from 'react';
 import { UploadCloud } from 'lucide-react';
 
 type Brand = 'hebees' | 'retina';
-type Category = '업무 매뉴얼' | '정책/규정' | '개발 문서' | '홍보자료' | '기타';
+type Category = '업무 매뉴얼' | '정책/규정' | '개발 문서' | '홍보자료' | '이미지' | '기타';
 
 type Props = {
   onUpload: (payload: { files: File[]; category: Category }) => void;
@@ -16,7 +16,14 @@ type Props = {
   defaultCategory?: Category;
 };
 
-const CATEGORIES: Category[] = ['업무 매뉴얼', '정책/규정', '개발 문서', '홍보자료', '기타'];
+const CATEGORIES: Category[] = [
+  '업무 매뉴얼',
+  '정책/규정',
+  '개발 문서',
+  '홍보자료',
+  '이미지',
+  '기타',
+];
 
 export default function FileDropzone({
   onUpload,

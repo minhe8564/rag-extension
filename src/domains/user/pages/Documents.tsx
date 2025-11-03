@@ -3,7 +3,7 @@ import FileDropzone from '@/shared/components/FileUploader';
 import UploadedFileList from '@/shared/components/UploadedFileList';
 import type { UploadedDoc as UDoc } from '@/shared/components/UploadedFileList';
 
-type Category = '업무 매뉴얼' | '정책/규정' | '개발 문서' | '홍보자료' | '기타';
+type Category = '업무 매뉴얼' | '정책/규정' | '개발 문서' | '홍보자료' | '이미지' | '기타';
 
 export default function Documents() {
   const [uploadedDocs, setUploadedDocs] = useState<UDoc[]>([]);

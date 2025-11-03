@@ -13,7 +13,7 @@ type Props = {
   onCancel: () => void;
   onCreate: (c: Collection) => void;
 };
-type Category = '업무 매뉴얼' | '정책/규정' | '개발 문서' | '홍보자료' | '기타';
+type Category = '업무 매뉴얼' | '정책/규정' | '개발 문서' | '홍보자료' | '이미지' | '기타';
 
 export function CreateCollectionForm({}: Props) {
   const navigate = useNavigate();
