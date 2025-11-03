@@ -33,7 +33,7 @@ export default function TextChat() {
 
   return (
     <>
-      <section className="h-full flex flex-col">
+      <section className="flex-1 flex flex-col h-full">
         {hasMessages ? (
           <>
             <div className="flex-1 min-h-0 w-full flex justify-center overflow-y-scroll no-scrollbar">
@@ -46,7 +46,7 @@ export default function TextChat() {
                       key={i}
                       className={
                         'w-fit max-w-[75%] rounded-md border p-3 relative group break-words ' +
-                        (isUser ? 'ml-auto bg-[var(--color-retina-bg)] text-black' : 'bg-white')
+                        (isUser ? 'ml-auto bg-[var(--color-hebees-bg)] text-black' : 'bg-white')
                       }
                     >
                       <div className="whitespace-pre-wrap">{m.content}</div>
@@ -115,19 +115,19 @@ export default function TextChat() {
 
             <div className="sticky bottom-0 shrink-0 w-full flex justify-center pb-5 bg-white">
               <div className="w-full max-w-[75%]">
-                <ChatInput onSend={handleSend} variant="retina" />
+                <ChatInput onSend={handleSend} variant="hebees" />
               </div>
             </div>
           </>
         ) : (
-          <div className="flex-1 min-h-0 flex items-center justify-center px-4">
+          <div className="flex-1 min-h-[calc(100vh-62px)] flex items-center justify-center px-4">
             <div className="w-full max-w-[75%] flex flex-col items-center gap-6 text-center">
               {/* <div className="text-gray-600">
                 <div className="text-xl font-semibold mb-1">레티나 챗봇에 오신 걸 환영합니다.</div>
                 <div className="text-sm">업로드된 문서를 기반으로 무엇이든 질문해보세요.</div>
               </div> */}
 
-              <ChatInput onSend={handleSend} variant="retina" />
+              <ChatInput onSend={handleSend} variant="hebees" />
             </div>
           </div>
         )}
