@@ -1,10 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from . import __version__, __title__, __description__
-from .config import settings
-from .utils import custom_openapi
+from .common.config import settings
+from .common.utils.openapi import custom_openapi
 
-from .routers.file_category_router import router as file_category_router_router
+from .domains.file.routers.file_category import router as file_router
 from datetime import datetime
 
 app = FastAPI(
@@ -28,7 +28,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(file_category_router_router)
+app.include_router(file_router)
 
 @app.get("/")
 async def root():

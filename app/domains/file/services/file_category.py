@@ -28,4 +28,3 @@ async def list_file_categories(session: AsyncSession) -> List[FileCategoryListIt
         )
         for row in rows
     ]
-

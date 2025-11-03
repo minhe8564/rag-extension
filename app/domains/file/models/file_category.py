@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlalchemy import String, text 
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.dialects.mysql import BINARY, DATETIME as MySQLDateTime
-from ..db import Base
+from ....common.db import Base
 
 
 class FileCategory(Base):
@@ -21,4 +21,3 @@ class FileCategory(Base):
     # Convenience: serialize primary key as hex string
     def pk_hex(self) -> str:
         return self.file_category_no.hex() if isinstance(self.file_category_no, (bytes, bytearray)) else str(self.file_category_no)
-
