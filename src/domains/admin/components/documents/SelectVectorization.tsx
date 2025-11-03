@@ -7,7 +7,7 @@ export default function SelectVectorization({
   onRemove,
 }: {
   finalSelectedFiles: FileType[];
-  onRemove?: (name: string) => void;
+  onRemove?: (file: FileType) => void;
 }) {
   // 복사본 데이터(보내줄 데이터임)
   const [localFiles, setLocalFiles] = useState<FileType[]>(finalSelectedFiles);
@@ -21,11 +21,19 @@ export default function SelectVectorization({
 
   const [selectedFile, setSelectedFile] = useState<FileType | null>(null);
 
-  const handleRemove = (name: string) => {
-    if (onRemove) onRemove(name);
-    setLocalFiles((prev) => prev.filter((file) => file.name !== name));
+  const handleRemove = (fileToRemove: FileType) => {
+    onRemove?.(fileToRemove);
+    setLocalFiles((prev) =>
+      prev.filter(
+        (file) => !(file.name === fileToRemove.name && file.collection === fileToRemove.collection)
+      )
+    );
 
-    if (selectedFile?.name === name) {
+    if (
+      selectedFile &&
+      selectedFile.name === fileToRemove.name &&
+      selectedFile.collection === fileToRemove.collection
+    ) {
       setSelectedFile(null);
     }
   };
@@ -55,15 +63,22 @@ export default function SelectVectorization({
       <div className="flex flex-col min-h-[200px]">
         {currentFiles.map((file) => (
           <div
-            key={file.name}
+            key={`${file.name}::${file.collection}`}
             onClick={() => setSelectedFile(file)}
-            className="grid grid-cols-8 items-center text-sm p-2 border-b last:border-none hover:bg-gray-200 cursor-pointer"
+            className={
+              `grid grid-cols-8 items-center text-sm p-2 border-b last:border-none hover:bg-gray-200 cursor-pointer ` +
+              (selectedFile &&
+              selectedFile.name === file.name &&
+              selectedFile.collection === file.collection
+                ? 'bg-gray-200 ring-1 ring-[var(--color-hebees)]'
+                : '')
+            }
           >
             <div className="col-span-3 flex items-center gap-2 text-xs font-regular pl-2">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleRemove(file.name);
+                  handleRemove(file);
                 }}
               >
                 <X size={17} className="text-[var(--color-hebees)]" />
@@ -134,7 +149,15 @@ export default function SelectVectorization({
           벡터화 실행
         </button>
       </div>
-      {selectedFile ? <VecProcess selectedFiles={localFiles} /> : <></>}
+      {selectedFile ? (
+        <VecProcess
+          selectedFiles={localFiles}
+          initialFileName={selectedFile.name}
+          initialCollection={selectedFile.collection as string}
+        />
+      ) : (
+        <></>
+      )}
     </section>
   );
 }

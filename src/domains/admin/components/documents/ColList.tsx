@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FolderOpen, FileText, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
+import { FolderOpen, FileText, ChevronLeft, ChevronRight, ChevronDown, Trash2 } from 'lucide-react';
 export default function ColList() {
   const dummyCollections = [
     {
@@ -52,16 +52,89 @@ export default function ColList() {
     },
   ];
 
+  const [collections, setCollections] = useState(dummyCollections);
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [page, setPage] = useState<Record<string, number>>({});
   const FILES_PER_PAGE = 5;
 
+  const [selectedCollections, setSelectedCollections] = useState<Set<string>>(new Set());
+  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+  const [hoveredCollection, setHoveredCollection] = useState<string | null>(null);
+
   const toggleOpen = (name: string) => setOpen((prev) => ({ ...prev, [name]: !prev[name] }));
+
+  const handleDeleteFile = (colName: string, fileId: number) => {
+    setCollections((prev) =>
+      prev.map((c) =>
+        c.name === colName ? { ...c, files: c.files.filter((f) => f.id !== fileId) } : c
+      )
+    );
+    const key = `${colName}::${fileId}`;
+    setSelectedFiles((prev) => {
+      const next = new Set(prev);
+      next.delete(key);
+      return next;
+    });
+  };
+
+  const toggleSelectCollection = (colName: string) => {
+    setSelectedCollections((prev) => {
+      const next = new Set(prev);
+      const willSelect = !next.has(colName);
+      if (willSelect) next.add(colName);
+      else next.delete(colName);
+      // 컬렉션 토글에 맞춰 파일들도 함께 토글
+      const col = collections.find((c) => c.name === colName);
+      if (col) {
+        setSelectedFiles((prevFiles) => {
+          const nextFiles = new Set(prevFiles);
+          for (const f of col.files) {
+            const key = `${colName}::${f.id}`;
+            if (willSelect) nextFiles.add(key);
+            else nextFiles.delete(key);
+          }
+          return nextFiles;
+        });
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectFile = (colName: string, fileId: number) => {
+    const key = `${colName}::${fileId}`;
+    setSelectedFiles((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedFiles.size === 0) return;
+    setCollections((prev) =>
+      prev.map((c) => ({
+        ...c,
+        files: c.files.filter((f) => !selectedFiles.has(`${c.name}::${f.id}`)),
+      }))
+    );
+    setSelectedFiles(new Set());
+  };
 
   return (
     <>
       <section className="flex flex-col w-full rounded-xl border-gray-200 bg-white box-border space-y-3 flex-shrink-0 overflow-hidden [scrollbar-gutter:stable]">
-        {dummyCollections.map((col) => {
+        <div className="flex justify-end p-2">
+          <button
+            onClick={handleBulkDelete}
+            disabled={selectedFiles.size === 0}
+            className="flex items-center gap-1 px-3 py-1.5 text-white text-xs font-semibold rounded-md bg-[linear-gradient(90deg,#BE7DB1_10%,#81BAFF_100%)] disabled:opacity-40 hover:opacity-90 transition"
+          >
+            <Trash2 size={14} />
+            선택 삭제
+          </button>
+        </div>
+        {collections.map((col) => {
           const currentPage = page[col.name] || 1;
           const totalPages = Math.ceil(col.files.length / FILES_PER_PAGE);
           const start = (currentPage - 1) * FILES_PER_PAGE;
@@ -70,7 +143,16 @@ export default function ColList() {
           return (
             <div
               key={col.id}
-              className="border rounded-lg p-3 hover:bg-[var(--color-hebees-bg)]/50 transition"
+              onClick={() => toggleSelectCollection(col.name)}
+              onMouseLeave={() => setHoveredCollection((prev) => (prev === col.name ? null : prev))}
+              className={
+                `border rounded-lg p-3 transition cursor-pointer ` +
+                (selectedCollections.has(col.name)
+                  ? 'bg-[var(--color-hebees-bg)]/40 ring-1 ring-[var(--color-hebees)]'
+                  : hoveredCollection === col.name
+                    ? ''
+                    : 'hover:bg-[var(--color-hebees-bg)]/50 hover:ring-1 hover:ring-[var(--color-hebees)]')
+              }
             >
               {/* 컬렉션 헤더 */}
               <div className="flex items-center justify-between">
@@ -81,9 +163,19 @@ export default function ColList() {
                   {col.name}
                 </div>
                 <div className="flex items-center gap-3">
-                  <input type="checkbox" className="accent-[var(--color-hebees)]" />
+                  <input
+                    type="checkbox"
+                    className="accent-[var(--color-hebees)] cursor-pointer"
+                    checked={selectedCollections.has(col.name)}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={() => toggleSelectCollection(col.name)}
+                  />
                   <button
-                    onClick={() => toggleOpen(col.name)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleOpen(col.name);
+                      ㅎ;
+                    }}
                     className="flex items-center text-sm text-gray-500 hover:text-[var(--color-hebees)] transition"
                   >
                     {open[col.name] ? (
@@ -108,7 +200,15 @@ export default function ColList() {
                     {visibleFiles.map((file) => (
                       <li
                         key={file.id}
-                        className="flex items-center justify-between border-b border-gray-100 pb-2 last:border-none"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleSelectFile(col.name, file.id);
+                        }}
+                        onMouseEnter={() => setHoveredCollection(col.name)}
+                        onMouseLeave={() =>
+                          setHoveredCollection((prev) => (prev === col.name ? null : prev))
+                        }
+                        className={`flex items-center justify-between border-b border-gray-100 pb-2 last:border-none cursor-pointer hover:bg-[var(--color-hebees-bg)]/60`}
                       >
                         <div className="flex items-center gap-2">
                           <div className="w-6 h-6 bg-[var(--color-hebees)] rounded-md flex items-center justify-center">
@@ -116,7 +216,24 @@ export default function ColList() {
                           </div>
                           <span className="truncate max-w-[260px]">{file.name}</span>
                         </div>
-                        <input type="checkbox" className="accent-[var(--color-hebees)]" />
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            className="accent-[var(--color-hebees)] cursor-pointer"
+                            checked={selectedFiles.has(`${col.name}::${file.id}`)}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={() => toggleSelectFile(col.name, file.id)}
+                          />
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteFile(col.name, file.id);
+                            }}
+                            className="text-[var(--color-hebees)] hover:opacity-80 transition"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </li>
                     ))}
                   </ul>

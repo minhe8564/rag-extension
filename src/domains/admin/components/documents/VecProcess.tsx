@@ -1,17 +1,36 @@
 import { FileText, CloudUpload, Zap, Database, CircleCheck } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Pagination from '@/shared/components/Pagination';
 import type { FileType } from '../../types';
 
-export default function VecProcess({ selectedFiles }: { selectedFiles: FileType[] }) {
+export default function VecProcess({
+  selectedFiles,
+  initialFileName,
+  initialCollection,
+}: {
+  selectedFiles: FileType[];
+  initialFileName?: string;
+  initialCollection?: string;
+}) {
+  // 외부에서 특정 파일로 진입 시 초기 인덱스 동기화
+  useEffect(() => {
+    if (!initialFileName) return;
+    let idx = -1;
+    if (initialCollection) {
+      idx = selectedFiles.findIndex(
+        (f) => f.name === initialFileName && (f.collection as string) === initialCollection
+      );
+    }
+    if (idx < 0) {
+      idx = selectedFiles.findIndex((f) => f.name === initialFileName);
+    }
+    if (idx >= 0) setCurrentIndex(idx);
+  }, [initialFileName, initialCollection, selectedFiles]);
   const [currentIndex, setCurrentIndex] = useState(0);
   if (!selectedFiles || selectedFiles.length === 0) return null;
 
   const totalFiles = selectedFiles.length;
   const currentFile = selectedFiles[currentIndex];
-
-  // 클릭으로 파일 이동
-  // const handleFileClick = (index: number) => setCurrentIndex(index);
 
   // 페이지네이션 이동
   const handlePageChange = (page: number) => setCurrentIndex(page - 1);

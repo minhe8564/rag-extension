@@ -106,11 +106,12 @@ export default function ColSection({ selectedCollection, onCollectionSelect }: C
           return (
             <div
               key={col.id}
-              className={`border rounded-lg p-3 transition ${
+              className={`border rounded-lg p-3 transition cursor-pointer ${
                 selectedCollection === col.name
-                  ? 'bg-[var(--color-hebees-bg)]/40'
-                  : 'hover:bg-[var(--color-hebees-bg)]/20'
+                  ? 'bg-[var(--color-hebees-bg)]/40 ring-1 ring-[var(--color-hebees)]'
+                  : 'hover:bg-[var(--color-hebees-bg)]/40 hover:ring-1 hover:ring-[var(--color-hebees)]'
               }`}
+              onClick={() => handleSelectCollection(col.name as 'public' | 'hebees')}
             >
               {/* 헤더 */}
               <div className="flex items-center justify-between">
@@ -125,10 +126,14 @@ export default function ColSection({ selectedCollection, onCollectionSelect }: C
                     type="checkbox"
                     className="accent-[var(--color-hebees)] cursor-pointer"
                     checked={selectedCollection === col.name}
+                    onClick={(e) => e.stopPropagation()}
                     onChange={() => handleSelectCollection(col.name as 'public' | 'hebees')}
                   />
                   <button
-                    onClick={() => toggleOpen(col.name)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleOpen(col.name);
+                    }}
                     className="flex items-center text-sm text-gray-500 hover:text-[var(--color-hebees)] transition"
                   >
                     {openCollections[col.name] ? (
@@ -171,12 +176,13 @@ export default function ColSection({ selectedCollection, onCollectionSelect }: C
                   {totalPages >= 1 && (
                     <div className="flex justify-center gap-2 items-center mt-2">
                       <button
-                        onClick={() =>
+                        onClick={(e) => {
+                          e.stopPropagation();
                           setPage((prev) => ({
                             ...prev,
                             [col.name]: Math.max((prev[col.name] || 1) - 1, 1),
-                          }))
-                        }
+                          }));
+                        }}
                         disabled={currentPage === 1}
                         className="flex items-center gap-1 px-2 py-1 text-gray-600 text-xs hover:text-[var(--color-hebees)] disabled:opacity-40"
                       >
@@ -189,12 +195,13 @@ export default function ColSection({ selectedCollection, onCollectionSelect }: C
                       </span>
 
                       <button
-                        onClick={() =>
+                        onClick={(e) => {
+                          e.stopPropagation();
                           setPage((prev) => ({
                             ...prev,
                             [col.name]: Math.min((prev[col.name] || 1) + 1, totalPages),
-                          }))
-                        }
+                          }));
+                        }}
                         disabled={currentPage === totalPages}
                         className="flex items-center gap-1 px-2 py-1 text-gray-600 text-xs hover:text-[var(--color-hebees)] disabled:opacity-40"
                       >

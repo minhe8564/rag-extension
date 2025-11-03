@@ -93,7 +93,8 @@ export default function UploadedDocuments({
           {visibleFiles.map((file) => (
             <li
               key={file.name}
-              className="flex items-center justify-between border-b border-gray-100 pb-1 last:border-none"
+              onClick={() => handleToggleFile(file)}
+              className="flex items-center justify-between pt-2 border-b border-gray-100 pb-1 last:border-none cursor-pointer hover:bg-[var(--color-hebees-bg)]/50 hover:ring-1 hover:ring-[var(--color-hebees)]"
             >
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 bg-[var(--color-hebees)] rounded-md flex items-center justify-center">
@@ -106,6 +107,7 @@ export default function UploadedDocuments({
               <input
                 type="checkbox"
                 checked={selectedFiles.some((f) => f.name === file.name)}
+                onClick={(e) => e.stopPropagation()}
                 onChange={() => handleToggleFile(file)}
                 className="accent-[var(--color-hebees)] border-2 border-[var(--color-hebees)] rounded-sm cursor-pointer scale-110"
               />

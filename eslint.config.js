@@ -28,6 +28,7 @@ export default defineConfig([
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
       ],
       'react/react-in-jsx-scope': 'off',
+      '@typescript-eslint/no-unused-expressions': 'off',
     },
   },
 ]);

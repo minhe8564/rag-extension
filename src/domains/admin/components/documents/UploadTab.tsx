@@ -78,11 +78,12 @@ export default function UploadTab() {
         }
 
         if (blockedNames.length > 0) {
-          const names = Array.from(new Set(blockedNames)).join('\n');
+          const uniques = Array.from(new Set(blockedNames));
+          const bulletList = uniques.map((n) => `- ${n}`).join('\n');
           toast.warn(
             <div
               style={{ whiteSpace: 'pre-line' }}
-            >{`이미 같은 컬렉션에 선택된 문서가 있어요:\n${names}`}</div>
+            >{`이미 같은 컬렉션에 선택된 문서가 있어요:\n${bulletList}`}</div>
           );
         }
         return [...prev, ...toAdd];
@@ -121,8 +122,10 @@ export default function UploadTab() {
       </div>
       <SelectVectorization
         finalSelectedFiles={finalSelectedFiles}
-        onRemove={(name) => {
-          setFinalSelectedFiles((prev) => prev.filter((f) => f.name !== name));
+        onRemove={(file) => {
+          setFinalSelectedFiles((prev) =>
+            prev.filter((f) => !(f.name === file.name && f.collection === file.collection))
+          );
           setSelectedFiles([]);
         }}
       />
