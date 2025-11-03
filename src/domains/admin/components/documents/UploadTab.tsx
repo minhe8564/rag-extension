@@ -59,20 +59,37 @@ export default function UploadTab() {
 
       setFinalSelectedFiles((prev) => {
         // 파일명+컬렉션 조합으로만 중복을 방지하여
-        // 동일 파일을 다른 컬렉션에 중복 추가할 수 있게 함
+        // 동일 파일을 다른 컬렉션에 중복 햐추가할 수 있게 함
         const existingComposite = new Set(prev.map((f) => `${f.name}::${f.collection}`));
-        const toAdd = combined.filter((f) => !existingComposite.has(`${f.name}::${f.collection}`));
-        const blocked = combined.filter((f) => existingComposite.has(`${f.name}::${f.collection}`));
 
-        if (blocked.length > 0) {
-          const names = Array.from(new Set(blocked.map((f) => f.name))).join(', ');
-          toast.warn(`이미 같은 컬렉션에 선택된 문서가 있어요: ${names}`);
+        // 배치 내부 중복까지 포함해서 한 번에 수집
+        const seen = new Set(existingComposite);
+        const toAdd: FileType[] = [];
+        const blockedNames: string[] = [];
+
+        for (const f of combined) {
+          const key = `${f.name}::${f.collection}`;
+          if (seen.has(key)) {
+            blockedNames.push(f.name);
+          } else {
+            seen.add(key);
+            toAdd.push(f);
+          }
+        }
+
+        if (blockedNames.length > 0) {
+          const names = Array.from(new Set(blockedNames)).join('\n');
+          toast.warn(
+            <div
+              style={{ whiteSpace: 'pre-line' }}
+            >{`이미 같은 컬렉션에 선택된 문서가 있어요:\n${names}`}</div>
+          );
         }
         return [...prev, ...toAdd];
       });
 
       setSelectedFiles([]);
-      setTimeout(() => setSelectedCollection(null), 0); // 2️⃣ 다음 렌더 프레임에서 컬렉션 초기화
+      setTimeout(() => setSelectedCollection(null), 0); // 다음 렌더 프레임에서 컬렉션 초기화
     }
   }, [selectedFiles, selectedCollection]);
 
