@@ -149,7 +149,7 @@ pipeline {
                             mkdir -p _docker_ctx
                             SRC_DIR="."
                             if [ -d frontend-repo ]; then SRC_DIR="frontend-repo"; fi
-                            (cd "$SRC_DIR" && tar --no-same-owner -cf - --exclude=.git --exclude=_docker_ctx --exclude=.env .) | (cd _docker_ctx && tar -xf -)
+                            (cd "\$SRC_DIR" && tar --no-same-owner -cf - --exclude=.git --exclude=_docker_ctx --exclude=.env .) | (cd _docker_ctx && tar -xf -)
                             chmod -R 755 _docker_ctx
                             cp "\$ENV_FILE" _docker_ctx/.env
                             
@@ -190,7 +190,7 @@ pipeline {
                             mkdir -p _docker_ctx
                             SRC_DIR="."
                             if [ -d frontend-repo ]; then SRC_DIR="frontend-repo"; fi
-                            (cd "$SRC_DIR" && tar --no-same-owner -cf - --exclude=.git --exclude=_docker_ctx --exclude=.env* .) | (cd _docker_ctx && tar -xf -)
+                            (cd "\$SRC_DIR" && tar --no-same-owner -cf - --exclude=.git --exclude=_docker_ctx --exclude=.env* .) | (cd _docker_ctx && tar -xf -)
                             chmod -R 755 _docker_ctx
                             cp "\$ENV_FILE" _docker_ctx/.env.production
                             
