@@ -147,7 +147,9 @@ pipeline {
                             # Docker 빌드 컨텍스트 준비
                             rm -rf _docker_ctx
                             mkdir -p _docker_ctx
-                            (cd frontend-repo && tar --no-same-owner -cf - --exclude=.git --exclude=_docker_ctx --exclude=.env .) | (cd _docker_ctx && tar -xf -)
+                            SRC_DIR="."
+                            if [ -d frontend-repo ]; then SRC_DIR="frontend-repo"; fi
+                            (cd "$SRC_DIR" && tar --no-same-owner -cf - --exclude=.git --exclude=_docker_ctx --exclude=.env .) | (cd _docker_ctx && tar -xf -)
                             chmod -R 755 _docker_ctx
                             cp "\$ENV_FILE" _docker_ctx/.env
                             
@@ -186,7 +188,9 @@ pipeline {
                             # Docker 빌드 컨텍스트 준비
                             rm -rf _docker_ctx
                             mkdir -p _docker_ctx
-                            (cd frontend-repo && tar --no-same-owner -cf - --exclude=.git --exclude=_docker_ctx --exclude=.env* .) | (cd _docker_ctx && tar -xf -)
+                            SRC_DIR="."
+                            if [ -d frontend-repo ]; then SRC_DIR="frontend-repo"; fi
+                            (cd "$SRC_DIR" && tar --no-same-owner -cf - --exclude=.git --exclude=_docker_ctx --exclude=.env* .) | (cd _docker_ctx && tar -xf -)
                             chmod -R 755 _docker_ctx
                             cp "\$ENV_FILE" _docker_ctx/.env.production
                             
