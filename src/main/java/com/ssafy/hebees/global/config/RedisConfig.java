@@ -46,6 +46,21 @@ public class RedisConfig {
         return new LettuceConnectionFactory(conf);
     }
 
+    @Bean(name = "chatLettuceConnectionFactory")
+    public LettuceConnectionFactory chatLettuceConnectionFactory(RedisProperties props) {
+        RedisStandaloneConfiguration conf = new RedisStandaloneConfiguration();
+        conf.setHostName(props.getHost());
+        conf.setPort(props.getPort());
+        if (props.getPassword() != null && !props.getPassword().isEmpty()) {
+            conf.setPassword(RedisPassword.of(props.getPassword()));
+        }
+        if (props.getUsername() != null && !props.getUsername().isEmpty()) {
+            conf.setUsername(props.getUsername());
+        }
+        conf.setDatabase(2); // 채팅 메시지는 DB2
+        return new LettuceConnectionFactory(conf);
+    }
+
     @Bean(name = "authRedisTemplate")
     @Primary
     public StringRedisTemplate authRedisTemplate(
@@ -56,6 +71,12 @@ public class RedisConfig {
     @Bean(name = "ingestRedisTemplate")
     public StringRedisTemplate ingestRedisTemplate(
         @Qualifier("ingestLettuceConnectionFactory") LettuceConnectionFactory connectionFactory) {
+        return new StringRedisTemplate(connectionFactory);
+    }
+
+    @Bean(name = "chatRedisTemplate")
+    public StringRedisTemplate chatRedisTemplate(
+        @Qualifier("chatLettuceConnectionFactory") LettuceConnectionFactory connectionFactory) {
         return new StringRedisTemplate(connectionFactory);
     }
 }
