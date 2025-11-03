@@ -82,9 +82,9 @@ web_modules/
 
 # Environment variables
 .env
-.env.development.local
+.env.development
+.env.production
 .env.test.local
-.env.production.local
 .env.local
 
 # Bundler / Framework output

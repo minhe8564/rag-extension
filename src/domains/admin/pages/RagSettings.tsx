@@ -1,47 +1,63 @@
 import { useState } from 'react';
+import { IngestSettingsForm } from '@/domains/admin/components/rag-settings/IngestSettingsForm';
+import { QuerySettingsForm } from '@/domains/admin/components/rag-settings/QuerySettingsForm';
+import { TemplateList } from '@/domains/admin/components/rag-settings/TemplateList';
 
 export default function RagSettings() {
-  const [topK, setTopK] = useState(5);
-  const [threshold, setThreshold] = useState(0.4);
+  const [ingestTemplate, setIngestTemplate] = useState('ingest-1');
+  const [queryTemplate, setQueryTemplate] = useState('query-1');
 
-  const save = async () => {
-    // 설정 저장 API
-    console.log('save settings', { topK, threshold });
-    alert('저장되었습니다.');
+  const onSave = async (payload: any) => {
+    console.log('save settings', payload);
+    // TODO: await apiInstance.post('/rag/settings', payload)
   };
 
   return (
-    <section className="space-y-4">
-      <h1 className="text-xl font-semibold">RAG 설정</h1>
-      <div className="grid max-w-xl gap-4 rounded-md border bg-white p-4">
-        <label className="grid grid-cols-[140px_1fr] items-center gap-3">
-          <span className="text-sm text-gray-600">Top K</span>
-          <input
-            type="number"
-            min={1}
-            className="rounded-md border px-3 py-2"
-            value={topK}
-            onChange={e => setTopK(Number(e.target.value))}
+    <div className="space-y-8 px-4 mb-20">
+      <h1 className="text-2xl">
+        <span className="font-bold bg-gradient-to-r from-[#BE7DB1] to-[#81BAFF] bg-clip-text text-transparent">
+          HEBEES RAG
+        </span>{' '}
+        <span className="font-semibold text-black">모델 설정</span>
+      </h1>
+
+      <section className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
+        <div className="space-y-6">
+          <IngestSettingsForm
+            template={ingestTemplate}
+            onTemplateChange={setIngestTemplate}
+            onSave={onSave}
           />
-        </label>
-        <label className="grid grid-cols-[140px_1fr] items-center gap-3">
-          <span className="text-sm text-gray-600">Score Threshold</span>
-          <input
-            type="number"
-            step="0.01"
-            min={0}
-            max={1}
-            className="rounded-md border px-3 py-2"
-            value={threshold}
-            onChange={e => setThreshold(Number(e.target.value))}
-          />
-        </label>
-        <div>
-          <button className="rounded-md bg-gray-900 px-4 py-2 text-white" onClick={save}>
-            저장
-          </button>
         </div>
-      </div>
-    </section>
+        <aside className="space-y-4">
+          <TemplateList
+            kind="ingest"
+            active={ingestTemplate}
+            onSelect={v => setIngestTemplate(v)}
+            onEdit={v => console.log('[ingest] edit', v)}
+            onDelete={v => console.log('[ingest] delete', v)}
+          />
+        </aside>
+      </section>
+
+      <section className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
+        <div className="space-y-6">
+          <QuerySettingsForm
+            template={queryTemplate}
+            onTemplateChange={setQueryTemplate}
+            onSave={onSave}
+          />
+        </div>
+        <aside className="space-y-4">
+          <TemplateList
+            kind="query"
+            active={queryTemplate}
+            onSelect={v => setQueryTemplate(v)}
+            onEdit={v => console.log('[query] edit', v)}
+            onDelete={v => console.log('[query] delete', v)}
+          />
+        </aside>
+      </section>
+    </div>
   );
 }
