@@ -213,6 +213,9 @@ def sendMMNotify(boolean success, Map info) {
         def commitLine = info.commit?.url ? "[${info.commit.msg}](${info.commit.url})" : info.commit.msg
         lines << "**커밋**: ${commitLine}"
     }
+    if (info.buildUrl) {
+        lines << "**빌드 상세**: [Details](${info.buildUrl})"
+    }
     if (!success && info.details) {
         lines << "**에러 로그**:\n${info.details}"
     }
