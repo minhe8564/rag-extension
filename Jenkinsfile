@@ -166,11 +166,13 @@ pipeline {
                             # 사전 pnpm 설치는 생략 (Dockerfile에서 처리)
                             ls -la _docker_ctx/.env
                             ls -lh _docker_ctx/pnpm-lock.yaml
-                            docker build -t ${tag} --build-arg ENV=test _docker_ctx
+                            TAG="${FE_IMAGE_NAME}:test-${BUILD_NUMBER}"
+                            docker build -t "$TAG" --build-arg ENV=test _docker_ctx
                             '''
                             
                             sh """
                             # 기존 컨테이너 중지 및 삭제
+                            TAG="${FE_IMAGE_NAME}:test-${BUILD_NUMBER}"
                             docker stop ${FE_TEST_CONTAINER} || true
                             docker rm ${FE_TEST_CONTAINER} || true
                             
@@ -180,7 +182,7 @@ pipeline {
                                 --restart unless-stopped \\
                                 --network ${APP_NETWORK_TEST} \\
                                 --publish 17443:80 \\
-                                ${tag}
+                                "$TAG"
                             """
                         }
                     } else if (branch == 'main') {
@@ -207,11 +209,13 @@ pipeline {
                             # 사전 pnpm 설치는 생략 (Dockerfile에서 처리)
                             ls -la _docker_ctx/.env.production
                             ls -lh _docker_ctx/pnpm-lock.yaml
-                            docker build -t ${tag} --build-arg ENV=prod _docker_ctx
+                            TAG="${FE_IMAGE_NAME}:prod-${BUILD_NUMBER}"
+                            docker build -t "$TAG" --build-arg ENV=prod _docker_ctx
                             '''
                             
                             sh """
                             # 기존 컨테이너 중지 및 삭제
+                            TAG="${FE_IMAGE_NAME}:prod-${BUILD_NUMBER}"
                             docker stop ${FE_PROD_CONTAINER} || true
                             docker rm ${FE_PROD_CONTAINER} || true
                             
@@ -221,7 +225,7 @@ pipeline {
                                 --restart unless-stopped \\
                                 --network ${APP_NETWORK_PROD} \\
                                 --publish 7443:80 \\
-                                ${tag}
+                                "$TAG"
                             """
                         }
                     } else {
