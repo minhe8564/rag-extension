@@ -22,6 +22,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
@@ -31,6 +32,7 @@ public class SecurityConfig {
     private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
     private final CustomAccessDeniedHandler customAccessDeniedHandler;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final CorsProperties corsProperties;
 
     @Bean
     @Order(0)
@@ -57,18 +59,24 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
                 .requestMatchers(
+                    // Swagger 문서 (인프라)
                     "/v3/api-docs/**",
                     "/swagger-ui/**",
                     "/swagger-ui.html",
                     "/api/v1/v3/api-docs/**",
                     "/api/v1/swagger-ui/**",
                     "/api/v1/swagger-ui.html",
-                    "/api/v1/user/signup",
-                    "/api/v1/auth/**",
-                    "/api/actuator/health",
-                    "/api/actuator/health/**",
-                    "/api/actuator/info"
+
+                    "/auth/login",
+                    "/auth/refresh",
+                    "/auth/health",
+
+                    // - 회원가입 및 중복 확인
+                    "/user/signup",
+                    "/user/check-name",
+                    "/user/check-email"
                 ).permitAll()
+                // 나머지는 기본 인증 필요
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
@@ -78,7 +86,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    public CorsConfigurationSource corsConfigurationSource(CorsProperties corsProperties) {
+    public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(corsProperties.getAllowedOrigins());
         configuration.setAllowedMethods(corsProperties.getAllowedMethods());

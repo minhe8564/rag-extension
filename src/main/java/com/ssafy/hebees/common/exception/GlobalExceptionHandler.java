@@ -37,7 +37,8 @@ public class GlobalExceptionHandler {
 
     /* 2) 권한 위반 */
     @ExceptionHandler(AccessDeniedException.class)
-    protected ResponseEntity<BaseResponse<Object>> handleAccessDeniedException(AccessDeniedException e) {
+    protected ResponseEntity<BaseResponse<Object>> handleAccessDeniedException(
+        AccessDeniedException e) {
         ErrorCode errorCode = ErrorCode.PERMISSION_DENIED;
         var body = BaseResponse.error(
             errorCode.getStatus(),

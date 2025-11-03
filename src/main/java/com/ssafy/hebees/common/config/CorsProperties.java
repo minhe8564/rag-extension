@@ -13,8 +13,10 @@ import java.util.List;
 @Component
 @ConfigurationProperties(prefix = "cors")
 public class CorsProperties {
+
     private List<String> allowedOrigins;
-    private List<String> allowedMethods = Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS");
+    private List<String> allowedMethods = Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE",
+        "OPTIONS");
     private List<String> allowedHeaders = List.of("*");
     private boolean allowCredentials = true;
     private List<String> exposedHeaders = Arrays.asList("Authorization", "Content-Type");
