@@ -472,19 +472,63 @@ pipeline {
     
     post {
         success {
+            echo "🎉 POST: 빌드 성공 – Mattermost 알림 전송"
             script {
-                echo "✅ Pipeline succeeded!"
-                
                 // 성공 시에만 오래된 리소스 정리
                 if (env.GITLAB_OBJECT_KIND == 'push' || params.BUILD_BACKEND == true) {
                     cleanupOldResources()
                 }
+                
+                def branch    = resolveBranch()
+                def mention   = resolvePusherMention()
+                def commitMsg = sh(script: "git log -1 --pretty=%s", returnStdout: true).trim()
+                def commitUrl = env.GIT_COMMIT_URL ?: ""
+                
+                sendMMNotify(true, [
+                    branch   : branch,
+                    mention  : mention,
+                    buildUrl : env.BUILD_URL,
+                    commit   : [msg: commitMsg, url: commitUrl],
+                ])
             }
         }
         
         failure {
+            echo "🚨 POST: 빌드 실패 – 로그 tail 후 Mattermost 알림 전송"
             script {
-                echo "❌ Pipeline failed!"
+                def branch    = resolveBranch()
+                def mention   = resolvePusherMention()
+                def commitMsg = sh(script: "git log -1 --pretty=%s", returnStdout: true).trim()
+                def commitUrl = env.GIT_COMMIT_URL ?: ""
+                
+                // Jenkins 콘솔 로그의 마지막 150줄 추출
+                def tail = sh(
+                    script: """
+                        # Jenkins 빌드 로그 파일 경로 추출
+                        BUILD_LOG="\${JENKINS_HOME}/jobs/\${JOB_NAME}/builds/\${BUILD_NUMBER}/log"
+                        if [ -f "\$BUILD_LOG" ]; then
+                            tail -n 150 "\$BUILD_LOG" 2>/dev/null || echo "로그 파일을 읽을 수 없습니다."
+                        else
+                            echo "로그 파일을 찾을 수 없습니다."
+                        fi
+                    """,
+                    returnStdout: true
+                ).trim()
+                
+                // 민감정보 간단 마스킹
+                tail = tail
+                    .replaceAll(/(?i)(token|secret|password|passwd|apikey|api_key)\s*[:=]\s*\S+/, '$1=[REDACTED]')
+                    .replaceAll(/AKIA[0-9A-Z]{16}/, 'AKIA[REDACTED]')
+                
+                def detailsBlock = tail ? "```text\n${tail}\n```" : ""
+                
+                sendMMNotify(false, [
+                    branch   : branch,
+                    mention  : mention,
+                    buildUrl : env.BUILD_URL,
+                    commit   : [msg: commitMsg, url: commitUrl],
+                    details  : detailsBlock
+                ])
                 
                 // 실패 시 롤백 정보 출력
                 if (env.GITLAB_OBJECT_KIND == 'push' || params.BUILD_BACKEND == true) {
@@ -496,6 +540,54 @@ pipeline {
         always {
             echo "📦 Pipeline finished with status: ${currentBuild.currentResult}"
         }
+    }
+}
+
+// 브랜치 해석: BRANCH_NAME → GIT_REF → git
+def resolveBranch() {
+    if (env.BRANCH_NAME) return env.BRANCH_NAME
+    if (env.REF) return env.REF.replaceFirst(/^refs\/heads\//, '')
+    return sh(script: "git name-rev --name-only HEAD || git rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
+}
+
+// @username (웹훅의 user_username) 우선, 없으면 커밋 작성자 표시
+def resolvePusherMention() {
+    def u = env.GIT_PUSHER_USERNAME?.trim()
+    if (u) return "@${u}"
+    return sh(script: "git --no-pager show -s --format='%an <%ae>' HEAD", returnStdout: true).trim()
+}
+
+// ✅/❌ 제목을 "## :jenkins7: Jenkins Build Success ✅ / Failed ❌" 로 출력하고
+// 아래에 pusher / Target Branch / Commit (실패 시 Error)만 표시
+def sendMMNotify(boolean success, Map info) {
+    def titleLine = success ? "## :jenkins7: Backend Build Success ✅"
+                            : "## :angry_jenkins: Backend Build Failed ❌"
+    def lines = []
+    if (info.mention) lines << "**Author**: ${info.mention}"
+    if (info.branch)  lines << "**Target Branch**: `${info.branch}`"
+    if (info.commit?.msg) {
+        def commitLine = info.commit?.url ? "[${info.commit.msg}](${info.commit.url})" : info.commit.msg
+        lines << "**Commit**: ${commitLine}"
+    }
+    if (!success && info.details) {
+        lines << "**Error Message**:\n${info.details}"
+    }
+    
+    def text = "${titleLine}\n" + (lines ? ("\n" + lines.join("\n")) : "")
+    
+    // 안전 전송(크리덴셜 경고 없음)
+    writeFile file: 'payload.json', text: groovy.json.JsonOutput.toJson([
+        text      : text,
+        username  : "Jenkins",
+        icon_emoji: ":jenkins7:"
+    ])
+    
+    withCredentials([string(credentialsId: 'mattermost-webhook', variable: 'MM_WEBHOOK')]) {
+        sh(script: '''
+            curl -sS -f -X POST -H 'Content-Type: application/json' \
+                --data-binary @payload.json \
+                "$MM_WEBHOOK" || true
+        ''')
     }
 }
 
