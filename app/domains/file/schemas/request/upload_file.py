@@ -14,7 +14,6 @@ class FileUploadRequest(BaseModel):
     associated request fields coming from query/form.
     """
 
-    userNo: str
     onNameConflict: Literal["reject", "rename", "overwrite"] = "reject"
     category: str
     bucket: Optional[str] = None
@@ -24,7 +23,6 @@ class FileUploadRequest(BaseModel):
     @classmethod
     def as_form(
         cls,
-        userNo: str = Query(..., description="요청자 USER_NO (UUID)"),
         onNameConflict: Literal["reject", "rename", "overwrite"] = Query(
             "reject", description="파일명 충돌 정책: reject|rename|overwrite"
         ),
@@ -34,11 +32,9 @@ class FileUploadRequest(BaseModel):
         autoIngest: Optional[bool] = Form(False, description="ingest 자동 여부 (추후 사용)"),
     ) -> "FileUploadRequest":
         return cls(
-            userNo=userNo,
             onNameConflict=onNameConflict,
             category=category,
             bucket=bucket,
             collection=collection,
             autoIngest=autoIngest,
         )
-

@@ -15,7 +15,7 @@ router = APIRouter(prefix="/files", tags=["File"])
 
 @router.post("/", response_model=BaseResponse[FileUploadResult], status_code=201)
 async def upload_file(
-    req: FileUploadRequest = Depends(FileUploadRequest.as_form),
+    request: FileUploadRequest = Depends(FileUploadRequest.as_form),
     file: UploadFile = FFile(...),
     session: AsyncSession = Depends(get_session),
 ):
@@ -25,11 +25,11 @@ async def upload_file(
         file_bytes=file_bytes,
         original_filename=file.filename or "uploaded",
         content_type=file.content_type,
-        user_no=req.userNo,
-        category_no=req.category,
-        on_name_conflict=req.onNameConflict,
-        bucket=req.bucket,
-        collection_no=req.collection,
+        user_no=request.userNo,
+        category_no=request.category,
+        on_name_conflict=request.onNameConflict,
+        bucket=request.bucket,
+        collection_no=request.collection,
     )
 
     return BaseResponse[FileUploadResult](
