@@ -74,4 +74,14 @@ public class UserRepositoryCustomImpl implements UserRepositoryCustom {
 
         return result != null;
     }
+
+    @Override
+    public List<User> findActiveUsers(int offset, int limit) {
+        return queryFactory
+            .selectFrom(user)
+            .where(user.deletedAt.isNull())
+            .offset(offset)
+            .limit(limit)
+            .fetch();
+    }
 }

@@ -5,6 +5,8 @@ import com.ssafy.hebees.common.exception.ErrorCode;
 import com.ssafy.hebees.offer.entity.Offer;
 import com.ssafy.hebees.offer.repository.OfferRepository;
 import com.ssafy.hebees.user.dto.request.UserSignupRequest;
+import com.ssafy.hebees.user.dto.response.UserListItemResponse;
+import com.ssafy.hebees.user.dto.response.UserListPageResponse;
 import com.ssafy.hebees.user.dto.response.UserSignupResponse;
 import com.ssafy.hebees.user.entity.User;
 import com.ssafy.hebees.user.entity.UserRole;
@@ -12,6 +14,10 @@ import com.ssafy.hebees.user.repository.UserRepository;
 import com.ssafy.hebees.user.repository.UserRoleRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -124,7 +130,28 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public long getActiveUserCount() {
-        return userRepository.countActiveUsers();
+        return userRepository.countByDeletedAtIsNull();
+    }
+
+    @Override
+    public UserListPageResponse getUsers(int pageNum, int pageSize) {
+        int safePageNum = Math.max(pageNum, 1);
+        int safePageSize = Math.max(pageSize, 1);
+
+        Pageable pageable = PageRequest.of(safePageNum - 1, safePageSize, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<User> page = userRepository.findByDeletedAtIsNull(pageable);
+
+        var items = page.getContent().stream()
+            .map(UserListItemResponse::from)
+            .toList();
+
+        long total = page.getTotalElements();
+        int totalPages = page.getTotalPages();
+        boolean hasNext = page.hasNext();
+
+        return new UserListPageResponse(
+            items,
+            new UserListPageResponse.Pagination(safePageNum, safePageSize, total, totalPages, hasNext)
+        );
     }
 }
-
