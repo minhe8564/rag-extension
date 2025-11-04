@@ -1,6 +1,7 @@
 package com.ssafy.hebees.user.service;
 
 import com.ssafy.hebees.user.dto.request.UserSignupRequest;
+import com.ssafy.hebees.user.dto.response.UserResponse;
 import com.ssafy.hebees.user.dto.response.UserListPageResponse;
 import com.ssafy.hebees.user.dto.response.UserSignupResponse;
 import com.ssafy.hebees.user.entity.User;
@@ -84,5 +85,20 @@ public interface UserService {
      * @return 사용자 목록 + 페이지네이션 정보
      */
     UserListPageResponse getUsers(int pageNum, int pageSize);
+
+    /**
+     * 역할별 사용자 조회 (DTO 반환)
+     */
+    List<UserResponse> getUsersByRole(String roleName);
+
+    /**
+     * 이메일로 사용자 조회 (DTO 반환)
+     */
+    UserResponse getUserByEmail(String email);
+
+    /**
+     * 이름으로 사용자 조회 (DTO 반환)
+     */
+    UserResponse getUserByName(String name);
 }
 

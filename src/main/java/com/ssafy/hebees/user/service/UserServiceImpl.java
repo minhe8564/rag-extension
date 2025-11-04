@@ -7,6 +7,7 @@ import com.ssafy.hebees.offer.repository.OfferRepository;
 import com.ssafy.hebees.user.dto.request.UserSignupRequest;
 import com.ssafy.hebees.user.dto.response.UserListItemResponse;
 import com.ssafy.hebees.user.dto.response.UserListPageResponse;
+import com.ssafy.hebees.user.dto.response.UserResponse;
 import com.ssafy.hebees.user.dto.response.UserSignupResponse;
 import com.ssafy.hebees.user.entity.User;
 import com.ssafy.hebees.user.entity.UserRole;
@@ -153,5 +154,23 @@ public class UserServiceImpl implements UserService {
             items,
             new UserListPageResponse.Pagination(safePageNum, safePageSize, total, totalPages, hasNext)
         );
+    }
+
+    @Override
+    public List<UserResponse> getUsersByRole(String roleName) {
+        return userRepository.findByRoleName(roleName)
+            .stream()
+            .map(UserResponse::from)
+            .toList();
+    }
+
+    @Override
+    public UserResponse getUserByEmail(String email) {
+        return UserResponse.from(findByEmail(email));
+    }
+
+    @Override
+    public UserResponse getUserByName(String name) {
+        return UserResponse.from(findByName(name));
     }
 }

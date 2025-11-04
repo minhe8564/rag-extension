@@ -1,6 +1,7 @@
 package com.ssafy.hebees.user.repository;
 
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import com.ssafy.hebees.offer.entity.QOffer;
 import com.ssafy.hebees.user.entity.QUser;
 import com.ssafy.hebees.user.entity.QUserRole;
 import com.ssafy.hebees.user.entity.User;
@@ -18,12 +19,14 @@ public class UserRepositoryCustomImpl implements UserRepositoryCustom {
     private final JPAQueryFactory queryFactory;
     private final QUser user = QUser.user;
     private final QUserRole userRole = QUserRole.userRole;
+    private final QOffer offer = QOffer.offer;
 
     @Override
     public List<User> findByRoleName(String roleName) {
         return queryFactory
             .selectFrom(user)
-            .join(user.userRole, userRole)
+            .join(user.userRole, userRole).fetchJoin()
+            .join(user.offer, offer).fetchJoin()
             .where(userRole.name.eq(roleName)
                 .and(user.deletedAt.isNull()))
             .fetch();
@@ -44,6 +47,8 @@ public class UserRepositoryCustomImpl implements UserRepositoryCustom {
     public Optional<User> findByEmailWithQueryDSL(String email) {
         User result = queryFactory
             .selectFrom(user)
+            .leftJoin(user.userRole, userRole).fetchJoin()
+            .leftJoin(user.offer, offer).fetchJoin()
             .where(user.email.eq(email)
                 .and(user.deletedAt.isNull()))
             .fetchOne();
@@ -55,6 +60,8 @@ public class UserRepositoryCustomImpl implements UserRepositoryCustom {
     public Optional<User> findByNameWithQueryDSL(String name) {
         User result = queryFactory
             .selectFrom(user)
+            .leftJoin(user.userRole, userRole).fetchJoin()
+            .leftJoin(user.offer, offer).fetchJoin()
             .where(user.name.eq(name)
                 .and(user.deletedAt.isNull()))
             .fetchOne();
