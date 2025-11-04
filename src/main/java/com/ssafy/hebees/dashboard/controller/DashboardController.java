@@ -46,7 +46,8 @@ public class DashboardController {
     })
     public ResponseEntity<BaseResponse<Change24hResponse>> getMetricsAccessUsers() {
         Change24hResponse response = dashboardService.getAccessUsersChange24h();
-        return ResponseEntity.ok(BaseResponse.success(response));
+        return ResponseEntity.ok(
+            BaseResponse.of(HttpStatus.OK, response, "일일 접속자 수 변화량 조회에 성공하였습니다."));
     }
 
     @GetMapping("/metrics/upload-documents/change-24h")
@@ -57,7 +58,8 @@ public class DashboardController {
     })
     public ResponseEntity<BaseResponse<Change24hResponse>> getMetricsUploadDocuments() {
         Change24hResponse response = dashboardService.getUploadDocumentsChange24h();
-        return ResponseEntity.ok(BaseResponse.success(response));
+        return ResponseEntity.ok(
+            BaseResponse.of(HttpStatus.OK, response, "일일 업로드 문서 수 변화량 조회에 성공하였습니다."));
     }
 
     @GetMapping("/metrics/upload-documents/total")
@@ -68,7 +70,8 @@ public class DashboardController {
     })
     public ResponseEntity<BaseResponse<TotalDocumentsResponse>> getMetricsTotalUploadDocuments() {
         TotalDocumentsResponse response = dashboardService.getTotalUploadDocuments();
-        return ResponseEntity.ok(BaseResponse.success(response));
+        return ResponseEntity.ok(
+            BaseResponse.of(HttpStatus.OK, response, "총 업로드 문서 수 조회에 성공하였습니다."));
     }
 
     @GetMapping("/metrics/errors/change-24h")
@@ -79,7 +82,8 @@ public class DashboardController {
     })
     public ResponseEntity<BaseResponse<Change24hResponse>> getMetricsErrors() {
         Change24hResponse response = dashboardService.getErrorsChange24h();
-        return ResponseEntity.ok(BaseResponse.success(response));
+        return ResponseEntity.ok(
+            BaseResponse.of(HttpStatus.OK, response, "일일 에러 수 변화량 조회에 성공하였습니다."));
     }
 
     @GetMapping("/metrics/errors/total")
@@ -90,7 +94,7 @@ public class DashboardController {
     })
     public ResponseEntity<BaseResponse<TotalErrorsResponse>> getMetricsTotalErrors() {
         TotalErrorsResponse response = dashboardService.getTotalErrors();
-        return ResponseEntity.ok(BaseResponse.success(response));
+        return ResponseEntity.ok(BaseResponse.of(HttpStatus.OK, response, "총 에러 수 조회에 성공하였습니다."));
     }
 
     @GetMapping("/metrics/chatbot/timeseries")

@@ -1,8 +1,8 @@
 package com.ssafy.hebees.dashboard.repository;
 
 import com.querydsl.jpa.impl.JPAQueryFactory;
-import com.ssafy.hebees.dashboard.entity.QUsageAggregateHourly;
-import com.ssafy.hebees.dashboard.entity.UsageAggregateHourly;
+import com.ssafy.hebees.dashboard.entity.QChatbotAggregateHourly;
+import com.ssafy.hebees.dashboard.entity.ChatbotAggregateHourly;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -13,18 +13,18 @@ import org.springframework.stereotype.Repository;
 public class UsageAggregateHourlyRepositoryImpl implements UsageAggregateHourlyRepositoryCustom {
 
     private final JPAQueryFactory queryFactory;
-    private final QUsageAggregateHourly usageAggregateHourly = QUsageAggregateHourly.usageAggregateHourly;
+    private final QChatbotAggregateHourly chatbotAggregateHourly = QChatbotAggregateHourly.chatbotAggregateHourly;
 
     @Override
-    public List<UsageAggregateHourly> findBetween(LocalDateTime startInclusive,
+    public List<ChatbotAggregateHourly> findBetween(LocalDateTime startInclusive,
         LocalDateTime endExclusive) {
         return queryFactory
-            .selectFrom(usageAggregateHourly)
+            .selectFrom(chatbotAggregateHourly)
             .where(
-                usageAggregateHourly.aggregateDateTime.goe(startInclusive),
-                usageAggregateHourly.aggregateDateTime.lt(endExclusive)
+                chatbotAggregateHourly.aggregateDateTime.goe(startInclusive),
+                chatbotAggregateHourly.aggregateDateTime.lt(endExclusive)
             )
-            .orderBy(usageAggregateHourly.aggregateDateTime.asc())
+            .orderBy(chatbotAggregateHourly.aggregateDateTime.asc())
             .fetch();
     }
 }

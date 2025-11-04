@@ -11,7 +11,7 @@ public record ChatbotTimeSeriesResponse(
     Timeframe timeframe,
 
     @Schema(description = "시계열 데이터 포인트 목록")
-    List<TimeseriesPoint> items
+    List<TimeseriesPoint<Long>> items
 ) {
 
 }

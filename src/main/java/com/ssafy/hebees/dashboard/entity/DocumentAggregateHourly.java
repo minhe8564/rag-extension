@@ -5,7 +5,9 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+
 import java.time.LocalDateTime;
+
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -26,6 +28,6 @@ public class DocumentAggregateHourly extends BaseEntity {
 
     @Column(name = "UPLOAD_COUNT", nullable = false)
     @Builder.Default
-    private Integer uploadCount = 0; // 업로드 수
+    private Long uploadCount = 0L; // 업로드 수
 }
 

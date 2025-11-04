@@ -17,7 +17,7 @@ public class ErrorAggregateHourlyRepositoryImpl
 
     @Override
     public Long sumTotalErrorCountBetween(LocalDateTime start, LocalDateTime end) {
-        Integer sum = queryFactory
+        Long sum = queryFactory
             .select(errorAggregateHourly.totalErrorCount.sum())
             .from(errorAggregateHourly)
             .where(
@@ -26,17 +26,17 @@ public class ErrorAggregateHourlyRepositoryImpl
             )
             .fetchOne();
 
-        return sum != null ? sum.longValue() : 0L;
+        return sum != null ? sum : 0L;
     }
 
     @Override
     public Long sumTotalErrorCount() {
-        Integer sum = queryFactory
+        Long sum = queryFactory
             .select(errorAggregateHourly.totalErrorCount.sum())
             .from(errorAggregateHourly)
             .fetchOne();
 
-        return sum != null ? sum.longValue() : 0L;
+        return sum != null ? sum : 0L;
     }
 }
 

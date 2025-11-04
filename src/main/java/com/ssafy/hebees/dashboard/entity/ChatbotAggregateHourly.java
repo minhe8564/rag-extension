@@ -13,12 +13,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "USAGE_AGGREGATE_HOURLY")
+@Table(name = "CHATBOT_AGGREGATE_HOURLY")
 @Getter
 @Builder(toBuilder = true)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class UsageAggregateHourly extends BaseEntity {
+public class ChatbotAggregateHourly extends BaseEntity {
 
     @Id
     @Column(name = "AGGREGATE_DATETIME")
@@ -26,15 +26,15 @@ public class UsageAggregateHourly extends BaseEntity {
 
     @Column(name = "INPUT_TOKENS", nullable = false)
     @Builder.Default
-    private Integer inputTokens = 0; // 입력 토큰 사용량
+    private Long inputTokens = 0L; // 입력 토큰 사용량
 
     @Column(name = "OUTPUT_TOKENS", nullable = false)
     @Builder.Default
-    private Integer outputTokens = 0; // 출력 토큰 사용량
+    private Long outputTokens = 0L; // 출력 토큰 사용량
 
     @Column(name = "TOTAL_TOKENS", nullable = false)
     @Builder.Default
-    private Integer totalTokens = 0; // 총 토큰 사용량
+    private Long totalTokens = 0L; // 총 토큰 사용량
 
     @Column(name = "TOTAL_RESPONSE_TIME_MS", nullable = false)
     @Builder.Default
@@ -42,6 +42,7 @@ public class UsageAggregateHourly extends BaseEntity {
 
     @Column(name = "RESPONSE_COUNT", nullable = false)
     @Builder.Default
-    private Integer responseCount = 0; // 응답 수
+    private Long responseCount = 0L; // 응답 수
 }
+
 

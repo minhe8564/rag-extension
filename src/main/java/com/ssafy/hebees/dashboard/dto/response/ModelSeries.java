@@ -7,17 +7,17 @@ import org.springdoc.core.annotations.ParameterObject;
 @ParameterObject
 @Schema(description = "모델 시계열 데이터")
 public record ModelSeries(
-    @Schema(description = "모델 식별자", example = "gpt-4o-mini")
+    @Schema(description = "모델 식별자", example = "f4efa376-f839-42e0-a565-33e5fe88800b")
     String modelId,
 
     @Schema(description = "모델 표시 이름", example = "GPT-4o Mini")
     String modelName,
 
     @Schema(description = "토큰 사용량 데이터 포인트")
-    List<TimeseriesPoint> usageTokens,
+    List<TimeseriesPoint<Long>> usageTokens,
 
     @Schema(description = "평균 응답 시간(ms) 데이터 포인트")
-    List<TimeseriesPoint> averageResponseTimeMs
+    List<TimeseriesPoint<Long>> averageResponseTimeMs
 ) {
 
 }

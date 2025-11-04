@@ -11,11 +11,12 @@ import com.ssafy.hebees.dashboard.dto.response.Timeframe;
 import com.ssafy.hebees.dashboard.dto.response.TimeseriesPoint;
 import com.ssafy.hebees.dashboard.dto.response.TotalDocumentsResponse;
 import com.ssafy.hebees.dashboard.dto.response.TotalErrorsResponse;
+import com.ssafy.hebees.dashboard.dto.response.TrendDirection;
 import com.ssafy.hebees.dashboard.dto.response.TrendKeyword;
 import com.ssafy.hebees.dashboard.dto.response.TrendKeywordsResponse;
-import com.ssafy.hebees.dashboard.entity.Granularity;
+import com.ssafy.hebees.dashboard.dto.Granularity;
 import com.ssafy.hebees.dashboard.entity.ModelAggregateHourly;
-import com.ssafy.hebees.dashboard.entity.UsageAggregateHourly;
+import com.ssafy.hebees.dashboard.entity.ChatbotAggregateHourly;
 import com.ssafy.hebees.dashboard.repository.DocumentAggregateHourlyRepository;
 import com.ssafy.hebees.dashboard.repository.ErrorAggregateHourlyRepository;
 import com.ssafy.hebees.dashboard.repository.KeywordAggregateDailyRepository;
@@ -67,7 +68,7 @@ public class DashboardServiceImpl implements DashboardService {
     @Override
     public TotalDocumentsResponse getTotalUploadDocuments() {
         LocalDateTime asOf = LocalDateTime.now();
-        int total = toInt(documentAggregateHourlyRepository.sumUploadCount());
+        long total = documentAggregateHourlyRepository.sumUploadCount();
         return TotalDocumentsResponse.of(total, asOf);
     }
 
@@ -79,29 +80,29 @@ public class DashboardServiceImpl implements DashboardService {
     @Override
     public TotalErrorsResponse getTotalErrors() {
         LocalDateTime asOf = LocalDateTime.now();
-        int total = toInt(errorAggregateHourlyRepository.sumTotalErrorCount());
+        long total = errorAggregateHourlyRepository.sumTotalErrorCount();
         return TotalErrorsResponse.of(total, asOf);
     }
 
     @Override
     public ChatbotTimeSeriesResponse getChatbotTimeSeries(TimeSeriesRequest request) {
         TimeSeriesContext context = buildTimeSeriesContext(request);
-        List<UsageAggregateHourly> aggregates = usageAggregateHourlyRepository.findBetween(
+        List<ChatbotAggregateHourly> aggregates = usageAggregateHourlyRepository.findBetween(
             context.startInclusive(), context.endExclusive());
 
         Map<LocalDate, Long> tokensByBucket = new HashMap<>();
-        for (UsageAggregateHourly aggregate : aggregates) {
+        for (ChatbotAggregateHourly aggregate : aggregates) {
             if (aggregate.getAggregateDateTime() == null) {
                 continue;
             }
             LocalDate bucket = resolveBucket(aggregate.getAggregateDateTime(),
                 context.granularity());
-            int tokens = aggregate.getTotalTokens() != null ? aggregate.getTotalTokens() : 0;
-            tokensByBucket.merge(bucket, (long) tokens, Long::sum);
+            Long tokens = aggregate.getTotalTokens() != null ? aggregate.getTotalTokens() : 0L;
+            tokensByBucket.merge(bucket, tokens, Long::sum);
         }
 
-        List<TimeseriesPoint> items = context.buckets().stream()
-            .map(date -> new TimeseriesPoint(date, toInt(tokensByBucket.getOrDefault(date, 0L))))
+        List<TimeseriesPoint<Long>> items = context.buckets().stream()
+            .map(date -> new TimeseriesPoint<>(date, tokensByBucket.getOrDefault(date, 0L)))
             .toList();
 
         return new ChatbotTimeSeriesResponse(context.timeframe(), items);
@@ -138,15 +139,15 @@ public class DashboardServiceImpl implements DashboardService {
         List<ModelSeries> series = new ArrayList<>();
         for (UUID modelId : sortedModelIds) {
             Map<LocalDate, ModelBucketAccumulator> bucketMap = modelMetrics.get(modelId);
-            List<TimeseriesPoint> usagePoints = new ArrayList<>();
-            List<TimeseriesPoint> responsePoints = new ArrayList<>();
+            List<TimeseriesPoint<Long>> usagePoints = new ArrayList<>();
+            List<TimeseriesPoint<Long>> responsePoints = new ArrayList<>();
 
             for (LocalDate bucket : context.buckets()) {
                 ModelBucketAccumulator accumulator = bucketMap.get(bucket);
-                int usage = accumulator != null ? accumulator.tokensAsInt() : 0;
-                int average = accumulator != null ? accumulator.averageResponseTimeMs() : 0;
-                usagePoints.add(new TimeseriesPoint(bucket, usage));
-                responsePoints.add(new TimeseriesPoint(bucket, average));
+                long usage = accumulator != null ? accumulator.tokensAsInt() : 0;
+                long average = accumulator != null ? accumulator.averageResponseTimeMs() : 0;
+                usagePoints.add(new TimeseriesPoint<>(bucket, usage));
+                responsePoints.add(new TimeseriesPoint<>(bucket, average));
             }
 
             String modelIdentifier = modelId.toString();
@@ -166,12 +167,12 @@ public class DashboardServiceImpl implements DashboardService {
         LocalDateTime startInclusive = weekStart.atStartOfDay();
         LocalDateTime endExclusive = weekEnd.atStartOfDay();
 
-        List<UsageAggregateHourly> aggregates = usageAggregateHourlyRepository.findBetween(
+        List<ChatbotAggregateHourly> aggregates = usageAggregateHourlyRepository.findBetween(
             startInclusive, endExclusive);
 
-        int[][] matrix = new int[7][24];
+        long[][] matrix = new long[7][24];
 
-        for (UsageAggregateHourly aggregate : aggregates) {
+        for (ChatbotAggregateHourly aggregate : aggregates) {
             LocalDateTime timestamp = aggregate.getAggregateDateTime();
             if (timestamp == null || timestamp.isBefore(startInclusive)
                 || !timestamp.isBefore(endExclusive)) {
@@ -180,15 +181,15 @@ public class DashboardServiceImpl implements DashboardService {
 
             int dayIndex = dayOfWeekIndex(timestamp.getDayOfWeek());
             int hourIndex = timestamp.getHour();
-            int tokens = aggregate.getTotalTokens() != null ? aggregate.getTotalTokens() : 0;
+            long tokens = aggregate.getTotalTokens() != null ? aggregate.getTotalTokens() : 0L;
 
-            long updated = (long) matrix[dayIndex][hourIndex] + tokens;
+            long updated = matrix[dayIndex][hourIndex] + tokens;
             matrix[dayIndex][hourIndex] = clampToInt(updated);
         }
 
-        List<List<Integer>> cellRows = new ArrayList<>(7);
+        List<List<Long>> cellRows = new ArrayList<>(7);
         for (int day = 0; day < 7; day++) {
-            List<Integer> row = new ArrayList<>(24);
+            List<Long> row = new ArrayList<>(24);
             for (int hour = 0; hour < 24; hour++) {
                 row.add(matrix[day][hour]);
             }
@@ -196,7 +197,7 @@ public class DashboardServiceImpl implements DashboardService {
         }
 
         Timeframe timeframe = new Timeframe(weekStart, weekEnd.minusDays(1),
-            Granularity.week.name());
+            Granularity.WEEK.getValue());
         return new HeatmapResponse(timeframe, HeatmapLabel.defaults(), List.copyOf(cellRows));
     }
 
@@ -209,19 +210,19 @@ public class DashboardServiceImpl implements DashboardService {
             50);
 
         if (topKeywords.isEmpty()) {
-            return new TrendKeywordsResponse(new Timeframe(start, end, "day"), List.of());
+            return new TrendKeywordsResponse(new Timeframe(start, end), List.of());
         }
 
-        int min = topKeywords.stream().map(TrendKeyword::count).min(Integer::compareTo).orElse(0);
-        int max = topKeywords.stream().map(TrendKeyword::count).max(Integer::compareTo).orElse(0);
-        int diff = Math.max(1, max - min);
+        long min = topKeywords.stream().map(TrendKeyword::count).min(Long::compareTo).orElse(0L);
+        long max = topKeywords.stream().map(TrendKeyword::count).max(Long::compareTo).orElse(0L);
+        long diff = Math.max(1, max - min);
 
         List<TrendKeyword> normalized = topKeywords.stream()
             .map(keyword -> new TrendKeyword(keyword.text(), keyword.count(),
                 (float) (keyword.count() - min) / diff))
             .toList();
 
-        return new TrendKeywordsResponse(new Timeframe(start, end, "day"), normalized);
+        return new TrendKeywordsResponse(new Timeframe(start, end), normalized);
     }
 
     private Change24hResponse buildChange24hResponse(
@@ -232,8 +233,8 @@ public class DashboardServiceImpl implements DashboardService {
         LocalDateTime currentWindowStart = referenceHour.minusHours(HOURS_24);
         LocalDateTime previousWindowStart = currentWindowStart.minusHours(HOURS_24);
 
-        int current = toInt(sumBetween.apply(currentWindowStart, referenceHour));
-        int previous = toInt(sumBetween.apply(previousWindowStart, currentWindowStart));
+        long current = sumBetween.apply(currentWindowStart, referenceHour);
+        long previous = sumBetween.apply(previousWindowStart, currentWindowStart);
 
         return toChange24hResponse(current, previous, now);
     }
@@ -247,13 +248,13 @@ public class DashboardServiceImpl implements DashboardService {
         List<LocalDate> buckets = new ArrayList<>(scale);
 
         switch (granularity) {
-            case day -> {
+            case DAY -> {
                 LocalDate startDate = referenceHour.toLocalDate().minusDays(scale - 1L);
                 for (int i = 0; i < scale; i++) {
                     buckets.add(startDate.plusDays(i));
                 }
             }
-            case week -> {
+            case WEEK -> {
                 LocalDate currentWeekStart = referenceHour.toLocalDate()
                     .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
                 LocalDate startWeek = currentWeekStart.minusWeeks(scale - 1L);
@@ -261,7 +262,7 @@ public class DashboardServiceImpl implements DashboardService {
                     buckets.add(startWeek.plusWeeks(i));
                 }
             }
-            case month -> {
+            case MONTH -> {
                 LocalDate currentMonthStart = referenceHour.toLocalDate().withDayOfMonth(1);
                 LocalDate startMonth = currentMonthStart.minusMonths(scale - 1L);
                 for (int i = 0; i < scale; i++) {
@@ -271,17 +272,17 @@ public class DashboardServiceImpl implements DashboardService {
             default ->
                 throw new IllegalArgumentException("Unsupported granularity: " + granularity);
         }
-        LocalDate firstBucket = buckets.get(0);
-        LocalDate lastBucket = buckets.get(buckets.size() - 1);
+        LocalDate firstBucket = buckets.getFirst();
+        LocalDate lastBucket = buckets.getLast();
 
         LocalDateTime startInclusive = firstBucket.atStartOfDay();
         LocalDateTime endExclusive = switch (granularity) {
-            case day -> lastBucket.plusDays(1).atStartOfDay();
-            case week -> lastBucket.plusWeeks(1).atStartOfDay();
-            case month -> lastBucket.plusMonths(1).withDayOfMonth(1).atStartOfDay();
+            case DAY -> lastBucket.plusDays(1).atStartOfDay();
+            case WEEK -> lastBucket.plusWeeks(1).atStartOfDay();
+            case MONTH -> lastBucket.plusMonths(1).withDayOfMonth(1).atStartOfDay();
         };
 
-        Timeframe timeframe = new Timeframe(firstBucket, lastBucket, granularity.name());
+        Timeframe timeframe = new Timeframe(firstBucket, lastBucket, granularity.getValue());
 
         return new TimeSeriesContext(startInclusive, endExclusive, List.copyOf(buckets), timeframe,
             granularity);
@@ -290,9 +291,9 @@ public class DashboardServiceImpl implements DashboardService {
     private LocalDate resolveBucket(LocalDateTime timestamp, Granularity granularity) {
         LocalDate date = timestamp.toLocalDate();
         return switch (granularity) {
-            case day -> date;
-            case week -> date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
-            case month -> date.withDayOfMonth(1);
+            case DAY -> date;
+            case WEEK -> date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+            case MONTH -> date.withDayOfMonth(1);
         };
     }
 
@@ -300,7 +301,7 @@ public class DashboardServiceImpl implements DashboardService {
         if (value == null) {
             return 0;
         }
-        return clampToInt(value.longValue());
+        return clampToInt(value);
     }
 
     private static int dayOfWeekIndex(DayOfWeek dayOfWeek) {
@@ -317,7 +318,7 @@ public class DashboardServiceImpl implements DashboardService {
         return (int) value;
     }
 
-    private static Change24hResponse toChange24hResponse(Integer todayTotal, Integer yesterdayTotal,
+    private static Change24hResponse toChange24hResponse(Long todayTotal, Long yesterdayTotal,
         LocalDateTime asOf) {
         double delta = yesterdayTotal != 0 ? (double) (todayTotal - yesterdayTotal) / yesterdayTotal
             : Float.POSITIVE_INFINITY;
@@ -326,7 +327,7 @@ public class DashboardServiceImpl implements DashboardService {
             todayTotal,
             yesterdayTotal,
             (float) delta,
-            delta == 0 ? "flat" : (delta > 0 ? "up" : "down"),
+            TrendDirection.of(delta),
             asOf
         );
     }
@@ -337,18 +338,18 @@ public class DashboardServiceImpl implements DashboardService {
         private double totalResponseTimeMs;
         private long responseCount;
 
-        void addTokens(Integer tokens) {
+        void addTokens(Long tokens) {
             if (tokens != null) {
-                totalTokens += tokens.longValue();
+                totalTokens += tokens;
             }
         }
 
-        void addResponseTime(Float responseTimeMs, Integer count) {
+        void addResponseTime(Float responseTimeMs, Long count) {
             if (responseTimeMs != null) {
                 totalResponseTimeMs += responseTimeMs.doubleValue();
             }
             if (count != null) {
-                responseCount += count.longValue();
+                responseCount += count;
             }
         }
 

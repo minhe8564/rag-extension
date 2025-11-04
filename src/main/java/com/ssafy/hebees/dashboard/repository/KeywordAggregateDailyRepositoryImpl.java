@@ -20,7 +20,7 @@ public class KeywordAggregateDailyRepositoryImpl implements KeywordAggregateDail
         int limit) {
         return queryFactory
             .select(keywordAggregateDaily.keyword,
-                keywordAggregateDaily.frequency.sum().coalesce(0))
+                keywordAggregateDaily.frequency.sum().coalesce(0L))
             .from(keywordAggregateDaily)
             .where(
                 keywordAggregateDaily.aggregateDate.goe(startInclusive),
@@ -33,7 +33,7 @@ public class KeywordAggregateDailyRepositoryImpl implements KeywordAggregateDail
             .fetch()
             .stream()
             .map(tuple -> new TrendKeyword(tuple.get(keywordAggregateDaily.keyword),
-                tuple.get(keywordAggregateDaily.frequency.sum().coalesce(0)), 0f))
+                tuple.get(keywordAggregateDaily.frequency.sum().coalesce(0L)), 0f))
             .toList();
     }
 }

@@ -5,7 +5,9 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+
 import java.time.LocalDateTime;
+
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -26,6 +28,6 @@ public class UserAggregateHourly extends BaseEntity {
 
     @Column(name = "ACCESS_USER_COUNT", nullable = false)
     @Builder.Default
-    private Integer accessUserCount = 0; // 접속자 수
+    private Long accessUserCount = 0L; // 접속자 수
 }
 
