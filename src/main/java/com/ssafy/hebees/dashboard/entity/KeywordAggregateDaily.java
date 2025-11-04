@@ -39,6 +39,6 @@ public class KeywordAggregateDaily extends BaseEntity {
 
     @Column(name = "FREQUENCY", nullable = false)
     @Builder.Default
-    private Integer frequency = 0; // 빈도
+    private Long frequency = 0L; // 빈도
 }
 

@@ -4,12 +4,12 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDate;
 
 @Schema(description = "시계열 데이터 포인트")
-public record TimeseriesPoint(
+public record TimeseriesPoint<T extends Number>(
     @Schema(description = "측정 시점", example = "2025-01-15")
     LocalDate x,
 
-    @Schema(description = "측정 값", example = "1234")
-    Integer y
+    @Schema(description = "측정 값", example = "120")
+    T y
 ) {
 
 }

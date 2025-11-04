@@ -5,7 +5,9 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+
 import java.time.LocalDateTime;
+
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -26,14 +28,14 @@ public class ErrorAggregateHourly extends BaseEntity {
 
     @Column(name = "SYSTEM_ERROR_COUNT", nullable = false)
     @Builder.Default
-    private Integer systemErrorCount = 0; // 시스템 에러 수
+    private Long systemErrorCount = 0L; // 시스템 에러 수
 
     @Column(name = "RESPONSE_ERROR_COUNT", nullable = false)
     @Builder.Default
-    private Integer responseErrorCount = 0; // 응답 에러 수
+    private Long responseErrorCount = 0L; // 응답 에러 수
 
     @Column(name = "TOTAL_ERROR_COUNT", nullable = false)
     @Builder.Default
-    private Integer totalErrorCount = 0; // 총 에러 수
+    private Long totalErrorCount = 0L; // 총 에러 수
 }
 

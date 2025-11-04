@@ -5,15 +5,12 @@ import java.time.LocalDateTime;
 
 @Schema(description = "총 문서 수 응답 DTO")
 public record TotalDocumentsResponse(
-    Integer totalDocs, // 총 업로드 문서 수
+    Long totalDocs, // 총 업로드 문서 수
     LocalDateTime asOf // 기준 시각
 ) {
 
-    public static TotalDocumentsResponse of(Integer totalDocs, LocalDateTime asOf) {
-        return new TotalDocumentsResponse(
-            totalDocs,
-            asOf
-        );
+    public static TotalDocumentsResponse of(Long totalDocs, LocalDateTime asOf) {
+        return new TotalDocumentsResponse(totalDocs, asOf);
     }
 
 }

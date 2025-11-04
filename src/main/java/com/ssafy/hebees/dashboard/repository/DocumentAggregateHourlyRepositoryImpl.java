@@ -17,7 +17,7 @@ public class DocumentAggregateHourlyRepositoryImpl
 
     @Override
     public Long sumUploadCountBetween(LocalDateTime start, LocalDateTime end) {
-        Integer sum = queryFactory
+        Long sum = queryFactory
             .select(documentAggregateHourly.uploadCount.sum())
             .from(documentAggregateHourly)
             .where(
@@ -26,17 +26,17 @@ public class DocumentAggregateHourlyRepositoryImpl
             )
             .fetchOne();
 
-        return sum != null ? sum.longValue() : 0L;
+        return sum != null ? sum : 0L;
     }
 
     @Override
     public Long sumUploadCount() {
-        Integer sum = queryFactory
+        Long sum = queryFactory
             .select(documentAggregateHourly.uploadCount.sum())
             .from(documentAggregateHourly)
             .fetchOne();
 
-        return sum != null ? sum.longValue() : 0L;
+        return sum != null ? sum : 0L;
     }
 }
 

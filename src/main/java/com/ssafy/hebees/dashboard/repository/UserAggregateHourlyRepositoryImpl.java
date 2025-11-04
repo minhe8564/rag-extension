@@ -15,7 +15,7 @@ public class UserAggregateHourlyRepositoryImpl implements UserAggregateHourlyRep
 
     @Override
     public Long sumAccessUserCountBetween(LocalDateTime start, LocalDateTime end) {
-        Integer sum = queryFactory
+        Long sum = queryFactory
             .select(userAggregateHourly.accessUserCount.sum())
             .from(userAggregateHourly)
             .where(
@@ -24,7 +24,7 @@ public class UserAggregateHourlyRepositoryImpl implements UserAggregateHourlyRep
             )
             .fetchOne();
 
-        return sum != null ? sum.longValue() : 0L;
+        return sum != null ? sum : 0L;
     }
 }
 

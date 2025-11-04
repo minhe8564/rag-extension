@@ -6,8 +6,10 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
+
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -16,13 +18,13 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Table(
-    name = "MODEL_AGGREGATE_HOURLY",
-    uniqueConstraints = {
-        @UniqueConstraint(
-            name = "UK_MODEL_HOURLY__LLM_NO__AGGREGATE_DATETIME",
-            columnNames = {"LLM_NO", "AGGREGATE_DATETIME"}
-        )
-    }
+        name = "MODEL_AGGREGATE_HOURLY",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "UK_MODEL_HOURLY__LLM_NO__AGGREGATE_DATETIME",
+                        columnNames = {"LLM_NO", "AGGREGATE_DATETIME"}
+                )
+        }
 )
 @Getter
 @Builder(toBuilder = true)
@@ -45,15 +47,15 @@ public class ModelAggregateHourly extends BaseEntity {
 
     @Column(name = "INPUT_TOKENS", nullable = false)
     @Builder.Default
-    private Integer inputTokens = 0; // 입력 토큰 사용량
+    private Long inputTokens = 0L; // 입력 토큰 사용량
 
     @Column(name = "OUTPUT_TOKENS", nullable = false)
     @Builder.Default
-    private Integer outputTokens = 0; // 출력 토큰 사용량
+    private Long outputTokens = 0L; // 출력 토큰 사용량
 
     @Column(name = "TOTAL_TOKENS", nullable = false)
     @Builder.Default
-    private Integer totalTokens = 0; // 총 토큰 사용량
+    private Long totalTokens = 0L; // 총 토큰 사용량
 
     @Column(name = "TOTAL_RESPONSE_TIME_MS", nullable = false)
     @Builder.Default
@@ -61,6 +63,6 @@ public class ModelAggregateHourly extends BaseEntity {
 
     @Column(name = "RESPONSE_COUNT", nullable = false)
     @Builder.Default
-    private Integer responseCount = 0; // 응답 횟수
+    private Long responseCount = 0L; // 응답 횟수
 }
 

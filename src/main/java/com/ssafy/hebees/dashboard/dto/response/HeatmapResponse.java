@@ -7,7 +7,7 @@ import java.util.List;
 public record HeatmapResponse(
     Timeframe timeframe,
     HeatmapLabel label,
-    List<List<Integer>> cells // 사용량 매트릭스 (7x24)
+    List<List<Long>> cells // 사용량 매트릭스 (7x24)
 ) {
 
 }
