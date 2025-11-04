@@ -30,4 +30,3 @@ public class DocumentAggregateHourly extends BaseEntity {
     @Builder.Default
     private Long uploadCount = 0L; // 업로드 수
 }
-

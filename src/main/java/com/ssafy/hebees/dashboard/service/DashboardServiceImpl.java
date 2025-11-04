@@ -19,6 +19,7 @@ import com.ssafy.hebees.dashboard.dto.response.Timeframe;
 import com.ssafy.hebees.dashboard.dto.response.TimeseriesPoint;
 import com.ssafy.hebees.dashboard.dto.response.TotalDocumentsResponse;
 import com.ssafy.hebees.dashboard.dto.response.TotalErrorsResponse;
+import com.ssafy.hebees.dashboard.dto.response.TotalUsersResponse;
 import com.ssafy.hebees.dashboard.dto.response.TrendDirection;
 import com.ssafy.hebees.dashboard.dto.response.TrendKeyword;
 import com.ssafy.hebees.dashboard.dto.response.TrendKeywordsResponse;
@@ -102,6 +103,13 @@ public class DashboardServiceImpl implements DashboardService {
         LocalDateTime asOf = LocalDateTime.now();
         long total = errorAggregateHourlyRepository.sumTotalErrorCount();
         return TotalErrorsResponse.of(total, asOf);
+    }
+
+    @Override
+    public TotalUsersResponse getTotalUsers() {
+        LocalDateTime asOf = LocalDateTime.now();
+        long total = userAggregateHourlyRepository.sumAccessUserCount();
+        return TotalUsersResponse.of(total, asOf);
     }
 
     @Override

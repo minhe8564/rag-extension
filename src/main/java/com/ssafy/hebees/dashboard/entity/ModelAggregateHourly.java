@@ -18,13 +18,13 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Table(
-        name = "MODEL_AGGREGATE_HOURLY",
-        uniqueConstraints = {
-                @UniqueConstraint(
-                        name = "UK_MODEL_HOURLY__LLM_NO__AGGREGATE_DATETIME",
-                        columnNames = {"LLM_NO", "AGGREGATE_DATETIME"}
-                )
-        }
+    name = "MODEL_AGGREGATE_HOURLY",
+    uniqueConstraints = {
+        @UniqueConstraint(
+            name = "UK_MODEL_HOURLY__LLM_NO__AGGREGATE_DATETIME",
+            columnNames = {"LLM_NO", "AGGREGATE_DATETIME"}
+        )
+    }
 )
 @Getter
 @Builder(toBuilder = true)
@@ -65,4 +65,3 @@ public class ModelAggregateHourly extends BaseEntity {
     @Builder.Default
     private Long responseCount = 0L; // 응답 횟수
 }
-

@@ -8,6 +8,7 @@ import com.ssafy.hebees.dashboard.dto.response.HeatmapResponse;
 import com.ssafy.hebees.dashboard.dto.response.ModelTimeSeriesResponse;
 import com.ssafy.hebees.dashboard.dto.response.TotalDocumentsResponse;
 import com.ssafy.hebees.dashboard.dto.response.TotalErrorsResponse;
+import com.ssafy.hebees.dashboard.dto.response.TotalUsersResponse;
 import com.ssafy.hebees.dashboard.dto.response.TrendKeywordsResponse;
 import com.ssafy.hebees.dashboard.dto.response.ErrorsTodayResponse;
 
@@ -18,6 +19,8 @@ public interface DashboardService {
     Change24hResponse getUploadDocumentsChange24h();
 
     TotalDocumentsResponse getTotalUploadDocuments();
+
+    TotalUsersResponse getTotalUsers();
 
     Change24hResponse getErrorsChange24h();
 

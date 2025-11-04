@@ -10,6 +10,7 @@ import com.ssafy.hebees.dashboard.dto.response.HeatmapResponse;
 import com.ssafy.hebees.dashboard.dto.response.ModelTimeSeriesResponse;
 import com.ssafy.hebees.dashboard.dto.response.TotalDocumentsResponse;
 import com.ssafy.hebees.dashboard.dto.response.TotalErrorsResponse;
+import com.ssafy.hebees.dashboard.dto.response.TotalUsersResponse;
 import com.ssafy.hebees.dashboard.dto.response.TrendKeywordsResponse;
 import com.ssafy.hebees.dashboard.service.DashboardService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -64,18 +65,6 @@ public class DashboardController {
             BaseResponse.of(HttpStatus.OK, response, "일일 업로드 문서 수 변화량 조회에 성공하였습니다."));
     }
 
-    @GetMapping("/metrics/upload-documents/total")
-    @Operation(summary = "총 업로드 문서 수 조회",
-        description = "지금까지 업로드된 문서의 총합과 기준 시각을 조회합니다.")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "조회 성공")
-    })
-    public ResponseEntity<BaseResponse<TotalDocumentsResponse>> getMetricsTotalUploadDocuments() {
-        TotalDocumentsResponse response = dashboardService.getTotalUploadDocuments();
-        return ResponseEntity.ok(
-            BaseResponse.of(HttpStatus.OK, response, "총 업로드 문서 수 조회에 성공하였습니다."));
-    }
-
     @GetMapping("/metrics/errors/change-24h")
     @Operation(summary = "에러 수 24시간 변화 조회",
         description = "현재 시각을 기준으로 최근 24시간 동안 발생한 총 에러 수와 이전 24시간 대비 증감 정보를 제공합니다.")
@@ -86,6 +75,30 @@ public class DashboardController {
         Change24hResponse response = dashboardService.getErrorsChange24h();
         return ResponseEntity.ok(
             BaseResponse.of(HttpStatus.OK, response, "일일 에러 수 변화량 조회에 성공하였습니다."));
+    }
+
+    @GetMapping("/metrics/access-users/total")
+    @Operation(summary = "총 접속자 수 조회",
+        description = "지금까지 집계된 접속자 수의 총합과 기준 시각을 조회합니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "조회 성공")
+    })
+    public ResponseEntity<BaseResponse<TotalUsersResponse>> getMetricsTotalUsers() {
+        TotalUsersResponse response = dashboardService.getTotalUsers();
+        return ResponseEntity.ok(
+            BaseResponse.of(HttpStatus.OK, response, "총 접속자 수 조회에 성공하였습니다."));
+    }
+
+    @GetMapping("/metrics/upload-documents/total")
+    @Operation(summary = "총 업로드 문서 수 조회",
+        description = "지금까지 업로드된 문서의 총합과 기준 시각을 조회합니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "조회 성공")
+    })
+    public ResponseEntity<BaseResponse<TotalDocumentsResponse>> getMetricsTotalUploadDocuments() {
+        TotalDocumentsResponse response = dashboardService.getTotalUploadDocuments();
+        return ResponseEntity.ok(
+            BaseResponse.of(HttpStatus.OK, response, "총 업로드 문서 수 조회에 성공하였습니다."));
     }
 
     @GetMapping("/metrics/errors/total")

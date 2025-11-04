@@ -44,5 +44,3 @@ public class ChatbotAggregateHourly extends BaseEntity {
     @Builder.Default
     private Long responseCount = 0L; // 응답 수
 }
-
-
