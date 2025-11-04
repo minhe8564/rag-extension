@@ -21,4 +21,6 @@ public record SessionResponse(
 
     @Schema(description = "세션의 마지막 활동 시각 (조회/메시지 전송 등 사용자 요청 기준)", type = "string", format = "date-time", example = "2025-11-02T20:15:00")
     LocalDateTime lastRequestedAt
-) { }
+) {
+
+}

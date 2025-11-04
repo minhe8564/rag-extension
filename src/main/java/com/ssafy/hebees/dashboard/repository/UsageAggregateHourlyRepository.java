@@ -5,6 +5,8 @@ import java.time.LocalDateTime;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface UsageAggregateHourlyRepository
-    extends JpaRepository<UsageAggregateHourly, LocalDateTime>, UsageAggregateHourlyRepositoryCustom {
+    extends JpaRepository<UsageAggregateHourly, LocalDateTime>,
+    UsageAggregateHourlyRepositoryCustom {
+
 }
 

@@ -66,7 +66,8 @@ public class UserRoleController {
         log.info("사용자 역할 조회 요청: {}", userRoleNo);
 
         UserRole role = userRoleService.getRole(userRoleNo);
-        return ResponseEntity.ok(BaseResponse.of(HttpStatus.OK, UserRoleResponse.from(role), "역할 조회에 성공하였습니다."));
+        return ResponseEntity.ok(
+            BaseResponse.of(HttpStatus.OK, UserRoleResponse.from(role), "역할 조회에 성공하였습니다."));
     }
 
     @PostMapping
@@ -81,8 +82,9 @@ public class UserRoleController {
         log.info("사용자 역할 생성 요청: {}", request.name());
 
         UserRole created = userRoleService.createRole(request);
-        return ResponseEntity.created(URI.create("/user/roles/"+created.getUuid()))
-                .body(BaseResponse.of(HttpStatus.CREATED, UserRoleCreateResponse.from(created), "사용자 역할 생성에 성공하였습니다."));
+        return ResponseEntity.created(URI.create("/user/roles/" + created.getUuid()))
+            .body(BaseResponse.of(HttpStatus.CREATED, UserRoleCreateResponse.from(created),
+                "사용자 역할 생성에 성공하였습니다."));
     }
 
     @DeleteMapping("/{userRoleNo}")

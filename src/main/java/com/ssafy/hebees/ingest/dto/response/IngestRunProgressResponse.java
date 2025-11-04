@@ -15,7 +15,8 @@ public record IngestRunProgressResponse(
     Long ts
 ) {
 
-    public static IngestRunProgressResponse from(org.springframework.data.redis.connection.stream.MapRecord<String, ?, ?> record) {
+    public static IngestRunProgressResponse from(
+        org.springframework.data.redis.connection.stream.MapRecord<String, ?, ?> record) {
         java.util.Map<?, ?> fields = record.getValue();
         return new IngestRunProgressResponse(
             record.getId().getValue(),

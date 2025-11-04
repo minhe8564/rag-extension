@@ -23,13 +23,13 @@ public class IngestRunProgressService {
     private final StringRedisTemplate ingestRedisTemplate;
 
     // 명시적 생성자에 @Qualifier 적용 — db1 템플릿 주입 보장
-    public IngestRunProgressService(@Qualifier("ingestRedisTemplate") StringRedisTemplate ingestRedisTemplate) {
+    public IngestRunProgressService(
+        @Qualifier("ingestRedisTemplate") StringRedisTemplate ingestRedisTemplate) {
         this.ingestRedisTemplate = ingestRedisTemplate;
     }
 
     /**
-     * 현재 사용자(UUID)의 진행 중인 최신 수집(run)을 찾아
-     * 최신 스냅샷(Hash)과 이벤트 스트림의 마지막 ID를 조합하여 진행 상태를 반환합니다.
+     * 현재 사용자(UUID)의 진행 중인 최신 수집(run)을 찾아 최신 스냅샷(Hash)과 이벤트 스트림의 마지막 ID를 조합하여 진행 상태를 반환합니다.
      */
     public IngestRunProgressResponse getLatestProgressForUser(java.util.UUID userUuid) {
         // 연결된 Redis 정보와 PING 로깅 (DB 인덱스 확인)
@@ -60,17 +60,20 @@ public class IngestRunProgressService {
             log.info("[INGEST] latest 스냅샷 비어있음 - key={}", latestKey);
             // 스냅샷이 없으면 스트림의 마지막 레코드로 대체
             StreamOperations<String, Object, Object> sops = ingestRedisTemplate.opsForStream();
-            List<MapRecord<String, Object, Object>> records = sops.reverseRange(streamKey(runId), Range.unbounded());
+            List<MapRecord<String, Object, Object>> records = sops.reverseRange(streamKey(runId),
+                Range.unbounded());
             int count = (records == null ? 0 : records.size());
             log.info("[INGEST] 스트림 조회 결과 - key={}, count={}", streamKey(runId), count);
             if (records == null || records.isEmpty()) {
-                log.warn("[INGEST] 진행률 없음 - userUuid={}, runId={}, snapshot/stream 모두 비어있음", userUuid, runId);
+                log.warn("[INGEST] 진행률 없음 - userUuid={}, runId={}, snapshot/stream 모두 비어있음",
+                    userUuid, runId);
                 throw new BusinessException(ErrorCode.NOT_FOUND);
             }
             MapRecord<String, Object, Object> rec = records.get(0);
             java.util.Map<?, ?> f = rec.getValue();
             log.info("[INGEST] 스트림 최신 사용 - id={}, step={}, processed={}, total={}, status={}",
-                rec.getId().getValue(), f.get("step"), f.get("processed"), f.get("total"), f.get("status"));
+                rec.getId().getValue(), f.get("step"), f.get("processed"), f.get("total"),
+                f.get("status"));
             return IngestRunProgressResponse.fromRecordWithMeta(rec, runId, docId, docName);
         }
 
@@ -82,16 +85,17 @@ public class IngestRunProgressService {
             if (records != null && !records.isEmpty()) {
                 id = records.get(0).getId().getValue();
             }
-        } catch (Exception ignore) {}
+        } catch (Exception ignore) {
+        }
 
         log.info("[INGEST] latest 스냅샷 사용 - key={}, step={}, processed={}, total={}, status={}",
-            latestKey, latest.get("step"), latest.get("processed"), latest.get("total"), latest.get("status"));
+            latestKey, latest.get("step"), latest.get("processed"), latest.get("total"),
+            latest.get("status"));
         return IngestRunProgressResponse.fromLatestSnapshot(runId, docId, docName, latest, id);
     }
 
     /**
-     * 사용자 실행 목록(Set)과 각 run의 meta 해시를 확인하여
-     * 상태가 RUNNING 이고 createdAt이 가장 최신인 runId를 선택합니다.
+     * 사용자 실행 목록(Set)과 각 run의 meta 해시를 확인하여 상태가 RUNNING 이고 createdAt이 가장 최신인 runId를 선택합니다.
      */
     private String resolveActiveRunId(java.util.UUID userUuid) {
         String setKey = userRunsKey(userUuid.toString());
@@ -109,10 +113,16 @@ public class IngestRunProgressService {
             String metaKey = metaKey(runId);
             Object status = hops.get(metaKey, "status");
             Object created = hops.get(metaKey, "createdAt");
-            log.info("[INGEST] 후보 run 검사 - runId={}, status={}, createdAt={}", runId, status, created);
+            log.info("[INGEST] 후보 run 검사 - runId={}, status={}, createdAt={}", runId, status,
+                created);
             if (status != null && "RUNNING".equalsIgnoreCase(status.toString())) {
                 long createdAt = 0L;
-                try { if (created != null) createdAt = Long.parseLong(created.toString()); } catch (NumberFormatException ignore) {}
+                try {
+                    if (created != null) {
+                        createdAt = Long.parseLong(created.toString());
+                    }
+                } catch (NumberFormatException ignore) {
+                }
                 if (createdAt > selectedCreatedAt) {
                     selected = runId;
                     selectedCreatedAt = createdAt;
@@ -132,8 +142,13 @@ public class IngestRunProgressService {
         return "ingest:user:" + userUuid + ":runs";
     }
 
-    private String metaKey(String runId) { return "ingest:run:" + runId + ":meta"; }
-    private String latestKey(String runId) { return "ingest:run:" + runId + ":latest"; }
+    private String metaKey(String runId) {
+        return "ingest:run:" + runId + ":meta";
+    }
+
+    private String latestKey(String runId) {
+        return "ingest:run:" + runId + ":latest";
+    }
 
     // parsing helpers removed; using IngestRunProgressResponse factory methods instead
 
@@ -142,10 +157,11 @@ public class IngestRunProgressService {
     }
 
     /**
-     * Redis Stream에서 지정한 runId의 이벤트를 블로킹으로 읽어옵니다.
-     * lastId 이후의 레코드를 대상으로 하며, null/"$"인 경우 최신 이후의 신규 이벤트만 수신합니다.
+     * Redis Stream에서 지정한 runId의 이벤트를 블로킹으로 읽어옵니다. lastId 이후의 레코드를 대상으로 하며, null/"$"인 경우 최신 이후의 신규
+     * 이벤트만 수신합니다.
      */
-    public List<MapRecord<String, Object, Object>> readEvents(String runId, String lastId, long blockMillis, Long count) {
+    public List<MapRecord<String, Object, Object>> readEvents(String runId, String lastId,
+        long blockMillis, Long count) {
         StreamOperations<String, Object, Object> sops = ingestRedisTemplate.opsForStream();
         StreamReadOptions options = StreamReadOptions.empty().block(Duration.ofMillis(blockMillis));
         if (count != null && count > 0) {
@@ -160,7 +176,8 @@ public class IngestRunProgressService {
         try {
             return sops.read(options, StreamOffset.create(streamKey(runId), offset));
         } catch (Exception e) {
-            log.warn("[INGEST] stream read failed - runId={}, lastId={}, err={}", runId, lastId, e.toString());
+            log.warn("[INGEST] stream read failed - runId={}, lastId={}, err={}", runId, lastId,
+                e.toString());
             return java.util.Collections.emptyList();
         }
     }

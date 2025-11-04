@@ -13,13 +13,13 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Table(
-        name = "KEYWORD_AGGREGATE_DAILY",
-        uniqueConstraints = {
-                @UniqueConstraint(
-                        name = "UK_KEYWORD_DAILY__AGGREGATE_DATE__KEYWORD",
-                        columnNames = {"AGGREGATE_DATE", "KEYWORD"}
-                )
-        }
+    name = "KEYWORD_AGGREGATE_DAILY",
+    uniqueConstraints = {
+        @UniqueConstraint(
+            name = "UK_KEYWORD_DAILY__AGGREGATE_DATE__KEYWORD",
+            columnNames = {"AGGREGATE_DATE", "KEYWORD"}
+        )
+    }
 )
 @Getter
 @Builder(toBuilder = true)

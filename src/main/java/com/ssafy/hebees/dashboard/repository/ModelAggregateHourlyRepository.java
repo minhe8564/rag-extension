@@ -6,5 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ModelAggregateHourlyRepository
     extends JpaRepository<ModelAggregateHourly, UUID>, ModelAggregateHourlyRepositoryCustom {
+
 }
 
