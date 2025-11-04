@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....common.db import get_session
 from ....common.schemas import BaseResponse
-from ..schemas.file_category import FileCategoryListItem
+from ..schemas.response.file_category import FileCategoryListItem
 from ..services.file_category import list_file_categories as list_file_categories_service
 
 

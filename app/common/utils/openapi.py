@@ -1,11 +1,15 @@
-"""Utility helpers for OpenAPI schema customization."""
-
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
 
 
 def custom_openapi(app: FastAPI):
-    """Generate an OpenAPI schema with role header security definition."""
+    """
+    Custom OpenAPI schema generator supporting JWT, Role, and UUID header auth.
+    
+    - BearerAuth: Authorization: Bearer <JWT>
+    - RoleHeader: x-user-role: USER / ADMIN ...
+    - UserUUID: x-user-uuid: 사용자 UUID
+    """
     if app.openapi_schema:
         return app.openapi_schema
 
@@ -18,13 +22,37 @@ def custom_openapi(app: FastAPI):
 
     components = openapi_schema.setdefault("components", {})
     security_schemes = components.setdefault("securitySchemes", {})
+
+    # ✅ JWT 인증 스키마
+    security_schemes["BearerAuth"] = {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT 토큰을 입력하세요. 예: Bearer eyJhbGciOiJIUzUxMiJ9..."
+    }
+
+    # ✅ 역할 헤더 인증 스키마
     security_schemes["RoleHeader"] = {
         "type": "apiKey",
         "in": "header",
         "name": "x-user-role",
-        "description": "역할(Role) 헤더. 예: USER, ADMIN",
+        "description": "사용자 역할(Role) 헤더를 입력하세요. 예: USER, ADMIN"
     }
+
+    # ✅ 사용자 UUID 헤더 인증 스키마
+    security_schemes["UserUUID"] = {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-user-uuid",
+        "description": "사용자 UUID 헤더를 입력하세요. 예: e1d23c4b-56f7-890a-bcde-1234567890ab"
+    }
+
+    # ✅ 세 인증 방식 모두 Swagger Authorize 창에서 설정 가능하도록 등록
+    openapi_schema["security"] = [
+        {"BearerAuth": []},
+        {"RoleHeader": []},
+        {"UserUUID": []}
+    ]
 
     app.openapi_schema = openapi_schema
     return app.openapi_schema
-
