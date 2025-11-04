@@ -4,9 +4,9 @@ import Card from '@/shared/components/Card';
 
 export default function NumberBoard() {
   const [data, setData] = useState({
-    currentUsers: 24,
+    currentUsers: 243,
     uploadedDocs: 58,
-    errorCount: 3,
+    errorCount: 12,
   });
 
   const [displayData, setDisplayData] = useState({ ...data });
@@ -16,7 +16,13 @@ export default function NumberBoard() {
   const yesterday = {
     currentUsers: 20,
     uploadedDocs: 40,
-    errorCount: 5,
+    errorCount: 25,
+  };
+
+  const totalData = {
+    currentUsers: 5000,
+    uploadedDocs: 3705,
+    errorCount: 156,
   };
 
   const animRefs = useRef<Record<string, number | null>>({
@@ -75,29 +81,29 @@ export default function NumberBoard() {
     key: keyof typeof data,
     title: string,
     icon: JSX.Element,
-    total: number,
     totalLabel: string
   ) => {
     const delta = (displayData[key] ?? 0) - (yesterday[key] ?? 0);
     const IconArrow = delta > 0 ? TrendingUp : delta < 0 ? TrendingDown : null;
     const sign = delta > 0 ? '+' : '';
     const color = delta > 0 ? 'text-green-600' : delta < 0 ? 'text-red-600' : 'text-gray-500';
+    const total = totalData[key];
 
     return (
-      <Card title="" className="p-4 sm:p-5">
+      <div className="p-4 sm:p-5 h-full flex flex-col bg-white rounded-lg border shadow-sm">
         {/* 헤더 */}
-        <div className="mb-3 flex items-center gap-2">
+        <div className="mb-4 flex items-center gap-2">
           {icon}
-          <span className="text-lg font-bold text-gray-900">{title}</span>
+          <span className="text-xl font-bold text-gray-900">{title}</span>
         </div>
 
         {/* 메인 숫자 */}
-        <div className="flex flex-col  space-y-1">
-          <div className="flex items-end gap-0.5">
-            <div className="relative h-9 overflow-hidden w-16 sm:w-20">
+        <div className="flex flex-col space-y-1 justify-center flex-1">
+          <div className="flex items-center gap-0.5">
+            <div className="relative aspect-square w-[45%] flex items-center justify-center overflow-hidden">
               {/* 이전 값 */}
               <p
-                className={`absolute left-0 right-0 text-2xl sm:text-3xl font-extrabold text-gray-900 transition-all duration-500 ${
+                className={`absolute left-0 right-0 text-4xl sm:text-4xl font-extrabold text-gray-900 transition-all duration-500 ${
                   animatingKey === key ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'
                 }`}
               >
@@ -105,68 +111,72 @@ export default function NumberBoard() {
               </p>
               {/* 새 값 */}
               <p
-                className={`absolute left-4 right-0 text-2xl sm:text-3xl font-extrabold text-gray-900 transition-all duration-500 ${
+                className={`absolute left-0 right-0 text-4xl sm:text-4xl font-extrabold text-gray-900 transition-all duration-500 ${
                   animatingKey === key ? 'translate-y-full opacity-0' : 'translate-y-0 opacity-100'
                 }`}
               >
                 {formatNumber(displayData[key])}
               </p>
             </div>
-            <span className="text-sm text-gray-400 mx-0.5">/</span>
-            <span className="text-xs text-gray-500 font-medium">
+            <span className="text-xl text-gray-400 mx-[2px] mt-2.5">/</span>
+            <span className="text-xl text-gray-400 font-normal mt-2.5">
               {totalLabel} {formatNumber(total)}
             </span>
           </div>
 
-          <div className=" flex items-center">
-            <div className="flex items-center gap-2 border rounded-lg px-2 py-1.5 shadow-sm bg-white">
+          <div className="flex items-center">
+            <div className="flex items-center gap-1.5 border rounded-lg px-2 py-1 shadow-sm bg-white">
               {IconArrow && (
                 <IconArrow
-                  size={12}
+                  size={11}
                   className={`${delta > 0 ? 'text-green-600' : delta < 0 ? 'text-red-600' : 'text-gray-400'}`}
                 />
               )}
-              <span className="text-gray-600 text-xs sm:text-sm">하루 전 대비</span>
-              <span className={`text-xs sm:text-sm font-semibold ${color}`}>
+              <span className="text-gray-600 text-lg">하루 전 대비</span>
+              <span className={`text-lg font-semibold ${color}`}>
                 {sign}
                 {Math.abs(delta)}
               </span>
             </div>
           </div>
         </div>
-      </Card>
+      </div>
     );
   };
 
   return (
-    <section className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-5 my-4 max-w-5xl mx-auto">
-      {renderCard(
-        'currentUsers',
-        '현재 사용자 수',
-        <div className="h-12 w-12 rounded-lg bg-[var(--color-hebees-blue-bg)] flex items-center justify-center shadow-sm">
-          <Users size={26} className="text-[var(--color-hebees-blue)]" />
-        </div>,
-        5000,
-        '총'
-      )}
-      {renderCard(
-        'uploadedDocs',
-        '오늘 업로드 문서 수',
-        <div className="h-12 w-12 rounded-lg bg-[var(--color-hebees-bg)] flex items-center justify-center shadow-sm">
-          <FileText size={26} className="text-[var(--color-hebees)]" />
-        </div>,
-        3705,
-        '총'
-      )}
-      {renderCard(
-        'errorCount',
-        '오늘 오류 발생',
-        <div className="h-12 w-12 rounded-lg bg-red-50 flex items-center justify-center shadow-sm">
-          <TriangleAlert size={26} className="text-red-500" />
-        </div>,
-        156,
-        '총'
-      )}
-    </section>
+    <Card
+      title="오늘의 실시간 로그"
+      subtitle="실시간으로 처리되는 로그 데이터"
+      className="p-4 h-full flex flex-col"
+    >
+      <div className="mb-4 flex items-center"></div>
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-2 flex-1">
+        {renderCard(
+          'currentUsers',
+          '현재 사용자 수',
+          <div className="h-[3rem] w-[3rem] rounded-lg bg-[var(--color-hebees-blue-bg)] flex items-center justify-center shadow-sm">
+            <Users size={35} className="text-[var(--color-hebees-blue)]" />
+          </div>,
+          '총'
+        )}
+        {renderCard(
+          'uploadedDocs',
+          '업로드 문서 수',
+          <div className="h-[3rem] w-[3rem] rounded-lg bg-[var(--color-hebees-bg)] flex items-center justify-center shadow-sm">
+            <FileText size={35} className="text-[var(--color-hebees)]" />
+          </div>,
+          '총'
+        )}
+        {renderCard(
+          'errorCount',
+          '오류 발생 수',
+          <div className="h-[3rem] w-[3rem] rounded-lg bg-red-50 flex items-center justify-center shadow-sm">
+            <TriangleAlert size={35} className="text-red-500" />
+          </div>,
+          '총'
+        )}
+      </section>
+    </Card>
   );
 }

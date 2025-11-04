@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import Highcharts from 'highcharts';
 import _wordcloudInit from 'highcharts/modules/wordcloud';
 import Card from '@/shared/components/Card';
 
-export default function KeywordCloud() {
+export default function KeywordMap() {
   const chartRef = useRef<Highcharts.Chart | null>(null);
 
   // 더미
@@ -54,7 +54,7 @@ export default function KeywordCloud() {
         shadow: false,
         style: { color: '#111827', fontSize: '12px' },
         pointFormatter: function (this: Highcharts.Point & { count: number }) {
-          return `<b>${this.name}</b><br/>등장 횟수: ${this.count}회`;
+          return `<b></b><br/>등장 횟수: ${this.count}회`;
         },
       },
       series: [
@@ -62,8 +62,8 @@ export default function KeywordCloud() {
           type: 'wordcloud',
           name: '키워드 빈도',
           data,
-          minFontSize: 10,
-          maxFontSize: 80,
+          minFontSize: 8,
+          maxFontSize: 60,
           spiral: 'rectangular',
           rotation: { from: 0, to: 0, orientations: 6 },
           placementStrategy: 'center',
@@ -91,8 +91,12 @@ export default function KeywordCloud() {
   }, []);
 
   return (
-    <Card title="최근 주요 키워드" subtitle="가중치 기반 워드클라우드" className="p-4">
-      <div id="keyword-cloud" className="w-full h-[360px]" />
+    <Card
+      title="최근 주요 키워드"
+      subtitle="가중치 기반 워드클라우드"
+      className="p-3 h-full flex flex-col"
+    >
+      <div id="keyword-cloud" className="w-full flex-1 min-h-[100px]" />
     </Card>
   );
 }

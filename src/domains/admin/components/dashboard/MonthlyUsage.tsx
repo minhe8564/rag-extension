@@ -164,8 +164,8 @@ export default function WeeklyTimeHeatmap() {
   return (
     <Card
       title="시간대별 챗봇 사용량"
-      subtitle="요일별 · 시간대별 사용량을 색의 진함으로 확인할 수 있습니다"
-      className="p-4"
+      subtitle="요일별 · 시간대별 사용량을 확인할 수 있습니다"
+      className="p-3"
     >
       <div id="weekly-usage-chart" className="w-full" />
     </Card>
