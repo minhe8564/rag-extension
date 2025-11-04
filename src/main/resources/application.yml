@@ -28,6 +28,8 @@ cors:
     - "http://localhost:5173"
     - "https://dev.ragextension.shop"
     - "https://www.ragextension.shop"
+    - "https://dev-spring.ragextension.shop"
+    - "https://spring.ragextension.shop"
 
 springdoc:
   swagger-ui:
