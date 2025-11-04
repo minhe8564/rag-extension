@@ -4,7 +4,7 @@ from datetime import datetime
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.dialects.mysql import BINARY, CHAR, DATETIME as MySQLDateTime
 
-from ....common.db import Base
+from app.core.base import Base
 
 
 class Collection(Base):

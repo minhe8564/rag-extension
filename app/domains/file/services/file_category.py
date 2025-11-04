@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.file_category import FileCategory
-from ..schemas.file_category import FileCategoryListItem
+from ..schemas.response.file_category import FileCategoryListItem
 
 
 def _bytes_to_uuid_str(b: bytes) -> str:

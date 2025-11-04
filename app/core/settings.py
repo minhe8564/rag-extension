@@ -67,14 +67,6 @@ class Settings(BaseSettings):
     log_file_max_bytes: int = 10_485_760  # 10MB
     log_file_backup_count: int = 5
 
-    # MinIO / Object Storage
-    minio_endpoint: str | None = None
-    minio_access_key: str | None = None
-    minio_secret_key: str | None = None
-    minio_secure: bool = True
-    default_public_bucket: str | None = None
-    default_test_bucket: str | None = None
-
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",
         env_file_encoding="utf-8",

@@ -1,47 +1,53 @@
 from __future__ import annotations
 
-from typing import Optional
-
-from fastapi import APIRouter, Depends, File as FFile, UploadFile, Form, Query
+from fastapi import APIRouter, Depends, File as FFile, UploadFile, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ....common.db import get_session
-from ....common.schemas import BaseResponse
-from ..schemas.files import FileUploadResult
+from app.core.database import get_db
+from app.core.schemas import BaseResponse
+from app.core.check_role import check_role
+from ..schemas.response.upload_file import FileUploadResult
+from ..schemas.request.upload_file import FileUploadRequest
 from ..services.files import upload_file as upload_file_service
 
 
 router = APIRouter(prefix="/files", tags=["File"])
 
-
 @router.post("/", response_model=BaseResponse[FileUploadResult], status_code=201)
 async def upload_file(
-    userNo: str = Query(..., description="업로더 USER_NO (UUID)"),
-    onNameConflict: str = Query("reject", description="파일명 충돌 정책: reject|rename|overwrite"),
+    request: FileUploadRequest = Depends(FileUploadRequest.as_form),
     file: UploadFile = FFile(...),
-    category: str = Form(..., description="FILE_CATEGORY_NO (UUID)"),
-    bucket: Optional[str] = Form(None, description="public|private|test (관리자 전용)"),
-    collection: Optional[str] = Form(None, description="COLLECTION_NO (UUID, 관리자 전용)"),
-    autoIngest: Optional[bool] = Form(False, description="ingest 수행 여부 (현재 미사용)"),
-    session: AsyncSession = Depends(get_session),
+    x_user_role: str = Depends(check_role("USER", "ADMIN")),
+    x_user_uuid: str = Header(..., alias="x-user-uuid"),
+    session: AsyncSession = Depends(get_db),
 ):
+    # Role-based branching
+    # - USER: ignore provided bucket/collection; use personal (offer_no) bucket
+    # - ADMIN: allow explicit bucket/collection
+    if x_user_role == "ADMIN":
+        effective_bucket = request.bucket
+        effective_collection = request.collection
+    else:
+        effective_bucket = None
+        effective_collection = None
+
     file_bytes = await file.read()
     file_no = await upload_file_service(
         session,
         file_bytes=file_bytes,
         original_filename=file.filename or "uploaded",
         content_type=file.content_type,
-        user_no=userNo,
-        category_no=category,
-        on_name_conflict=onNameConflict,
-        bucket=bucket,
-        collection_no=collection,
+        user_no=x_user_uuid,
+        category_no=request.category,
+        on_name_conflict=request.onNameConflict,
+        bucket=effective_bucket,
+        collection_no=effective_collection,
     )
 
     return BaseResponse[FileUploadResult](
         status=201,
         code="CREATED",
-        message="업로드 성공",
+        message="업로드 완료",
         isSuccess=True,
         result={"data": FileUploadResult(fileNo=file_no)},
     )

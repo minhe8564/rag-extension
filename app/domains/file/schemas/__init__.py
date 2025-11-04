@@ -1,2 +1,0 @@
-"""File domain Pydantic schemas."""
-

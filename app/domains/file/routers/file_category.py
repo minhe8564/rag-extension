@@ -8,11 +8,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.schemas import BaseResponse
-from ..schemas.file_category import FileCategoryListItem
+from ..schemas.response.file_category import FileCategoryListItem
 from ..services.file_category import list_file_categories as list_file_categories_service
 
 
-router = APIRouter(prefix="/files/categories", tags=["FileCategory"])
+router = APIRouter(prefix="/files/categories", tags=["File"])
 
 
 @router.get("/", response_model=BaseResponse[List[FileCategoryListItem]])

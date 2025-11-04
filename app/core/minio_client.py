@@ -6,7 +6,7 @@ from typing import Optional
 from minio import Minio
 from minio.error import S3Error
 
-from ..config import settings
+from app.core.settings import settings
 
 
 _client: Optional[Minio] = None
@@ -21,7 +21,7 @@ def get_minio_client() -> Minio:
             endpoint=settings.minio_endpoint,
             access_key=settings.minio_access_key,
             secret_key=settings.minio_secret_key,
-            secure=bool(settings.minio_secure),
+            secure=bool(settings.minio_use_ssl),
         )
     return _client
 
