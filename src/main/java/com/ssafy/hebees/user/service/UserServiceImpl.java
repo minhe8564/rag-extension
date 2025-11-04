@@ -110,7 +110,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public User findByUuid(UUID userUuid) {
-        return userRepository.findById(userUuid)
+        return userRepository.findByUuid(userUuid)
             .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_SIGNIN));
     }
 
