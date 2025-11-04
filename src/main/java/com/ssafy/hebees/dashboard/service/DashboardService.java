@@ -7,6 +7,7 @@ import com.ssafy.hebees.dashboard.dto.response.HeatmapResponse;
 import com.ssafy.hebees.dashboard.dto.response.ModelTimeSeriesResponse;
 import com.ssafy.hebees.dashboard.dto.response.TotalDocumentsResponse;
 import com.ssafy.hebees.dashboard.dto.response.TotalErrorsResponse;
+import com.ssafy.hebees.dashboard.dto.response.TrendKeywordsResponse;
 
 public interface DashboardService {
 
@@ -25,5 +26,7 @@ public interface DashboardService {
     ModelTimeSeriesResponse getModelTimeSeries(TimeSeriesRequest request);
 
     HeatmapResponse getChatbotHeatmap();
+
+    TrendKeywordsResponse getTrendKeywords(int scale);
 }
 
