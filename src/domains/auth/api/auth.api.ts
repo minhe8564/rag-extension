@@ -2,10 +2,11 @@ import api from '@/shared/lib/apiInstance';
 import type { ApiEnvelope } from '@/shared/lib/api.types';
 
 export type LoginResult = {
-  accessToken: string;
-  userNo: string;
   name: string;
-  role: number;
+  roleName: 'ADMIN' | 'USER';
+  businessType: number;
+  accessToken: string;
+  refreshToken: string;
 };
 
 export const login = async (email: string, password: string) => {

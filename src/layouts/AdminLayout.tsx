@@ -9,6 +9,7 @@ import {
   Bot,
   Bell,
   LogOut,
+  UserCog,
 } from 'lucide-react';
 import Tooltip from '@/shared/components/Tooltip';
 import HebeesLogo from '@/assets/hebees-logo.png';
@@ -103,6 +104,15 @@ export default function AdminLayout() {
         </nav>
 
         <div className="mt-auto px-2 pb-4">
+          <NavLink
+            to="/admin/users"
+            className="flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors text-gray-700 hover:bg-[var(--color-hebees-bg)] hover:text-[var(--color-hebees)]"
+          >
+            <UserCog size={18} className="flex-shrink-0" />
+            <div className={labelCls(isOpen)}>
+              <span className="inline-block">사용자 관리</span>
+            </div>
+          </NavLink>
           <NavLink
             to="/logout"
             className="flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors text-gray-700 hover:bg-[var(--color-hebees-bg)] hover:text-[var(--color-hebees)]"

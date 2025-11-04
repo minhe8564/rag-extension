@@ -3,7 +3,6 @@ import { Outlet, NavLink, useLocation } from 'react-router-dom';
 export default function PublicLayout() {
   const { pathname } = useLocation();
 
-  // 로그인/회원가입 페이지는 레이아웃 제외
   if (pathname === '/login' || pathname === '/signup') {
     return <Outlet />;
   }

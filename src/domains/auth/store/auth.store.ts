@@ -1,22 +1,20 @@
 import { create } from 'zustand';
-import apiInstance from '@/shared/lib/apiInstance';
+import { login as apiLogin } from '@/domains/auth/api/auth.api';
 
-type Role = 'ADMIN' | 'USER';
-interface User {
-  email: string;
-  nickname?: string;
-  role: Role;
+interface AuthUser {
+  name: string;
+  roleName: string;
+  businessType: number;
 }
 
 interface AuthState {
-  user: User | null;
+  user: AuthUser | null;
   accessToken: string | null;
-  role: Role | null;
+  role: string | null;
   initializing: boolean;
 
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<string>;
   logout: () => void;
-  setRole: (role: Role) => void;
 }
 
 export const useAuthStore = create<AuthState>(set => ({
@@ -25,32 +23,26 @@ export const useAuthStore = create<AuthState>(set => ({
   role: null,
   initializing: false,
 
-  // 로그인
   login: async (email, password) => {
-    try {
-      const res = await apiInstance.post('/auth/login', { email, password });
-      const { accessToken, user } = res.data;
+    const result = await apiLogin(email, password);
 
-      set({
-        accessToken,
-        user,
-        role: user.role,
-      });
-    } catch (err) {
-      alert('로그인에 실패했습니다.');
-      throw err;
-    }
+    set({
+      user: {
+        name: result.name,
+        roleName: result.roleName,
+        businessType: result.businessType,
+      },
+      accessToken: result.accessToken,
+      role: result.roleName,
+    });
+
+    return result.roleName;
   },
 
-  // 로그아웃
-  logout: () => {
+  logout: () =>
     set({
       user: null,
       accessToken: null,
       role: null,
-    });
-  },
-
-  // 테스트용: 역할 설정
-  setRole: role => set({ role }),
+    }),
 }));
