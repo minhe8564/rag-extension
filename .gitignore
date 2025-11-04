@@ -153,3 +153,5 @@ coverage/
 .env.local
 .env.*.local
 .envrc
+.env.development
+.env.production
