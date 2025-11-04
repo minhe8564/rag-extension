@@ -54,6 +54,9 @@ def deployToInactiveEnvironment(environment, credentials, inactiveContainer, net
             --env DB_PASSWORD=\$DB_PASSWORD \\
             --env DB_NAME=\$DB_NAME \\
             --env REDIS_PASSWORD=\$REDIS_PASSWORD \\
+            --env MONGODB_DATABASE=\$MONGODB_DATABASE \\
+            --env MONGODB_USERNAME=\$MONGODB_USERNAME \\
+            --env MONGODB_PASSWORD=\$MONGODB_PASSWORD \\
             --env JWT_SECRET=\$JWT_SECRET \\
             --env JWT_ACCESS_TOKEN_EXPIRATION=\$JWT_ACCESS_EXPIRATION \\
             --env JWT_REFRESH_TOKEN_EXPIRATION=\$JWT_REFRESH_EXPIRATION \\
@@ -300,6 +303,9 @@ pipeline {
                             string(credentialsId: 'backend.db.password.test', variable: 'DB_PASSWORD'),
                             string(credentialsId: 'backend.db.name.test', variable: 'DB_NAME'),
                             string(credentialsId: 'backend.redis.password', variable: 'REDIS_PASSWORD'),
+                            string(credentialsId: 'backend.mongodb.database', variable: 'MONGODB_DATABASE'),
+                            string(credentialsId: 'backend.mongodb.username', variable: 'MONGODB_USERNAME'),
+                            string(credentialsId: 'backend.mongodb.password', variable: 'MONGODB_PASSWORD'),
                             string(credentialsId: 'backend.jwt.secret.test', variable: 'JWT_SECRET'),
                             string(credentialsId: 'backend.jwt.access.expiration', variable: 'JWT_ACCESS_EXPIRATION'),
                             string(credentialsId: 'backend.jwt.refresh.expiration', variable: 'JWT_REFRESH_EXPIRATION')
@@ -326,6 +332,9 @@ pipeline {
                             string(credentialsId: 'backend.db.password.prod', variable: 'DB_PASSWORD'),
                             string(credentialsId: 'backend.db.name.prod', variable: 'DB_NAME'),
                             string(credentialsId: 'backend.redis.password', variable: 'REDIS_PASSWORD'),
+                            string(credentialsId: 'backend.mongodb.database', variable: 'MONGODB_DATABASE'),
+                            string(credentialsId: 'backend.mongodb.username', variable: 'MONGODB_USERNAME'),
+                            string(credentialsId: 'backend.mongodb.password', variable: 'MONGODB_PASSWORD'),
                             string(credentialsId: 'backend.jwt.secret.prod', variable: 'JWT_SECRET'),
                             string(credentialsId: 'backend.jwt.access.expiration', variable: 'JWT_ACCESS_EXPIRATION'),
                             string(credentialsId: 'backend.jwt.refresh.expiration', variable: 'JWT_REFRESH_EXPIRATION')

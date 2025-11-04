@@ -9,6 +9,12 @@ spring:
       host: "database-redis"
       port: 6379
       password: "${REDIS_PASSWORD}"
+    mongodb:
+      host: "database-mongodb"
+      port: 27017
+      database: "${MONGODB_DATABASE}"
+      username: "${MONGODB_USERNAME}"
+      password: "${MONGODB_PASSWORD}"
 
 server:
   port: 8080
