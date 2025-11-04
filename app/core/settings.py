@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
 from pathlib import Path
 
-# Project root (two levels above 'app/common')
+# Project root (two levels above 'app/core')
 BASE_DIR = Path(__file__).resolve().parents[2]
 
 
@@ -29,12 +29,51 @@ class Settings(BaseSettings):
     def database_url(self) -> str:
         return f"mysql+aiomysql://{self.db_username}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
 
+    # MinIO 설정
+    minio_endpoint: str = ""
+    minio_access_key: str = ""
+    minio_secret_key: str = ""
+    minio_image_bucket_name: str = ""
+    minio_use_ssl: bool = False
+    minio_region: str = ""
+    minio_api_public_url: str = ""
+    minio_use_presigned_url: bool = False
+    minio_image_storage_base_path: str = ""
+
+    # Gemini API 설정
+    gemini_api_key: str = ""
+    gemini_image_model_name: str = ""
+
+    # Monitoring 설정
+    network_bandwidth_mbps: float = 1000.0  # 네트워크 총 대역폭(Mbps), 기본값 1Gbps
+
+    @property
+    def minio_endpoint_url(self) -> str:
+        """MinIO 엔드포인트 URL"""
+        protocol = "https" if self.minio_use_ssl else "http"
+        return f"{protocol}://{self.minio_endpoint}"
+    
+    @property
+    def minio_public_endpoint_url(self) -> str:
+        """MinIO API 공개 접근 URL"""
+        if self.minio_api_public_url:
+            return self.minio_api_public_url.rstrip("/")
+        return self.minio_endpoint_url
+
     # Logging
     logging_level: str = "INFO"
     log_file_enabled: bool = False
     log_file_path: str = "/var/log/hebees/python-backend.log"
     log_file_max_bytes: int = 10_485_760  # 10MB
     log_file_backup_count: int = 5
+
+    # MinIO / Object Storage
+    minio_endpoint: str | None = None
+    minio_access_key: str | None = None
+    minio_secret_key: str | None = None
+    minio_secure: bool = True
+    default_public_bucket: str | None = None
+    default_test_bucket: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",
@@ -54,4 +93,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-
