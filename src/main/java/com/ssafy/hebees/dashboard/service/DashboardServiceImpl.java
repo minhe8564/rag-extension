@@ -11,11 +11,14 @@ import com.ssafy.hebees.dashboard.dto.response.Timeframe;
 import com.ssafy.hebees.dashboard.dto.response.TimeseriesPoint;
 import com.ssafy.hebees.dashboard.dto.response.TotalDocumentsResponse;
 import com.ssafy.hebees.dashboard.dto.response.TotalErrorsResponse;
+import com.ssafy.hebees.dashboard.dto.response.TrendKeyword;
+import com.ssafy.hebees.dashboard.dto.response.TrendKeywordsResponse;
 import com.ssafy.hebees.dashboard.entity.Granularity;
 import com.ssafy.hebees.dashboard.entity.ModelAggregateHourly;
 import com.ssafy.hebees.dashboard.entity.UsageAggregateHourly;
 import com.ssafy.hebees.dashboard.repository.DocumentAggregateHourlyRepository;
 import com.ssafy.hebees.dashboard.repository.ErrorAggregateHourlyRepository;
+import com.ssafy.hebees.dashboard.repository.KeywordAggregateDailyRepository;
 import com.ssafy.hebees.dashboard.repository.ModelAggregateHourlyRepository;
 import com.ssafy.hebees.dashboard.repository.UsageAggregateHourlyRepository;
 import com.ssafy.hebees.dashboard.repository.UserAggregateHourlyRepository;
@@ -49,6 +52,7 @@ public class DashboardServiceImpl implements DashboardService {
     private final ErrorAggregateHourlyRepository errorAggregateHourlyRepository;
     private final UsageAggregateHourlyRepository usageAggregateHourlyRepository;
     private final ModelAggregateHourlyRepository modelAggregateHourlyRepository;
+    private final KeywordAggregateDailyRepository keywordAggregateDailyRepository;
 
     @Override
     public Change24hResponse getAccessUsersChange24h() {
@@ -194,6 +198,30 @@ public class DashboardServiceImpl implements DashboardService {
         Timeframe timeframe = new Timeframe(weekStart, weekEnd.minusDays(1),
             Granularity.week.name());
         return new HeatmapResponse(timeframe, HeatmapLabel.defaults(), List.copyOf(cellRows));
+    }
+
+    @Override
+    public TrendKeywordsResponse getTrendKeywords(int scale) {
+        LocalDate end = LocalDate.now();
+        LocalDate start = end.minusDays(scale - 1);
+
+        List<TrendKeyword> topKeywords = keywordAggregateDailyRepository.sumTopKeywords(start, end,
+            50);
+
+        if (topKeywords.isEmpty()) {
+            return new TrendKeywordsResponse(new Timeframe(start, end, "day"), List.of());
+        }
+
+        int min = topKeywords.stream().map(TrendKeyword::count).min(Integer::compareTo).orElse(0);
+        int max = topKeywords.stream().map(TrendKeyword::count).max(Integer::compareTo).orElse(0);
+        int diff = Math.max(1, max - min);
+
+        List<TrendKeyword> normalized = topKeywords.stream()
+            .map(keyword -> new TrendKeyword(keyword.text(), keyword.count(),
+                (float) (keyword.count() - min) / diff))
+            .toList();
+
+        return new TrendKeywordsResponse(new Timeframe(start, end, "day"), normalized);
     }
 
     private Change24hResponse buildChange24hResponse(
