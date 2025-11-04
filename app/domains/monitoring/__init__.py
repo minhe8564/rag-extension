@@ -1,0 +1,2 @@
+"""System monitoring domain"""
+
