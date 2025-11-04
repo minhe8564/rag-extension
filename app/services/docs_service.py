@@ -114,7 +114,8 @@ async def proxy_docs_request(
                     data = response.json()
                     if isinstance(data, dict) and "paths" in data:  # OpenAPI 스펙 확인
                         # Swagger UI가 게이트웨이를 통해 요청을 보낼 수 있도록 서버 URL 설정
-                        data["servers"] = [{"url": f"/service-docs/be/api", "description": "Gateway proxy"}]
+                        # 상대 경로를 사용하여 Swagger가 현재 origin으로 인식하도록 함 (JWT 자동 적용)
+                        data["servers"] = [{"url": "./api", "description": "Gateway proxy"}]
                     return JSONResponse(
                         content=data,
                         status_code=response.status_code,
