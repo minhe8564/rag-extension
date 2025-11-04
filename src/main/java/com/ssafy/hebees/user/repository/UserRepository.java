@@ -16,4 +16,7 @@ public interface UserRepository extends JpaRepository<User, UUID>, UserRepositor
     Page<User> findByDeletedAtIsNull(Pageable pageable);
 
     long countByDeletedAtIsNull();
+
+    @EntityGraph(attributePaths = {"userRole", "offer"})
+    java.util.Optional<User> findByUuid(UUID uuid);
 }
