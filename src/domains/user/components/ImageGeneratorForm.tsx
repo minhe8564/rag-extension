@@ -1,13 +1,13 @@
 import { Sparkles, Loader2, Wand2 } from 'lucide-react';
 import Tooltip from '@/shared/components/Tooltip';
-import type { GenSize, StylePreset } from '@/domains/user/types/image.type';
+import type { StylePreset } from '@/domains/user/types/image.type';
 import { STYLE_LABEL } from '@/domains/user/types/image.type';
 
 type Props = {
   prompt: string;
   setPrompt: (v: string) => void;
-  size: GenSize;
-  setSize: (v: GenSize) => void;
+  size: string;
+  setSize: (v: string) => void;
   style: StylePreset;
   setStyle: (v: StylePreset) => void;
   loading: boolean;
@@ -58,12 +58,19 @@ export default function ImageGeneratorForm({
           <label className="block text-sm text-gray-500 mb-2">사이즈</label>
           <select
             value={size}
-            onChange={e => setSize(e.target.value as GenSize)}
+            onChange={e => setSize(e.target.value as string)}
             className="w-full rounded-md border px-2 py-2 text-sm"
           >
-            <option value="512x512">512 × 512</option>
-            <option value="768x768">768 × 768</option>
-            <option value="1024x1024">1024 × 1024</option>
+            <option value="1024x1024">1024 × 1024 (정사각형)</option>
+            <option value="832x1248">832 × 1248 (세로)</option>
+            <option value="1248x832">1248 × 832 (가로)</option>
+            <option value="864x1184">864 × 1184 (세로)</option>
+            <option value="1184x864">1184 × 864 (가로)</option>
+            <option value="896x1152">896 × 1152 (세로)</option>
+            <option value="1152x896">1152 × 896 (가로)</option>
+            <option value="768x1344">768 × 1344 (세로)</option>
+            <option value="1344x768">1344 × 768 (가로)</option>
+            <option value="1536x672">1536 × 672 (와이드)</option>
           </select>
         </div>
       </div>
@@ -94,7 +101,7 @@ export default function ImageGeneratorForm({
       <div className="mt-6 flex items-center justify-center gap-4">
         <button
           disabled={disabled}
-          onClick={onGenerate}
+          onClick={() => onGenerate()}
           className="inline-flex items-center gap-2 rounded-md bg-[var(--color-retina)] px-8 py-2 text-white disabled:opacity-50"
         >
           {loading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}

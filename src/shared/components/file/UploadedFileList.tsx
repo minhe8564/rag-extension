@@ -2,8 +2,6 @@ import { useMemo, useState } from 'react';
 import { Download, Trash2, FileText } from 'lucide-react';
 import Checkbox from '@/shared/components/Checkbox';
 import Tooltip from '@/shared/components/Tooltip';
-import CategorySelect from '@/shared/components/CategorySelect';
-import type { CategoryOption } from '@/shared/components/CategorySelect';
 import Select from '@/shared/components/Select';
 import Pagination from '@/shared/components/Pagination';
 import { fileTypeOptions } from '@/domains/admin/components/rag-settings/options';
@@ -23,7 +21,6 @@ type Props = {
   pageSize?: number;
   onDownload?: (id: string) => void;
   onDelete?: (ids: string[]) => void;
-  onCategoryChange?: (id: string, category: string) => void;
   brand?: 'hebees' | 'retina';
 };
 
@@ -32,29 +29,11 @@ export default function UploadedFileList({
   pageSize = 5,
   onDownload,
   onDelete,
-  onCategoryChange,
   brand = 'hebees',
 }: Props) {
   const [fileType, setFileType] = useState<'all' | UploadedDoc['type']>('all');
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
-
-  const defaultCats = ['업무 매뉴얼', '정책/규정', '개발 문서', '기타'];
-  const initialSet = new Set<string>([
-    ...defaultCats,
-    ...docs.map(d => d.category).filter((v): v is string => !!v),
-  ]);
-  const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>(
-    Array.from(initialSet).map(v => ({ label: v, value: v }))
-  );
-
-  const addCategory = (name: string) => {
-    setCategoryOptions(prev =>
-      prev.some(o => o.value === name) ? prev : [...prev, { label: name, value: name }]
-    );
-  };
-  const removeCategory = (value: string) =>
-    setCategoryOptions(prev => prev.filter(o => o.value !== value));
 
   const filtered = useMemo(
     () => (fileType === 'all' ? docs : docs.filter(d => d.type === fileType)),
@@ -83,7 +62,7 @@ export default function UploadedFileList({
 
   return (
     <div className="mt-6 rounded-2xl border bg-white p-6">
-      <div className="flex items-center justify-end mb-4 flex-wrap">
+      <div className="mb-4 flex flex-wrap items-center justify-end">
         <Select
           value={fileType}
           onChange={v => {
@@ -133,14 +112,13 @@ export default function UploadedFileList({
                     />
                   </td>
 
-                  <td className="px-4 py-2 max-w-[200px] sm:max-w-[300px]">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="shrink-0 w-4 h-4 flex items-center justify-center">
+                  <td className="max-w-[200px] px-4 py-2 sm:max-w-[300px]">
+                    <div className="min-w-0 flex items-center gap-2">
+                      <div className="flex h-4 w-4 shrink-0 items-center justify-center">
                         <FileText size={16} className={brandText} />
                       </div>
-
                       <span className="min-w-0 flex-1">
-                        <span className="truncate text-sm text-gray-800 block w-full">
+                        <span className="block w-full truncate text-sm text-gray-800">
                           {doc.name}
                         </span>
                       </span>
@@ -151,15 +129,11 @@ export default function UploadedFileList({
                   <td className="px-4 py-2 text-right text-gray-600">{doc.uploadedAt ?? '-'}</td>
 
                   <td className="px-4 py-2">
-                    <CategorySelect
-                      value={doc.category}
-                      options={categoryOptions}
-                      onCreate={addCategory}
-                      onDeleteOption={removeCategory}
-                      onChange={v => onCategoryChange?.(doc.id, v || '')}
-                      className="min-w-[160px] flex w-full justify-end"
-                      placeholder="카테고리"
-                    />
+                    <div className="flex justify-end">
+                      <span className="inline-flex items-center rounded-full border border-gray-300 px-3 py-1 text-xs text-gray-700">
+                        {doc.category ?? '기타'}
+                      </span>
+                    </div>
                   </td>
 
                   <td className="px-2 py-2">

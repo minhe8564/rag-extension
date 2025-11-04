@@ -1,16 +1,16 @@
 import { useEffect, useRef } from 'react';
 import { Download, Copy, RefreshCw, Loader2, Plus } from 'lucide-react';
 import Tooltip from '@/shared/components/Tooltip';
-import type { GenSize, StylePreset } from '@/domains/user/types/image.type';
+import type { StylePreset } from '@/domains/user/types/image.type';
 
 type Props = {
-  images: string[];
+  images: { url: string; image_id: string }[];
   loading: boolean;
   style: StylePreset;
-  size: GenSize;
+  size: string;
   onDownload: (src: string, idx: number) => void;
   onCopy: (src: string) => void;
-  onRegenerate: () => void;
+  onRegenerate: (imageId: string) => void;
 };
 
 export default function ImageResultPane({
@@ -24,7 +24,6 @@ export default function ImageResultPane({
 }: Props) {
   const rightPaneRef = useRef<HTMLDivElement>(null);
 
-  // 새 이미지가 오면 상단으로 스크롤
   useEffect(() => {
     if (images.length > 0) {
       rightPaneRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
@@ -59,23 +58,21 @@ export default function ImageResultPane({
         <div className="flex flex-col items-center justify-center w-full">
           <figure className="relative w-[350px] md:w-[420px] mb-4">
             <img
-              src={images[0]}
+              src={images[0].url}
               alt="생성 이미지"
               className="aspect-square w-full rounded-lg object-cover border"
               loading="lazy"
             />
 
-            {/* 옵션 뱃지 — 우측 하단 고정 */}
             <div className="absolute right-2 bottom-2 rounded-md bg-black/60 px-2 py-1 text-[10px] text-white backdrop-blur-sm">
               {style} · {size}
             </div>
           </figure>
 
-          {/* 이미지 아래 고정 버튼 바 */}
-          <div className="flex gap-2 sticky bottom-0 bg-white py-3 w-full max-w-[420px] justify-center border-t">
+          <div className="flex gap-2 sticky bottom-0 bg-white py-3 w-full max-w-[420px] justify-center">
             <Tooltip content="다운로드" side="bottom">
               <button
-                onClick={() => onDownload(images[0], 0)}
+                onClick={() => onDownload(images[0].url, 0)}
                 className="rounded-md bg-gray-100 px-3 py-2 text-xs hover:bg-gray-200"
               >
                 <Download size={16} />
@@ -84,7 +81,7 @@ export default function ImageResultPane({
 
             <Tooltip content="이미지 복사" side="bottom">
               <button
-                onClick={() => onCopy(images[0])}
+                onClick={() => onCopy(images[0].url)}
                 className="rounded-md bg-gray-100 px-3 py-2 text-xs hover:bg-gray-200"
               >
                 <Copy size={16} />
@@ -93,7 +90,7 @@ export default function ImageResultPane({
 
             <Tooltip content="다시 생성" side="bottom">
               <button
-                onClick={onRegenerate}
+                onClick={() => onRegenerate(images[0].image_id)}
                 className="rounded-md bg-[var(--color-retina)] text-white px-3 py-2 text-xs hover:opacity-90"
               >
                 {loading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={16} />}

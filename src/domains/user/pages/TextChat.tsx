@@ -120,7 +120,7 @@ export default function TextChat() {
             </div>
           </>
         ) : (
-          <div className="flex-1 min-h-0 flex items-center justify-center px-4">
+          <div className="flex-1 min-h-[calc(100vh-62px)] flex items-center justify-center px-4">
             <div className="w-full max-w-[75%] flex flex-col items-center gap-6 text-center">
               {/* <div className="text-gray-600">
                 <div className="text-xl font-semibold mb-1">레티나 챗봇에 오신 걸 환영합니다.</div>

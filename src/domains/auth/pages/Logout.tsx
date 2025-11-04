@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { logout } from '@/domains/auth/api/auth.api';
 import { useAuthStore } from '@/domains/auth/store/auth.store';
 
 export default function Logout() {
@@ -9,7 +8,7 @@ export default function Logout() {
   useEffect(() => {
     (async () => {
       try {
-        await logout();
+        await useAuthStore.getState().logout();
       } catch (err) {
         console.warn('Logout error ignored:', err);
       } finally {

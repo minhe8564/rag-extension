@@ -3,8 +3,31 @@ import type { InternalAxiosRequestConfig, AxiosRequestConfig } from 'axios';
 import { toast } from 'react-toastify';
 import { useAuthStore } from '@/domains/auth/store/auth.store';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+// 환경변수 정리
+const SPRING_API_BASE_URL = import.meta.env.VITE_SPRING_BASE_URL;
+const RAG_API_BASE_URL = import.meta.env.VITE_RAG_BASE_URL;
+const FASTAPI_BASE_URL = import.meta.env.VITE_FASTAPI_BASE_URL;
 
+// 인스턴스 생성
+export const springApi = axios.create({
+  baseURL: SPRING_API_BASE_URL,
+  withCredentials: true,
+  timeout: 10000,
+});
+
+export const ragApi = axios.create({
+  baseURL: RAG_API_BASE_URL,
+  withCredentials: true,
+  timeout: 10000,
+});
+
+export const fastApi = axios.create({
+  baseURL: FASTAPI_BASE_URL,
+  withCredentials: true,
+  timeout: 10000,
+});
+
+// 에러 코드별 메시지 정의
 const ERROR_MESSAGES: Record<string, string> = {
   BAD_REQUEST: '잘못된 요청입니다.',
   INVALID_INPUT: '필수 값이 누락되었습니다.',
@@ -26,23 +49,12 @@ const ERROR_MESSAGES: Record<string, string> = {
   GATEWAY_TIMEOUT: '서버 응답이 지연되고 있습니다.',
 };
 
-const apiInstance = axios.create({
-  baseURL: BASE_URL,
-  withCredentials: true,
-  timeout: 10000,
-});
-
-const refreshClient = axios.create({
-  baseURL: BASE_URL,
-  withCredentials: true,
-  timeout: 10000,
-});
-
+// 공통 유틸 함수
 function setAuthHeader(cfg: InternalAxiosRequestConfig, token: string) {
   if (!cfg.headers) cfg.headers = {} as any;
-  const h: any = cfg.headers;
-  if (typeof h.set === 'function') h.set('Authorization', `Bearer ${token}`);
-  else h['Authorization'] = `Bearer ${token}`;
+  const headers: any = cfg.headers;
+  if (typeof headers.set === 'function') headers.set('Authorization', `Bearer ${token}`);
+  else headers['Authorization'] = `Bearer ${token}`;
 }
 
 function extractResultMessage(result: unknown): string | null {
@@ -69,8 +81,8 @@ function buildErrorMessage(payload: any): string {
   return '요청 처리 중 오류가 발생했습니다.';
 }
 
+// 토큰 리프레시 로직
 const REFRESH_EXCLUDE_CODES = new Set(['INVALID_SIGNIN', 'INVALID_CREDENTIALS']);
-
 const REFRESH_EXCLUDE_PATHS = [
   /\/api\/v1\/auth\/login/i,
   /\/auth\/login/i,
@@ -79,8 +91,7 @@ const REFRESH_EXCLUDE_PATHS = [
 ];
 
 function isExcludedByUrl(url?: string) {
-  if (!url) return false;
-  return REFRESH_EXCLUDE_PATHS.some(re => re.test(url));
+  return !!url && REFRESH_EXCLUDE_PATHS.some(re => re.test(url));
 }
 
 function canAttemptRefresh(http?: number, cfg?: AxiosRequestConfig, payload?: any): boolean {
@@ -93,16 +104,11 @@ function canAttemptRefresh(http?: number, cfg?: AxiosRequestConfig, payload?: an
   return true;
 }
 
-apiInstance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  const at = useAuthStore.getState().accessToken;
-  if (at) setAuthHeader(config, at);
-  return config;
-});
-
+// refresh 요청 중복 방지 Promise
 let refreshPromise: Promise<string> | null = null;
-const refreshAccessToken = () => {
+async function refreshAccessToken() {
   if (!refreshPromise) {
-    refreshPromise = refreshClient
+    refreshPromise = springApi
       .post('/api/v1/auth/refresh')
       .then(({ data }) => {
         const newAt = data?.result?.accessToken;
@@ -115,65 +121,79 @@ const refreshAccessToken = () => {
       });
   }
   return refreshPromise;
-};
+}
 
-apiInstance.interceptors.response.use(
-  res => {
-    const data = res.data;
-    if (data && data.isSuccess === false) {
-      const msg = buildErrorMessage(data);
-      toast.error(msg);
-      return Promise.reject(data);
-    }
-    return res;
-  },
+// 공통 인터셉터 등록 함수
+function applyInterceptors(instance: typeof springApi) {
+  instance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+    const at = useAuthStore.getState().accessToken;
+    if (at) setAuthHeader(config, at);
+    return config;
+  });
 
-  async (error: AxiosError<any>) => {
-    const { response, config } = error || {};
-    const payload = response?.data;
-    const http = response?.status;
-
-    if (canAttemptRefresh(http, config, payload) && config && !(config as any)._retry) {
-      try {
-        (config as any)._retry = true;
-        const newAt = await refreshAccessToken();
-        setAuthHeader(config as InternalAxiosRequestConfig, newAt);
-        return apiInstance.request(config!);
-      } catch {
-        const code: string | undefined = payload?.code;
-        const msg =
-          ERROR_MESSAGES[code || 'INVALID_REFRESH_TOKEN'] ||
-          '세션이 만료되었습니다. 다시 로그인해주세요.';
+  // 응답 처리
+  instance.interceptors.response.use(
+    res => {
+      const data = res.data;
+      if (data && data.isSuccess === false) {
+        const msg = buildErrorMessage(data);
         toast.error(msg);
-        useAuthStore.getState().logout?.();
-        return Promise.reject(error);
+        return Promise.reject(data);
       }
+      return res;
+    },
+    async (error: AxiosError<any>) => {
+      const { response, config } = error || {};
+      const payload = response?.data;
+      const http = response?.status;
+
+      // 토큰 만료 시 자동 리프레시
+      if (canAttemptRefresh(http, config, payload) && config && !(config as any)._retry) {
+        try {
+          (config as any)._retry = true;
+          const newAt = await refreshAccessToken();
+          setAuthHeader(config as InternalAxiosRequestConfig, newAt);
+          return instance.request(config!);
+        } catch {
+          const code: string | undefined = payload?.code;
+          const msg =
+            ERROR_MESSAGES[code || 'INVALID_REFRESH_TOKEN'] ||
+            '세션이 만료되었습니다. 다시 로그인해주세요.';
+          toast.error(msg);
+          useAuthStore.getState().logout?.();
+          return Promise.reject(error);
+        }
+      }
+
+      // 공통 에러 처리
+      const fallback = payload?.message || response?.statusText || '잠시 후 다시 시도해주세요.';
+      const msg = payload ? buildErrorMessage(payload) : fallback;
+
+      switch (http) {
+        case 400:
+        case 401:
+        case 403:
+        case 404:
+        case 409:
+        case 415:
+          toast.error(msg);
+          break;
+        case 500:
+          toast.error(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+          break;
+        case 504:
+          toast.error(ERROR_MESSAGES.GATEWAY_TIMEOUT);
+          break;
+        default:
+          toast.error(msg);
+          console.error('[API ERROR]', error);
+      }
+      return Promise.reject(error);
     }
+  );
+}
 
-    const fallback = payload?.message || response?.statusText || '잠시 후 다시 시도해주세요.';
-    const msg = payload ? buildErrorMessage(payload) : fallback;
+// 모든 인스턴스에 공통 인터셉터 적용
+[springApi, ragApi, fastApi].forEach(applyInterceptors);
 
-    switch (http) {
-      case 400:
-      case 401:
-      case 403:
-      case 404:
-      case 409:
-      case 415:
-        toast.error(msg);
-        break;
-      case 500:
-        toast.error(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
-        break;
-      case 504:
-        toast.error(ERROR_MESSAGES.GATEWAY_TIMEOUT);
-        break;
-      default:
-        toast.error(msg);
-        console.error('[API ERROR]', error);
-    }
-    return Promise.reject(error);
-  }
-);
-
-export default apiInstance;
+export default springApi;

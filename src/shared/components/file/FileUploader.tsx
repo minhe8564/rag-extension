@@ -3,29 +3,42 @@ import type { DragEvent } from 'react';
 import { UploadCloud } from 'lucide-react';
 
 type Brand = 'hebees' | 'retina';
+type Category = '업무 매뉴얼' | '정책/규정' | '개발 문서' | '홍보자료' | '이미지' | '기타';
 
 type Props = {
-  onFiles: (files: File[]) => void;
+  onUpload: (payload: { files: File[]; category: Category }) => void;
   accept?: string;
   multiple?: boolean;
   maxSizeMB?: number;
   disabled?: boolean;
   className?: string;
   brand?: Brand;
+  defaultCategory?: Category;
 };
 
+const CATEGORIES: Category[] = [
+  '업무 매뉴얼',
+  '정책/규정',
+  '개발 문서',
+  '홍보자료',
+  '이미지',
+  '기타',
+];
+
 export default function FileDropzone({
-  onFiles,
+  onUpload,
   accept = '.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt',
   multiple = true,
   maxSizeMB = 50,
   disabled = false,
   className = '',
   brand = 'hebees',
+  defaultCategory = '기타',
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isOver, setIsOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [category, setCategory] = useState<Category>(defaultCategory);
   const dragCounterRef = useRef(0);
 
   const openFileDialog = () => {
@@ -42,8 +55,13 @@ export default function FileDropzone({
       return;
     }
 
+    if (!category) {
+      setError('카테고리를 먼저 선택해주세요.');
+      return;
+    }
+
     setError(null);
-    onFiles(arr);
+    onUpload({ files: arr, category });
   };
 
   const onDragEnter = (e: DragEvent<HTMLDivElement>) => {
@@ -107,8 +125,36 @@ export default function FileDropzone({
 
   const iconBg = brand === 'hebees' ? 'bg-[var(--color-hebees)]' : 'bg-[var(--color-retina)]';
 
+  const pillActive =
+    brand === 'hebees'
+      ? 'bg-[var(--color-hebees)] text-white border-[var(--color-hebees)]'
+      : 'bg-[var(--color-retina)] text-white border-[var(--color-retina)]';
+
   return (
     <div className={className}>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap gap-1.5">
+          {CATEGORIES.map(c => {
+            const active = c === category;
+            return (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setCategory(c)}
+                className={[
+                  'rounded-full border px-3 py-1.5 text-xs',
+                  'transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2',
+                  active ? pillActive : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50',
+                ].join(' ')}
+                aria-pressed={active}
+              >
+                {c}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <div
         role="button"
         tabIndex={0}
@@ -120,6 +166,7 @@ export default function FileDropzone({
         onDrop={onDrop}
         className={dropzoneClass}
         aria-label="파일 업로드 영역"
+        aria-description={`현재 선택된 카테고리: ${category}`}
       >
         <div className="mx-auto max-w-xl text-center">
           <div
@@ -131,6 +178,11 @@ export default function FileDropzone({
           <p className="text-sm font-semibold text-gray-800">파일 업로드 후, RAG 챗봇 학습 시작</p>
           <p className="mt-1 text-xs text-gray-500">
             PDF, DOCX, XLSX 파일을 드래그하거나 클릭하여 업로드 하세요.
+          </p>
+
+          <p className="mt-2 text-xs">
+            <span className="text-gray-500">선택된 카테고리:</span>{' '}
+            <span className="font-medium text-gray-800">{category}</span>
           </p>
 
           <div className="mt-4">

@@ -5,6 +5,7 @@ import UserLayout from '@/layouts/UserLayout';
 const UserTextChat = lazy(() => import('@/domains/user/pages/TextChat'));
 const UserImageChat = lazy(() => import('@/domains/user/pages/ImageGenerator'));
 const UserDocuments = lazy(() => import('@/domains/user/pages/Documents'));
+const UserProfile = lazy(() => import('@/domains/user/pages/Profile'));
 
 const Fallback = () => (
   <div className="flex h-screen items-center justify-center text-gray-600">로딩 중...</div>
@@ -23,6 +24,7 @@ export const userRoutes = {
         { path: '/user/chat/text', element: <UserTextChat /> },
         { path: '/user/chat/image', element: <UserImageChat /> },
         { path: '/user/documents', element: <UserDocuments /> },
+        { path: '/user/profile', element: <UserProfile /> },
       ],
     },
   ],

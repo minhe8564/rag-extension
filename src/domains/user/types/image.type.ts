@@ -1,4 +1,22 @@
-export type GenSize = '512x512' | '768x768' | '1024x1024';
+export type GeneratedImage = {
+  image_id: string;
+  type: string;
+  url: string;
+};
+
+export type GenerateImageResponse = {
+  created_at: string;
+  images: GeneratedImage[];
+  status: string;
+};
+
+export type GenerateImageRequest = {
+  image_id?: string;
+  prompt: string;
+  size?: string;
+  style?: string;
+};
+
 export type StylePreset =
   | 'poster'
   | 'watercolor'

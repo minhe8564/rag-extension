@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useLocation, NavLink } from 'react-router-dom';
-import { login } from '@/domains/auth/api/auth.api';
+import { useNavigate, NavLink } from 'react-router-dom';
 import HebeesGif from '@/assets/images/hebees-main.gif';
 import Hebees from '@/assets/hebees-logo.webp';
 import FormInput from '@/domains/auth/components/FormInput';
@@ -9,7 +8,7 @@ import { useAuthStore } from '@/domains/auth/store/auth.store';
 
 export default function Login() {
   const nav = useNavigate();
-  const from = (useLocation() as any).state?.from?.pathname || '/user/documents';
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -17,16 +16,14 @@ export default function Login() {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
+
     setLoading(true);
     try {
-      const r = await login(email, password);
-      useAuthStore.setState({
-        accessToken: r.accessToken,
-        user: { userNo: r.userNo, name: r.name, role: r.role },
-        isLoggedIn: true,
-      } as any);
+      const role = await useAuthStore.getState().login(email, password);
       toast.success('로그인되었습니다.');
-      nav(from, { replace: true });
+
+      if (role === 'ADMIN') nav('/admin/dashboard', { replace: true });
+      else nav('/user/chat/text', { replace: true });
     } catch (err) {
       console.error(err);
     } finally {

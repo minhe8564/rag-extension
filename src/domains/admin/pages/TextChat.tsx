@@ -15,7 +15,7 @@ export default function TextChat() {
     const userMsg: Msg = { role: 'user', content: msg, model: 'gpt-4.0' };
     setList(prev => [...prev, userMsg]);
 
-    // TODO: 실제 API 호출
+    // 실제 API 호출
     const assistant: Msg = {
       role: 'assistant',
       content: `(${msg}) 에 대한 응답 예시`,
@@ -24,7 +24,6 @@ export default function TextChat() {
     setList(prev => [...prev, assistant]);
   };
 
-  // 새 메시지 추가될 때마다 맨 아래로 스크롤
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [list]);

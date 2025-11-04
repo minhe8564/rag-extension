@@ -8,6 +8,8 @@ const AdminDocuments = lazy(() => import('@/domains/admin/pages/Documents'));
 const AdminChat = lazy(() => import('@/domains/admin/pages/TextChat'));
 const AdminRagTest = lazy(() => import('@/domains/admin/pages/RagTest'));
 const AdminRagSettings = lazy(() => import('@/domains/admin/pages/RagSettings'));
+const AdminUsers = lazy(() => import('@/domains/admin/pages/Users'));
+const AdminProfile = lazy(() => import('@/domains/admin/pages/Profile'));
 
 const Fallback = () => (
   <div className="flex h-screen items-center justify-center text-gray-600">로딩 중...</div>
@@ -31,6 +33,8 @@ export const adminRoutes = {
             { path: '/admin/chat', element: <AdminChat /> },
             { path: '/admin/rag/test', element: <AdminRagTest /> },
             { path: '/admin/rag/settings', element: <AdminRagSettings /> },
+            { path: '/admin/users', element: <AdminUsers /> },
+            { path: '/admin/profile', element: <AdminProfile /> },
           ],
         },
       ],

@@ -39,7 +39,7 @@ export default function TermsModal({ isOpen, onClose, onAgree }: TermsModalProps
   );
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-70 flex justify-center items-center z-50">
+    <div className="fixed inset-0 bg-black/70 flex justify-center items-center z-50">
       <div className="bg-white rounded-lg shadow-2xl p-6 w-full max-w-2xl space-y-4">
         <h2 className="text-2xl font-bold text-center">이용약관 확인</h2>
 

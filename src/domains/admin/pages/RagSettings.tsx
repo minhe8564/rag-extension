@@ -9,7 +9,7 @@ export default function RagSettings() {
 
   const onSave = async (payload: any) => {
     console.log('save settings', payload);
-    // TODO: await apiInstance.post('/rag/settings', payload)
+    // await apiInstance.post('/rag/settings', payload)
   };
 
   return (

@@ -4,6 +4,7 @@ import { LabelRow } from '@/domains/admin/components/rag-settings/ui/labelRow';
 import Select from '@/shared/components/Select';
 import { Slider } from '@/domains/admin/components/rag-settings/ui/Slider';
 import { Toggle } from '@/domains/admin/components/rag-settings/ui/Toggle';
+import PromptManager from '@/domains/admin/components/rag-settings/PromptManager';
 import { Save } from 'lucide-react';
 import {
   queryTransFormOptions,
@@ -149,12 +150,17 @@ export function QuerySettingsForm({
       </Card>
 
       <Card title="시스템 프롬프트 설정">
-        <div className="flex items-center justify-between gap-4 mb-6">
+        <div className="flex items-center justify-between gap-4 mb-2">
           <LabelRow label="시스템 프롬프트 관리" hint="모델의 전체 톤이나 역할을 지정합니다." />
         </div>
-        <div className="flex items-center justify-between gap-4">
+
+        <PromptManager storageKey="system" />
+
+        <div className="flex items-center justify-between gap-4 mt-10 my-2">
           <LabelRow label="사용자 프롬프트 관리" hint="사용자의 전체 톤이나 역할을 지정합니다." />
         </div>
+
+        <PromptManager storageKey="user" />
       </Card>
 
       <Card title="LLM 설정">

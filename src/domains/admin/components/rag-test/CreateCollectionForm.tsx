@@ -4,15 +4,16 @@ import { Plus } from 'lucide-react';
 import Card from '@/shared/components/Card';
 import Select from '@/shared/components/Select';
 import { ingestTemplateOptions } from '@/domains/admin/components/rag-settings/options';
-import FileDropzone from '@/shared/components/FileUploader';
-import UploadedFileList from '@/shared/components/UploadedFileList';
-import type { UploadedDoc as UDoc } from '@/shared/components/UploadedFileList';
+import FileDropzone from '@/shared/components/file/FileUploader';
+import UploadedFileList from '@/shared/components/file/UploadedFileList';
+import type { UploadedDoc as UDoc } from '@/shared/components/file/UploadedFileList';
 import type { Collection } from '@/domains/admin/components/rag-test/types';
 
 type Props = {
   onCancel: () => void;
   onCreate: (c: Collection) => void;
 };
+type Category = '업무 매뉴얼' | '정책/규정' | '개발 문서' | '홍보자료' | '이미지' | '기타';
 
 export function CreateCollectionForm({}: Props) {
   const navigate = useNavigate();
@@ -32,17 +33,20 @@ export function CreateCollectionForm({}: Props) {
     return 'txt';
   };
 
-  const handleUpload = async (files: File[]) => {
+  const handleUpload = async (payload: { files: File[]; category: Category }) => {
+    const { files, category } = payload;
     const now = new Date().toLocaleString();
+
     const mapped: UDoc[] = files.map(f => ({
       id: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}_${f.name}`,
       name: f.name,
       sizeKB: f.size / 1024,
       uploadedAt: now,
-      category: '없음',
+      category,
       type: detectType(f),
       file: f,
     }));
+
     setUploadedDocs(prev => [...mapped, ...prev]);
   };
 
@@ -59,10 +63,6 @@ export function CreateCollectionForm({}: Props) {
 
   const handleDelete = (ids: string[]) => {
     setUploadedDocs(prev => prev.filter(d => !ids.includes(d.id)));
-  };
-
-  const handleCategoryChange = (id: string, category: string) => {
-    setUploadedDocs(prev => prev.map(d => (d.id === id ? { ...d, category } : d)));
   };
 
   return (
@@ -111,7 +111,7 @@ export function CreateCollectionForm({}: Props) {
 
       <Card title="테스트 문서 업로드">
         <FileDropzone
-          onFiles={handleUpload}
+          onUpload={handleUpload}
           accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.txt,.png,.jpg,.jpeg"
           maxSizeMB={50}
           className="mt-4"
@@ -122,7 +122,6 @@ export function CreateCollectionForm({}: Props) {
           docs={uploadedDocs}
           onDownload={handleDownload}
           onDelete={handleDelete}
-          onCategoryChange={handleCategoryChange}
           brand="hebees"
         />
       </Card>
