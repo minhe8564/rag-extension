@@ -6,7 +6,7 @@ from .core.utils import custom_openapi
 
 from .domains.file.routers.file_category import router as file_router
 from .domains.image.routers.image_controller import router as image_router
-from .domains.rag_setting.routers.strategy_router import router as rag_setting_router
+from .domains.rag_setting.routers.strategy_router import router as strategy_router
 from .domains.rag_setting.routers.ingest_router import router as ingest_router
 from .domains.monitoring.routers.monitoring_controller import router as monitoring_router
 from datetime import datetime
@@ -34,7 +34,7 @@ app.add_middleware(
 
 app.include_router(file_router, prefix="/api/v1")
 app.include_router(image_router, prefix="/api/v1")
-app.include_router(rag_setting_router, prefix="/api/v1")
+app.include_router(strategy_router, prefix="/api/v1")
 app.include_router(ingest_router, prefix="/api/v1")
 app.include_router(monitoring_router, prefix="/api/v1")
 

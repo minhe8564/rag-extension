@@ -1,12 +1,15 @@
 from __future__ import annotations
 
-from typing import List, Tuple
+from typing import List, Tuple, Optional
+import uuid
 
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from fastapi import HTTPException, status
 
-from ..models.ingest_template import IngestGroup
+from ..models.ingest_template import IngestGroup, uuid_to_binary, binary_to_uuid
+from ..models.strategy import Strategy
 
 
 async def list_ingest_groups(
@@ -83,3 +86,106 @@ async def list_ingest_groups(
     total_items = rows[0][1] if rows else 0
 
     return groups, total_items
+
+
+async def verify_strategy_exists(
+    session: AsyncSession,
+    strategy_no: str,
+) -> Optional[Strategy]:
+    """
+    전략 존재 여부 확인
+
+    Args:
+        session: 데이터베이스 세션
+        strategy_no: 전략 ID (UUID 문자열)
+
+    Returns:
+        Strategy 객체 또는 None
+    """
+    try:
+        strategy_binary = uuid_to_binary(strategy_no)
+    except ValueError:
+        return None
+
+    query = select(Strategy).where(Strategy.strategy_no == strategy_binary)
+    result = await session.execute(query)
+    return result.scalar_one_or_none()
+
+
+async def create_ingest_template(
+    session: AsyncSession,
+    name: str,
+    is_default: bool,
+    extraction_no: str,
+    extraction_parameters: dict,
+    chunking_no: str,
+    chunking_parameters: dict,
+    embedding_no: str,
+    embedding_parameters: dict,
+) -> str:
+    """
+    Ingest 템플릿 생성
+
+    Args:
+        session: 데이터베이스 세션
+        name: 템플릿 이름 (현재 미사용, 향후 확장 가능)
+        is_default: 기본 템플릿 여부
+        extraction_no: 추출 전략 ID
+        extraction_parameters: 추출 전략 파라미터
+        chunking_no: 청킹 전략 ID
+        chunking_parameters: 청킹 전략 파라미터
+        embedding_no: 임베딩 전략 ID
+        embedding_parameters: 임베딩 전략 파라미터
+
+    Returns:
+        생성된 Ingest 템플릿 ID (UUID 문자열)
+
+    Raises:
+        HTTPException: 전략을 찾을 수 없는 경우
+    """
+    # 전략 존재 여부 확인
+    extraction_strategy = await verify_strategy_exists(session, extraction_no)
+    if not extraction_strategy:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"추출 전략을 찾을 수 없습니다: {extraction_no}"
+        )
+
+    chunking_strategy = await verify_strategy_exists(session, chunking_no)
+    if not chunking_strategy:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"청킹 전략을 찾을 수 없습니다: {chunking_no}"
+        )
+
+    embedding_strategy = await verify_strategy_exists(session, embedding_no)
+    if not embedding_strategy:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"임베딩 전략을 찾을 수 없습니다: {embedding_no}"
+        )
+
+    # 기본 템플릿 설정 시 기존 기본 템플릿 해제
+    if is_default:
+        query = select(IngestGroup).where(IngestGroup.is_default == True)
+        result = await session.execute(query)
+        existing_defaults = result.scalars().all()
+        for existing in existing_defaults:
+            existing.is_default = False
+
+    # Ingest 그룹 생성
+    ingest_group = IngestGroup(
+        is_default=is_default,
+        extraction_strategy_no=uuid_to_binary(extraction_no),
+        chunking_strategy_no=uuid_to_binary(chunking_no),
+        embedding_strategy_no=uuid_to_binary(embedding_no),
+        extraction_parameter=extraction_parameters or {},
+        chunking_parameter=chunking_parameters or {},
+        embedding_parameter=embedding_parameters or {},
+    )
+
+    session.add(ingest_group)
+    await session.commit()
+    await session.refresh(ingest_group)
+
+    return binary_to_uuid(ingest_group.ingest_group_no)
