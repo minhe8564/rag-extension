@@ -30,4 +30,3 @@ public class UserAggregateHourly extends BaseEntity {
     @Builder.Default
     private Long accessUserCount = 0L; // 접속자 수
 }
-

@@ -38,4 +38,3 @@ public class ErrorAggregateHourly extends BaseEntity {
     @Builder.Default
     private Long totalErrorCount = 0L; // 총 에러 수
 }
-

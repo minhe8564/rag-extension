@@ -26,5 +26,15 @@ public class UserAggregateHourlyRepositoryImpl implements UserAggregateHourlyRep
 
         return sum != null ? sum : 0L;
     }
+
+    @Override
+    public Long sumAccessUserCount() {
+        Long sum = queryFactory
+            .select(userAggregateHourly.accessUserCount.sum())
+            .from(userAggregateHourly)
+            .fetchOne();
+
+        return sum != null ? sum : 0L;
+    }
 }
 
