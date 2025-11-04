@@ -1,0 +1,149 @@
+import { useEffect, useMemo, useState } from 'react';
+import { RotateCw } from 'lucide-react';
+import { getUsers, type User } from '@/domains/admin/api/user.api';
+import Pagination from '@/shared/components/Pagination';
+import Select from '@/shared/components/Select';
+
+export default function UsersListSection() {
+  const [users, setUsers] = useState<User[]>([]);
+  const [pagination, setPagination] = useState({
+    pageNum: 1,
+    pageSize: 10,
+    totalItems: 0,
+    totalPages: 1,
+    hasNext: false,
+  });
+  const [keyword, setKeyword] = useState('');
+  const [filterRole, setFilterRole] = useState<string>('ALL');
+  const [loading, setLoading] = useState(false);
+
+  const roleOptions = [
+    { label: '전체 역할', value: 'ALL' },
+    { label: '사용자', value: '1' },
+    { label: '관리자', value: '2' },
+  ];
+
+  useEffect(() => {
+    loadUsers(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterRole]);
+
+  const loadUsers = async (pageNum = 1) => {
+    try {
+      setLoading(true);
+      const result = await getUsers({
+        pageNum,
+        pageSize: pagination.pageSize,
+        keyword: keyword || undefined,
+        role: filterRole !== 'ALL' ? Number(filterRole) : undefined,
+      });
+      setUsers(result.data);
+      setPagination(result.pagination);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredUsers = useMemo(() => [...users], [users]);
+
+  return (
+    <div>
+      <div className="flex items-center justify-between">
+        <h2 className="text-base font-semibold">사용자 목록</h2>
+
+        <button
+          className="inline-flex items-center gap-2 rounded-lg border bg-white px-3 py-2 text-sm font-medium
+            text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+          onClick={() => loadUsers(pagination.pageNum)}
+          disabled={loading}
+        >
+          <RotateCw
+            size={16}
+            strokeWidth={2}
+            className={loading ? 'animate-spin text-gray-400' : 'text-gray-600'}
+          />
+          새로고침
+        </button>
+      </div>
+
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-between">
+        <div className="flex gap-2">
+          <Select
+            value={filterRole}
+            onChange={v => setFilterRole(v)}
+            options={roleOptions}
+            placeholder="역할 선택"
+            className="min-w-[180px] w-full"
+          />
+        </div>
+
+        <div className="flex gap-2">
+          <input
+            value={keyword}
+            onChange={e => setKeyword(e.target.value)}
+            placeholder="이메일/이름 검색"
+            className="w-56 rounded-md px-3 py-2 text-sm border border-gray-300 outline-none focus:border-[var(--color-hebees)] focus:bg-[var(--color-hebees-bg)] focus:ring-0"
+          />
+          <button
+            onClick={() => loadUsers(1)}
+            className="rounded-md bg-[var(--color-hebees)] px-3 py-2 text-sm text-white"
+          >
+            검색
+          </button>
+        </div>
+      </div>
+
+      <div className="rounded-xl border mt-4 overflow-hidden">
+        <table className="min-w-full text-sm">
+          <thead className="text-gray-700">
+            <tr>
+              <th className="px-4 py-3 text-left">이메일</th>
+              <th className="px-4 py-3 text-left">이름</th>
+              <th className="px-4 py-3 text-left">역할</th>
+              <th className="px-4 py-3 text-left">사업자번호</th>
+              <th className="px-4 py-3 text-left">사업체 유형</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr>
+                <td colSpan={5} className="text-center py-6">
+                  불러오는 중...
+                </td>
+              </tr>
+            ) : filteredUsers.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="text-center py-6 text-gray-500">
+                  없음
+                </td>
+              </tr>
+            ) : (
+              filteredUsers.map(u => (
+                <tr key={u.userNo} className="border-t">
+                  <td className="px-4 py-3">{u.email}</td>
+                  <td className="px-4 py-3">{u.name}</td>
+                  <td className="px-4 py-3">{u.role === 1 ? '사용자' : '관리자'}</td>
+                  <td className="px-4 py-3">{u.offerNo}</td>
+                  <td className="px-4 py-3">
+                    {u.businessType === 1
+                      ? '개인 안경원'
+                      : u.businessType === 2
+                        ? '체인 안경원'
+                        : '제조 유통사'}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <Pagination
+        page={pagination.pageNum}
+        totalPages={pagination.totalPages}
+        onPageChange={loadUsers}
+        className="mt-4"
+      />
+    </div>
+  );
+}

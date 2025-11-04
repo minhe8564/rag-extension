@@ -2,15 +2,15 @@ import api from '@/shared/lib/apiInstance';
 import type { ApiEnvelope } from '@/shared/lib/api.types';
 
 export type Role = {
-  userRoleNo: string;
+  uuid: string;
   mode: number;
   name: string;
 };
 
 // 역할 목록 조회
 export const getRoles = async () => {
-  const { data } = await api.get<ApiEnvelope<Role[]>>('/api/v1/user/roles');
-  return data.result;
+  const { data } = await api.get<ApiEnvelope<{ data: Role[] }>>('/api/v1/user/roles');
+  return data.result?.data ?? [];
 };
 
 // 역할 상세 조회
