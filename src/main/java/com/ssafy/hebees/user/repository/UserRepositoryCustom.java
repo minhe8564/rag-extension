@@ -20,7 +20,7 @@ public interface UserRepositoryCustom {
     List<User> findByRoleName(String roleName);
 
     /**
-     * 활성 사용자 수 조회
+     * 활성 사용자 수 조회 ( 안쓰는 메서드 삭제 예정 )
      *
      * @return 활성 사용자 수
      */

@@ -90,10 +90,7 @@ public class UserController {
         @RequestParam @NotBlank(message = "역할 이름은 필수입니다") String roleName) {
         log.info("역할별 사용자 조회 요청: {}", roleName);
 
-        List<UserResponse> users = userService.findUsersByRoleName(roleName).stream()
-            .map(UserResponse::from)
-            .toList();
-
+        List<UserResponse> users = userService.getUsersByRole(roleName);
         return ResponseEntity.ok(BaseResponse.success(users));
     }
 
@@ -120,7 +117,7 @@ public class UserController {
         @PathVariable @NotBlank(message = "이메일은 필수입니다") String email) {
         log.info("이메일로 조회 요청: {}", email);
 
-        UserResponse user = UserResponse.from(userService.findByEmail(email));
+        UserResponse user = userService.getUserByEmail(email);
 
         return ResponseEntity.ok(BaseResponse.success(user));
     }
@@ -135,7 +132,7 @@ public class UserController {
         @PathVariable @NotBlank(message = "이름은 필수입니다") String name) {
         log.info("사용자명으로 조회 요청: {}", name);
 
-        UserResponse user = UserResponse.from(userService.findByName(name));
+        UserResponse user = userService.getUserByName(name);
 
         return ResponseEntity.ok(BaseResponse.success(user));
     }
