@@ -15,14 +15,6 @@ from ..services.file_category import list_file_categories as list_file_categorie
 router = APIRouter(prefix="/files/categories", tags=["FileCategory"])
 
 
-def _bytes_to_uuid_str(b: bytes) -> str:
-    try:
-        return str(uuid.UUID(bytes=b))
-    except Exception:
-        # Fallback to hex if not valid UUID layout
-        return b.hex()
-
-
 @router.get("/", response_model=BaseResponse[List[FileCategoryListItem]])
 async def list_file_categories(
     session: AsyncSession = Depends(get_session),
