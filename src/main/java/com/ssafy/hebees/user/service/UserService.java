@@ -1,6 +1,7 @@
 package com.ssafy.hebees.user.service;
 
 import com.ssafy.hebees.user.dto.request.UserSignupRequest;
+import com.ssafy.hebees.user.dto.response.UserListPageResponse;
 import com.ssafy.hebees.user.dto.response.UserSignupResponse;
 import com.ssafy.hebees.user.entity.User;
 
@@ -8,15 +9,15 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * 사용자 서비스 인터페이스
+ * 사용자 도메인 서비스 인터페이스
  */
 public interface UserService {
 
     /**
      * 회원가입
      *
-     * @param request 회원가입 요청 정보
-     * @return 회원가입된 사용자 정보
+     * @param request 회원가입 요청 데이터
+     * @return 회원가입된 사용자의 정보
      */
     UserSignupResponse signup(UserSignupRequest request);
 
@@ -74,4 +75,14 @@ public interface UserService {
      * @return 활성 사용자 수
      */
     long getActiveUserCount();
+
+    /**
+     * 사용자 전체 조회 (페이지네이션)
+     *
+     * @param pageNum  조회할 페이지 번호(1부터)
+     * @param pageSize 페이지 당 항목 수
+     * @return 사용자 목록 + 페이지네이션 정보
+     */
+    UserListPageResponse getUsers(int pageNum, int pageSize);
 }
+

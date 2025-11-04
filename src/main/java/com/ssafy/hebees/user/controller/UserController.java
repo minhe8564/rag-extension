@@ -2,6 +2,7 @@ package com.ssafy.hebees.user.controller;
 
 import com.ssafy.hebees.user.dto.request.UserSignupRequest;
 import com.ssafy.hebees.user.dto.response.UserResponse;
+import com.ssafy.hebees.user.dto.response.UserListPageResponse;
 import com.ssafy.hebees.user.dto.response.UserSignupResponse;
 import com.ssafy.hebees.user.service.UserService;
 import com.ssafy.hebees.common.response.BaseResponse;
@@ -137,5 +138,23 @@ public class UserController {
         UserResponse user = UserResponse.from(userService.findByName(name));
 
         return ResponseEntity.ok(BaseResponse.success(user));
+    }
+
+    @GetMapping("/users")
+    @Operation(summary = "사용자 목록 조회", description = "사용자 목록을 페이지네이션으로 조회합니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "조회 성공"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청")
+    })
+    public ResponseEntity<BaseResponse<UserListPageResponse>> getUsers(
+        @RequestParam(name = "pageNum", defaultValue = "1")
+        @jakarta.validation.constraints.Min(value = 1, message = "페이지 번호는 1이상이어야 합니다.") int pageNum,
+        @RequestParam(name = "pageSize", defaultValue = "20")
+        @jakarta.validation.constraints.Min(value = 1, message = "페이지 당 항목 수는 1이상이어야 합니다.") int pageSize
+    ) {
+        log.info("사용자 목록 조회 요청: pageNum={}, pageSize={}", pageNum, pageSize);
+
+        UserListPageResponse response = userService.getUsers(pageNum, pageSize);
+        return ResponseEntity.ok(BaseResponse.success(response));
     }
 }
