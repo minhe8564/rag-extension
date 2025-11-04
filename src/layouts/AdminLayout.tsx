@@ -46,7 +46,7 @@ export default function AdminLayout() {
             <div className="w-full flex justify-center">
               <Tooltip content="사이드바 열기" side="bottom" shiftX={15}>
                 <button
-                  onClick={() => setIsOpen(prev => !prev)}
+                  onClick={() => setIsOpen((prev) => !prev)}
                   className="text-[var(--color-hebees)] hover:text-[var(--color-hebees-dark)]"
                 >
                   <Menu size={22} />
@@ -88,6 +88,13 @@ export default function AdminLayout() {
               <span className="inline-block">새 채팅 시작하기</span>
             </div>
           </NavLink>
+
+          {/* <NavLink to="/admin/chat/image" className={linkCls}>
+            <Image size={18} className="flex-shrink-0" />
+            <div className={labelCls(isOpen)}>
+              <span className="inline-block">이미지 생성하기</span>
+            </div>
+          </NavLink> */}
 
           <NavLink to="/admin/rag/settings" className={linkCls}>
             <Settings size={18} className="flex-shrink-0" />
