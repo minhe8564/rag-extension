@@ -35,12 +35,20 @@ async def proxy_docs_request(
     
     try:
         async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
-            # 요청 헤더 복사
-            headers = {
+            # 요청 헤더 복사 (사용자 정보 헤더는 게이트웨이가 관리)
+            forwarded_headers = {
                 key: value
                 for key, value in request.headers.items()
-                if key.lower() not in {"host", "content-length"}
+                if key.lower() not in {"x-user-role", "x-user-uuid", "host", "content-length"}
             }
+
+            headers = dict(forwarded_headers)
+
+            # 사용자 역할 정보 헤더 주입 (JWT 토큰 처리)
+            user_info = getattr(request.state, "user", None)
+            if user_info and getattr(user_info, "is_authenticated", False):
+                headers["x-user-role"] = str(user_info.role)
+                headers["x-user-uuid"] = str(user_info.user_uuid)
             
             # 요청 본문 처리
             body: Optional[bytes] = None
