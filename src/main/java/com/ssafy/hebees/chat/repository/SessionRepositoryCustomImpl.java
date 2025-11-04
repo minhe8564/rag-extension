@@ -1,18 +1,19 @@
 package com.ssafy.hebees.chat.repository;
 
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.ssafy.hebees.chat.entity.QSession;
 import com.ssafy.hebees.chat.entity.Session;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
-
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
 
 @Repository
 @RequiredArgsConstructor
@@ -76,6 +77,28 @@ public class SessionRepositoryCustomImpl implements SessionRepositoryCustom {
         return new PageImpl<>(content, pageable, totalCount);
     }
 
+    @Override
+    public List<Session> findCreatedBetween(LocalDateTime startInclusive, LocalDateTime endExclusive,
+        int limit) {
+        if (startInclusive == null || endExclusive == null) {
+            return List.of();
+        }
+
+        JPAQuery<Session> query = queryFactory
+            .selectFrom(session)
+            .where(
+                createdAtGoe(startInclusive),
+                createdAtLt(endExclusive)
+            )
+            .orderBy(session.createdAt.desc());
+
+        if (limit > 0) {
+            query.limit(limit);
+        }
+
+        return query.fetch();
+    }
+
     private BooleanExpression eqSessionNo(UUID sessionNo) {
         if (sessionNo == null) {
             return null;
@@ -95,6 +118,20 @@ public class SessionRepositoryCustomImpl implements SessionRepositoryCustom {
             return null;
         }
         return session.title.containsIgnoreCase(keyword.trim());
+    }
+
+    private BooleanExpression createdAtGoe(LocalDateTime startInclusive) {
+        if (startInclusive == null) {
+            return null;
+        }
+        return session.createdAt.goe(startInclusive);
+    }
+
+    private BooleanExpression createdAtLt(LocalDateTime endExclusive) {
+        if (endExclusive == null) {
+            return null;
+        }
+        return session.createdAt.lt(endExclusive);
     }
 
     private BooleanExpression eqTitleIgnoreCase(String title) {

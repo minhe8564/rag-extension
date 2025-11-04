@@ -4,6 +4,8 @@ import com.ssafy.hebees.common.response.BaseResponse;
 import com.ssafy.hebees.dashboard.dto.request.TimeSeriesRequest;
 import com.ssafy.hebees.dashboard.dto.response.Change24hResponse;
 import com.ssafy.hebees.dashboard.dto.response.ChatbotTimeSeriesResponse;
+import com.ssafy.hebees.dashboard.dto.response.ChatroomsTodayResponse;
+import com.ssafy.hebees.dashboard.dto.response.ErrorsTodayResponse;
 import com.ssafy.hebees.dashboard.dto.response.HeatmapResponse;
 import com.ssafy.hebees.dashboard.dto.response.ModelTimeSeriesResponse;
 import com.ssafy.hebees.dashboard.dto.response.TotalDocumentsResponse;
@@ -146,5 +148,29 @@ public class DashboardController {
         TrendKeywordsResponse response = dashboardService.getTrendKeywords(scale);
         return ResponseEntity.ok(BaseResponse.of(HttpStatus.OK, response,
             "키워드 트렌드 데이터 조회에 성공하였습니다."));
+    }
+
+    @GetMapping("/chatrooms/today")
+    @Operation(summary = "오늘 생성된 챗룸 조회",
+        description = "오늘 생성된 최신 챗룸 목록과 사용자 정보를 제공합니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "조회 성공")
+    })
+    public ResponseEntity<BaseResponse<ChatroomsTodayResponse>> getChatroomsToday() {
+        ChatroomsTodayResponse response = dashboardService.getChatroomsToday();
+        return ResponseEntity.ok(BaseResponse.of(HttpStatus.OK, response,
+            "오늘 생성된 챗룸 목록 조회에 성공하였습니다."));
+    }
+
+    @GetMapping("/errors/today")
+    @Operation(summary = "오늘 발생한 메시지 에러 조회",
+        description = "오늘 발생한 최근 메시지 에러 목록과 관련된 세션 정보를 제공합니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "조회 성공")
+    })
+    public ResponseEntity<BaseResponse<ErrorsTodayResponse>> getErrorsToday() {
+        ErrorsTodayResponse response = dashboardService.getErrorsToday();
+        return ResponseEntity.ok(BaseResponse.of(HttpStatus.OK, response,
+            "오늘 발생한 메시지 에러 조회에 성공하였습니다."));
     }
 }
