@@ -17,8 +17,8 @@ sys.path.insert(0, str(project_root))
 env_path = project_root / ".env"
 load_dotenv(env_path)
 
-from app.db import AsyncSessionLocal, engine
-from app.rag_setting.models.strategy import StrategyType, Strategy, generate_uuid_binary
+from app.common.db import AsyncSessionLocal, engine
+from app.domains.rag_setting.models.strategy import StrategyType, Strategy, generate_uuid_binary
 from sqlalchemy import select
 
 
@@ -31,41 +31,28 @@ async def insert_test_data():
             print("RAG 전략 테스트 데이터 삽입 시작")
             print("=" * 60)
 
-            # 1. StrategyType 데이터 생성
-            strategy_types_data = [
-                {"name": "extraction", "types": []},
-                {"name": "chunking", "types": []},
-                {"name": "embedding", "types": []},
-                {"name": "transformation", "types": []},
-                {"name": "retrieval", "types": []},
-                {"name": "reranking", "types": []},
-                {"name": "prompting", "types": []},
-                {"name": "generation", "types": []},
+            # 1. 기존 StrategyType 조회
+            print("\n[Step 1] 기존 StrategyType 조회 중...")
+
+            strategy_type_names = [
+                "extraction", "chunking", "embedding", "transformation",
+                "retrieval", "reranking", "prompting", "generation"
             ]
 
-            print("\n[Step 1] StrategyType 데이터 삽입 중...")
-
-            for type_data in strategy_types_data:
-                # 이미 존재하는지 확인
+            strategy_types_map = {}
+            for type_name in strategy_type_names:
                 result = await session.execute(
-                    select(StrategyType).where(StrategyType.name == type_data["name"])
+                    select(StrategyType).where(StrategyType.name == type_name)
                 )
-                existing_type = result.scalar_one_or_none()
+                strategy_type = result.scalar_one_or_none()
 
-                if existing_type:
-                    print(f"  - '{type_data['name']}' 이미 존재 (재사용)")
-                    type_data["obj"] = existing_type
+                if strategy_type:
+                    strategy_types_map[type_name] = strategy_type
+                    print(f"  ✓ '{type_name}' 조회 완료")
                 else:
-                    strategy_type = StrategyType(
-                        strategy_type_no=generate_uuid_binary(),
-                        name=type_data["name"]
-                    )
-                    session.add(strategy_type)
-                    type_data["obj"] = strategy_type
-                    print(f"  - '{type_data['name']}' 생성 완료")
+                    print(f"  ⚠️ '{type_name}' 타입을 찾을 수 없습니다. DB에 먼저 생성해주세요.")
 
-            await session.commit()
-            print(f"\n✅ StrategyType {len(strategy_types_data)}개 준비 완료\n")
+            print(f"\n✅ StrategyType {len(strategy_types_map)}개 조회 완료\n")
 
             # 2. Strategy 테스트 데이터 생성
             strategies_data = [
@@ -164,16 +151,15 @@ async def insert_test_data():
 
             inserted_count = 0
             skipped_count = 0
+            missing_type_count = 0
 
             for strategy_data in strategies_data:
                 # 해당 타입 찾기
-                strategy_type_obj = next(
-                    (t["obj"] for t in strategy_types_data if t["name"] == strategy_data["type"]),
-                    None
-                )
+                strategy_type_obj = strategy_types_map.get(strategy_data["type"])
 
                 if not strategy_type_obj:
-                    print(f"  ⚠️ '{strategy_data['type']}' 타입을 찾을 수 없습니다.")
+                    print(f"  ⚠️ '{strategy_data['name']}' 스킵 ('{strategy_data['type']}' 타입 없음)")
+                    missing_type_count += 1
                     continue
 
                 # 이미 존재하는지 확인 (이름으로)
@@ -204,20 +190,23 @@ async def insert_test_data():
             print(f"\n✅ Strategy 삽입 완료:")
             print(f"   - 새로 삽입: {inserted_count}개")
             print(f"   - 이미 존재: {skipped_count}개")
+            if missing_type_count > 0:
+                print(f"   - 타입 없어서 스킵: {missing_type_count}개")
 
             # 3. 삽입된 데이터 확인
             print("\n[Step 3] 삽입된 데이터 확인...")
 
-            for type_data in strategy_types_data:
+            for type_name in strategy_type_names:
                 result = await session.execute(
                     select(Strategy)
                     .join(StrategyType)
-                    .where(StrategyType.name == type_data["name"])
+                    .where(StrategyType.name == type_name)
                 )
                 strategies = result.scalars().all()
-                print(f"\n  📁 {type_data['name']}: {len(strategies)}개 전략")
-                for strategy in strategies:
-                    print(f"     - {strategy.name}")
+                if strategies:
+                    print(f"\n  📁 {type_name}: {len(strategies)}개 전략")
+                    for strategy in strategies:
+                        print(f"     - {strategy.name}")
 
             print("\n" + "=" * 60)
             print("✅ 테스트 데이터 삽입 완료!")

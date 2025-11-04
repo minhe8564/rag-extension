@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
 from pathlib import Path
 
-# Project root (two levels above 'app/common/config')
+# Project root (three levels above 'app/common/config/settings.py')
 BASE_DIR = Path(__file__).resolve().parents[2]
 
 
@@ -37,7 +37,8 @@ class Settings(BaseSettings):
     log_file_backup_count: int = 5
 
     model_config = SettingsConfigDict(
-        env_file=BASE_DIR / ".env",
+        # .env 파일은 선택사항 (Docker에서는 환경변수로 직접 주입됨)
+        env_file=str(BASE_DIR / ".env") if (BASE_DIR / ".env").exists() else None,
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
