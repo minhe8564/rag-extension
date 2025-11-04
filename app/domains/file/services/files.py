@@ -177,7 +177,7 @@ async def list_files_by_offer(
 
     stmt = (
         select(File)
-        .where(File.offer_no == offer_no)
+        .where(File.bucket == offer_no)
         .order_by(File.created_at.desc())
         .limit(limit)
         .offset(offset)
