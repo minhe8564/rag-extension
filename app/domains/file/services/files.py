@@ -67,13 +67,6 @@ def _split_name_ext(filename: str) -> tuple[str, str]:
     ext = Path(p).suffix  # includes dot or empty
     return stem, ext
 
-
-def _next_renamed(base_stem: str, ext: str, index: int) -> str:
-    if ext:
-        return f"{base_stem} ({index}){ext}"
-    return f"{base_stem} ({index})"
-
-
 async def upload_file(
     session: AsyncSession,
     *,
