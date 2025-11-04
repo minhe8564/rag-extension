@@ -1,8 +1,10 @@
 package com.ssafy.hebees.monitoring.controller;
 
+import com.ssafy.hebees.common.response.BaseResponse;
 import com.ssafy.hebees.monitoring.dto.response.CpuUsageResponse;
 import com.ssafy.hebees.monitoring.dto.response.MemoryUsageResponse;
 import com.ssafy.hebees.monitoring.dto.response.NetworkTrafficResponse;
+import com.ssafy.hebees.monitoring.dto.response.ServicePerformanceListResponse;
 import com.ssafy.hebees.monitoring.service.MonitoringService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -11,6 +13,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.ServerSentEvent;
@@ -85,5 +88,27 @@ public class MonitoringController {
             .headers(headers)
             .body(monitoringService.streamNetworkTraffic());
     }
-}
 
+    @GetMapping(value = "/services", produces = MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "서비스별 성능 조회",
+        description = "설정된 모니터링 대상 서비스의 CPU/메모리/Load 지표와 상태를 조회합니다. " +
+            "monitoring.service-targets 설정에 따라 조회되는 서비스 수가 동적으로 변경됩니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "조회 성공"),
+        @ApiResponse(responseCode = "401", description = "인증 실패"),
+        @ApiResponse(responseCode = "403", description = "권한 없음 (ADMIN만 접근 가능)")
+    })
+    public ResponseEntity<BaseResponse<ServicePerformanceListResponse>> getServicePerformance() {
+        ServicePerformanceListResponse response = monitoringService.getServicePerformance();
+        int serviceCount = response.getServices().size();
+        String message = serviceCount > 0
+            ? String.format("%d개 서비스 성능 정보를 조회하였습니다.", serviceCount)
+            : "모니터링 대상 서비스가 없습니다.";
+        return ResponseEntity.ok(BaseResponse.of(
+            HttpStatus.OK,
+            response,
+            message
+        ));
+    }
+}

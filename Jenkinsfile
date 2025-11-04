@@ -49,7 +49,8 @@ def deployToInactiveEnvironment(environment, credentials, inactiveContainer, net
             --network ${networkName} \\
             --network ${env.DB_NETWORK} \\
             --network-alias backend-${environment}-new \\
-                   --env SPRING_PROFILES_ACTIVE=docker \\
+            -v /var/run/docker.sock:/var/run/docker.sock \\
+            --env SPRING_PROFILES_ACTIVE=docker \\
             --env DB_USERNAME=\$DB_USERNAME \\
             --env DB_PASSWORD=\$DB_PASSWORD \\
             --env DB_NAME=\$DB_NAME \\
