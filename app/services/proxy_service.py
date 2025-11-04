@@ -93,8 +93,24 @@ async def proxy_request(
                 try:
                     async for chunk in upstream_response.aiter_bytes():
                         yield chunk
+                except httpx.ReadError as e:
+                    # SSE 스트리밍 중 연결이 끊어진 경우 정상 종료
+                    # 클라이언트가 연결을 끊었거나 백엔드 서버가 스트림을 중단한 경우
+                    if is_sse_stream:
+                        logger.debug(f"SSE 스트리밍 연결이 끊어졌습니다: {target_path} - {str(e)}")
+                        return  # 정상 종료
+                    else:
+                        # 일반 요청의 경우 에러로 처리
+                        logger.error(f"프록시 응답 읽기 중 오류: {target_path} - {str(e)}")
+                        raise
+                except Exception as e:
+                    logger.error(f"프록시 응답 스트림 중 오류: {target_path} - {str(e)}")
+                    raise
                 finally:
-                    await upstream_response.aclose()
+                    try:
+                        await upstream_response.aclose()
+                    except Exception as e:
+                        logger.debug(f"업스트림 응답 닫기 중 오류 (무시): {str(e)}")
 
             return StreamingResponse(
                 content=response_stream(),
