@@ -15,7 +15,7 @@ from app.core.minio_client import ensure_bucket, object_exists, put_object
 from app.domains.user.models.user import User
 from ..models.file import File
 from ..models.file_category import FileCategory
-from ..models.collection import Collection
+from app.domains.collection.models.collection import Collection
 from ..schemas.response.files import FileListItem
 
 
