@@ -5,7 +5,7 @@ RAG Strategy 모델
 from sqlalchemy import Column, String, DateTime, ForeignKey, JSON, LargeBinary
 from sqlalchemy.orm import relationship
 from datetime import datetime
-from app.common.db import Base
+from app.core.base import Base
 import uuid
 
 
