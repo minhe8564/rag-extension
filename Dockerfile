@@ -24,6 +24,9 @@ RUN ./gradlew build -x test --no-daemon
 # 실행 단계
 FROM eclipse-temurin:21-jre-alpine
 
+# Docker CLI 설치 (호스트의 Docker 컨테이너를 모니터링하기 위해 필요)
+RUN apk add --no-cache docker-cli
+
 # 작업 디렉터리 설정
 WORKDIR /app
 

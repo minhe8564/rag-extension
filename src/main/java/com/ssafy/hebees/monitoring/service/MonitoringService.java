@@ -2,9 +2,14 @@ package com.ssafy.hebees.monitoring.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ssafy.hebees.monitoring.dto.internal.CpuMemUsage;
+import com.ssafy.hebees.monitoring.dto.internal.DockerContainerStatus;
+import com.ssafy.hebees.monitoring.dto.internal.ServiceTarget;
 import com.ssafy.hebees.monitoring.dto.response.CpuUsageResponse;
 import com.ssafy.hebees.monitoring.dto.response.MemoryUsageResponse;
 import com.ssafy.hebees.monitoring.dto.response.NetworkTrafficResponse;
+import com.ssafy.hebees.monitoring.dto.response.ServicePerformanceInfoResponse;
+import com.ssafy.hebees.monitoring.dto.response.ServicePerformanceListResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import oshi.SystemInfo;
@@ -22,12 +27,23 @@ import org.springframework.http.codec.ServerSentEvent;
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Schedulers;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
@@ -40,7 +56,9 @@ public class MonitoringService {
 
     private static final String NETWORK_TRAFFIC_KEY = "monitoring:network:traffic";
     private static final String NETWORK_BYTES_KEY = "monitoring:network:bytes";
+    private static final double SQRT_TWO = Math.sqrt(2.0);
     private final double networkBandwidthMbps;
+    private final List<ServiceTarget> monitoredServices;
 
     // 네트워크 대역폭 캐시 (한 번만 감지)
     private volatile Double cachedBandwidthMbps = null;
@@ -53,10 +71,15 @@ public class MonitoringService {
 
     public MonitoringService(
         @Qualifier("monitoringRedisTemplate") StringRedisTemplate monitoringRedisTemplate,
-        @Value("${monitoring.network-bandwidth-mbps:1000.0}") double networkBandwidthMbps
+        @Value("${monitoring.network-bandwidth-mbps:1000.0}") double networkBandwidthMbps,
+        @Value("${monitoring.service-targets:}") List<String> serviceTargets
     ) {
         this.monitoringRedisTemplate = monitoringRedisTemplate;
         this.networkBandwidthMbps = networkBandwidthMbps;
+        // 빈 리스트이면 모든 컨테이너를 모니터링 (필터링 없음)
+        this.monitoredServices = (serviceTargets == null || serviceTargets.isEmpty())
+            ? List.of()
+            : parseServiceTargets(serviceTargets);
     }
 
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
@@ -69,6 +92,49 @@ public class MonitoringService {
 
     private int calculateActiveCores(int totalCores, double cpuPercent) {
         return (int) Math.round(totalCores * cpuPercent / 100.0);
+    }
+
+    private List<ServiceTarget> parseServiceTargets(List<String> serviceTargets) {
+        if (serviceTargets == null || serviceTargets.isEmpty()) {
+            log.info("monitoring.service-targets 설정이 비어 있습니다. 모든 컨테이너를 모니터링합니다.");
+            return List.of();
+        }
+
+        Map<String, ServiceTarget> mappedTargets = new LinkedHashMap<>();
+
+        serviceTargets.stream()
+            .map(String::trim)
+            .filter(token -> !token.isEmpty())
+            .forEach(token -> {
+                String serviceName;
+                String containerName;
+                int separatorIdx = token.indexOf('=');
+                if (separatorIdx >= 0) {
+                    serviceName = token.substring(0, separatorIdx).trim();
+                    containerName = token.substring(separatorIdx + 1).trim();
+                } else {
+                    serviceName = token;
+                    containerName = token;
+                }
+
+                if (serviceName.isEmpty()) {
+                    log.warn("service-target '{}'에서 서비스 이름을 추출하지 못했습니다. 항목을 건너뜁니다.", token);
+                    return;
+                }
+                if (containerName.isEmpty()) {
+                    containerName = serviceName;
+                }
+
+                mappedTargets.put(serviceName, new ServiceTarget(serviceName, containerName));
+            });
+
+        if (mappedTargets.isEmpty()) {
+            log.info("monitoring.service-targets 파싱 결과가 비어 있습니다. 모든 컨테이너를 모니터링합니다.");
+            return List.of();
+        }
+
+        log.info("모니터링 대상 서비스 수: {}", mappedTargets.size());
+        return List.copyOf(mappedTargets.values());
     }
 
     private long[] cloneTicks(long[] ticks) {
@@ -147,7 +213,7 @@ public class MonitoringService {
     }
 
     public Flux<ServerSentEvent<CpuUsageResponse>> streamCpuUsage() {
-        // 첫 번째 호출: 초기화를 위해 짧은 간격으로 측정
+        // 첫 번째 호출
         CpuUsageResponse initData = getCpuData();
 
         return Flux.concat(
@@ -165,6 +231,387 @@ public class MonitoringService {
             ).doOnCancel(() -> log.info("CPU 사용률 스트리밍이 취소되었습니다."))
             .doOnError(error -> log.error("CPU 사용률 스트리밍 중 오류 발생", error));
     }
+
+    public ServicePerformanceListResponse getServicePerformance() {
+        // docker ps -a로 모든 컨테이너 조회
+        Map<String, DockerContainerStatus> containerStatusMap = getAllContainers();
+
+        // 디버깅: 발견된 컨테이너 목록 로깅
+        log.info("발견된 컨테이너 수: {}", containerStatusMap.size());
+        containerStatusMap.forEach((name, status) ->
+            log.debug("컨테이너: {} - 상태: {} - 실행중: {}", name, status.rawStatus(), status.running())
+        );
+
+        // 모니터링 대상 서비스 결정
+        List<String> targetContainerNames = new ArrayList<>();
+
+        if (monitoredServices.isEmpty()) {
+            // service-targets가 비어있으면 모든 컨테이너 모니터링
+            log.info("모니터링 대상 서비스가 지정되지 않았습니다. 모든 컨테이너를 모니터링합니다.");
+            targetContainerNames.addAll(containerStatusMap.keySet());
+        } else {
+            // service-targets에 지정된 서비스만 모니터링
+            log.info("모니터링 대상 서비스 수: {}", monitoredServices.size());
+
+            // 각 서비스에 대해 실제 컨테이너 이름 매칭
+            for (ServiceTarget target : monitoredServices) {
+                String serviceName = target.serviceName();
+                String containerName = target.containerName();
+
+                // 정확한 이름 매칭 시도
+                DockerContainerStatus dockerStatus = containerStatusMap.get(containerName);
+
+                // 정확한 매칭 실패 시, 부분 매칭 시도
+                if (dockerStatus == null) {
+                    String finalContainerName = containerName;
+                    String finalServiceName = serviceName;
+                    String matchedName = containerStatusMap.keySet().stream()
+                        .filter(name -> {
+                            // 컨테이너 이름에 서비스 이름이 포함되어 있는지 확인 (단, 너무 짧은 매칭은 제외)
+                            return name.equals(finalContainerName) ||
+                                (name.contains(finalContainerName)
+                                    && finalContainerName.length() >= 5) ||
+                                (name.contains(finalServiceName) && finalServiceName.length() >= 5);
+                        })
+                        .findFirst()
+                        .orElse(null);
+
+                    if (matchedName != null) {
+                        log.info("컨테이너 '{}'를 부분 매칭으로 찾았습니다: '{}'", containerName, matchedName);
+                        targetContainerNames.add(matchedName);
+                    } else {
+                        log.warn("컨테이너 '{}'를 찾지 못했습니다. 발견된 컨테이너: {}",
+                            containerName, containerStatusMap.keySet());
+                        // 매칭 실패해도 원래 이름으로 추가 (NOT_FOUND 상태로 표시)
+                        targetContainerNames.add(containerName);
+                    }
+                } else {
+                    targetContainerNames.add(containerName);
+                }
+            }
+        }
+
+        log.info("모니터링 대상 컨테이너 수: {}", targetContainerNames.size());
+        targetContainerNames.forEach(name -> log.debug("모니터링 대상 컨테이너: {}", name));
+
+        // 실행 중인 컨테이너만 통계 수집 대상에 추가
+        List<String> runningContainers = targetContainerNames.stream()
+            .filter(containerName -> {
+                DockerContainerStatus status = containerStatusMap.get(containerName);
+                return status != null && status.running();
+            })
+            .distinct()
+            .toList();
+
+        log.info("실행 중인 컨테이너 수: {}", runningContainers.size());
+        runningContainers.forEach(name -> log.debug("실행 중인 컨테이너: {}", name));
+
+        // 실행 중인 컨테이너로 통계 수집
+        Map<String, CpuMemUsage> usageMap = fetchCpuMemStats(runningContainers);
+        List<ServicePerformanceInfoResponse> services = new ArrayList<>();
+
+        // 모니터링 대상 컨테이너에 대해 성능 정보 수집
+        for (String containerName : targetContainerNames) {
+            DockerContainerStatus dockerStatus = containerStatusMap.get(containerName);
+            boolean containerRunning = dockerStatus != null && dockerStatus.running();
+
+            // 서비스 이름 결정: monitoredServices에 있으면 serviceName 사용, 없으면 containerName 사용
+            String serviceName = monitoredServices.stream()
+                .filter(target -> target.containerName().equals(containerName) ||
+                    containerName.contains(target.containerName()) ||
+                    containerName.contains(target.serviceName()))
+                .findFirst()
+                .map(ServiceTarget::serviceName)
+                .orElse(containerName);
+
+            CpuMemUsage usage = containerRunning
+                ? usageMap.getOrDefault(containerName, CpuMemUsage.unavailable())
+                : CpuMemUsage.unavailable();
+            Optional<Double> loadAvgOptional = containerRunning
+                ? fetchLoadAverage(containerName)
+                : Optional.empty();
+
+            boolean statsAvailable = usage.available();
+            boolean loadAvailable = loadAvgOptional.isPresent();
+
+            if (containerRunning) {
+                if (!statsAvailable) {
+                    log.warn("컨테이너 '{}'에 대한 docker stats 정보를 가져오지 못했습니다.", containerName);
+                }
+                if (!loadAvailable) {
+                    log.warn("컨테이너 '{}'에 대한 load average 정보를 가져오지 못했습니다.", containerName);
+                }
+            }
+
+            double cpuPercent = statsAvailable ? round(usage.cpuUsage(), 1) : 0.0;
+            double memoryPercent = statsAvailable ? round(usage.memoryUsage(), 1) : 0.0;
+            double compositeScore = containerRunning
+                ? round(calculateCompositeScore(cpuPercent, memoryPercent), 2)
+                : 0.0;
+            String status;
+            if (containerRunning) {
+                status = determineStatus(compositeScore);
+            } else {
+                status = "EXITED";
+            }
+            double loadAvg = loadAvailable ? round(loadAvgOptional.orElse(0.0), 2) : 0.0;
+
+            services.add(ServicePerformanceInfoResponse.builder()
+                .serviceName(
+                    serviceName)  // 서비스 이름 사용 (monitoredServices에 있으면 serviceName, 없으면 containerName)
+                .loadAvg1m(loadAvg)
+                .cpuUsagePercent(cpuPercent)
+                .memoryUsagePercent(memoryPercent)
+                .compositeScore(compositeScore)
+                .status(status)
+                .build());
+        }
+
+        int serviceCount = services.size();
+        log.info("모니터링 대상 서비스 성능 정보 수집 완료: {}개", serviceCount);
+
+        return ServicePerformanceListResponse.builder()
+            .timestamp(getKstTimestamp())
+            .services(services)
+            .build();
+    }
+
+    public int getMonitoredServiceCount() {
+        return monitoredServices.isEmpty() ? 0 : monitoredServices.size();
+    }
+
+    private Map<String, CpuMemUsage> fetchCpuMemStats(List<String> containerNames) {
+        Map<String, CpuMemUsage> result = new HashMap<>();
+        if (containerNames.isEmpty()) {
+            return result;
+        }
+
+        List<String> command = new ArrayList<>();
+        command.add("docker");
+        command.add("stats");
+        command.add("--no-stream");
+        command.add("--format");
+        command.add("{{.Name}};{{.CPUPerc}};{{.MemPerc}}");
+        command.addAll(containerNames);
+
+        Process process = null;
+        try {
+            process = new ProcessBuilder(command).start();
+            boolean finished = process.waitFor(5, TimeUnit.SECONDS);
+            if (!finished) {
+                process.destroyForcibly();
+                process.waitFor(1, TimeUnit.SECONDS);
+                log.warn("docker stats 명령이 시간 내에 종료되지 않았습니다. command={}", command);
+            }
+
+            String stdout = readStream(process.getInputStream());
+            String stderr = readStream(process.getErrorStream());
+
+            if (finished && process.exitValue() != 0) {
+                log.warn("docker stats 명령이 실패했습니다. exitCode={}, stderr={}",
+                    process.exitValue(), stderr.trim());
+            }
+
+            stdout.lines()
+                .map(String::trim)
+                .filter(line -> !line.isEmpty())
+                .forEach(line -> {
+                    String[] parts = line.split(";");
+                    if (parts.length < 3) {
+                        log.warn("docker stats 출력 파싱 실패: {}", line);
+                        return;
+                    }
+                    String containerName = parts[0].trim();
+                    double cpu = parsePercent(parts[1]);
+                    double mem = parsePercent(parts[2]);
+                    result.put(containerName, new CpuMemUsage(cpu, mem, true));
+                });
+        } catch (IOException e) {
+            log.error("docker stats 명령 실행 중 IO 예외가 발생했습니다.", e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("docker stats 명령 대기 중 인터럽트가 발생했습니다.", e);
+        } finally {
+            if (process != null) {
+                process.destroy();
+            }
+        }
+
+        containerNames.stream()
+            .filter(name -> !result.containsKey(name))
+            .forEach(name -> result.put(name, CpuMemUsage.unavailable()));
+
+        return result;
+    }
+
+    private Optional<Double> fetchLoadAverage(String containerName) {
+        Process process = null;
+        try {
+            process = new ProcessBuilder("docker", "exec", containerName, "cat", "/proc/loadavg")
+                .start();
+            boolean finished = process.waitFor(3, TimeUnit.SECONDS);
+            if (!finished) {
+                process.destroyForcibly();
+                process.waitFor(1, TimeUnit.SECONDS);
+                log.warn("docker exec loadavg 명령이 시간 내에 종료되지 않았습니다. container={}",
+                    containerName);
+                return Optional.empty();
+            }
+
+            String stdout = readStream(process.getInputStream());
+            String stderr = readStream(process.getErrorStream());
+            int exitCode = process.exitValue();
+            if (exitCode != 0) {
+                log.warn("docker exec loadavg 명령이 실패했습니다. container={}, exitCode={}, stderr={}",
+                    containerName, exitCode, stderr.trim());
+                return Optional.empty();
+            }
+
+            if (stdout.isBlank()) {
+                return Optional.empty();
+            }
+
+            String[] parts = stdout.trim().split("\\s+");
+            if (parts.length == 0) {
+                return Optional.empty();
+            }
+
+            return Optional.of(Double.parseDouble(parts[0]));
+        } catch (IOException e) {
+            log.error("docker exec loadavg 명령 실행 중 IO 예외가 발생했습니다. container={}",
+                containerName, e);
+            return Optional.empty();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("docker exec loadavg 명령 대기 중 인터럽트가 발생했습니다. container={}",
+                containerName, e);
+            return Optional.empty();
+        } catch (NumberFormatException e) {
+            log.warn("load average 파싱 실패: container={}, value={}", containerName, e.getMessage());
+            return Optional.empty();
+        } finally {
+            if (process != null) {
+                process.destroy();
+            }
+        }
+    }
+
+    private Map<String, DockerContainerStatus> getAllContainers() {
+        Map<String, DockerContainerStatus> result = new HashMap<>();
+        Process process = null;
+        try {
+            process = new ProcessBuilder("docker", "ps", "-a", "--format", "{{.Names}};{{.Status}}")
+                .start();
+            boolean finished = process.waitFor(3, TimeUnit.SECONDS);
+            if (!finished) {
+                process.destroyForcibly();
+                process.waitFor(1, TimeUnit.SECONDS);
+                log.warn("docker ps 명령이 시간 내에 종료되지 않았습니다.");
+                return result;
+            }
+
+            String stdout = readStream(process.getInputStream());
+            String stderr = readStream(process.getErrorStream());
+            int exitCode = process.exitValue();
+            if (exitCode != 0) {
+                log.warn("docker ps 명령이 실패했습니다. exitCode={}, stderr={}", exitCode, stderr.trim());
+                return result;
+            }
+
+            if (stdout.isBlank()) {
+                log.warn("docker ps 명령의 출력이 비어 있습니다. 실행 중인 컨테이너가 없거나 권한 문제일 수 있습니다.");
+                return result;
+            }
+
+            log.debug("docker ps 출력:\n{}", stdout);
+
+            stdout.lines()
+                .map(String::trim)
+                .filter(line -> !line.isEmpty())
+                .forEach(line -> {
+                    String[] parts = line.split(";", 2);
+                    if (parts.length == 0) {
+                        log.warn("docker ps 출력 파싱 실패: 빈 라인");
+                        return;
+                    }
+                    String containerName = parts[0].trim();
+                    String statusText = parts.length > 1 ? parts[1].trim() : "";
+                    boolean running = statusText.toLowerCase().startsWith("up");
+                    log.debug("컨테이너 파싱: name={}, status={}, running={}", containerName, statusText,
+                        running);
+                    result.put(containerName,
+                        new DockerContainerStatus(containerName, statusText, running));
+                });
+        } catch (IOException e) {
+            log.error("docker ps 명령 실행 중 IO 예외가 발생했습니다.", e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("docker ps 명령 대기 중 인터럽트가 발생했습니다.", e);
+        } finally {
+            if (process != null) {
+                process.destroy();
+            }
+        }
+        return result;
+    }
+
+    private double calculateCompositeScore(double cpuPercent, double memoryPercent) {
+        double rawScore = Math.sqrt(cpuPercent * cpuPercent + memoryPercent * memoryPercent)
+            / SQRT_TWO;
+        double clamped = Math.max(0.0, Math.min(rawScore, 100.0));
+        return clamped;
+    }
+
+    private String determineStatus(double compositeScore) {
+        if (compositeScore < 70.0) {
+            return "NORMAL";
+        }
+        if (compositeScore <= 90.0) {
+            return "WARNING";
+        }
+        return "CRITICAL";
+    }
+
+    private double round(double value, int decimals) {
+        if (!Double.isFinite(value)) {
+            return 0.0;
+        }
+        double factor = Math.pow(10, decimals);
+        return Math.round(value * factor) / factor;
+    }
+
+    private double parsePercent(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return 0.0;
+        }
+        String cleaned = raw.replace("%", "").trim();
+        if (cleaned.isEmpty()) {
+            return 0.0;
+        }
+        try {
+            return Double.parseDouble(cleaned);
+        } catch (NumberFormatException e) {
+            log.warn("백분율 파싱 실패: {}", raw);
+            return 0.0;
+        }
+    }
+
+    private String readStream(InputStream stream) throws IOException {
+        if (stream == null) {
+            return "";
+        }
+        try (InputStream in = stream;
+            BufferedReader reader = new BufferedReader(
+                new InputStreamReader(in, StandardCharsets.UTF_8))) {
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                sb.append(line).append('\n');
+            }
+            return sb.toString();
+        }
+    }
+
 
     private double bytesToGb(long bytes) {
         return Math.round((bytes / (1024.0 * 1024.0 * 1024.0)) * 10.0) / 10.0;
