@@ -16,6 +16,7 @@ from app.domains.user.models.user import User
 from ..models.file import File
 from ..models.file_category import FileCategory
 from ..models.collection import Collection
+from ..schemas.response.files import FileListItem
 
 
 def _uuid_str_to_bytes(u: str) -> bytes:
@@ -161,3 +162,46 @@ async def upload_file(
     await session.commit()
 
     return _bytes_to_uuid_str(file_no_bytes)
+
+
+async def list_files_by_offer(
+    session: AsyncSession,
+    *,
+    user_no: str,
+    limit: int = 20,
+    offset: int = 0,
+    category_no: Optional[str] = None,
+) -> list[FileListItem]:
+    user_no_bytes = _uuid_str_to_bytes(user_no)
+    offer_no = await _get_offer_no_by_user(session, user_no_bytes)
+
+    stmt = (
+        select(File)
+        .where(File.offer_no == offer_no)
+        .order_by(File.created_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    if category_no:
+        stmt = stmt.where(File.file_category_no == _uuid_str_to_bytes(category_no))
+
+    res = await session.execute(stmt)
+    rows = list(res.scalars().all())
+
+    items: list[FileListItem] = []
+    for row in rows:
+        items.append(
+            FileListItem(
+                fileNo=_bytes_to_uuid_str(row.file_no),
+                name=row.name,
+                size=row.size,
+                type=row.type,
+                bucket=row.bucket,
+                path=row.path,
+                categoryNo=_bytes_to_uuid_str(row.file_category_no),
+                collectionNo=_bytes_to_uuid_str(row.collection_no) if row.collection_no else None,
+                createdAt=row.created_at,
+            )
+        )
+
+    return items

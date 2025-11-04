@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, File as FFile, UploadFile, Header
+from fastapi import APIRouter, Depends, File as FFile, UploadFile, Header, Request, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.schemas import BaseResponse
-from app.core.check_role import check_role
 from ..schemas.response.upload_file import FileUploadResult
 from ..schemas.request.upload_file import FileUploadRequest
 from ..services.files import upload_file as upload_file_service
@@ -17,10 +16,15 @@ router = APIRouter(prefix="/files", tags=["File"])
 async def upload_file(
     request: FileUploadRequest = Depends(FileUploadRequest.as_form),
     file: UploadFile = FFile(...),
-    x_user_role: str = Depends(check_role("USER", "ADMIN")),
-    x_user_uuid: str = Header(..., alias="x-user-uuid"),
     session: AsyncSession = Depends(get_db),
+    http_request: Request = None,
 ):
+    if http_request is None:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Request context unavailable")
+    x_user_role = http_request.headers.get("x-user-role")
+    x_user_uuid = http_request.headers.get("x-user-uuid")
+    if not x_user_role or not x_user_uuid:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="x-user-role/x-user-uuid headers required")
     # Role-based branching
     # - USER: ignore provided bucket/collection; use personal (offer_no) bucket
     # - ADMIN: allow explicit bucket/collection
