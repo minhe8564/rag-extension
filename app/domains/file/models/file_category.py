@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlalchemy import String, text 
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.dialects.mysql import BINARY, DATETIME as MySQLDateTime
-from ....common.db import Base
+from app.core.base import Base
 
 
 class FileCategory(Base):
