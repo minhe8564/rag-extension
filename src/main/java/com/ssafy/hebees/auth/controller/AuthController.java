@@ -35,7 +35,8 @@ public class AuthController {
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "로그인 성공")
     })
-    public ResponseEntity<BaseResponse<LoginResponse>> login(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<BaseResponse<LoginResponse>> login(
+        @Valid @RequestBody LoginRequest request) {
         log.info("login request: email={}", request.email());
         LoginResponse response = authService.login(request);
         return ResponseEntity.ok(BaseResponse.success(response));

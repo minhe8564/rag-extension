@@ -23,6 +23,7 @@ public record UserListItemResponse(
     @Schema(description = "소속 사업체 유형", example = "1")
     Integer businessType
 ) {
+
     public static UserListItemResponse from(User user) {
         return new UserListItemResponse(
             user.getUuid() != null ? user.getUuid().toString() : null,

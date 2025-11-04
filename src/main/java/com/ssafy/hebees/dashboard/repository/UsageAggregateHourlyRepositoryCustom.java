@@ -6,6 +6,7 @@ import java.util.List;
 
 public interface UsageAggregateHourlyRepositoryCustom {
 
-    List<UsageAggregateHourly> findBetween(LocalDateTime startInclusive, LocalDateTime endExclusive);
+    List<UsageAggregateHourly> findBetween(LocalDateTime startInclusive,
+        LocalDateTime endExclusive);
 }
 

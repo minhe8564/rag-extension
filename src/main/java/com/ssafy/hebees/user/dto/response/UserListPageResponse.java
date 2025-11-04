@@ -11,6 +11,7 @@ public record UserListPageResponse(
     @Schema(description = "페이지네이션 정보")
     Pagination pagination
 ) {
+
     public record Pagination(
         @Schema(description = "조회할 페이지 번호(1부터)")
         int pageNum,
@@ -26,7 +27,9 @@ public record UserListPageResponse(
 
         @Schema(description = "다음 페이지 존재 여부")
         boolean hasNext
-    ) {}
+    ) {
+
+    }
 
     public static UserListPageResponse of(List<UserListItemResponse> data,
         int pageNum, int pageSize, long totalItems) {

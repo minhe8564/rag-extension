@@ -12,7 +12,8 @@ import java.util.UUID;
 
 public interface ChatService {
 
-    PageResponse<SessionResponse> getSessions(UUID userNo, PageRequest pageRequest, SessionListRequest listRequest);
+    PageResponse<SessionResponse> getSessions(UUID userNo, PageRequest pageRequest,
+        SessionListRequest listRequest);
 
     SessionResponse getSession(UUID userNo, UUID sessionNo);
 

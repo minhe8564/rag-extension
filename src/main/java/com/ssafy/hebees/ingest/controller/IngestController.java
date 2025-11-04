@@ -54,18 +54,27 @@ public class IngestController {
         // 무제한 타임아웃(프록시 환경에 따라 조정 가능)
         SseEmitter emitter = new SseEmitter(0L);
 
-        java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
-            Thread t = new Thread(r, "ingest-sse-" + userUuid);
-            t.setDaemon(true);
-            return t;
-        });
+        java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newSingleThreadExecutor(
+            r -> {
+                Thread t = new Thread(r, "ingest-sse-" + userUuid);
+                t.setDaemon(true);
+                return t;
+            });
 
         emitter.onCompletion(executor::shutdown);
         emitter.onTimeout(() -> {
-            try { emitter.complete(); } finally { executor.shutdownNow(); }
+            try {
+                emitter.complete();
+            } finally {
+                executor.shutdownNow();
+            }
         });
         emitter.onError(e -> {
-            try { emitter.completeWithError(e); } finally { executor.shutdownNow(); }
+            try {
+                emitter.completeWithError(e);
+            } finally {
+                executor.shutdownNow();
+            }
         });
 
         try {
@@ -98,7 +107,8 @@ public class IngestController {
                                 break;
                             }
                             String status = dto.status();
-                            if (status != null && ("COMPLETED".equalsIgnoreCase(status) || "FAILED".equalsIgnoreCase(status))) {
+                            if (status != null && ("COMPLETED".equalsIgnoreCase(status)
+                                || "FAILED".equalsIgnoreCase(status))) {
                                 done = true;
                                 break;
                             }
@@ -111,11 +121,17 @@ public class IngestController {
                     }
                 } catch (Exception e) {
                     // 읽기 오류가 지속되면 종료
-                    try { emitter.completeWithError(e); } catch (Exception ignored) {}
+                    try {
+                        emitter.completeWithError(e);
+                    } catch (Exception ignored) {
+                    }
                     done = true;
                 }
             }
-            try { emitter.complete(); } catch (Exception ignored) {}
+            try {
+                emitter.complete();
+            } catch (Exception ignored) {
+            }
         });
 
         return emitter;

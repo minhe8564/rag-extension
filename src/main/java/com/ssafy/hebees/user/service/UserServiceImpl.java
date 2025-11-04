@@ -139,7 +139,8 @@ public class UserServiceImpl implements UserService {
         int safePageNum = Math.max(pageNum, 1);
         int safePageSize = Math.max(pageSize, 1);
 
-        Pageable pageable = PageRequest.of(safePageNum - 1, safePageSize, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Pageable pageable = PageRequest.of(safePageNum - 1, safePageSize,
+            Sort.by(Sort.Direction.DESC, "createdAt"));
         Page<User> page = userRepository.findByDeletedAtIsNull(pageable);
 
         var items = page.getContent().stream()
@@ -152,7 +153,8 @@ public class UserServiceImpl implements UserService {
 
         return new UserListPageResponse(
             items,
-            new UserListPageResponse.Pagination(safePageNum, safePageSize, total, totalPages, hasNext)
+            new UserListPageResponse.Pagination(safePageNum, safePageSize, total, totalPages,
+                hasNext)
         );
     }
 

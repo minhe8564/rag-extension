@@ -62,6 +62,7 @@ public record MessageCreateRequest(
         @Schema(description = "요약/발췌", nullable = true)
         String snippet
     ) {
+
     }
 }
 

@@ -8,5 +8,6 @@ import java.util.UUID;
 
 @Repository
 public interface SessionRepository extends JpaRepository<Session, UUID>, SessionRepositoryCustom {
+
 }
 
