@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     # Gemini API 설정
     gemini_api_key: str = ""
     gemini_image_model_name: str = ""
+    
+    # Monitoring 설정
+    network_bandwidth_mbps: float = 1000.0  # 네트워크 총 대역폭(Mbps), 기본값 1Gbps
 
     @property
     def minio_endpoint_url(self) -> str:
