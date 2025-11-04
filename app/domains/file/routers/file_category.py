@@ -6,8 +6,8 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Path
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ....common.db import get_session
-from ....common.schemas import BaseResponse
+from app.core.database import get_db
+from app.core.schemas import BaseResponse
 from ..schemas.file_category import FileCategoryListItem
 from ..services.file_category import list_file_categories as list_file_categories_service
 
@@ -25,7 +25,7 @@ def _bytes_to_uuid_str(b: bytes) -> str:
 
 @router.get("/", response_model=BaseResponse[List[FileCategoryListItem]])
 async def list_file_categories(
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_db),
 ):
     items: List[FileCategoryListItem] = await list_file_categories_service(session)
 

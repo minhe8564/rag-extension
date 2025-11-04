@@ -1,0 +1,2 @@
+"""Offer domain repositories"""
+
