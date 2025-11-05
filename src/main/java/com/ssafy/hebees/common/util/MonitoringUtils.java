@@ -72,5 +72,22 @@ public class MonitoringUtils {
         }
         return instant.atZone(KST).format(ISO_FORMATTER);
     }
-}
 
+    /**
+     * Build Redis key for network bytes snapshot with optional host suffix.
+     */
+    public static String buildNetworkBytesKey(String hostIdentifier) {
+        if (hostIdentifier == null) {
+            return NETWORK_BYTES_KEY;
+        }
+        String normalized = hostIdentifier.trim();
+        if (normalized.isEmpty()) {
+            return NETWORK_BYTES_KEY;
+        }
+        String safe = normalized.replaceAll("[^A-Za-z0-9:_-]", "_");
+        if (safe.isEmpty()) {
+            return NETWORK_BYTES_KEY;
+        }
+        return NETWORK_BYTES_KEY + ":" + safe;
+    }
+}

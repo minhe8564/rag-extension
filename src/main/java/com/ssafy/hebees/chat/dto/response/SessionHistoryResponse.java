@@ -11,5 +11,6 @@ public record SessionHistoryResponse(
     @Schema(description = "세션에 속한 메시지 목록", requiredMode = Schema.RequiredMode.REQUIRED)
     List<MessageResponse> messages
 ) {
+
 }
 

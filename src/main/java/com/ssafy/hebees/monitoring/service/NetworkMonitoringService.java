@@ -11,6 +11,9 @@ import oshi.SystemInfo;
 import oshi.hardware.HardwareAbstractionLayer;
 import oshi.hardware.NetworkIF;
 import org.springframework.beans.factory.annotation.Qualifier;
+import jakarta.annotation.PostConstruct;
+import java.lang.management.ManagementFactory;
+import java.net.InetAddress;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -37,10 +40,55 @@ public class NetworkMonitoringService {
     @Qualifier("monitoringRedisTemplate")
     private final StringRedisTemplate monitoringRedisTemplate;
     private final MonitoringProperties monitoringProperties;
+    private String networkBytesKey;
 
     // Network bandwidth cache
     private volatile Double cachedBandwidthMbps = null;
     private final Object bandwidthLock = new Object();
+
+    @PostConstruct
+    void initNetworkBytesKey() {
+        String hostIdentifier = resolveHostIdentifier();
+        networkBytesKey = MonitoringUtils.buildNetworkBytesKey(hostIdentifier);
+        log.debug("Initialized network bytes Redis key: {}", networkBytesKey);
+    }
+
+    private String resolveHostIdentifier() {
+        String configured = monitoringProperties.getHostIdentifier();
+        if (configured != null) {
+            String trimmed = configured.trim();
+            if (!trimmed.isEmpty()) {
+                return trimmed;
+            }
+        }
+
+        try {
+            String hostname = InetAddress.getLocalHost().getHostName();
+            if (hostname != null && !hostname.isBlank()) {
+                return hostname;
+            }
+        } catch (Exception e) {
+            log.debug("Hostname lookup failed for network monitoring key", e);
+        }
+
+        try {
+            String runtimeName = ManagementFactory.getRuntimeMXBean().getName();
+            if (runtimeName != null && !runtimeName.isBlank()) {
+                return runtimeName;
+            }
+        } catch (Exception e) {
+            log.debug("Runtime MXBean lookup failed for network monitoring key", e);
+        }
+
+        return null;
+    }
+
+    private String getNetworkBytesKey() {
+        if (networkBytesKey == null) {
+            networkBytesKey = MonitoringUtils.buildNetworkBytesKey(resolveHostIdentifier());
+        }
+        return networkBytesKey;
+    }
 
     private double getNetworkBandwidthMbps() {
         return monitoringProperties.getNetworkBandwidthMbps();
@@ -137,7 +185,7 @@ public class NetworkMonitoringService {
             }
 
             String previousBytesData = monitoringRedisTemplate.opsForValue()
-                .get(MonitoringUtils.NETWORK_BYTES_KEY);
+                .get(getNetworkBytesKey());
             long previousBytesSent = 0;
             long previousBytesRecv = 0;
             double inboundMbps = 0.0;
@@ -163,7 +211,7 @@ public class NetworkMonitoringService {
 
             String currentBytesData = totalBytesSent + "," + totalBytesRecv;
             monitoringRedisTemplate.opsForValue()
-                .set(MonitoringUtils.NETWORK_BYTES_KEY, currentBytesData);
+                .set(getNetworkBytesKey(), currentBytesData);
 
             NetworkTrafficResponse trafficData = new NetworkTrafficResponse(
                 MonitoringUtils.getKstTimestamp(),
@@ -302,4 +350,3 @@ public class NetworkMonitoringService {
             .doOnError(error -> log.error("네트워크 트래픽 스트리밍 중 오류 발생", error));
     }
 }
-

@@ -23,4 +23,9 @@ public class MonitoringProperties {
      * 모니터링 대상 서비스/컨테이너 식별자 목록.
      */
     private List<String> serviceTargets = Collections.emptyList();
+
+    /**
+     * Redis key suffix to separate metrics per host/instance.
+     */
+    private String hostIdentifier;
 }
