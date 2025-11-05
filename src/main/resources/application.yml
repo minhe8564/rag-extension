@@ -35,6 +35,11 @@ springdoc:
   swagger-ui:
     persist-authorization: true
 
+# Runpod (Ollama) 설정
+runpod:
+  base-url: https://yo4z0wke606i0e-11434.proxy.runpod.net
+  model: qwen3-vl:8b
+
 # Actuator 설정
 management:
   endpoints:
