@@ -20,5 +20,6 @@ public record NetworkTrafficResponse(
     @DecimalMin(value = "0.0")
     double bandwidthMbps
 ) {
+
 }
 

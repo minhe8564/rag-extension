@@ -118,7 +118,16 @@ public class CadvisorClient {
         double cpuPercent = Double.NaN;
         double memoryPercent = Double.NaN;
         double loadAverage = 0.0;
-        boolean running = !samples.isEmpty();
+        JsonNode stateNode = node.path("state");
+        JsonNode runningNode = stateNode.path("running");
+        boolean running = runningNode.isMissingNode()
+            ? !samples.isEmpty()
+            : runningNode.asBoolean(!samples.isEmpty());
+
+        Instant startedAt = parseTimestamp(text(stateNode, "started_at"));
+        if (startedAt == null) {
+            startedAt = parseTimestamp(text(specNode, "creation_time"));
+        }
 
         if (running) {
             Sample latest = samples.get(samples.size() - 1);
@@ -128,6 +137,10 @@ public class CadvisorClient {
             memoryPercent = computeMemoryPercent(latest, specMemoryLimit, machineMemoryBytes);
             loadAverage = Optional.ofNullable(latest.loadAverage()).orElse(0.0);
         }
+        if (startedAt == null && !samples.isEmpty()) {
+            startedAt = samples.get(0).timestamp();
+        }
+        Instant lastSeen = samples.isEmpty() ? null : samples.get(samples.size() - 1).timestamp();
 
         boolean cpuAvailable = !Double.isNaN(cpuPercent);
         boolean memoryAvailable = !Double.isNaN(memoryPercent);
@@ -146,7 +159,9 @@ public class CadvisorClient {
             resolvedMemory,
             metricsAvailable,
             loadAverage,
-            displayName
+            displayName,
+            startedAt,
+            lastSeen
         );
     }
 
@@ -426,7 +441,9 @@ public class CadvisorClient {
         double memoryPercent,
         boolean metricsAvailable,
         double loadAverage,
-        String displayName
+        String displayName,
+        Instant startedAt,
+        Instant lastSeen
     ) {
 
     }

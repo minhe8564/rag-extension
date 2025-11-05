@@ -23,6 +23,7 @@ public record CpuUsageResponse(
     @Min(0)
     int activeCores
 ) {
+
 }
 
 
