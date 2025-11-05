@@ -60,6 +60,9 @@ class Settings(BaseSettings):
             return self.minio_api_public_url.rstrip("/")
         return self.minio_endpoint_url
 
+    # External APIs
+    ingest_process_url: str = "https://gateway.ragextension.shop/rag/ingest/process"
+
     # Logging
     logging_level: str = "INFO"
     log_file_enabled: bool = False
