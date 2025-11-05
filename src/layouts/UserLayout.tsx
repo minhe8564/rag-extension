@@ -104,7 +104,7 @@ export default function UserLayout() {
           <div className="mt-3 px-2">
             <ChatList
               activeSessionNo={activeSessionNo}
-              onSelect={(s) => navigate(`/user/chat/text?session=${s.sessionNo}`)}
+              onSelect={(s) => navigate(`/user/chat/text/${s.sessionNo}`)}
               pageSize={20}
             />
           </div>

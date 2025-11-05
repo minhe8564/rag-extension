@@ -36,7 +36,7 @@ export function getSession(sessionNo: string) {
 export function getMessages(sessionNo: string, params: ListMessagesParams = {}) {
   const { cursor, limit = 20 } = params;
 
-  return springApi.get<ApiEnvelope<MessagePage>>(`/api/v1/chat/sessions/${sessionNo}/history`, {
+  return springApi.get<ApiEnvelope<MessagePage>>(`/api/v1/chat/sessions/${sessionNo}/messages`, {
     params: {
       ...(cursor ? { cursor } : {}),
       limit,
