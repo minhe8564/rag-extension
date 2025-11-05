@@ -1,6 +1,8 @@
 package com.ssafy.hebees.dashboard.controller;
 
 import com.ssafy.hebees.common.response.BaseResponse;
+import com.ssafy.hebees.dashboard.dto.request.ErrorMetricIncrementRequest;
+import com.ssafy.hebees.dashboard.dto.request.MetricIncrementRequest;
 import com.ssafy.hebees.dashboard.dto.request.TimeSeriesRequest;
 import com.ssafy.hebees.dashboard.dto.response.Change24hResponse;
 import com.ssafy.hebees.dashboard.dto.response.ChatbotTimeSeriesResponse;
@@ -12,6 +14,7 @@ import com.ssafy.hebees.dashboard.dto.response.TotalDocumentsResponse;
 import com.ssafy.hebees.dashboard.dto.response.TotalErrorsResponse;
 import com.ssafy.hebees.dashboard.dto.response.TotalUsersResponse;
 import com.ssafy.hebees.dashboard.dto.response.TrendKeywordsResponse;
+import com.ssafy.hebees.dashboard.service.DashboardMetricStreamService;
 import com.ssafy.hebees.dashboard.service.DashboardService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -23,13 +26,18 @@ import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @RestController
 @RequestMapping("/analytics")
@@ -40,6 +48,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class DashboardController {
 
     private final DashboardService dashboardService;
+    private final DashboardMetricStreamService dashboardMetricStreamService;
 
     @GetMapping("/metrics/access-users/change-24h")
     @Operation(summary = "접속자 수 24시간 변화 조회",
@@ -110,6 +119,83 @@ public class DashboardController {
     public ResponseEntity<BaseResponse<TotalErrorsResponse>> getMetricsTotalErrors() {
         TotalErrorsResponse response = dashboardService.getTotalErrors();
         return ResponseEntity.ok(BaseResponse.of(HttpStatus.OK, response, "총 에러 수 조회에 성공하였습니다."));
+    }
+
+    @GetMapping(value = "/metrics/access-users/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @Operation(summary = "접속자 수 SSE 알림",
+        description = "접속자 수의 변화가 있을 때 SSE로 알림을 보냅니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "SSE 연결 성공")
+    })
+    public SseEmitter subscribeAccessUsersSSE(
+        @RequestHeader(name = "Last-Event-ID", required = false) String lastEventId
+    ) {
+        return dashboardMetricStreamService.subscribeAccessUsers(lastEventId);
+    }
+
+    @GetMapping(value = "/metrics/upload-documents/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @Operation(summary = "업로드된 문서 수 SSE 알림",
+        description = "업로드된 문서 수의 변화가 있을 때 SSE로 알림을 보냅니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "SSE 연결 성공")
+    })
+    public SseEmitter subscribeUploadDocumentsSSE(
+        @RequestHeader(name = "Last-Event-ID", required = false) String lastEventId
+    ) {
+        return dashboardMetricStreamService.subscribeUploadDocuments(lastEventId);
+    }
+
+    @GetMapping(value = "/metrics/errors/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @Operation(summary = "에러 수 SSE 알림",
+        description = "에러 수의 변화가 있을 때 SSE로 알림을 보냅니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "SSE 연결 성공")
+    })
+    public SseEmitter subscribeErrorsSSE(
+        @RequestHeader(name = "Last-Event-ID", required = false) String lastEventId
+    ) {
+        return dashboardMetricStreamService.subscribeErrors(lastEventId);
+    }
+
+    @PostMapping("/metrics/access-users/increment")
+    @Operation(summary = "접속자 수 증가 기록", description = "현재 시간대의 접속자 수를 n만큼 증가시킵니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "증분 기록 성공")
+    })
+    public ResponseEntity<BaseResponse<Long>> incrementAccessUsers(
+        @Valid @RequestBody MetricIncrementRequest request
+    ) {
+        long updated = dashboardMetricStreamService.incrementCurrentAccessUsers(request.amount());
+        return ResponseEntity.ok(
+            BaseResponse.of(HttpStatus.OK, updated, "현재 시간대 접속자 수가 업데이트되었습니다."));
+    }
+
+    @PostMapping("/metrics/upload-documents/increment")
+    @Operation(summary = "업로드 문서 수 증가 기록", description = "현재 시간대의 업로드 문서 수를 n만큼 증가시킵니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "증분 기록 성공")
+    })
+    public ResponseEntity<BaseResponse<Long>> incrementUploadDocuments(
+        @Valid @RequestBody MetricIncrementRequest request
+    ) {
+        long updated = dashboardMetricStreamService.incrementCurrentUploadDocuments(
+            request.amount());
+        return ResponseEntity.ok(
+            BaseResponse.of(HttpStatus.OK, updated, "현재 시간대 업로드 문서 수가 업데이트되었습니다."));
+    }
+
+    @PostMapping("/metrics/errors/increment")
+    @Operation(summary = "에러 수 증가 기록", description = "현재 시간대의 에러 집계 값을 증가시킵니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "증분 기록 성공")
+    })
+    public ResponseEntity<BaseResponse<Long>> incrementErrors(
+        @Valid @RequestBody ErrorMetricIncrementRequest request
+    ) {
+        long updated = dashboardMetricStreamService.incrementCurrentErrors(
+            request.systemCount(), request.responseCount());
+        return ResponseEntity.ok(
+            BaseResponse.of(HttpStatus.OK, updated, "현재 시간대 에러 수가 업데이트되었습니다."));
     }
 
     @GetMapping("/metrics/chatbot/timeseries")

@@ -29,4 +29,19 @@ public class UserAggregateHourly extends BaseEntity {
     @Column(name = "ACCESS_USER_COUNT", nullable = false)
     @Builder.Default
     private Long accessUserCount = 0L; // 접속자 수
+
+    public long increaseAccessUserCount(long delta) {
+        long base = accessUserCount != null ? accessUserCount : 0L;
+        long updated;
+        try {
+            updated = Math.addExact(base, delta);
+        } catch (ArithmeticException e) {
+            updated = delta > 0 ? Long.MAX_VALUE : 0L;
+        }
+        if (updated < 0L) {
+            updated = 0L;
+        }
+        accessUserCount = updated;
+        return accessUserCount;
+    }
 }
