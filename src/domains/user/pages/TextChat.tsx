@@ -1,11 +1,12 @@
-// src/domains/user/pages/TextChat.tsx
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 import ChatInput from '@/shared/components/chat/ChatInput';
-import { Pencil, ThumbsUp, ThumbsDown, Copy } from 'lucide-react';
 import Tooltip from '@/shared/components/Tooltip';
 import { toast } from 'react-toastify';
 import { formatIsoDatetime } from '@/shared/util/iso';
+import { Wand2 } from 'lucide-react';
+import InlineReaskInput from '@/shared/components/chat/InlineReaskInput';
+import ReferencedDocsPanel from '@/shared/components/chat/ReferencedDocs';
 
 import type {
   ChatRole,
@@ -57,6 +58,25 @@ export default function TextChat() {
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  // 사용자 메시지 인라인 편집(질문 재생성)
+  const [editingIdx, setEditingIdx] = useState<number | null>(null);
+  const [editingDraft, setEditingDraft] = useState<string>('');
+
+  const startReask = (idx: number, content: string) => {
+    setEditingIdx(idx);
+    setEditingDraft(content);
+  };
+  const cancelReask = () => {
+    setEditingIdx(null);
+    setEditingDraft('');
+  };
+  const submitReask = async (value: string) => {
+    await handleSend(value);
+    setEditingIdx(null);
+    setEditingDraft('');
+    toast.success('수정된 질문으로 다시 보냈습니다.');
+  };
+
   useEffect(() => {
     if (!derivedSessionNo) return;
     setCurrentSessionNo(derivedSessionNo);
@@ -78,7 +98,7 @@ export default function TextChat() {
 
         setList(mapped);
 
-        // 쿼리/레거시 진입이면 주소 정규화: /user/chat/text/:sessionNo
+        // 쿼리/레거시 진입이면 주소 정규화
         if (location.pathname.includes('text:session=') || location.search.includes('session=')) {
           window.history.replaceState(history.state, '', `/user/chat/text/${derivedSessionNo}`);
         }
@@ -92,7 +112,7 @@ export default function TextChat() {
     })();
   }, [derivedSessionNo]);
 
-  // 새 메시지 추가될 때마다 맨 아래로 스크롤
+  // 새 메시지 추가 시 맨 아래로
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [list.length]);
@@ -108,10 +128,8 @@ export default function TextChat() {
 
   const handleSend = async (msg: string) => {
     setList((prev) => [...prev, { role: 'user', content: msg }]);
-
     try {
       const sessionNo = await ensureSession();
-
       const body: SendMessageRequest = { content: msg };
       const res = await sendMessage(sessionNo, body);
       const result: SendMessageResult = res.data.result;
@@ -120,6 +138,8 @@ export default function TextChat() {
         role: 'assistant',
         content: result.content ?? '(응답이 없습니다)',
         createdAt: result.timestamp,
+        // result.messageNo가 있다면 여기에 넣어주세요.
+        // messageNo: result.messageNo,
       };
       setList((prev) => [...prev, assistant]);
     } catch (e) {
@@ -138,6 +158,8 @@ export default function TextChat() {
             <div className="w-full max-w-[75%] space-y-6 px-12 py-4">
               {list.map((m, i) => {
                 const isUser = m.role === 'user';
+                const isEditingThis = isUser && editingIdx === i;
+
                 return (
                   <div
                     key={m.messageNo ?? i}
@@ -146,65 +168,54 @@ export default function TextChat() {
                       (isUser ? 'ml-auto bg-[var(--color-retina-bg)] text-black' : 'bg-white')
                     }
                   >
-                    <div className="whitespace-pre-wrap">{m.content}</div>
+                    {/* 본문: 사용자 메시지 에디팅 시 인라인 입력 박스로 대체 */}
+                    {isEditingThis ? (
+                      <InlineReaskInput
+                        initialValue={editingDraft || m.content}
+                        onCancel={cancelReask}
+                        onSubmit={submitReask}
+                        placeholder="질문을 수정하세요… (Enter 전송, Shift+Enter 줄바꿈)"
+                      />
+                    ) : (
+                      <div className="whitespace-pre-wrap">{m.content}</div>
+                    )}
 
+                    {/* assistant 타임스탬프 */}
                     {!isUser && m.createdAt && (
                       <div className="text-[10px] text-gray-400 mt-1">
                         {formatIsoDatetime(m.createdAt)}
                       </div>
                     )}
 
+                    {/* 액션바: 사용자 = 질문 재생성만, 어시스턴트는 생략 */}
                     <div
                       className={`
-                        absolute flex gap-2 items-center 
-                        ${isUser ? 'right-2' : 'left-2'} 
-                        bottom-[-30px] opacity-0 group-hover:opacity-100 
+                        absolute flex gap-2 items-center
+                        ${isUser ? 'right-2' : 'left-2'}
+                        bottom-[-30px] opacity-0 group-hover:opacity-100
                         transition-opacity duration-200
                       `}
                     >
-                      {isUser ? (
-                        <Tooltip content="다시 입력하기" side="bottom">
+                      {isUser && !isEditingThis && (
+                        <Tooltip content="질문 재생성 (수정 후 전송)" side="bottom">
                           <button
-                            onClick={() => console.log('edit:', m.content)}
+                            onClick={() => startReask(i, m.content)}
                             className="p-1 rounded hover:bg-gray-100"
                           >
-                            <Pencil size={14} className="text-gray-500" />
+                            <Wand2 size={14} className="text-gray-500" />
                           </button>
                         </Tooltip>
-                      ) : (
-                        <>
-                          <Tooltip content="좋은 응답" side="bottom">
-                            <button
-                              onClick={() => console.log('thumbs up', m.content)}
-                              className="p-1 rounded hover:bg-gray-100"
-                            >
-                              <ThumbsUp size={14} className="text-gray-500" />
-                            </button>
-                          </Tooltip>
-
-                          <Tooltip content="별로인 응답" side="bottom">
-                            <button
-                              onClick={() => console.log('thumbs down', m.content)}
-                              className="p-1 rounded hover:bg-gray-100"
-                            >
-                              <ThumbsDown size={14} className="text-gray-500" />
-                            </button>
-                          </Tooltip>
-
-                          <Tooltip content="복사하기" side="bottom">
-                            <button
-                              onClick={() => {
-                                navigator.clipboard.writeText(m.content);
-                                toast.success('클립보드에 복사되었습니다.');
-                              }}
-                              className="p-1 rounded hover:bg-gray-100"
-                            >
-                              <Copy size={14} className="text-gray-500" />
-                            </button>
-                          </Tooltip>
-                        </>
                       )}
                     </div>
+
+                    {/* 어시스턴트 메시지의 참조 문서 패널 */}
+                    {!isUser && m.messageNo && currentSessionNo ? (
+                      <ReferencedDocsPanel
+                        sessionNo={currentSessionNo}
+                        messageNo={m.messageNo}
+                        collapsedByDefault={false}
+                      />
+                    ) : null}
                   </div>
                 );
               })}
