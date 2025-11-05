@@ -162,7 +162,7 @@ public class ChatServiceImpl implements ChatService {
         UUID newLlmNo = request.llm() != null ? request.llm() : session.getLlmNo();
 
         session.updateSettings(newTitle, newLlmNo); // TODO: LLM 유효성 검사 추가 필요
-        log.info("세션 수정 요청: title={}, llmNo={}", session.getTitle(), session.getLlmNo());
+        log.info("세션 수정 요청: title={}, llmNo={}", request.title(), request.llm());
         log.info("세션 수정 성공: userNo={}, sessionNo={}", session.getUserNo(), sessionNo);
     }
 
