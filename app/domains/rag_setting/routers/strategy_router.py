@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ....core.database import get_db
 from ....core.schemas import BaseResponse, Result
 from ....core.check_role import check_role
+from ....core.error_responses import admin_only_responses, not_found_error_response
 from ..schemas.strategy import StrategyListItem, PaginationInfo, StrategyDetailResponse
 from ..services.strategy import list_strategies as list_strategies_service, get_strategy_by_no
 
@@ -28,60 +29,7 @@ def _bytes_to_uuid_str(b: bytes) -> str:
     response_model=BaseResponse[Dict[str, Any]],
     summary="전략 목록 조회 (관리자 전용)",
     description="RAG 전략 목록을 조회합니다. 관리자만 접근 가능합니다.",
-    responses={
-        200: {"description": "성공"},
-        400: {
-            "description": "잘못된 요청 (유효성 검증 실패)",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "status": 400,
-                        "code": "VALIDATION_FAILED",
-                        "message": "요청 파라미터 유효성 검증에 실패했습니다.",
-                        "isSuccess": False,
-                        "result": {
-                            "errors": [
-                                {
-                                    "field": "pageNum",
-                                    "message": "페이지 번호는 1 이상이어야 합니다."
-                                }
-                            ]
-                        }
-                    }
-                }
-            }
-        },
-        401: {
-            "description": "인증 실패 (Access Token 없음 또는 유효하지 않음)",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "status": 401,
-                        "code": "INVALID_ACCESS_TOKEN",
-                        "message": "엑세스 토큰이 유효하지 않거나 만료되었습니다.",
-                        "isSuccess": False,
-                        "result": {}
-                    }
-                }
-            }
-        },
-        403: {
-            "description": "권한 없음 (관리자 권한 필요)",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "status": 403,
-                        "code": "FORBIDDEN",
-                        "message": "요청을 수행할 권한이 없습니다.",
-                        "isSuccess": False,
-                        "result": {
-                            "requiredRole": ["ADMIN"]
-                        }
-                    }
-                }
-            }
-        },
-    },
+    responses=admin_only_responses(),
 )
 async def get_strategies(
     type: Optional[str] = Query(None, description="전략 유형 필터"),
@@ -149,72 +97,8 @@ async def get_strategies(
     summary="전략 상세 조회 (관리자 전용)",
     description="특정 전략의 상세 정보를 조회합니다. 관리자만 접근 가능합니다.",
     responses={
-        200: {"description": "성공"},
-        400: {
-            "description": "잘못된 요청 (유효성 검증 실패)",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "status": 400,
-                        "code": "VALIDATION_FAILED",
-                        "message": "유효하지 않은 전략 ID 형식입니다.",
-                        "isSuccess": False,
-                        "result": {
-                            "errors": [
-                                {
-                                    "field": "strategyNo",
-                                    "message": "UUID 형식이어야 합니다."
-                                }
-                            ]
-                        }
-                    }
-                }
-            }
-        },
-        401: {
-            "description": "인증 실패 (Access Token 없음 또는 유효하지 않음)",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "status": 401,
-                        "code": "INVALID_ACCESS_TOKEN",
-                        "message": "엑세스 토큰이 유효하지 않거나 만료되었습니다.",
-                        "isSuccess": False,
-                        "result": {}
-                    }
-                }
-            }
-        },
-        403: {
-            "description": "권한 없음 (관리자 권한 필요)",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "status": 403,
-                        "code": "FORBIDDEN",
-                        "message": "요청을 수행할 권한이 없습니다.",
-                        "isSuccess": False,
-                        "result": {
-                            "requiredRole": ["ADMIN"]
-                        }
-                    }
-                }
-            }
-        },
-        404: {
-            "description": "전략을 찾을 수 없음",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "status": 404,
-                        "code": "NOT_FOUND",
-                        "message": "전략을 찾을 수 없습니다.",
-                        "isSuccess": False,
-                        "result": {}
-                    }
-                }
-            }
-        },
+        **admin_only_responses(),
+        404: not_found_error_response("전략"),
     },
 )
 async def get_strategy_detail(
