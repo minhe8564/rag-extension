@@ -701,7 +701,6 @@ public class MonitoringService {
             double compositeScore = running
                 ? round(calculateCompositeScore(cpuPercent, memoryPercent), 2)
                 : 0.0;
-            double loadAvg = metrics != null ? round(metrics.loadAverage(), 2) : 0.0;
             String status = running ? determineStatus(compositeScore) : "EXITED";
             String serviceName = selection.serviceNameFor(containerKey)
                 .orElseGet(() -> {
@@ -716,7 +715,6 @@ public class MonitoringService {
 
             services.add(new ServicePerformanceInfoResponse(
                 serviceName,
-                loadAvg,
                 cpuPercent,
                 memoryPercent,
                 compositeScore,
