@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssafy.hebees.monitoring.dto.response.MemoryUsageResponse;
 import com.ssafy.hebees.common.util.MonitoringUtils;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import oshi.SystemInfo;
 import oshi.hardware.HardwareAbstractionLayer;
@@ -26,15 +25,18 @@ import java.util.Map;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class MemoryMonitoringService {
 
-    @Qualifier("monitoringRedisTemplate")
     private final StringRedisTemplate monitoringRedisTemplate;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private final SystemInfo systemInfo = new SystemInfo();
     private final HardwareAbstractionLayer hal = systemInfo.getHardware();
+
+    public MemoryMonitoringService(
+        @Qualifier("monitoringRedisTemplate") StringRedisTemplate monitoringRedisTemplate) {
+        this.monitoringRedisTemplate = monitoringRedisTemplate;
+    }
 
     private double calculateMemoryUsagePercent(double usedGb, double totalGb) {
         if (totalGb == 0) {
