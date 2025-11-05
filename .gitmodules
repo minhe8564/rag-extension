@@ -54,3 +54,7 @@
 	path = python-backend-repo
 	url = https://lab.ssafy.com/gd10080008/python-backend-repo.git
 	branch = develop
+[submodule "rag-data-marker"]
+	path = rag-data-marker
+	url = https://lab.ssafy.com/gd10080008/rag-data-marker.git
+	branch = develop
