@@ -7,9 +7,6 @@ public record ServicePerformanceInfoResponse(
     @Schema(description = "서비스 이름", example = "chunking-repo")
     String serviceName,
 
-    @Schema(description = "1분 Load Average", example = "0.82")
-    double loadAvg1m,
-
     @Schema(description = "CPU 사용률(%)", example = "62.5")
     double cpuUsagePercent,
 
