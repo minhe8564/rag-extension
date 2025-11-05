@@ -29,3 +29,17 @@ logging:
     org.hibernate.SQL: WARN
     org.hibernate.type.descriptor.sql.BasicBinder: WARN
     org.springframework.jdbc: WARN
+
+monitoring:
+  cadvisor:
+    base-url: http://cadvisor:8080
+  service-targets: # 모니터링 대상 서비스 목록 (YAML 리스트). 빈 리스트면 모든 컨테이너 모니터링
+    - hebees-chunking
+    - hebees-cross-encoder
+    - hebees-embedding
+    - hebees-extract
+    - hebees-generation
+    - hebees-ingest
+    - hebees-python-backend
+    - hebees-query-embedding
+    - hebees-search
