@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssafy.hebees.monitoring.config.MonitoringProperties;
 import com.ssafy.hebees.monitoring.dto.response.NetworkTrafficResponse;
 import com.ssafy.hebees.common.util.MonitoringUtils;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import oshi.SystemInfo;
 import oshi.hardware.HardwareAbstractionLayer;
@@ -31,13 +30,11 @@ import java.time.Duration;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class NetworkMonitoringService {
 
     private final SystemInfo systemInfo = new SystemInfo();
     private final HardwareAbstractionLayer hal = systemInfo.getHardware();
     private final ObjectMapper objectMapper = new ObjectMapper();
-    @Qualifier("monitoringRedisTemplate")
     private final StringRedisTemplate monitoringRedisTemplate;
     private final MonitoringProperties monitoringProperties;
     private String networkBytesKey;
@@ -45,6 +42,13 @@ public class NetworkMonitoringService {
     // Network bandwidth cache
     private volatile Double cachedBandwidthMbps = null;
     private final Object bandwidthLock = new Object();
+
+    public NetworkMonitoringService(
+        @Qualifier("monitoringRedisTemplate") StringRedisTemplate monitoringRedisTemplate,
+        MonitoringProperties monitoringProperties) {
+        this.monitoringRedisTemplate = monitoringRedisTemplate;
+        this.monitoringProperties = monitoringProperties;
+    }
 
     @PostConstruct
     void initNetworkBytesKey() {
