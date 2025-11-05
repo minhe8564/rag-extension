@@ -157,9 +157,8 @@ public class ChatServiceImpl implements ChatService {
     @Transactional
     public void updateSession(UUID userNo, UUID sessionNo, SessionUpdateRequest request) {
         Session session = getOwnedSession(userNo, sessionNo);
-
-        String currentTitle = session.getTitle();
-        String newTitle = request.title() != null ? request.title() : currentTitle;
+//        session.getTitle()
+        String newTitle = request.title() != null ? request.title() : "실패!";
         UUID newLlmNo = request.llm() != null ? request.llm() : session.getLlmNo();
 
         session.updateSettings(newTitle, newLlmNo); // TODO: LLM 유효성 검사 추가 필요
