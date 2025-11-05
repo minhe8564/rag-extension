@@ -227,3 +227,57 @@ def public_endpoint_responses() -> Dict[int, Dict[str, Any]]:
         include_unauthorized=False,
         include_forbidden=False,
     )
+
+
+def invalid_input_error_response(missing_fields: List[str] = None) -> Dict[str, Any]:
+    """
+    400 - 잘못된 입력 (파라미터 누락) 응답
+
+    Args:
+        missing_fields: 누락된 필드 목록
+
+    Returns:
+        Dict: OpenAPI 응답 스키마
+    """
+    if missing_fields is None:
+        missing_fields = ["fieldName"]
+
+    return {
+        "description": "잘못된 요청 (파라미터 누락 또는 유효하지 않은 전략 ID)",
+        "content": {
+            "application/json": {
+                "example": {
+                    "status": 400,
+                    "code": "INVALID_INPUT",
+                    "message": "파라미터가 누락되었습니다.",
+                    "isSuccess": False,
+                    "result": {
+                        "missing": missing_fields
+                    }
+                }
+            }
+        }
+    }
+
+
+def not_found_template_response() -> Dict[str, Any]:
+    """
+    404 - 템플릿을 찾을 수 없음 응답
+
+    Returns:
+        Dict: OpenAPI 응답 스키마
+    """
+    return {
+        "description": "템플릿을 찾을 수 없음",
+        "content": {
+            "application/json": {
+                "example": {
+                    "status": 404,
+                    "code": "NOT_FOUND",
+                    "message": "대상을 찾을 수 없습니다.",
+                    "isSuccess": False,
+                    "result": {}
+                }
+            }
+        }
+    }

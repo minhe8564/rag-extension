@@ -2,7 +2,7 @@
 Ingest Group 모델
 """
 
-from sqlalchemy import Column, DateTime, Boolean, LargeBinary, JSON, ForeignKey
+from sqlalchemy import Column, DateTime, Boolean, LargeBinary, JSON, ForeignKey, String
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.core.base import Base
@@ -45,6 +45,12 @@ class IngestGroup(Base):
         LargeBinary(16),
         primary_key=True,
         default=generate_uuid_binary,
+        nullable=False
+    )
+
+    name = Column(
+        "NAME",
+        String(100),
         nullable=False
     )
 

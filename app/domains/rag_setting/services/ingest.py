@@ -40,6 +40,7 @@ async def list_ingest_groups(
     # 서브쿼리: 필터링과 정렬을 적용한 기본 쿼리
     subquery = select(
         IngestGroup.ingest_group_no,
+        IngestGroup.name,
         IngestGroup.is_default,
         IngestGroup.extraction_strategy_no,
         IngestGroup.chunking_strategy_no,
@@ -128,7 +129,7 @@ async def create_ingest_template(
 
     Args:
         session: 데이터베이스 세션
-        name: 템플릿 이름 (현재 미사용, 향후 확장 가능)
+        name: 템플릿 이름
         is_default: 기본 템플릿 여부
         extraction_no: 추출 전략 ID
         extraction_parameters: 추출 전략 파라미터
@@ -175,6 +176,7 @@ async def create_ingest_template(
 
     # Ingest 그룹 생성
     ingest_group = IngestGroup(
+        name=name,
         is_default=is_default,
         extraction_strategy_no=uuid_to_binary(extraction_no),
         chunking_strategy_no=uuid_to_binary(chunking_no),
@@ -189,3 +191,170 @@ async def create_ingest_template(
     await session.refresh(ingest_group)
 
     return binary_to_uuid(ingest_group.ingest_group_no)
+
+
+async def get_ingest_template_detail(
+    session: AsyncSession,
+    ingest_no: str,
+) -> Optional[IngestGroup]:
+    """
+    Ingest 템플릿 상세 조회
+
+    Args:
+        session: 데이터베이스 세션
+        ingest_no: Ingest 템플릿 ID (UUID 문자열)
+
+    Returns:
+        IngestGroup 객체 또는 None
+
+    Raises:
+        HTTPException: 템플릿을 찾을 수 없는 경우
+    """
+    try:
+        ingest_binary = uuid_to_binary(ingest_no)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="유효하지 않은 Ingest 템플릿 ID입니다."
+        )
+
+    # IngestGroup 조회 with eager loading
+    query = (
+        select(IngestGroup)
+        .where(IngestGroup.ingest_group_no == ingest_binary)
+        .options(
+            selectinload(IngestGroup.extraction_strategy),
+            selectinload(IngestGroup.chunking_strategy),
+            selectinload(IngestGroup.embedding_strategy)
+        )
+    )
+
+    result = await session.execute(query)
+    ingest_group = result.scalar_one_or_none()
+
+    if not ingest_group:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="대상을 찾을 수 없습니다."
+        )
+
+    return ingest_group
+
+
+async def update_ingest_template(
+    session: AsyncSession,
+    ingest_no: str,
+    name: str,
+    extraction_no: str,
+    extraction_parameters: dict,
+    chunking_no: str,
+    chunking_parameters: dict,
+    embedding_no: str,
+    embedding_parameters: dict,
+) -> None:
+    """
+    Ingest 템플릿 수정
+
+    Args:
+        session: 데이터베이스 세션
+        ingest_no: Ingest 템플릿 ID
+        name: 템플릿 이름
+        extraction_no: 추출 전략 ID
+        extraction_parameters: 추출 전략 파라미터
+        chunking_no: 청킹 전략 ID
+        chunking_parameters: 청킹 전략 파라미터
+        embedding_no: 임베딩 전략 ID
+        embedding_parameters: 임베딩 전략 파라미터
+
+    Raises:
+        HTTPException: 템플릿을 찾을 수 없거나 전략을 찾을 수 없는 경우
+    """
+    # 기존 템플릿 조회
+    try:
+        ingest_binary = uuid_to_binary(ingest_no)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="유효하지 않은 Ingest 템플릿 ID입니다."
+        )
+
+    query = select(IngestGroup).where(IngestGroup.ingest_group_no == ingest_binary)
+    result = await session.execute(query)
+    ingest_group = result.scalar_one_or_none()
+
+    if not ingest_group:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="대상을 찾을 수 없습니다."
+        )
+
+    # 전략 존재 여부 확인
+    extraction_strategy = await verify_strategy_exists(session, extraction_no)
+    if not extraction_strategy:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"추출 전략을 찾을 수 없습니다: {extraction_no}"
+        )
+
+    chunking_strategy = await verify_strategy_exists(session, chunking_no)
+    if not chunking_strategy:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"청킹 전략을 찾을 수 없습니다: {chunking_no}"
+        )
+
+    embedding_strategy = await verify_strategy_exists(session, embedding_no)
+    if not embedding_strategy:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"임베딩 전략을 찾을 수 없습니다: {embedding_no}"
+        )
+
+    # 템플릿 업데이트
+    ingest_group.name = name
+    ingest_group.extraction_strategy_no = uuid_to_binary(extraction_no)
+    ingest_group.chunking_strategy_no = uuid_to_binary(chunking_no)
+    ingest_group.embedding_strategy_no = uuid_to_binary(embedding_no)
+    ingest_group.extraction_parameter = extraction_parameters or {}
+    ingest_group.chunking_parameter = chunking_parameters or {}
+    ingest_group.embedding_parameter = embedding_parameters or {}
+
+    await session.commit()
+
+
+async def delete_ingest_template(
+    session: AsyncSession,
+    ingest_no: str,
+) -> None:
+    """
+    Ingest 템플릿 삭제
+
+    Args:
+        session: 데이터베이스 세션
+        ingest_no: Ingest 템플릿 ID
+
+    Raises:
+        HTTPException: 템플릿을 찾을 수 없는 경우
+    """
+    # 템플릿 조회
+    try:
+        ingest_binary = uuid_to_binary(ingest_no)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="유효하지 않은 Ingest 템플릿 ID입니다."
+        )
+
+    query = select(IngestGroup).where(IngestGroup.ingest_group_no == ingest_binary)
+    result = await session.execute(query)
+    ingest_group = result.scalar_one_or_none()
+
+    if not ingest_group:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="대상을 찾을 수 없습니다."
+        )
+
+    # 템플릿 삭제
+    await session.delete(ingest_group)
+    await session.commit()
