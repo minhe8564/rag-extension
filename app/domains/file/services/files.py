@@ -55,8 +55,8 @@ def _resolve_bucket(input_bucket: Optional[str], offer_no: str) -> tuple[str, bo
         lb = b.lower()
         if lb == "public":
             return (getattr(settings, "default_public_bucket", None) or "public"), False
-        if lb == "test":
-            return (getattr(settings, "default_test_bucket", None) or "test"), False
+        if lb == "hebees":
+            return (getattr(settings, "default_hebees_bucket", None) or "hebees"), False
         return b, True
     # Otherwise use personal (offer_no) bucket (USER flow)
     return offer_no, True
