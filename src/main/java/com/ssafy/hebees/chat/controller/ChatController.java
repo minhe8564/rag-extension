@@ -71,7 +71,7 @@ public class ChatController {
         PageResponse<SessionResponse> sessions = chatService.getSessions(userNo, pageRequest,
             listRequest);
 
-        return ResponseEntity.ok(BaseResponse.of(HttpStatus.OK, sessions));
+        return ResponseEntity.ok(BaseResponse.of(HttpStatus.OK, sessions, "세션 목록 조회에 성공하였습니다."));
     }
 
     @GetMapping("/sessions/all")
@@ -83,15 +83,10 @@ public class ChatController {
         @Valid @ModelAttribute PageRequest pageRequest,
         @Valid @ModelAttribute SessionListRequest listRequest
     ) {
-        UUID requester = SecurityUtil.getCurrentUserUuid()
-            .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_ACCESS_TOKEN));
-        String role = SecurityUtil.getCurrentUserRole()
-            .orElseThrow(() -> new BusinessException(ErrorCode.PERMISSION_DENIED));
-
         PageResponse<SessionResponse> sessions = chatService.getAllSessions(pageRequest,
             listRequest);
 
-        return ResponseEntity.ok(BaseResponse.of(HttpStatus.OK, sessions));
+        return ResponseEntity.ok(BaseResponse.of(HttpStatus.OK, sessions, "세션 목록 전체 조회에 성공하였습니다."));
     }
 
     @GetMapping("/users/{userNo}/history")
@@ -104,14 +99,6 @@ public class ChatController {
         @Valid @ModelAttribute PageRequest pageRequest,
         @Valid @ModelAttribute SessionListRequest listRequest
     ) {
-        UUID requester = SecurityUtil.getCurrentUserUuid()
-            .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_ACCESS_TOKEN));
-
-        if (!requester.equals(userNo)) {
-            String role = SecurityUtil.getCurrentUserRole()
-                .orElseThrow(() -> new BusinessException(ErrorCode.PERMISSION_DENIED));
-        }
-
         PageResponse<SessionHistoryResponse> history = chatService.getUserChatHistory(userNo,
             pageRequest, listRequest);
 

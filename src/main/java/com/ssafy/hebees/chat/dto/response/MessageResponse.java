@@ -31,20 +31,8 @@ public record MessageResponse(
     @Schema(description = "세션 내 순번")
     Long seq,
 
-    @Schema(description = "입력 토큰 수")
-    Long inputTokens,
-
-    @Schema(description = "출력 토큰 수")
-    Long outputTokens,
-
-    @Schema(description = "총 토큰 수")
-    Long totalTokens,
-
-    @Schema(description = "응답 시간(ms)")
-    Long responseTimeMs,
-
     @Schema(description = "참조 문서 목록")
-    List<ReferencedDocumentResponse> referencedDocuments
+    List<ReferencedDocumentResponse> references
 ) {
 
 }

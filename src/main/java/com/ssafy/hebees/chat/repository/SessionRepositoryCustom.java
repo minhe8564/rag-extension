@@ -12,8 +12,6 @@ public interface SessionRepositoryCustom {
 
     Optional<Session> findBySessionNo(UUID sessionNo);
 
-    boolean existsByUserNoAndTitleIgnoreCase(UUID userNo, String title);
-
     Page<Session> searchSessionsByUser(UUID userNo, String keyword, Pageable pageable);
 
     Page<Session> searchAllSessions(String keyword, Pageable pageable);

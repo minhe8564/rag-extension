@@ -33,24 +33,6 @@ public class SessionRepositoryCustomImpl implements SessionRepositoryCustom {
     }
 
     @Override
-    public boolean existsByUserNoAndTitleIgnoreCase(UUID userNo, String title) {
-        if (userNo == null || title == null || title.isBlank()) {
-            return false;
-        }
-
-        Integer exists = queryFactory
-            .selectOne()
-            .from(session)
-            .where(
-                eqUserNo(userNo),
-                eqTitleIgnoreCase(title)
-            )
-            .fetchFirst();
-
-        return exists != null;
-    }
-
-    @Override
     public Page<Session> searchSessionsByUser(UUID userNo, String keyword, Pageable pageable) {
         List<Session> content = queryFactory
             .selectFrom(session)
@@ -158,13 +140,6 @@ public class SessionRepositoryCustomImpl implements SessionRepositoryCustom {
             return null;
         }
         return session.createdAt.lt(endExclusive);
-    }
-
-    private BooleanExpression eqTitleIgnoreCase(String title) {
-        if (title == null || title.isBlank()) {
-            return null;
-        }
-        return session.title.equalsIgnoreCase(title.trim());
     }
 }
 
