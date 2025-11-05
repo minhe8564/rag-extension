@@ -29,4 +29,20 @@ public class DocumentAggregateHourly extends BaseEntity {
     @Column(name = "UPLOAD_COUNT", nullable = false)
     @Builder.Default
     private Long uploadCount = 0L; // 업로드 수
+
+    public long increaseUploadCount(long delta) {
+        long base = uploadCount != null ? uploadCount : 0L;
+        long updated;
+        try {
+            updated = Math.addExact(base, delta);
+        } catch (ArithmeticException e) {
+            updated = delta > 0 ? Long.MAX_VALUE : 0L;
+        }
+        if (updated < 0L) {
+            updated = 0L;
+        }
+        uploadCount = updated;
+        return uploadCount;
+    }
 }
+

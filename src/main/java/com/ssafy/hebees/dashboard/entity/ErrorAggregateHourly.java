@@ -37,4 +37,38 @@ public class ErrorAggregateHourly extends BaseEntity {
     @Column(name = "TOTAL_ERROR_COUNT", nullable = false)
     @Builder.Default
     private Long totalErrorCount = 0L; // 총 에러 수
+
+    public long increaseErrorCounts(long systemDelta, long responseDelta) {
+        systemErrorCount = applyDelta(systemErrorCount, systemDelta);
+        responseErrorCount = applyDelta(responseErrorCount, responseDelta);
+        totalErrorCount = recomputeTotal(systemErrorCount, responseErrorCount);
+        return totalErrorCount;
+    }
+
+    private long applyDelta(Long current, long delta) {
+        long base = current != null ? current : 0L;
+        long updated;
+        try {
+            updated = Math.addExact(base, delta);
+        } catch (ArithmeticException e) {
+            updated = delta > 0 ? Long.MAX_VALUE : 0L;
+        }
+        if (updated < 0L) {
+            updated = 0L;
+        }
+        return updated;
+    }
+
+    private long recomputeTotal(Long system, Long response) {
+        long systemValue = system != null ? system : 0L;
+        long responseValue = response != null ? response : 0L;
+        long total;
+        try {
+            total = Math.addExact(systemValue, responseValue);
+        } catch (ArithmeticException e) {
+            total = Long.MAX_VALUE;
+        }
+        return Math.max(total, 0L);
+    }
 }
+
