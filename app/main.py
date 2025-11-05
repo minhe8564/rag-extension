@@ -12,6 +12,7 @@ from .domains.collection.routers.collections import router as collections_router
 from .domains.image.routers.image_controller import router as image_router
 from .domains.rag_setting.routers.strategy_router import router as strategy_router
 from .domains.rag_setting.routers.ingest_router import router as ingest_router
+from .domains.rag_setting.routers.query_router import router as query_router
 from .domains.monitoring.routers.monitoring_controller import router as monitoring_router
 from datetime import datetime
 
@@ -85,6 +86,7 @@ app.include_router(collections_router, prefix="/api/v1")
 app.include_router(image_router, prefix="/api/v1")
 app.include_router(strategy_router, prefix="/api/v1")
 app.include_router(ingest_router, prefix="/api/v1")
+app.include_router(query_router, prefix="/api/v1")
 app.include_router(monitoring_router, prefix="/api/v1")
 
 @app.get("/")
