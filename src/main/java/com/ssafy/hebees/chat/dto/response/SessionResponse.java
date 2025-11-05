@@ -13,7 +13,9 @@ public record SessionResponse(
     String title,
 
     @Schema(description = "세션 정보 마지막 수정 시각 (제목/설정 변경 등)", type = "string", format = "date-time", example = "2025-11-02T20:12:45")
-    LocalDateTime updatedAt
+    LocalDateTime updatedAt,
+
+    UUID userNo
 ) {
 
 }

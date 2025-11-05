@@ -1,6 +1,7 @@
 package com.ssafy.hebees.auth.service;
 
 import com.ssafy.hebees.auth.dto.request.LoginRequest;
+import com.ssafy.hebees.auth.dto.response.AccessTokenIssueResponse;
 import com.ssafy.hebees.auth.dto.response.LoginResponse;
 import com.ssafy.hebees.auth.dto.request.TokenRefreshRequest;
 import com.ssafy.hebees.auth.dto.response.TokenRefreshResponse;
@@ -35,6 +36,38 @@ public class AuthServiceImpl implements AuthService {
 
     @Value("${jwt.refresh-token-expiration}")
     private long refreshTokenExpiration;
+
+    @Override
+    public AccessTokenIssueResponse issueAccessToken(UUID userNo) {
+        log.info("액세스 토큰 발급 시도: userUuid={}", userNo);
+
+        if (userNo == null) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        }
+
+        User user = userService.findByUuid(userNo);
+        String accessToken = jwtUtil.generateToken(user.getUuid(), user.getRoleName());
+
+        log.info("액세스 토큰 발급 성공: userUuid={}", userNo);
+
+        return AccessTokenIssueResponse.of(accessToken);
+    }
+
+    @Override
+    public AccessTokenIssueResponse issueAccessTokenByEmail(String email) {
+        log.info("액세스 토큰 발급 시도: email={}", email);
+
+        if (email == null || email.isBlank()) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        }
+
+        User user = userService.findByEmail(email);
+        String accessToken = jwtUtil.generateToken(user.getUuid(), user.getRoleName());
+
+        log.info("액세스 토큰 발급 성공: email={}, userUuid={}", email, user.getUuid());
+
+        return AccessTokenIssueResponse.of(accessToken);
+    }
 
     @Override
     @Transactional
