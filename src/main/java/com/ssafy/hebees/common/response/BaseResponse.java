@@ -1,13 +1,18 @@
 package com.ssafy.hebees.common.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.http.HttpStatus;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record BaseResponse<T>(
+    @Schema(description = "HTTP 상태 코드", example = "200")
     int status,
+    @Schema(description = "비즈니스 응답 코드", example = "OK")
     String code,
+    @Schema(description = "응답 메시지", example = "요청에 성공하였습니다.")
     String message,
+    @Schema(description = "성공 여부", example = "true")
     boolean isSuccess,
     T result
 ) {

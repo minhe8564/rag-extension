@@ -209,9 +209,7 @@ public class ChatServiceImpl implements ChatService {
         return new SessionResponse(
             session.getSessionNo(),
             session.getTitle(),
-            session.getCreatedAt(),
-            session.getUpdatedAt(),
-            session.getLastRequestedAt()
+            session.getUpdatedAt()
         );
     }
 }

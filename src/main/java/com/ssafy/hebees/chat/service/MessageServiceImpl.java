@@ -131,7 +131,7 @@ public class MessageServiceImpl implements MessageService {
     public ReferencedDocumentListResponse listReferencedDocuments(UUID userNo, UUID sessionNo,
         UUID messageNo) {
         MessageResponse message = getMessage(userNo, sessionNo, messageNo);
-        return toReferencedDocumentListResponse(message.referencedDocuments());
+        return toReferencedDocumentListResponse(message.references());
     }
 
     @Override
@@ -248,10 +248,6 @@ public class MessageServiceImpl implements MessageService {
             chatMessage.getContent(),
             chatMessage.getCreatedAt(),
             chatMessage.getSeq(),
-            chatMessage.getInputTokens(),
-            chatMessage.getOutputTokens(),
-            chatMessage.getTotalTokens(),
-            chatMessage.getResponseTimeMs(),
             references
         );
     }
