@@ -6,10 +6,8 @@ import com.ssafy.hebees.ingest.dto.response.IngestRunProgressResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.Range;
+import com.ssafy.hebees.common.util.RedisStreamUtils;
 import org.springframework.data.redis.connection.stream.MapRecord;
-import org.springframework.data.redis.connection.stream.ReadOffset;
-import org.springframework.data.redis.connection.stream.StreamOffset;
-import org.springframework.data.redis.connection.stream.StreamReadOptions;
 import org.springframework.data.redis.core.*;
 import org.springframework.stereotype.Service;
 
@@ -29,7 +27,7 @@ public class IngestRunProgressService {
     }
 
     /**
-     * 현재 사용자(UUID)의 진행 중인 최신 수집(run)을 찾아 최신 스냅샷(Hash)과 이벤트 스트림의 마지막 ID를 조합하여 진행 상태를 반환합니다.
+     * 현재 사용자(UUID)의 진행 중인 최신 수집(run)을 찾아 최신 스냅샷(Hash)과 이벤트 스트림의 마지막 ID를 조합하여 진행 상태를 반환
      */
     public IngestRunProgressResponse getLatestProgressForUser(java.util.UUID userUuid) {
         // 연결된 Redis 정보와 PING 로깅 (DB 인덱스 확인)
@@ -59,9 +57,8 @@ public class IngestRunProgressService {
         if (latest == null || latest.isEmpty()) {
             log.info("[INGEST] latest 스냅샷 비어있음 - key={}", latestKey);
             // 스냅샷이 없으면 스트림의 마지막 레코드로 대체
-            StreamOperations<String, Object, Object> sops = ingestRedisTemplate.opsForStream();
-            List<MapRecord<String, Object, Object>> records = sops.reverseRange(streamKey(runId),
-                Range.unbounded());
+            List<MapRecord<String, Object, Object>> records = RedisStreamUtils.getLatestRecords(
+                ingestRedisTemplate, streamKey(runId), null);
             int count = (records == null ? 0 : records.size());
             log.info("[INGEST] 스트림 조회 결과 - key={}, count={}", streamKey(runId), count);
             if (records == null || records.isEmpty()) {
@@ -80,11 +77,7 @@ public class IngestRunProgressService {
         // 선택: 마지막 스트림 ID 조회
         String id = null;
         try {
-            List<MapRecord<String, Object, Object>> records = ingestRedisTemplate.opsForStream()
-                .reverseRange(streamKey(runId), Range.unbounded());
-            if (records != null && !records.isEmpty()) {
-                id = records.get(0).getId().getValue();
-            }
+            id = RedisStreamUtils.getLatestRecordId(ingestRedisTemplate, streamKey(runId));
         } catch (Exception ignore) {
         }
 
@@ -158,27 +151,15 @@ public class IngestRunProgressService {
 
     /**
      * Redis Stream에서 지정한 runId의 이벤트를 블로킹으로 읽어옵니다. lastId 이후의 레코드를 대상으로 하며, null/"$"인 경우 최신 이후의 신규
-     * 이벤트만 수신합니다.
+     * 이벤트만 수신
      */
     public List<MapRecord<String, Object, Object>> readEvents(String runId, String lastId,
         long blockMillis, Long count) {
-        StreamOperations<String, Object, Object> sops = ingestRedisTemplate.opsForStream();
-        StreamReadOptions options = StreamReadOptions.empty().block(Duration.ofMillis(blockMillis));
-        if (count != null && count > 0) {
-            options = options.count(count);
-        }
-        ReadOffset offset;
-        if (lastId == null || lastId.isBlank() || "$".equals(lastId)) {
-            offset = ReadOffset.latest();
-        } else {
-            offset = ReadOffset.from(lastId);
-        }
-        try {
-            return sops.read(options, StreamOffset.create(streamKey(runId), offset));
-        } catch (Exception e) {
-            log.warn("[INGEST] stream read failed - runId={}, lastId={}, err={}", runId, lastId,
-                e.toString());
-            return java.util.Collections.emptyList();
-        }
+        return RedisStreamUtils.readEvents(
+            ingestRedisTemplate,
+            streamKey(runId),
+            lastId,
+            blockMillis,
+            count);
     }
 }
