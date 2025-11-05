@@ -4,6 +4,7 @@ import com.ssafy.hebees.chat.dto.request.SessionCreateRequest;
 import com.ssafy.hebees.chat.dto.request.SessionListRequest;
 import com.ssafy.hebees.chat.dto.request.SessionUpdateRequest;
 import com.ssafy.hebees.chat.dto.response.SessionCreateResponse;
+import com.ssafy.hebees.chat.dto.response.SessionHistoryResponse;
 import com.ssafy.hebees.chat.dto.response.SessionResponse;
 import com.ssafy.hebees.chat.entity.Session;
 import com.ssafy.hebees.chat.repository.SessionRepository;
@@ -29,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ChatServiceImpl implements ChatService {
 
     private final SessionRepository sessionRepository;
+    private final MessageService messageService;
 
     @Override
     public PageResponse<SessionResponse> getSessions(UUID userNo, PageRequest pageRequest,
@@ -57,6 +59,58 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
+    public PageResponse<SessionResponse> getAllSessions(PageRequest pageRequest,
+        SessionListRequest listRequest) {
+        Pageable pageable = org.springframework.data.domain.PageRequest.of(pageRequest.pageNum(),
+            pageRequest.pageSize());
+        String keyword = Optional.ofNullable(listRequest)
+            .map(SessionListRequest::query)
+            .orElse(null);
+
+        Page<Session> sessionPage = sessionRepository.searchAllSessions(keyword, pageable);
+
+        List<SessionResponse> responses = sessionPage.stream()
+            .map(ChatServiceImpl::toSessionResponse)
+            .toList();
+
+        return PageResponse.of(
+            responses,
+            sessionPage.getNumber(),
+            sessionPage.getSize(),
+            sessionPage.getTotalElements()
+        );
+    }
+
+    @Override
+    public PageResponse<SessionHistoryResponse> getUserChatHistory(UUID userNo,
+        PageRequest pageRequest, SessionListRequest listRequest) {
+        UUID owner = requireUser(userNo);
+
+        Pageable pageable = org.springframework.data.domain.PageRequest.of(pageRequest.pageNum(),
+            pageRequest.pageSize());
+        String keyword = Optional.ofNullable(listRequest)
+            .map(SessionListRequest::query)
+            .orElse(null);
+
+        Page<Session> sessionPage = sessionRepository.searchSessionsByUser(owner, keyword,
+            pageable);
+
+        List<SessionHistoryResponse> responses = sessionPage.stream()
+            .map(session -> new SessionHistoryResponse(
+                toSessionResponse(session),
+                messageService.getAllMessages(owner, session.getSessionNo())
+            ))
+            .toList();
+
+        return PageResponse.of(
+            responses,
+            sessionPage.getNumber(),
+            sessionPage.getSize(),
+            sessionPage.getTotalElements()
+        );
+    }
+
+    @Override
     public SessionResponse getSession(UUID userNo, UUID sessionNo) {
         Session session = getOwnedSession(userNo, sessionNo);
         return toSessionResponse(session);
@@ -65,6 +119,18 @@ public class ChatServiceImpl implements ChatService {
     @Override
     @Transactional
     public SessionCreateResponse createSession(UUID userNo, SessionCreateRequest request) {
+        String title = request.title();
+        if (title == null || title.isBlank()) { // 세션명이 없다면 생성
+            String query = request.query();
+            if (query != null) { // 사용자 질문으로 세션 제목 생성
+                title = query.substring(0, 50);
+            } else { // 힌트가 없다면, 기본값 사용
+                title = SessionCreateRequest.DEFAULT_TITLE;
+            }
+        } else {
+            title = title.strip();
+        }
+
         UUID owner = requireUser(userNo);
 
         UUID llmNo = request.llm();
@@ -72,12 +138,6 @@ public class ChatServiceImpl implements ChatService {
             // TODO: LLM 기본값 대체 필요
             log.warn("세션 생성 실패 - LLM 식별자 누락: userNo={}", owner);
             throw new BusinessException(ErrorCode.INVALID_INPUT);
-        }
-
-        String title = request.title();
-        if (sessionRepository.existsByUserNoAndTitleIgnoreCase(owner, title)) {
-            log.warn("세션 생성 실패 - 제목 중복: userNo={}, title={} ", owner, title);
-            throw new BusinessException(ErrorCode.ALREADY_EXISTS);
         }
 
         Session session = Session.builder()
@@ -90,7 +150,7 @@ public class ChatServiceImpl implements ChatService {
         Session saved = sessionRepository.save(session);
         log.info("세션 생성 성공: userNo={}, sessionNo={}", owner, saved.getSessionNo());
 
-        return new SessionCreateResponse(saved.getSessionNo());
+        return new SessionCreateResponse(saved.getSessionNo(), title);
     }
 
     @Override
@@ -102,15 +162,7 @@ public class ChatServiceImpl implements ChatService {
         String newTitle = request.title() != null ? request.title() : currentTitle;
         UUID newLlmNo = request.llm() != null ? request.llm() : session.getLlmNo();
 
-        if (!currentTitle.equalsIgnoreCase(newTitle)
-            && sessionRepository.existsByUserNoAndTitleIgnoreCase(session.getUserNo(), newTitle)) {
-            log.warn("세션 수정 실패 - 제목 중복: userNo={}, sessionNo={}, title={}", session.getUserNo(),
-                sessionNo, newTitle);
-            throw new BusinessException(ErrorCode.ALREADY_EXISTS);
-        }
-
         session.updateSettings(newTitle, newLlmNo); // TODO: LLM 유효성 검사 추가 필요
-        session.updateLastRequestedAt(LocalDateTime.now());
 
         log.info("세션 수정 성공: userNo={}, sessionNo={}", session.getUserNo(), sessionNo);
     }

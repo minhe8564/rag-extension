@@ -5,8 +5,8 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import java.util.Arrays;
 
 public enum MessageRole {
-    USER("user"),
-    ASSISTANT("assistant"),
+    HUMAN("human"),
+    AI("ai"),
     SYSTEM("system"),
     TOOL("tool");
 

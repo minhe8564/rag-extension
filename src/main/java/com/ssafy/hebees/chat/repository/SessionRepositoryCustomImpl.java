@@ -78,6 +78,31 @@ public class SessionRepositoryCustomImpl implements SessionRepositoryCustom {
     }
 
     @Override
+    public Page<Session> searchAllSessions(String keyword, Pageable pageable) {
+        List<Session> content = queryFactory
+            .selectFrom(session)
+            .where(
+                containsKeyword(keyword)
+            )
+            .orderBy(session.updatedAt.desc(), session.title.asc())
+            .offset(pageable.getOffset())
+            .limit(pageable.getPageSize())
+            .fetch();
+
+        Long total = queryFactory
+            .select(session.count())
+            .from(session)
+            .where(
+                containsKeyword(keyword)
+            )
+            .fetchOne();
+
+        long totalCount = total != null ? total : 0L;
+
+        return new PageImpl<>(content, pageable, totalCount);
+    }
+
+    @Override
     public List<Session> findCreatedBetween(LocalDateTime startInclusive,
         LocalDateTime endExclusive,
         int limit) {

@@ -12,6 +12,7 @@ import com.ssafy.hebees.chat.dto.response.MessageResponse;
 import com.ssafy.hebees.chat.dto.response.ReferencedDocumentListResponse;
 import com.ssafy.hebees.chat.dto.response.ReferencedDocumentResponse;
 import com.ssafy.hebees.chat.dto.response.SessionCreateResponse;
+import com.ssafy.hebees.chat.dto.response.SessionHistoryResponse;
 import com.ssafy.hebees.chat.dto.response.SessionResponse;
 import com.ssafy.hebees.chat.service.ChatService;
 import com.ssafy.hebees.chat.service.MessageService;
@@ -73,6 +74,51 @@ public class ChatController {
         return ResponseEntity.ok(BaseResponse.of(HttpStatus.OK, sessions));
     }
 
+    @GetMapping("/sessions/all")
+    @Operation(summary = "전체 세션 목록 조회", description = "모든 사용자 세션 목록을 조회합니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "전체 세션 목록 조회 성공"),
+    })
+    public ResponseEntity<BaseResponse<PageResponse<SessionResponse>>> listAllSessions(
+        @Valid @ModelAttribute PageRequest pageRequest,
+        @Valid @ModelAttribute SessionListRequest listRequest
+    ) {
+        UUID requester = SecurityUtil.getCurrentUserUuid()
+            .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_ACCESS_TOKEN));
+        String role = SecurityUtil.getCurrentUserRole()
+            .orElseThrow(() -> new BusinessException(ErrorCode.PERMISSION_DENIED));
+
+        PageResponse<SessionResponse> sessions = chatService.getAllSessions(pageRequest,
+            listRequest);
+
+        return ResponseEntity.ok(BaseResponse.of(HttpStatus.OK, sessions));
+    }
+
+    @GetMapping("/users/{userNo}/history")
+    @Operation(summary = "특정 사용자 채팅 히스토리 조회", description = "특정 사용자의 세션과 메시지 내역을 조회합니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "채팅 히스토리 조회 성공"),
+    })
+    public ResponseEntity<BaseResponse<PageResponse<SessionHistoryResponse>>> getUserChatHistory(
+        @PathVariable UUID userNo,
+        @Valid @ModelAttribute PageRequest pageRequest,
+        @Valid @ModelAttribute SessionListRequest listRequest
+    ) {
+        UUID requester = SecurityUtil.getCurrentUserUuid()
+            .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_ACCESS_TOKEN));
+
+        if (!requester.equals(userNo)) {
+            String role = SecurityUtil.getCurrentUserRole()
+                .orElseThrow(() -> new BusinessException(ErrorCode.PERMISSION_DENIED));
+        }
+
+        PageResponse<SessionHistoryResponse> history = chatService.getUserChatHistory(userNo,
+            pageRequest, listRequest);
+
+        return ResponseEntity.ok(
+            BaseResponse.of(HttpStatus.OK, history, "사용자 채팅 히스토리 조회 성공"));
+    }
+
     @GetMapping("/sessions/{sessionNo}")
     @Operation(summary = "세션 조회", description = "세션을 조회합니다.")
     @ApiResponses({
@@ -99,9 +145,11 @@ public class ChatController {
         SessionCreateResponse session = chatService.createSession(userNo, request);
 
         UUID sessionNo = session.sessionNo();
+        String title = session.title();
         URI location = URI.create("/sessions/" + sessionNo);
         return ResponseEntity.created(location).body(
-            BaseResponse.of(HttpStatus.CREATED, new SessionCreateResponse(sessionNo),
+            BaseResponse.of(HttpStatus.CREATED,
+                new SessionCreateResponse(sessionNo, title),
                 "세션 생성에 성공하였습니다."));
     }
 
@@ -148,6 +196,23 @@ public class ChatController {
 
         URI location = URI.create(String.format("/chat/sessions/%s/messages/%s", sessionNo,
             created.messageNo()));
+        return ResponseEntity.created(location)
+            .body(BaseResponse.of(HttpStatus.CREATED, created, "메시지 생성 성공"));
+    }
+
+    @PostMapping("/users/{userNo}/sessions/{sessionNo}/messages")
+    @Operation(summary = "특정 사용자 세션 메시지 생성", description = "관리자가 특정 사용자의 세션에 메시지를 추가합니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "메시지 생성 성공"),
+    })
+    public ResponseEntity<BaseResponse<MessageResponse>> createMessageForUserSession(
+        @PathVariable UUID userNo,
+        @PathVariable UUID sessionNo,
+        @Valid @RequestBody MessageCreateRequest request) {
+        MessageResponse created = chatMessageService.createMessage(userNo, sessionNo, request);
+
+        URI location = URI.create(String.format("/chat/users/%s/sessions/%s/messages/%s",
+            userNo, sessionNo, created.messageNo()));
         return ResponseEntity.created(location)
             .body(BaseResponse.of(HttpStatus.CREATED, created, "메시지 생성 성공"));
     }

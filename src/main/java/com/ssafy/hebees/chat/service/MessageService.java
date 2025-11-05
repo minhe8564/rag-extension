@@ -6,6 +6,7 @@ import com.ssafy.hebees.chat.dto.response.MessageCursorResponse;
 import com.ssafy.hebees.chat.dto.response.MessageResponse;
 import com.ssafy.hebees.chat.dto.response.ReferencedDocumentListResponse;
 import com.ssafy.hebees.chat.dto.response.ReferencedDocumentResponse;
+import java.util.List;
 import java.util.UUID;
 
 public interface MessageService {
@@ -21,5 +22,7 @@ public interface MessageService {
 
     ReferencedDocumentResponse getReferencedDocument(UUID userNo, UUID sessionNo, UUID messageNo,
         UUID documentNo);
+
+    List<MessageResponse> getAllMessages(UUID userNo, UUID sessionNo);
 }
 
