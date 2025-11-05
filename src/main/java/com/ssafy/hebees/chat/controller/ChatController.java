@@ -126,7 +126,7 @@ public class ChatController {
         @ApiResponse(responseCode = "400", description = "잘못된 요청 (유효성 검사 실패)"),
     })
     public ResponseEntity<BaseResponse<SessionCreateResponse>> createSession(
-        @Valid SessionCreateRequest request) {
+        @Valid @RequestBody SessionCreateRequest request) {
         UUID userNo = SecurityUtil.getCurrentUserUuid()
             .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_ACCESS_TOKEN));
         SessionCreateResponse session = chatService.createSession(userNo, request);
@@ -148,7 +148,7 @@ public class ChatController {
         @ApiResponse(responseCode = "400", description = "잘못된 요청 (유효성 검사 실패)"),
     })
     public ResponseEntity<BaseResponse<Void>> updateSession(@PathVariable UUID sessionNo,
-        @Valid SessionUpdateRequest request) {
+        @Valid @RequestBody SessionUpdateRequest request) {
         UUID userNo = SecurityUtil.getCurrentUserUuid()
             .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_ACCESS_TOKEN));
         chatService.updateSession(userNo, sessionNo, request);
