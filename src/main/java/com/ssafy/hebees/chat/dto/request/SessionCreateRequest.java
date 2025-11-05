@@ -2,7 +2,6 @@ package com.ssafy.hebees.chat.dto.request;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Size;
-
 import java.util.UUID;
 
 @Schema(description = "세션 생성 DTO")
@@ -12,16 +11,17 @@ public record SessionCreateRequest(
     String title,
 
     @Schema(description = "사용할 LLM 식별자", format = "uuid", example = "123e4567-e89b-12d3-a456-426614174000", nullable = true)
-    UUID llm
+    UUID llm,
+
+    @Schema(description = "초기 질문(세션명 힌트)", example = "2주뒤에 삼성전자에 가려면 오늘부터 래그프레스를 하루에 몇번씩 해야해?", nullable = true)
+    String query
 ) {
 
     public static final String DEFAULT_TITLE = "새 채팅";
 
     public SessionCreateRequest {
-        if (title == null || title.isBlank()) {
-            title = DEFAULT_TITLE;
-        } else {
-            title = title.strip();
+        if (llm == null) {
+            llm = UUID.fromString("123e4567-e89b-12d3-a456-426614174000");
         }
     }
 }

@@ -149,6 +149,18 @@ public class MessageServiceImpl implements MessageService {
             });
     }
 
+    @Override
+    public List<MessageResponse> getAllMessages(UUID userNo, UUID sessionNo) {
+        UUID owner = requireUser(userNo);
+        UUID sessionId = requireSession(sessionNo);
+
+        validateOwnership(owner, sessionId);
+
+        return messageRepository.findBySessionNoOrderByCreatedAtAsc(sessionId).stream()
+            .map(MessageServiceImpl::toMessageResponse)
+            .toList();
+    }
+
     private void validateOwnership(UUID userNo, UUID sessionNo) {
         sessionRepository.findBySessionNo(sessionNo)
             .map(session -> {
