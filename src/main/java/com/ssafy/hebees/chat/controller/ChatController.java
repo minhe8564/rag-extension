@@ -15,6 +15,7 @@ import com.ssafy.hebees.chat.dto.response.SessionCreateResponse;
 import com.ssafy.hebees.chat.dto.response.SessionHistoryResponse;
 import com.ssafy.hebees.chat.dto.response.SessionResponse;
 import com.ssafy.hebees.chat.service.ChatService;
+import com.ssafy.hebees.chat.service.ChatAskService;
 import com.ssafy.hebees.chat.service.MessageService;
 import com.ssafy.hebees.common.dto.PageRequest;
 import com.ssafy.hebees.common.dto.PageResponse;
@@ -28,7 +29,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
-import java.time.LocalDateTime;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -56,6 +56,7 @@ public class ChatController {
 
     private final ChatService chatService;
     private final MessageService chatMessageService;
+    private final ChatAskService chatAskService;
 
     @GetMapping("/sessions")
     @Operation(summary = "세션 목록 조회", description = "세션 목록을 조회합니다.")
@@ -267,12 +268,18 @@ public class ChatController {
         @ApiResponse(responseCode = "200", description = "질문 성공"),
     })
     public ResponseEntity<BaseResponse<AskResponse>> ask(
-        @Valid AskRequest request
+        @PathVariable UUID sessionNo,
+        @Valid @RequestBody AskRequest request
     ) {
+        UUID userNo = SecurityUtil.getCurrentUserUuid()
+            .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_ACCESS_TOKEN));
+
+        AskResponse response = chatAskService.ask(userNo, sessionNo, request.content());
+
         return ResponseEntity.ok(
             BaseResponse.of(
                 HttpStatus.OK,
-                new AskResponse("테스트 응답", LocalDateTime.now()),
+                response,
                 "질문 요청에 성공하였습니다."
             ));
     }
