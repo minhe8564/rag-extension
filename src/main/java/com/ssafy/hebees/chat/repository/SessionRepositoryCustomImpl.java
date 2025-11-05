@@ -78,7 +78,8 @@ public class SessionRepositoryCustomImpl implements SessionRepositoryCustom {
     }
 
     @Override
-    public List<Session> findCreatedBetween(LocalDateTime startInclusive, LocalDateTime endExclusive,
+    public List<Session> findCreatedBetween(LocalDateTime startInclusive,
+        LocalDateTime endExclusive,
         int limit) {
         if (startInclusive == null || endExclusive == null) {
             return List.of();

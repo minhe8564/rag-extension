@@ -16,7 +16,8 @@ public interface SessionRepositoryCustom {
 
     Page<Session> searchSessionsByUser(UUID userNo, String keyword, Pageable pageable);
 
-    List<Session> findCreatedBetween(LocalDateTime startInclusive, LocalDateTime endExclusive, int limit);
+    List<Session> findCreatedBetween(LocalDateTime startInclusive, LocalDateTime endExclusive,
+        int limit);
 }
 
 
