@@ -20,6 +20,7 @@ public record MemoryUsageResponse(
     @DecimalMin(value = "0.0")
     double memoryUsagePercent
 ) {
+
 }
 
 

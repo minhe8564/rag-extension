@@ -33,13 +33,13 @@ logging:
 monitoring:
   cadvisor:
     base-url: http://cadvisor:8080
-  service-targets: # 모니터링 대상 서비스 목록 (YAML 리스트). 빈 리스트면 모든 컨테이너 모니터링
-    - hebees-chunking
-    - hebees-cross-encoder
-    - hebees-embedding
-    - hebees-extract
-    - hebees-generation
-    - hebees-ingest
-    - hebees-python-backend
-    - hebees-query-embedding
-    - hebees-search
+  service-targets: # 모니터링 대상 서비스 목록 (YAML 리스트). 비어 있으면 모든 컨테이너 모니터링
+    - chunking-repo=hebees-chunking
+    - cross-encoder-repo=hebees-cross-encoder
+    - embedding-repo=hebees-embedding
+    - extract-repo=hebees-extract
+    - generation-repo=hebees-generation
+    - ingest-repo=hebees-ingest
+    - python-backend-repo=hebees-python-backend
+    - query-embedding-repo=hebees-query-embedding
+    - search-repo=hebees-search
