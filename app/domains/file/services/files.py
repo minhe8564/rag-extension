@@ -154,6 +154,74 @@ async def upload_file(
     return _bytes_to_uuid_str(file_no_bytes)
 
 
+async def upload_files(
+    session: AsyncSession,
+    *,
+    files: list[tuple[bytes, str, Optional[str]]],
+    user_no: str,
+    category_no: str,
+    on_name_conflict: str = "reject",
+    bucket: Optional[str] = None,
+    collection_no: Optional[str] = None,
+    source_no: Optional[str] = None,
+) -> list[str]:
+    # Resolve user and bucket once
+    user_no_bytes = _uuid_str_to_bytes(user_no)
+    category_no_bytes = _uuid_str_to_bytes(category_no)
+    await _ensure_category_exists(session, category_no_bytes)
+    offer_no = await _get_offer_no_by_user(session, user_no_bytes)
+
+    bucket_name, should_create = _resolve_bucket(bucket, offer_no)
+    if should_create:
+        ensure_bucket(bucket_name)
+
+    # Preflight duplicate check when policy is reject
+    policy = (on_name_conflict or "reject").lower()
+    if policy == "reject":
+        names = [Path(n).name for _, n, _ in files]
+        # intra-batch duplicates
+        seen: set[str] = set()
+        intra_dups: set[str] = set()
+        for n in names:
+            if n in seen:
+                intra_dups.add(n)
+            else:
+                seen.add(n)
+
+        # existing duplicates within bucket/category
+        stmt = (
+            select(File.name)
+            .where(File.bucket == bucket_name)
+            .where(File.file_category_no == category_no_bytes)
+            .where(File.name.in_(set(names)))
+        )
+        res = await session.execute(stmt)
+        existing_dups = set(res.scalars().all())
+
+        conflicts = sorted(set(intra_dups) | set(existing_dups))
+        if conflicts:
+            raise HTTPException(status_code=409, detail={"message": "Duplicate filenames", "conflicts": conflicts})
+
+    # Proceed to upload each
+    created_nos: list[str] = []
+    for file_bytes, original_filename, content_type in files:
+        file_no = await upload_file(
+            session,
+            file_bytes=file_bytes,
+            original_filename=original_filename,
+            content_type=content_type,
+            user_no=user_no,
+            category_no=category_no,
+            on_name_conflict=on_name_conflict,
+            bucket=bucket_name,
+            collection_no=collection_no,
+            source_no=source_no,
+        )
+        created_nos.append(file_no)
+
+    return created_nos
+
+
 async def list_files_by_offer(
     session: AsyncSession,
     *,

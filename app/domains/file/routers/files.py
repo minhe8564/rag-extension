@@ -1,30 +1,32 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, File as FFile, UploadFile, Header, Request, HTTPException, status
+from fastapi import APIRouter, Depends, File as FFile, UploadFile, Request, HTTPException, status
+from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.schemas import BaseResponse
-from ..schemas.response.upload_file import FileUploadResult
+from ..schemas.response.upload_files import FileUploadBatchResult
 from ..schemas.request.upload_file import FileUploadRequest
-from ..services.files import upload_file as upload_file_service
+from ..services.files import upload_files as upload_files_service
 
 
 router = APIRouter(prefix="/files", tags=["File"])
 
-@router.post("/", response_model=BaseResponse[FileUploadResult], status_code=201)
+
+@router.post("/", response_model=BaseResponse[FileUploadBatchResult], status_code=201)
 async def upload_file(
+    http_request: Request,
     request: FileUploadRequest = Depends(FileUploadRequest.as_form),
-    file: UploadFile = FFile(...),
+    files: List[UploadFile] = FFile(...),
     session: AsyncSession = Depends(get_db),
-    http_request: Request = None,
 ):
-    if http_request is None:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Request context unavailable")
+    # Request is injected by FastAPI
     x_user_role = http_request.headers.get("x-user-role")
     x_user_uuid = http_request.headers.get("x-user-uuid")
     if not x_user_role or not x_user_uuid:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="x-user-role/x-user-uuid headers required")
+
     # Role-based branching
     # - USER: ignore provided bucket/collection; use personal (offer_no) bucket
     # - ADMIN: allow explicit bucket/collection
@@ -35,12 +37,14 @@ async def upload_file(
         effective_bucket = None
         effective_collection = None
 
-    file_bytes = await file.read()
-    file_no = await upload_file_service(
+    files_payload: list[tuple[bytes, str, str | None]] = []
+    for f in files:
+        content = await f.read()
+        files_payload.append((content, f.filename or "uploaded", f.content_type))
+
+    file_nos = await upload_files_service(
         session,
-        file_bytes=file_bytes,
-        original_filename=file.filename or "uploaded",
-        content_type=file.content_type,
+        files=files_payload,
         user_no=x_user_uuid,
         category_no=request.category,
         on_name_conflict=request.onNameConflict,
@@ -48,10 +52,10 @@ async def upload_file(
         collection_no=effective_collection,
     )
 
-    return BaseResponse[FileUploadResult](
+    return BaseResponse[FileUploadBatchResult](
         status=201,
         code="CREATED",
         message="업로드 완료",
         isSuccess=True,
-        result={"data": FileUploadResult(fileNo=file_no)},
+        result={"data": FileUploadBatchResult(fileNos=file_nos)},
     )
