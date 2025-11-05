@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from typing import Literal, Optional
 
@@ -17,8 +17,6 @@ class FileUploadRequest(BaseModel):
     onNameConflict: Literal["reject", "overwrite"] = "reject"
     category: str
     bucket: Optional[str] = None
-    collection: Optional[str] = None
-    autoIngest: Optional[bool] = False
 
     @classmethod
     def as_form(
@@ -27,14 +25,10 @@ class FileUploadRequest(BaseModel):
             "reject", description="파일명 충돌 정책: reject|overwrite"
         ),
         category: str = Form(..., description="FILE_CATEGORY_NO (UUID)"),
-        bucket: Optional[str] = Form(None, description="public|private|test (선택적)"),
-        collection: Optional[str] = Form(None, description="COLLECTION_NO (UUID, 선택적)"),
-        autoIngest: Optional[bool] = Form(False, description="ingest 자동 여부 (추후 사용)"),
+        bucket: Optional[str] = Form(None, description="public|private|test (선택)"),
     ) -> "FileUploadRequest":
         return cls(
             onNameConflict=onNameConflict,
             category=category,
             bucket=bucket,
-            collection=collection,
-            autoIngest=autoIngest,
         )

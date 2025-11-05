@@ -4,7 +4,7 @@ import hashlib
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 
 from fastapi import HTTPException
 from sqlalchemy import select
@@ -17,6 +17,7 @@ from ..models.file import File
 from ..models.file_category import FileCategory
 from app.domains.collection.models.collection import Collection
 from ..schemas.response.files import FileListItem
+from ..schemas.response.upload_files import IngestFileMeta, UploadBatchMeta
 
 
 def _uuid_str_to_bytes(u: str) -> bytes:
@@ -48,12 +49,16 @@ async def _ensure_category_exists(session: AsyncSession, category_no_bytes: byte
 
 def _resolve_bucket(input_bucket: Optional[str], offer_no: str) -> tuple[str, bool]:
     # returns (bucket_name, should_create)
-    b = (input_bucket or "private").lower()
-    if b == "public":
-        return (getattr(settings, "default_public_bucket", None) or "public"), False
-    if b == "test":
-        return (getattr(settings, "default_test_bucket", None) or "test"), False
-    # private/personal bucket
+    # If explicit bucket is provided, use it as-is (ADMIN flow), creating if needed.
+    if input_bucket:
+        b = input_bucket.strip()
+        lb = b.lower()
+        if lb == "public":
+            return (getattr(settings, "default_public_bucket", None) or "public"), False
+        if lb == "test":
+            return (getattr(settings, "default_test_bucket", None) or "test"), False
+        return b, True
+    # Otherwise use personal (offer_no) bucket (USER flow)
     return offer_no, True
 
 
@@ -80,7 +85,7 @@ async def upload_file(
     bucket: Optional[str] = None,
     collection_no: Optional[str] = None,
     source_no: Optional[str] = None,
-) -> str:
+) -> tuple[str, IngestFileMeta]:
     # MinIO helpers provided by app.core.minio_client
     # Validate inputs and derive required values
     user_no_bytes = _uuid_str_to_bytes(user_no)
@@ -151,7 +156,12 @@ async def upload_file(
     await session.flush()
     await session.commit()
 
-    return _bytes_to_uuid_str(file_no_bytes)
+    return _bytes_to_uuid_str(file_no_bytes), IngestFileMeta(
+        fileNo=_bytes_to_uuid_str(file_no_bytes),
+        fileType=ext or "",
+        fileName=original_name,
+        path=object_key,
+    )
 
 
 async def upload_files(
@@ -164,7 +174,7 @@ async def upload_files(
     bucket: Optional[str] = None,
     collection_no: Optional[str] = None,
     source_no: Optional[str] = None,
-) -> list[str]:
+) -> tuple[UploadBatchMeta, list[str]]:
     # Resolve user and bucket once
     user_no_bytes = _uuid_str_to_bytes(user_no)
     category_no_bytes = _uuid_str_to_bytes(category_no)
@@ -204,8 +214,9 @@ async def upload_files(
 
     # Proceed to upload each
     created_nos: list[str] = []
+    ingest_file_metas: list[IngestFileMeta] = []
     for file_bytes, original_filename, content_type in files:
-        file_no = await upload_file(
+        file_no, file_meta = await upload_file(
             session,
             file_bytes=file_bytes,
             original_filename=original_filename,
@@ -218,8 +229,10 @@ async def upload_files(
             source_no=source_no,
         )
         created_nos.append(file_no)
+        ingest_file_metas.append(file_meta)
 
-    return created_nos
+    batch_meta = UploadBatchMeta(bucket=bucket_name, offerNo=offer_no, files=ingest_file_metas)
+    return batch_meta, created_nos
 
 
 async def list_files_by_offer(
