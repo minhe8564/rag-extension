@@ -14,7 +14,7 @@ class FileUploadRequest(BaseModel):
     associated request fields coming from query/form.
     """
 
-    onNameConflict: Literal["reject", "rename", "overwrite"] = "reject"
+    onNameConflict: Literal["reject", "overwrite"] = "reject"
     category: str
     bucket: Optional[str] = None
     collection: Optional[str] = None
@@ -23,8 +23,8 @@ class FileUploadRequest(BaseModel):
     @classmethod
     def as_form(
         cls,
-        onNameConflict: Literal["reject", "rename", "overwrite"] = Query(
-            "reject", description="파일명 충돌 정책: reject|rename|overwrite"
+        onNameConflict: Literal["reject", "overwrite"] = Query(
+            "reject", description="파일명 충돌 정책: reject|overwrite"
         ),
         category: str = Form(..., description="FILE_CATEGORY_NO (UUID)"),
         bucket: Optional[str] = Form(None, description="public|private|test (선택적)"),

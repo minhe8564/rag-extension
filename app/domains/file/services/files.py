@@ -110,16 +110,6 @@ async def upload_file(
     if exists:
         if policy == "reject":
             raise HTTPException(status_code=409, detail="동일한 파일명이 이미 존재합니다.")
-        elif policy == "rename":
-            # regenerate UUID-based object key until unique (few attempts)
-            attempts = 0
-            while object_exists(bucket_name, object_key) and attempts < 5:
-                new_uuid = uuid.uuid4()
-                file_no_bytes = new_uuid.bytes
-                file_id_str = str(new_uuid)
-                object_filename = file_id_str + (ext_with_dot or "")
-                object_key = _build_object_key(category_no, object_filename)
-                attempts += 1
         elif policy == "overwrite":
             pass
         else:
