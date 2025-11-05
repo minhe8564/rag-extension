@@ -26,7 +26,10 @@ public class SessionRepositoryCustomImpl implements SessionRepositoryCustom {
     public Optional<Session> findBySessionNo(UUID sessionNo) {
         Session result = queryFactory
             .selectFrom(session)
-            .where(eqSessionNo(sessionNo))
+            .where(
+                eqSessionNo(sessionNo),
+                isNotDeleted()
+            )
             .fetchOne();
 
         return Optional.ofNullable(result);
@@ -38,7 +41,8 @@ public class SessionRepositoryCustomImpl implements SessionRepositoryCustom {
             .selectFrom(session)
             .where(
                 eqUserNo(userNo),
-                containsKeyword(keyword)
+                containsKeyword(keyword),
+                isNotDeleted()
             )
             .orderBy(session.updatedAt.desc(), session.title.asc())
             .offset(pageable.getOffset())
@@ -50,7 +54,8 @@ public class SessionRepositoryCustomImpl implements SessionRepositoryCustom {
             .from(session)
             .where(
                 eqUserNo(userNo),
-                containsKeyword(keyword)
+                containsKeyword(keyword),
+                isNotDeleted()
             )
             .fetchOne();
 
@@ -64,7 +69,8 @@ public class SessionRepositoryCustomImpl implements SessionRepositoryCustom {
         List<Session> content = queryFactory
             .selectFrom(session)
             .where(
-                containsKeyword(keyword)
+                containsKeyword(keyword),
+                isNotDeleted()
             )
             .orderBy(session.updatedAt.desc(), session.title.asc())
             .offset(pageable.getOffset())
@@ -75,7 +81,8 @@ public class SessionRepositoryCustomImpl implements SessionRepositoryCustom {
             .select(session.count())
             .from(session)
             .where(
-                containsKeyword(keyword)
+                containsKeyword(keyword),
+                isNotDeleted()
             )
             .fetchOne();
 
@@ -96,7 +103,8 @@ public class SessionRepositoryCustomImpl implements SessionRepositoryCustom {
             .selectFrom(session)
             .where(
                 createdAtGoe(startInclusive),
-                createdAtLt(endExclusive)
+                createdAtLt(endExclusive),
+                isNotDeleted()
             )
             .orderBy(session.createdAt.desc());
 
@@ -140,6 +148,10 @@ public class SessionRepositoryCustomImpl implements SessionRepositoryCustom {
             return null;
         }
         return session.createdAt.lt(endExclusive);
+    }
+
+    private BooleanExpression isNotDeleted() {
+        return session.deletedAt.isNull();
     }
 }
 
