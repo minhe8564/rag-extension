@@ -1,7 +1,10 @@
 package com.ssafy.hebees.auth.controller;
 
+import com.ssafy.hebees.auth.dto.request.AccessTokenIssueByEmailRequest;
+import com.ssafy.hebees.auth.dto.request.AccessTokenIssueRequest;
 import com.ssafy.hebees.auth.dto.request.LoginRequest;
 import com.ssafy.hebees.auth.dto.request.TokenRefreshRequest;
+import com.ssafy.hebees.auth.dto.response.AccessTokenIssueResponse;
 import com.ssafy.hebees.auth.dto.response.AuthHealthResponse;
 import com.ssafy.hebees.auth.dto.response.LoginResponse;
 import com.ssafy.hebees.auth.dto.response.LogoutResponse;
@@ -55,6 +58,30 @@ public class AuthController {
             log.warn("Failed to set refresh token cookie: {}", e.getMessage());
         }
         // 본문에는 refreshToken이 직렬화되지 않도록 처리됨(@JsonIgnore)
+        return ResponseEntity.ok(BaseResponse.success(response));
+    }
+
+    @PostMapping("/token")
+    @Operation(summary = "사용자 번호로 액세스 토큰 발급")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "액세스 토큰 발급 성공")
+    })
+    public ResponseEntity<BaseResponse<AccessTokenIssueResponse>> issueAccessToken(
+        @Valid @RequestBody AccessTokenIssueRequest request) {
+        log.info("issue access token request: userNo={}", request.userNo());
+        AccessTokenIssueResponse response = authService.issueAccessToken(request.userNo());
+        return ResponseEntity.ok(BaseResponse.success(response));
+    }
+
+    @PostMapping("/token/email")
+    @Operation(summary = "이메일로 액세스 토큰 발급")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "액세스 토큰 발급 성공")
+    })
+    public ResponseEntity<BaseResponse<AccessTokenIssueResponse>> issueAccessTokenByEmail(
+        @Valid @RequestBody AccessTokenIssueByEmailRequest request) {
+        log.info("issue access token by email request: email={}", request.email());
+        AccessTokenIssueResponse response = authService.issueAccessTokenByEmail(request.email());
         return ResponseEntity.ok(BaseResponse.success(response));
     }
 
