@@ -87,6 +87,106 @@ async def list_strategies(
     return strategies, total_items
 
 
+async def list_strategy_types(
+    session: AsyncSession,
+) -> List[StrategyType]:
+    """전략 유형 목록 조회"""
+
+    query = select(StrategyType).order_by(StrategyType.name.asc())
+    result = await session.execute(query)
+    return result.scalars().all()
+
+
+async def create_strategy_type(
+    session: AsyncSession,
+    name: str,
+) -> StrategyType:
+    """전략 유형 생성"""
+
+    stmt = select(StrategyType).where(StrategyType.name == name)
+    result = await session.execute(stmt)
+    existing = result.scalar_one_or_none()
+
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="동일한 이름의 전략 유형이 이미 존재합니다.",
+        )
+
+    strategy_type = StrategyType(name=name)
+    session.add(strategy_type)
+    await session.commit()
+    await session.refresh(strategy_type)
+
+    return strategy_type
+
+
+async def delete_strategy_type(
+    session: AsyncSession,
+    strategy_type_no_str: str,
+) -> None:
+    """전략 유형 삭제"""
+
+    try:
+        strategy_type_no_bytes = uuid.UUID(strategy_type_no_str).bytes
+    except (ValueError, AttributeError):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="유효하지 않은 전략 유형 ID입니다.",
+        )
+
+    stmt = select(StrategyType).where(StrategyType.strategy_type_no == strategy_type_no_bytes)
+    result = await session.execute(stmt)
+    strategy_type = result.scalar_one_or_none()
+
+    if not strategy_type:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="전략 유형을 찾을 수 없습니다.",
+        )
+
+    usage_stmt = select(Strategy.strategy_no).where(Strategy.strategy_type_no == strategy_type_no_bytes).limit(1)
+    usage_result = await session.execute(usage_stmt)
+    if usage_result.first():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="해당 전략 유형을 사용하는 전략이 존재합니다.",
+        )
+
+    await session.delete(strategy_type)
+    await session.commit()
+
+
+async def delete_strategy_type_by_name(
+    session: AsyncSession,
+    name: str,
+) -> None:
+    """전략 유형을 이름으로 삭제"""
+
+    stmt = select(StrategyType).where(StrategyType.name == name)
+    result = await session.execute(stmt)
+    strategy_type = result.scalar_one_or_none()
+
+    if not strategy_type:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="전략 유형을 찾을 수 없습니다.",
+        )
+
+    strategy_type_no_bytes = strategy_type.strategy_type_no
+
+    usage_stmt = select(Strategy.strategy_no).where(Strategy.strategy_type_no == strategy_type_no_bytes).limit(1)
+    usage_result = await session.execute(usage_stmt)
+    if usage_result.first():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="해당 전략 유형을 사용하는 전략이 존재합니다.",
+        )
+
+    await session.delete(strategy_type)
+    await session.commit()
+
+
 async def get_strategy_by_no(
     session: AsyncSession,
     strategy_no_str: str,
