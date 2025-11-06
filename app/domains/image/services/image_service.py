@@ -22,6 +22,7 @@ from ..schemas.image_regenerate_request import ImageRegenerateRequest
 from ..schemas.image_response import ImageResponse
 from .minio_service import MinIOService
 from .gemini_client import GeminiClient
+from app.domains.file.services.files import _build_presigned_key, get_presigned_url
 
 logger = logging.getLogger(__name__)
 
@@ -81,8 +82,9 @@ class ImageService:
         # 이미지 파일명 및 경로 생성
         file_uuid = uuid.uuid4()
         file_name = f"{file_uuid.hex}.png"
-        user_uuid_clean = user_uuid.replace("-", "")
-        minio_path = f"{settings.minio_image_storage_base_path}/{user_uuid_clean}/{file_name}"
+        # Build object key using file service rule
+        category_no_str = str(uuid.UUID(bytes=file_category_no))
+        object_key = _build_presigned_key(category_no_str, file_name)
         
         user_no = user.user_no
         
@@ -96,12 +98,18 @@ class ImageService:
         # MinIO에 업로드
         self.minio_service.upload_image(
             image=generated_image,
-            object_name=minio_path,
+            object_name=object_key,
             content_type="image/png"
         )
         
         # 이미지 URL 생성
-        image_url = self.minio_service.get_image_url(minio_path)
+        image_url = await get_presigned_url(
+            bucket=self.minio_service.bucket_name,
+            object_name=object_key,
+            content_type="image/png",
+            days=7,
+            inline=True,
+        )
         
         # DB에 메타데이터 저장
         file_record = File(
@@ -113,7 +121,7 @@ class ImageService:
             hash=file_hash,
             description=f"Generated image from prompt: {request.prompt[:100]}",
             bucket=self.minio_service.bucket_name,
-            path=minio_path,
+            path=object_key,
             file_category_no=file_category_no,
             offer_no=offer.offer_no,
             collection_no=None,
@@ -196,7 +204,7 @@ class ImageService:
         
         self.minio_service.upload_image(
             image=generated_image,
-            object_name=minio_path,
+            object_name=object_key,
             content_type="image/png"
         )
         
@@ -321,3 +329,4 @@ class ImageService:
         logger.info(f"이미지 삭제 완료: {image_id}")
         
         return True
+
