@@ -13,7 +13,6 @@ from ....core.error_responses import (
     public_endpoint_responses,
     unauthorized_error_response,
 )
-from ....core.check_role import check_jwt_token
 from ..schemas.strategy import (
     StrategyListItem,
     PaginationInfo,
@@ -40,7 +39,6 @@ from ..services.strategy import (
 router = APIRouter(
     prefix="/rag",
     tags=["RAG - Strategy Management"],
-    dependencies=[Depends(check_jwt_token())],
 )
 
 
