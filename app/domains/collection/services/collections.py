@@ -4,7 +4,7 @@ import uuid
 from typing import List
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domains.user.models.user import User
@@ -40,10 +40,16 @@ async def list_collections_by_offer(
     user_no: str,
     limit: int = 20,
     offset: int = 0,
-) -> List[CollectionListItem]:
+) -> tuple[List[CollectionListItem], int]:
     user_no_bytes = _uuid_str_to_bytes(user_no)
     offer_no = await _get_offer_no_by_user(session, user_no_bytes)
 
+    # Total count for pagination
+    count_stmt = select(func.count()).select_from(Collection).where(Collection.offer_no == offer_no)
+    res_total = await session.execute(count_stmt)
+    total_items = int(res_total.scalar() or 0)
+
+    # Paged items
     stmt = (
         select(Collection)
         .where(Collection.offer_no == offer_no)
@@ -55,13 +61,17 @@ async def list_collections_by_offer(
     res = await session.execute(stmt)
     rows = list(res.scalars().all())
 
-    return [
+    items = [
         CollectionListItem(
             collectionNo=_bytes_to_uuid_str(row.collection_no),
+            name=row.name,
+            version=row.version,
+            ingestGroupNo=_bytes_to_uuid_str(row.ingest_group_no),
             createdAt=row.created_at,
         )
         for row in rows
     ]
+    return items, total_items
 
 
 async def list_files_in_collection(
@@ -71,7 +81,7 @@ async def list_files_in_collection(
     collection_no: str,
     limit: int = 20,
     offset: int = 0,
-) -> List[FileListItem]:
+) -> tuple[List[FileListItem], int]:
     user_no_bytes = _uuid_str_to_bytes(user_no)
     collection_no_bytes = _uuid_str_to_bytes(collection_no)
 
@@ -87,9 +97,14 @@ async def list_files_in_collection(
     )
     res_check = await session.execute(stmt_check)
     if res_check.scalar_one_or_none() is None:
-        raise HTTPException(status_code=404, detail="컬렉션을 찾을 수 없??거나 접근할 수 없습?�다.")
+        raise HTTPException(status_code=404, detail="컬렉션을 찾을 수 없거나 접근할 수 없습나다.")
 
-    # List files in the collection
+    # Total count for pagination within the collection
+    count_stmt = select(func.count()).select_from(File).where(File.collection_no == collection_no_bytes)
+    res_total = await session.execute(count_stmt)
+    total_items = int(res_total.scalar() or 0)
+
+    # List files in the collection (paged)
     stmt = (
         select(File)
         .where(File.collection_no == collection_no_bytes)
@@ -100,7 +115,7 @@ async def list_files_in_collection(
     res = await session.execute(stmt)
     rows = list(res.scalars().all())
 
-    return [
+    items = [
         FileListItem(
             fileNo=_bytes_to_uuid_str(row.file_no),
             name=row.name,
@@ -114,3 +129,4 @@ async def list_files_in_collection(
         )
         for row in rows
     ]
+    return items, total_items

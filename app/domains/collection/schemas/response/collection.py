@@ -6,6 +6,9 @@ from pydantic import BaseModel
 
 class CollectionListItem(BaseModel):
     collectionNo: str
+    name: str
+    version: int
+    ingestGroupNo: str
     createdAt: datetime
 
     class Config:
