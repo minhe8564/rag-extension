@@ -18,3 +18,11 @@ class BaseResponse(BaseModel, Generic[T]):
     isSuccess: bool
     result: Result[T]
 
+
+class Pagination(BaseModel):
+    pageNum: int
+    pageSize: int
+    totalItems: int
+    totalPages: int
+    hasNext: bool
+
