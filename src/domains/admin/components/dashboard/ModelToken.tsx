@@ -2,63 +2,31 @@ import { useEffect, useRef, useState } from 'react';
 import Highcharts from 'highcharts';
 import Card from '@/shared/components/Card';
 import Select from '@/shared/components/Select';
+import type { modelTokenTime, modelData } from '@/domains/admin/types/dashboard.types';
+import { getModelTokenUsageTimeSeries } from '@/domains/admin/api/dashboard.api';
 
 export default function ModelUsageChart() {
   const chartRef = useRef<Highcharts.Chart | null>(null);
-  const periods = ['daily', 'weekly', 'monthly'] as const;
-  const [period, setPeriod] = useState<(typeof periods)[number]>('daily');
+  const periods = ['day', 'week', 'month'] as const;
+  const [period, setPeriod] = useState<(typeof periods)[number]>('day');
+  const [_data, setData] = useState<modelTokenTime | null>(null);
+  const [modelsData, setModelsData] = useState<modelData[] | null>(null);
 
-  // 🔹 더미 데이터 생성 함수 (API 구조 반영)
-  const generateDummyUsageData = (type: 'daily' | 'weekly' | 'monthly') => {
-    const now = new Date();
-    const models = [
-      { modelId: 'gpt-4o-mini', modelName: 'GPT-4o Mini' },
-      { modelId: 'gpt-4o', modelName: 'GPT-4o' },
-      { modelId: 'gpt-3.5', modelName: 'GPT-3.5 Turbo' },
-    ];
-
-    let length = 0;
-    let interval = 0;
-    let granularity = '';
-
-    if (type === 'daily') {
-      length = 7;
-      interval = 24 * 3600 * 1000;
-      granularity = 'daily';
-    } else if (type === 'weekly') {
-      length = 5;
-      interval = 7 * 24 * 3600 * 1000;
-      granularity = 'weekly';
-    } else {
-      length = 3;
-      interval = 30 * 24 * 3600 * 1000;
-      granularity = 'monthly';
-    }
-
-    const start = new Date(now.getTime() - interval * length);
-    const timeframe = {
-      start: start.toISOString(),
-      end: now.toISOString(),
-      granularity,
+  useEffect(() => {
+    const fetchData = async () => {
+      const result = await getModelTokenUsageTimeSeries({ granularity: period });
+      console.log('✅ 모델 토큰 사용량 시계열 데이터:', result);
+      setData(result);
+      setModelsData(result.models);
     };
+    fetchData();
+  }, [period]);
 
-    const modelData = models.map((model) => ({
-      modelId: model.modelId,
-      modelName: model.modelName,
-      usageTokens: Array.from({ length }, (_, i) => ({
-        x: start.getTime() + interval * (i + 1),
-        y: Math.floor(Math.random() * 5000) + 1000,
-      })),
-    }));
-
-    return { timeframe, models: modelData };
-  };
-
-  // 🔹 차트 초기화
+  // 차트 초기화
   useEffect(() => {
     chartRef.current = Highcharts.chart('model-usage-chart', {
       chart: {
-        type: 'areaspline', // ✅ 부드러운 누적 면적 그래프
+        type: 'areaspline', // 부드러운 누적 면적 그래프
         backgroundColor: 'transparent',
         height: 300,
         animation: true,
@@ -88,10 +56,10 @@ export default function ModelUsageChart() {
       },
       plotOptions: {
         series: {
-          stacking: 'normal', // ✅ 누적 영역 설정
+          stacking: 'normal', // 누적 영역 설정
         },
         areaspline: {
-          fillOpacity: 0.6, // ✅ 면적 투명도
+          fillOpacity: 0.6, // 면적 투명도
           lineWidth: 1.5,
           marker: { enabled: false },
         },
@@ -99,24 +67,22 @@ export default function ModelUsageChart() {
       series: [],
     });
 
-    handlePeriodChange('daily');
+    handlePeriodChange('day');
   }, []);
 
-  // 🔹 기간 변경 핸들러
+  // 기간 변경 핸들러
   const handlePeriodChange = (type: (typeof periods)[number]) => {
     setPeriod(type);
     const chart = chartRef.current;
     if (!chart) return;
 
-    const dummy = generateDummyUsageData(type);
-
     // X축 라벨 포맷
-    if (type === 'daily') {
+    if (type === 'day') {
       chart.xAxis[0].update({
         tickInterval: 24 * 3600 * 1000,
         labels: { format: '{value:%m/%d}', style: { fontSize: '11px', color: '#6B7280' } },
       });
-    } else if (type === 'weekly') {
+    } else if (type === 'week') {
       chart.xAxis[0].update({
         tickInterval: 7 * 24 * 3600 * 1000,
         labels: { format: '{value:%m/%d}', style: { fontSize: '11px', color: '#6B7280' } },
@@ -124,12 +90,12 @@ export default function ModelUsageChart() {
     } else {
       chart.xAxis[0].update({
         tickInterval: 30 * 24 * 3600 * 1000,
-        labels: { format: '{value:%Y-%m}', style: { fontSize: '11px', color: '#6B7280' } },
+        labels: { format: '{value:%m}월', style: { fontSize: '11px', color: '#6B7280' } },
       });
     }
 
-    // ✅ 모델별 누적 면적 그래프 시리즈 생성
-    const newSeries = dummy.models.map((model) => ({
+    // 모델별 누적 면적 그래프 시리즈 생성
+    const newSeries = modelsData?.map((model) => ({
       name: model.modelName,
       type: 'areaspline' as const,
       data: model.usageTokens.map((point) => [point.x, point.y]),
@@ -146,9 +112,9 @@ export default function ModelUsageChart() {
             value={period}
             onChange={(v) => handlePeriodChange(v as (typeof periods)[number])}
             options={[
-              { label: '일별', value: 'daily' },
-              { label: '주별', value: 'weekly' },
-              { label: '월별', value: 'monthly' },
+              { label: '일별', value: 'day' },
+              { label: '주별', value: 'week' },
+              { label: '월별', value: 'month' },
             ]}
           />
         </div>

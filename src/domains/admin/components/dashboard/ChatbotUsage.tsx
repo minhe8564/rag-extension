@@ -2,77 +2,27 @@ import { useEffect, useRef, useState } from 'react';
 import Highcharts from 'highcharts';
 import Card from '@/shared/components/Card';
 import Select from '@/shared/components/Select';
+import { getChatbotUsageTimeSeries } from '@/domains/admin/api/dashboard.api';
+import type { chatbotUsageTime } from '@/domains/admin/types/dashboard.types';
 
 export default function ChatbotUsage() {
   const chartRef = useRef<Highcharts.Chart | null>(null);
-  const periods = ['daily', 'weekly', 'monthly'] as const;
-  const [period, setPeriod] = useState<(typeof periods)[number]>('daily');
+  const [data, setData] = useState<chatbotUsageTime | null>(null);
+  const [period, setPeriod] = useState<'day' | 'week' | 'month'>('day');
+  const [_timeframe, setTimeframe] = useState<chatbotUsageTime['timeframe'] | null>(null);
+  const [_items, setItems] = useState<chatbotUsageTime['items'] | null>(null);
 
-  // 🔹 더미 데이터 생성 함수
-  const generateDummyData = (type: 'daily' | 'weekly' | 'monthly') => {
-    const now = new Date();
-
-    if (type === 'daily') {
-      // 어제부터 30일치
-      const start = new Date(now);
-      start.setDate(now.getDate() - 30);
-      return {
-        timeframe: {
-          start: start.toISOString(),
-          end: now.toISOString(),
-          granularity: 'daily',
-        },
-        items: Array.from({ length: 30 }, (_, i) => {
-          const date = new Date(start);
-          date.setDate(start.getDate() + i + 1);
-          return {
-            x: date.getTime(),
-            y: Math.floor(Math.random() * 500) + 200, // 200~700 토큰
-          };
-        }),
-      };
-    }
-
-    if (type === 'weekly') {
-      // 지난주부터 12주
-      const start = new Date(now);
-      start.setDate(now.getDate() - 7 * 12);
-      return {
-        timeframe: {
-          start: start.toISOString(),
-          end: now.toISOString(),
-          granularity: 'weekly',
-        },
-        items: Array.from({ length: 12 }, (_, i) => {
-          const date = new Date(start);
-          date.setDate(start.getDate() + i * 7);
-          return {
-            x: date.getTime(),
-            y: Math.floor(Math.random() * 5000) + 1000, // 1,000~6,000
-          };
-        }),
-      };
-    }
-
-    // monthly
-    const start = new Date(now);
-    start.setMonth(now.getMonth() - 12);
-    return {
-      timeframe: {
-        start: start.toISOString(),
-        end: now.toISOString(),
-        granularity: 'monthly',
-      },
-      items: Array.from({ length: 12 }, (_, i) => {
-        const date = new Date(start);
-        date.setMonth(start.getMonth() + i + 1);
-        return {
-          x: date.getTime(),
-          y: Math.floor(Math.random() * 15000) + 5000, // 5,000~20,000
-        };
-      }),
+  // 데이터 로드
+  useEffect(() => {
+    const fetchData = async () => {
+      const result = await getChatbotUsageTimeSeries({ granularity: period });
+      setTimeframe(result.timeframe);
+      setItems(result.items);
+      setData(result);
+      console.log('✅ 챗봇 사용량 시계열 데이터:', result);
     };
-  };
+    fetchData();
+  }, []);
 
   // 차트 초기화
   useEffect(() => {
@@ -88,7 +38,9 @@ export default function ChatbotUsage() {
       credits: { enabled: false },
       xAxis: {
         type: 'datetime',
-        tickPixelInterval: 150,
+        tickPixelInterval: 120, // ✅ 기존보다 약간 좁게 (기본 150 → 120)
+        minPadding: 0.05, // ✅ 왼쪽 여백 (5%)
+        maxPadding: 0.05, // ✅ 오른쪽 여백 (5%)
         labels: { style: { fontSize: '11px', color: '#6B7280' } },
       },
       yAxis: {
@@ -104,10 +56,7 @@ export default function ChatbotUsage() {
         line: {
           color: '#EE5B01',
           lineWidth: 2,
-          marker: {
-            enabled: true,
-            radius: 3,
-          },
+          marker: { enabled: true, radius: 3 },
         },
       },
       series: [
@@ -119,26 +68,25 @@ export default function ChatbotUsage() {
         },
       ],
     });
-
-    handlePeriodChange('daily'); // 초기 로드
   }, []);
 
-  // 🔹 기간 전환 함수
-  const handlePeriodChange = (type: (typeof periods)[number]) => {
+  // 기간별 데이터 반영 로직
+  const updateChart = (type: 'day' | 'week' | 'month') => {
     setPeriod(type);
     const chart = chartRef.current;
-    if (!chart) return;
+    if (!chart || !data) return;
 
-    const dummy = generateDummyData(type);
+    // timeframe, items 추출
+    const { items } = data;
 
-    // 축 포맷 & 단위 변경
-    if (type === 'daily') {
+    // x축 라벨 포맷 & 단위 변경
+    if (type === 'day') {
       chart.xAxis[0].update({
         tickInterval: 24 * 3600 * 1000,
         labels: { format: '{value:%m/%d}', style: { fontSize: '11px', color: '#6B7280' } },
       });
       chart.yAxis[0].setTitle({ text: '일별 토큰 사용량' });
-    } else if (type === 'weekly') {
+    } else if (type === 'week') {
       chart.xAxis[0].update({
         tickInterval: 7 * 24 * 3600 * 1000,
         labels: { format: '{value:%m/%d}', style: { fontSize: '11px', color: '#6B7280' } },
@@ -147,17 +95,23 @@ export default function ChatbotUsage() {
     } else {
       chart.xAxis[0].update({
         tickInterval: 30 * 24 * 3600 * 1000,
-        labels: { format: '{value:%Y-%m}', style: { fontSize: '11px', color: '#6B7280' } },
+        labels: { format: '{value:%m}월', style: { fontSize: '11px', color: '#6B7280' } },
       });
       chart.yAxis[0].setTitle({ text: '월별 총 토큰 사용량' });
     }
 
-    // 데이터 반영
-    chart.series[0].setData(
-      dummy.items.map((item) => [item.x, item.y]),
-      true
-    );
+    // 실제 API 데이터 items 반영
+    const seriesData = items.map((item) => [new Date(item.x).getTime(), item.y]);
+    chart.series[0].setData(seriesData, true);
   };
+
+  //  API 데이터 로드 이후 자동 반영
+  useEffect(() => {
+    if (data) {
+      // granularity를 기준으로 자동 반영 (예: day / week / month)
+      updateChart(data.timeframe.granularity as 'day' | 'week' | 'month');
+    }
+  }, [data]);
 
   return (
     <Card title="챗봇 사용량 추이" subtitle="일별, 주별, 월별 사용량 추이" className="p-4">
@@ -165,11 +119,11 @@ export default function ChatbotUsage() {
         <div className="ml-auto w-40">
           <Select
             value={period}
-            onChange={(v) => handlePeriodChange(v as (typeof periods)[number])}
+            onChange={(v) => updateChart(v as 'day' | 'week' | 'month')}
             options={[
-              { label: '일별', value: 'daily' },
-              { label: '주별', value: 'weekly' },
-              { label: '월별', value: 'monthly' },
+              { label: '일별', value: 'day' },
+              { label: '주별', value: 'week' },
+              { label: '월별', value: 'month' },
             ]}
           />
         </div>

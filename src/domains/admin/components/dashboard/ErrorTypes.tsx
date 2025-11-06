@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, GaugeCircle, Cpu } from 'lucide-react';
 import Card from '@/shared/components/Card';
 import Pagination from '@/shared/components/Pagination';
+import type { errorList, errorItem } from '@/domains/admin/types/dashboard.types';
+import { getErrorLogs } from '@/domains/admin/api/dashboard.api';
 
 // 시간 경과 계산 함수
 function timeAgo(date: Date) {
@@ -12,112 +14,21 @@ function timeAgo(date: Date) {
   return `${hours}시간 전`;
 }
 
-// 더미
-const dummyResponse = {
-  errors: [
-    {
-      chatTitle: '상품 검색 챗봇',
-      userType: '일반 사용자',
-      userName: '홍길동',
-      chatRoomId: 'room-001',
-      errorType: 'SYSTEM',
-      occurredAt: new Date(Date.now() - 2 * 60 * 1000), // 2분 전
-    },
-    {
-      chatTitle: '데이터 분석 챗봇',
-      userType: '관리자',
-      userName: '최유진',
-      chatRoomId: 'room-002',
-      errorType: 'SYSTEM',
-      occurredAt: new Date(Date.now() - 7 * 60 * 1000), // 7분 전
-    },
-    {
-      chatTitle: '고객센터 문의',
-      userType: '관리자',
-      userName: '김지원',
-      chatRoomId: 'room-003',
-      errorType: 'SYSTEM',
-      occurredAt: new Date(Date.now() - 20 * 60 * 1000), // 20분 전
-    },
-    {
-      chatTitle: '문서 검색 챗봇',
-      userType: '일반 사용자',
-      userName: '이현우',
-      chatRoomId: 'room-004',
-      errorType: 'SYSTEM',
-      occurredAt: new Date(Date.now() - 45 * 60 * 1000), // 45분 전
-    },
-    {
-      chatTitle: 'AI 응답 요약 서비스',
-      userType: '관리자',
-      userName: '박지민',
-      chatRoomId: 'room-005',
-      errorType: 'SYSTEM',
-      occurredAt: new Date(Date.now() - 1.5 * 60 * 60 * 1000), // 1시간 30분 전
-    },
-    {
-      chatTitle: '챗봇 관리 대시보드',
-      userType: '관리자',
-      userName: '강서현',
-      chatRoomId: 'room-006',
-      errorType: 'SYSTEM',
-      occurredAt: new Date(Date.now() - 3 * 60 * 60 * 1000), // 3시간 전
-    },
-    {
-      chatTitle: '고객 응대 자동화',
-      userType: '일반 사용자',
-      userName: '정우성',
-      chatRoomId: 'room-007',
-      errorType: '응답오류',
-      occurredAt: new Date(Date.now() - 50 * 60 * 1000), // 50분 전
-    },
-    {
-      chatTitle: '예약 확인 챗봇',
-      userType: '관리자',
-      userName: '김수진',
-      chatRoomId: 'room-008',
-      errorType: '응답오류',
-      occurredAt: new Date(Date.now() - 2.5 * 60 * 60 * 1000), // 2시간 30분 전
-    },
-    {
-      chatTitle: 'AI 상품 추천 서비스',
-      userType: '일반 사용자',
-      userName: '이민재',
-      chatRoomId: 'room-009',
-      errorType: '응답오류',
-      occurredAt: new Date(Date.now() - 4 * 60 * 60 * 1000), // 4시간 전
-    },
-    {
-      chatTitle: '고객 피드백 챗봇',
-      userType: '일반 사용자',
-      userName: '한지민',
-      chatRoomId: 'room-010',
-      errorType: '응답오류',
-      occurredAt: new Date(Date.now() - 5 * 60 * 60 * 1000), // 5시간 전
-    },
-    {
-      chatTitle: 'CS 자동 분류 시스템',
-      userType: '관리자',
-      userName: '정해인',
-      chatRoomId: 'room-011',
-      errorType: '응답오류',
-      occurredAt: new Date(Date.now() - 8 * 60 * 60 * 1000), // 8시간 전
-    },
-    {
-      chatTitle: '음성 인식 챗봇',
-      userType: '일반 사용자',
-      userName: '박서준',
-      chatRoomId: 'room-012',
-      errorType: '응답오류',
-      occurredAt: new Date(Date.now() - 10 * 60 * 60 * 1000), // 10시간 전
-    },
-  ],
-};
-
 export default function ErrorTypes() {
-  const [errors, _setErrors] = useState(dummyResponse.errors);
+  const [_data, setData] = useState<errorList | null>(null);
+  const [errors, setErrors] = useState<errorItem[]>([]);
   const [pageNum, setPageNum] = useState(1);
   const pageSize = 5;
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const result = await getErrorLogs();
+      setData(result);
+      setErrors(result.errors);
+    };
+    fetchData();
+  }, []);
+
   const sortedErrors = useMemo(
     () =>
       [...errors].sort(
@@ -126,10 +37,7 @@ export default function ErrorTypes() {
     [errors]
   );
   const totalPages = Math.max(1, Math.ceil(sortedErrors.length / pageSize));
-
-  useEffect(() => {
-    // 실제 API 연동 시 이 부분에서 setErrors() 호출
-  }, []);
+  console.log(sortedErrors);
 
   const getIcon = (type: 'SYSTEM' | '응답오류') => {
     switch (type) {

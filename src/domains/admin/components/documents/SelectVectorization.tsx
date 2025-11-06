@@ -1,7 +1,7 @@
 import { FileText, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import VecProcess from './VecProcess';
-import type { FileType } from '../../types';
+import type { FileType } from '@/domains/admin/types/documents.types';
 export default function SelectVectorization({
   finalSelectedFiles,
   onRemove,

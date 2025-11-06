@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { FolderOpen, FileText, ChevronDown, ChevronRight, ChevronLeft } from 'lucide-react';
-import type { ColSectionProps } from '@/domains/admin/types';
+import type { ColSectionProps } from '@/domains/admin/types/documents.types';
 
 export default function ColSection({ selectedCollection, onCollectionSelect }: ColSectionProps) {
   const dummyFiles = [

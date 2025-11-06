@@ -1,39 +1,36 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Highcharts from 'highcharts';
 import _wordcloudInit from 'highcharts/modules/wordcloud';
 import Card from '@/shared/components/Card';
+import type { frequentKeywords, keywordItem } from '@/domains/admin/types/dashboard.types';
+import { getKeywords } from '@/domains/admin/api/dashboard.api';
 
 export default function KeywordMap() {
   const chartRef = useRef<Highcharts.Chart | null>(null);
+  const [_info, setInfo] = useState<frequentKeywords>();
+  const [keyword, setKeyword] = useState<keywordItem[]>([]);
+  const [starTime, setStartTime] = useState<string>('');
+  const [endTime, setEndTime] = useState<string>('');
 
-  // 더미
   useEffect(() => {
-    const dummyResponse = {
-      timeframe: {
-        start: new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString(),
-        end: new Date().toISOString(),
-      },
-      keywords: [
-        { text: '시력검사', count: 410, weight: 0.9 },
-        { text: '렌즈추천', count: 385, weight: 0.93 },
-        { text: '누진렌즈', count: 350, weight: 0.88 },
-        { text: '도수측정', count: 320, weight: 0.12 },
-        { text: '안경테', count: 295, weight: 0.98 },
-        { text: '렌즈교체', count: 260, weight: 0.83 },
-        { text: '시야흐림', count: 235, weight: 0.78 },
-        { text: '난시교정', count: 210, weight: 0.54 },
-        { text: '렌즈두께', count: 180, weight: 0.38 },
-        { text: '아동안경', count: 165, weight: 0.45 },
-        { text: '렌즈세척', count: 150, weight: 0.3 },
-        { text: '눈피로', count: 125, weight: 0.15 },
-        { text: '렌즈코팅', count: 95, weight: 0.38 },
-        { text: '자외선차단', count: 80, weight: 0.13 },
-        { text: '맞춤안경', count: 70, weight: 0.3 },
-      ],
+    const fetchKeywords = async () => {
+      const result = await getKeywords();
+      setInfo(result);
+      const resultKeywords = result.keywords;
+      const startTime = result.timeframe.start;
+      const endTime = result.timeframe.end;
+      setKeyword(resultKeywords);
+      setStartTime(startTime);
+      setEndTime(endTime);
     };
+    fetchKeywords();
+  }, []);
+
+  useEffect(() => {
+    if (!keyword || keyword.length === 0) return;
 
     //  Highcharts용 데이터 변환
-    const data = dummyResponse.keywords.map((k) => ({
+    const data = keyword.map((k) => ({
       name: k.text,
       weight: k.weight,
       count: k.count,
@@ -88,12 +85,12 @@ export default function KeywordMap() {
     });
 
     return () => chartRef.current?.destroy();
-  }, []);
+  }, [keyword]);
 
   return (
     <Card
       title="최근 주요 키워드"
-      subtitle="가중치 기반 워드클라우드"
+      subtitle={`${starTime.slice(0, 10)} ~ ${endTime.slice(0, 10)}`}
       className="p-3 h-full flex flex-col"
     >
       <div id="keyword-cloud" className="w-full flex-1 min-h-[100px]" />
