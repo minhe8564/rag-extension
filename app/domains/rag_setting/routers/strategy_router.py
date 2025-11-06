@@ -101,7 +101,7 @@ async def create_strategy(
 
 
 @router.delete(
-    "/strategies/{strategyNo}",
+    "/strategy/{strategyNo}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="전략 삭제",
     description="특정 전략을 삭제합니다.",
@@ -133,6 +133,7 @@ async def delete_strategy(
     description="전략 유형 목록을 조회합니다.",
     responses={
         200: {"description": "전략 유형 목록 조회 성공"},
+        401: unauthorized_error_response(),
     },
 )
 async def get_strategy_types(
