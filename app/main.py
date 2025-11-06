@@ -13,8 +13,14 @@ from .domains.file.routers.files_presigned import router as files_presigned_rout
 from .domains.collection.routers.collections import router as collections_router
 from .domains.image.routers.image_controller import router as image_router
 from .domains.rag_setting.routers.strategy_router import router as strategy_router
-from .domains.rag_setting.routers.ingest_router import router as ingest_router
-from .domains.rag_setting.routers.query_router import router as query_router
+from .domains.rag_setting.routers.ingest_create import router as ingest_create_router
+from .domains.rag_setting.routers.ingest_read import router as ingest_read_router
+from .domains.rag_setting.routers.ingest_update import router as ingest_update_router
+from .domains.rag_setting.routers.ingest_delete import router as ingest_delete_router
+from .domains.rag_setting.routers.query_create import router as query_create_router
+from .domains.rag_setting.routers.query_read import router as query_read_router
+from .domains.rag_setting.routers.query_update import router as query_update_router
+from .domains.rag_setting.routers.query_delete import router as query_delete_router
 from .domains.rag_setting.routers.prompt_create import router as prompt_create_router
 from .domains.rag_setting.routers.prompt_read import router as prompt_read_router
 from .domains.rag_setting.routers.prompt_update import router as prompt_update_router
@@ -53,8 +59,14 @@ app.include_router(files_presigned_router, prefix="/api/v1")
 app.include_router(collections_router, prefix="/api/v1")
 app.include_router(image_router, prefix="/api/v1")
 app.include_router(strategy_router, prefix="/api/v1")
-app.include_router(ingest_router, prefix="/api/v1")
-app.include_router(query_router, prefix="/api/v1")
+app.include_router(ingest_create_router, prefix="/api/v1")
+app.include_router(ingest_read_router, prefix="/api/v1")
+app.include_router(ingest_update_router, prefix="/api/v1")
+app.include_router(ingest_delete_router, prefix="/api/v1")
+app.include_router(query_create_router, prefix="/api/v1")
+app.include_router(query_read_router, prefix="/api/v1")
+app.include_router(query_update_router, prefix="/api/v1")
+app.include_router(query_delete_router, prefix="/api/v1")
 app.include_router(prompt_create_router, prefix="/api/v1")
 app.include_router(prompt_read_router, prefix="/api/v1")
 app.include_router(prompt_update_router, prefix="/api/v1")
