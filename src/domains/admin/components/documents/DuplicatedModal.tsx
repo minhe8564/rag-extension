@@ -1,5 +1,5 @@
 import { CircleAlert } from 'lucide-react';
-import type { FileType } from '@/domains/admin/types';
+import type { FileType } from '@/domains/admin/types/documents.types';
 
 interface DuplicatedModalProps {
   duplicates: FileType[];

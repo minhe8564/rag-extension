@@ -22,7 +22,7 @@ type Props = {
   onDownload?: (id: string) => void;
   onDelete?: (ids: string[]) => void;
   brand?: 'hebees' | 'retina';
-  onSelectChange?: (ids: string[]) => void; // ✅ 부모에게 선택 변경 알림
+  onSelectChange?: (ids: string[]) => void;
 };
 
 export default function UploadedFileList({
@@ -31,13 +31,12 @@ export default function UploadedFileList({
   onDownload,
   onDelete,
   brand = 'hebees',
-  onSelectChange, // ✅ 받기
+  onSelectChange,
 }: Props) {
   const [fileType, setFileType] = useState<'all' | UploadedDoc['type']>('all');
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
 
-  // ✅ 필터
   const filtered = useMemo(
     () => (fileType === 'all' ? docs : docs.filter((d) => d.type === fileType)),
     [docs, fileType]
@@ -46,15 +45,12 @@ export default function UploadedFileList({
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const pageItems = filtered.slice((page - 1) * pageSize, page * pageSize);
 
-  // ✅ 선택된 ID들
   const selectedIds = useMemo(() => Object.keys(selected).filter((id) => selected[id]), [selected]);
 
-  // ✅ 선택 변경 시 부모로 알림
   useEffect(() => {
     onSelectChange?.(selectedIds);
   }, [selectedIds, onSelectChange]);
 
-  // ✅ docs가 바뀌어 사라진 항목 선택 해제
   useEffect(() => {
     if (!docs.length) {
       setSelected({});
@@ -110,7 +106,7 @@ export default function UploadedFileList({
                   indeterminate={
                     pageItems.some((d) => selected[d.id]) && !pageItems.every((d) => selected[d.id])
                   }
-                  brand={brand} // ✅ 브랜드 적용
+                  brand={brand}
                   onChange={(e) => toggleAll(e.target.checked)}
                 />
               </th>
@@ -136,7 +132,7 @@ export default function UploadedFileList({
                     <Checkbox
                       checked={!!selected[doc.id]}
                       onChange={(e) => setSelected((s) => ({ ...s, [doc.id]: e.target.checked }))}
-                      brand={brand} // ✅ 브랜드 적용
+                      brand={brand}
                     />
                   </td>
 

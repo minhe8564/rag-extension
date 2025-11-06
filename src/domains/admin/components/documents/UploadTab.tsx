@@ -3,7 +3,7 @@ import UploadList from '@/domains/admin/components/documents/UploadList';
 import ColSection from '@/domains/admin/components/documents/ColSection';
 import SelectVectorization from '@/domains/admin/components/documents/SelectVectorization';
 import DuplicatedModal from '@/domains/admin/components/documents/DuplicatedModal';
-import type { FileType } from '@/domains/admin/types';
+import type { FileType } from '@/domains/admin/types/documents.types';
 
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
