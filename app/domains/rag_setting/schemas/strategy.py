@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from pydantic import BaseModel, Field
 
 
@@ -48,3 +48,24 @@ class StrategyCreateRequest(BaseModel):
 class StrategyCreateResponse(BaseModel):
     """전략 생성 응답"""
     strategyNo: str = Field(..., description="생성된 전략 ID (UUID)")
+
+
+class StrategyTypeListItem(BaseModel):
+    """전략 유형 목록 아이템"""
+    strategyTypeNo: str = Field(..., description="전략 유형 ID (UUID)")
+    name: str = Field(..., description="전략 유형 이름")
+
+
+class StrategyTypeListResponse(BaseModel):
+    """전략 유형 목록 응답 데이터"""
+    data: List[StrategyTypeListItem]
+
+
+class StrategyTypeCreateRequest(BaseModel):
+    """전략 유형 생성 요청"""
+    name: str = Field(..., min_length=1, max_length=255, description="전략 유형 이름")
+
+
+class StrategyTypeCreateResponse(BaseModel):
+    """전략 유형 생성 응답"""
+    strategyTypeNo: str = Field(..., description="생성된 전략 유형 ID (UUID)")
