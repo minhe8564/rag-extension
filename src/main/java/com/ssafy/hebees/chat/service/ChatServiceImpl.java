@@ -1,5 +1,8 @@
 package com.ssafy.hebees.chat.service;
 
+import com.ssafy.hebees.chat.client.RunpodClient;
+import com.ssafy.hebees.chat.client.dto.RunpodChatMessage;
+import com.ssafy.hebees.chat.client.dto.RunpodChatResult;
 import com.ssafy.hebees.chat.dto.request.SessionCreateRequest;
 import com.ssafy.hebees.chat.dto.request.SessionListRequest;
 import com.ssafy.hebees.chat.dto.request.SessionUpdateRequest;
@@ -22,6 +25,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 @Slf4j
 @Service
@@ -31,6 +35,7 @@ public class ChatServiceImpl implements ChatService {
 
     private final SessionRepository sessionRepository;
     private final MessageService messageService;
+    private final RunpodClient runpodClient;
 
     @Override
     public PageResponse<SessionResponse> getSessions(UUID userNo, PageRequest pageRequest,
@@ -122,8 +127,8 @@ public class ChatServiceImpl implements ChatService {
         String title = request.title();
         if (title == null || title.isBlank()) { // 세션명이 없다면 생성
             String query = request.query();
-            if (query != null) { // 사용자 질문으로 세션 제목 생성
-                title = query.substring(0, 50);
+            if (StringUtils.hasText(query)) { // 사용자 질문으로 세션 제목 생성
+                title = generateSessionTitle(query);
             } else { // 힌트가 없다면, 기본값 사용
                 title = SessionCreateRequest.DEFAULT_TITLE;
             }
@@ -151,6 +156,47 @@ public class ChatServiceImpl implements ChatService {
         log.info("세션 생성 성공: userNo={}, sessionNo={}", owner, saved.getSessionNo());
 
         return new SessionCreateResponse(saved.getSessionNo(), title);
+    }
+
+    private String generateSessionTitle(String query) {
+        String sanitizedQuery = query.strip();
+        if (!StringUtils.hasText(sanitizedQuery)) {
+            return SessionCreateRequest.DEFAULT_TITLE;
+        }
+
+        try {
+            RunpodChatResult result = runpodClient.chat(List.of(
+                RunpodChatMessage.of("system",
+                    "You are an assistant that reads the user's question and replies only with a concise Korean session title under 15   characters. Do not include punctuation or any extra text."),
+                RunpodChatMessage.of("user", sanitizedQuery)
+            ));
+
+            String title = Optional.ofNullable(result)
+                .map(RunpodChatResult::content)
+                .map(String::trim)
+                .orElse("");
+
+            if (!StringUtils.hasText(title)) {
+                return fallbackTitle(sanitizedQuery);
+            }
+
+            if (title.length() > 20) {
+                title = title.substring(0, 20);
+            }
+
+            return title;
+        } catch (BusinessException e) {
+            log.warn("Runpod 세션 제목 생성 실패: {}", e.getMessage());
+            return fallbackTitle(sanitizedQuery);
+        } catch (Exception e) {
+            log.error("Runpod 세션 제목 생성 중 알 수 없는 오류", e);
+            return fallbackTitle(sanitizedQuery);
+        }
+    }
+
+    private String fallbackTitle(String query) {
+        String candidate = query.length() > 20 ? query.substring(0, 20) : query;
+        return StringUtils.hasText(candidate) ? candidate : SessionCreateRequest.DEFAULT_TITLE;
     }
 
     @Override
