@@ -12,9 +12,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.settings import settings
-from app.core.minio_client import ensure_bucket, object_exists, put_object, get_minio_client
+from app.core.minio_client import ensure_bucket, object_exists, put_object
 from minio.error import S3Error
-from urllib.parse import urlparse, urlunparse
+from minio import Minio
+from urllib.parse import urlparse
 from app.domains.user.models.user import User
 from ..models.file import File
 from ..models.file_category import FileCategory
@@ -299,6 +300,17 @@ async def list_files_by_offer(
     return items
 
 
+def _get_minio_client_for_base(base_url: str) -> Minio:
+    parsed = urlparse(base_url)
+    return Minio(
+        endpoint=parsed.netloc,
+        access_key=settings.minio_access_key,
+        secret_key=settings.minio_secret_key,
+        secure=(parsed.scheme == "https"),
+        region=settings.minio_region if settings.minio_region else None,
+    )
+
+
 async def get_presigned_url(
     *,
     bucket: str,
@@ -330,7 +342,9 @@ async def get_presigned_url(
     if content_type:
         headers["response-content-type"] = content_type
 
-    client = get_minio_client()
+    # Choose signing host: prefer public endpoint to avoid host-rewrite issues
+    sign_base = settings.minio_public_endpoint_url or settings.minio_endpoint_url
+    client = _get_minio_client_for_base(sign_base)
     try:
         url = client.presigned_get_object(
             bucket_name=bucket,
@@ -339,25 +353,6 @@ async def get_presigned_url(
             response_headers=headers or None,
             version_id=version_id,
         )
-
-        # If a public endpoint is configured that differs from the API endpoint,
-        # rewrite the presigned URL to use the public base (keeps path/query).
-        public_base = settings.minio_public_endpoint_url
-        api_base = settings.minio_endpoint_url
-        if public_base and api_base and public_base != api_base:
-            parsed_url = urlparse(url)
-            public_parsed = urlparse(public_base)
-            url = urlunparse(
-                (
-                    public_parsed.scheme,
-                    public_parsed.netloc,
-                    parsed_url.path,
-                    parsed_url.params,
-                    parsed_url.query,
-                    parsed_url.fragment,
-                )
-            )
-
         return url
     except S3Error as e:
         logger.error(f"[FILE] presign 실패: {e.code} {e.message}")
