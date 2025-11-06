@@ -13,25 +13,30 @@ from ....core.error_responses import (
     public_endpoint_responses,
     unauthorized_error_response,
 )
-from ....core.check_role import check_jwt_token
 from ..schemas.strategy import (
     StrategyListItem,
     PaginationInfo,
     StrategyDetailResponse,
     StrategyCreateRequest,
     StrategyCreateResponse,
+    StrategyUpdateRequest,
+    StrategyUpdateResponse,
     StrategyTypeListItem,
     StrategyTypeListResponse,
     StrategyTypeCreateRequest,
     StrategyTypeCreateResponse,
+    StrategyTypeUpdateRequest,
+    StrategyTypeUpdateResponse,
 )
 from ..services.strategy import (
     list_strategies as list_strategies_service,
     get_strategy_by_no,
     create_strategy as create_strategy_service,
+    update_strategy as update_strategy_service,
     delete_strategy as delete_strategy_service,
     list_strategy_types as list_strategy_types_service,
     create_strategy_type as create_strategy_type_service,
+    update_strategy_type as update_strategy_type_service,
     delete_strategy_type as delete_strategy_type_service,
     delete_strategy_type_by_name as delete_strategy_type_by_name_service,
 )
@@ -40,7 +45,6 @@ from ..services.strategy import (
 router = APIRouter(
     prefix="/rag",
     tags=["RAG - Strategy Management"],
-    dependencies=[Depends(check_jwt_token())],
 )
 
 
@@ -100,8 +104,54 @@ async def create_strategy(
     )
 
 
+@router.put(
+    "/strategies/{strategyNo}",
+    response_model=BaseResponse[StrategyUpdateResponse],
+    summary="전략 수정",
+    description="전략 정보를 수정합니다.",
+    responses={
+        200: {"description": "전략 수정 성공"},
+        400: {"description": "잘못된 전략 ID"},
+        401: unauthorized_error_response(),
+        404: not_found_error_response("전략"),
+        409: conflict_error_response("전략"),
+    },
+)
+async def update_strategy(
+    strategyNo: str,
+    request: StrategyUpdateRequest,
+    session: AsyncSession = Depends(get_db),
+):
+    """전략 수정"""
+
+    strategy = await update_strategy_service(
+        session=session,
+        strategy_no_str=strategyNo,
+        name=request.name,
+        description=request.description,
+        parameter=request.parameter,
+        strategy_type_name=request.strategy_type,
+    )
+
+    return BaseResponse[StrategyUpdateResponse](
+        status=200,
+        code="OK",
+        message="전략 수정에 성공하였습니다.",
+        isSuccess=True,
+        result=Result(
+            data=StrategyUpdateResponse(
+                strategyNo=_bytes_to_uuid_str(strategy.strategy_no),
+                name=strategy.name,
+                description=strategy.description,
+                type=strategy.strategy_type.name if strategy.strategy_type else "",
+                parameter=strategy.parameter,
+            )
+        ),
+    )
+
+
 @router.delete(
-    "/strategy/{strategyNo}",
+    "/strategies/{strategyNo}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="전략 삭제",
     description="특정 전략을 삭제합니다.",
@@ -188,6 +238,46 @@ async def create_strategy_type(
         result=Result(
             data=StrategyTypeCreateResponse(
                 strategyTypeNo=_bytes_to_uuid_str(strategy_type.strategy_type_no)
+            )
+        ),
+    )
+
+
+@router.put(
+    "/strategies/types/{typeNo}",
+    response_model=BaseResponse[StrategyTypeUpdateResponse],
+    summary="전략 유형 이름 수정",
+    description="전략 유형 이름을 수정합니다.",
+    responses={
+        200: {"description": "전략 유형 수정 성공"},
+        400: {"description": "잘못된 전략 유형 ID"},
+        401: unauthorized_error_response(),
+        404: not_found_error_response("전략 유형"),
+        409: conflict_error_response("전략 유형"),
+    },
+)
+async def update_strategy_type(
+    typeNo: str,
+    request: StrategyTypeUpdateRequest,
+    session: AsyncSession = Depends(get_db),
+):
+    """전략 유형 이름 수정"""
+
+    strategy_type = await update_strategy_type_service(
+        session=session,
+        strategy_type_no_str=typeNo,
+        name=request.name,
+    )
+
+    return BaseResponse[StrategyTypeUpdateResponse](
+        status=200,
+        code="OK",
+        message="전략 유형 수정에 성공하였습니다.",
+        isSuccess=True,
+        result=Result(
+            data=StrategyTypeUpdateResponse(
+                strategyTypeNo=_bytes_to_uuid_str(strategy_type.strategy_type_no),
+                name=strategy_type.name,
             )
         ),
     )

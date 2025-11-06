@@ -3,7 +3,7 @@ Core 모듈
 데이터베이스 및 핵심 설정
 """
 from .database import get_db, AsyncSessionLocal, engine
-from .check_role import RoleChecker, check_role, check_jwt_token
+from .check_role import RoleChecker, check_role
 
 __all__ = [
     "get_db",
@@ -11,5 +11,4 @@ __all__ = [
     "engine",
     "RoleChecker",
     "check_role",
-    "check_jwt_token",
 ]
