@@ -1,5 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FolderOpen, FileText, ChevronLeft, ChevronRight, ChevronDown, Trash2 } from 'lucide-react';
+import { getCollections, getDocInCollections } from '@/domains/admin/api/documents.api';
+import type {
+  CollectionList,
+  getDocumentsInCollection,
+} from '@/domains/admin/types/documents.types';
+
 export default function ColList() {
   const dummyCollections = [
     {
@@ -61,21 +67,29 @@ export default function ColList() {
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [hoveredCollection, setHoveredCollection] = useState<string | null>(null);
 
+  useEffect(() => {
+    // const fetchCollections = async () => {
+    //   const result = await getCollections();
+    //   console.log(result)
+    //   setCollections(result.data);
+    // }
+  }, []);
+
   const toggleOpen = (name: string) => setOpen((prev) => ({ ...prev, [name]: !prev[name] }));
 
-  const handleDeleteFile = (colName: string, fileId: number) => {
-    setCollections((prev) =>
-      prev.map((c) =>
-        c.name === colName ? { ...c, files: c.files.filter((f) => f.id !== fileId) } : c
-      )
-    );
-    const key = `${colName}::${fileId}`;
-    setSelectedFiles((prev) => {
-      const next = new Set(prev);
-      next.delete(key);
-      return next;
-    });
-  };
+  // const handleDeleteFile = (colName: string, fileId: number) => {
+  // setCollections((prev) =>
+  //   prev.map((c) =>
+  //     c.name === colName ? { ...c, files: c.files.filter((f) => f.id !== fileId) } : c
+  //   )
+  // );
+  // const key = `${colName}::${fileId}`;
+  // setSelectedFiles((prev) => {
+  //   const next = new Set(prev);
+  //   next.delete(key);
+  //   return next;
+  // });
+  // };
 
   const toggleSelectCollection = (colName: string) => {
     setSelectedCollections((prev) => {
@@ -226,7 +240,7 @@ export default function ColList() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleDeleteFile(col.name, file.id);
+                              // handleDeleteFile(col.name, file.id);
                             }}
                             className="text-[var(--color-hebees)] hover:opacity-80 transition"
                           >
