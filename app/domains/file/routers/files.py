@@ -15,7 +15,7 @@ from ..services.files import upload_files as upload_files_service
 router = APIRouter(prefix="/files", tags=["File"])
 
 
-@router.post("/", response_model=BaseResponse[FileUploadBatchResult], status_code=201)
+@router.post("", response_model=BaseResponse[FileUploadBatchResult], status_code=201)
 async def upload_file(
     http_request: Request,
     request: FileUploadRequest = Depends(FileUploadRequest.as_form),
