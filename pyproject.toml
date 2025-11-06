@@ -1,0 +1,17 @@
+[project]
+name = "rag-data-yolo"
+version = "1.0.0"
+description = "RAG Data YOLO FastAPI Server"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.104.1",
+    "uvicorn[standard]>=0.24.0",
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+    "python-dotenv>=1.0.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
