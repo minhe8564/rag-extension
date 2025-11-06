@@ -8,7 +8,7 @@ from typing import Optional, Tuple
 import logging
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.settings import settings
@@ -264,10 +264,19 @@ async def list_files_by_offer(
     limit: int = 20,
     offset: int = 0,
     category_no: Optional[str] = None,
-) -> list[FileListItem]:
+) -> tuple[list[FileListItem], int]:
     user_no_bytes = _uuid_str_to_bytes(user_no)
     offer_no = await _get_offer_no_by_user(session, user_no_bytes)
 
+    # Total count for pagination
+    count_stmt = select(func.count()).select_from(File).where(File.bucket == offer_no)
+    if category_no:
+        count_stmt = count_stmt.where(File.file_category_no == _uuid_str_to_bytes(category_no))
+
+    res_total = await session.execute(count_stmt)
+    total_items = int(res_total.scalar() or 0)
+
+    # Paged items
     stmt = (
         select(File)
         .where(File.bucket == offer_no)

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Header, Request, HTTPException, status
+from fastapi import APIRouter, Depends, Header, Request, HTTPException, status, Query
+from typing import Dict, Any
+import math
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.schemas import BaseResponse
+from app.core.schemas import BaseResponse, Pagination
 from ..schemas.response.files import FileListItem
 from ..services import files as files_service
 
@@ -12,10 +14,10 @@ from ..services import files as files_service
 router = APIRouter(prefix="/files", tags=["File"])
 
 
-@router.get("", response_model=BaseResponse[list[FileListItem]])
+@router.get("", response_model=BaseResponse[Dict[str, Any]])
 async def list_my_files(
-    limit: int = 20,
-    offset: int = 0,
+    pageNum: int = Query(1, ge=1, description="페이지 번호"),
+    pageSize: int = Query(20, ge=1, le=100, description="페이지 크기"),
     category: str | None = None,
     session: AsyncSession = Depends(get_db),
     http_request: Request = None,
@@ -27,7 +29,11 @@ async def list_my_files(
     if not x_user_role or not x_user_uuid:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="x-user-role/x-user-uuid headers required")
 
-    items = await files_service.list_files_by_offer(
+    # Calculate pagination from pageNum/pageSize
+    limit = pageSize
+    offset = (pageNum - 1) * pageSize
+
+    items, total_items = await files_service.list_files_by_offer(
         session,
         user_no=x_user_uuid,
         limit=limit,
@@ -35,10 +41,25 @@ async def list_my_files(
         category_no=category,
     )
 
-    return BaseResponse[list[FileListItem]](
+    total_pages = math.ceil(total_items / pageSize) if total_items > 0 else 0
+    has_next = pageNum < total_pages
+
+    # Include pagination info in response (wrap both under result.data)
+    return BaseResponse[Dict[str, Any]](
         status=200,
         code="OK",
         message="문서 목록 조회에 성공했습니다.",
         isSuccess=True,
-        result={"data": items},
+        result={
+            "data": {
+                "data": items,
+                "pagination": Pagination(
+                    pageNum=pageNum,
+                    pageSize=pageSize,
+                    totalItems=total_items,
+                    totalPages=total_pages,
+                    hasNext=has_next,
+                ),
+            }
+        },
     )
