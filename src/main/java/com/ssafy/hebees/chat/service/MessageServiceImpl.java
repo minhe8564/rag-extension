@@ -12,6 +12,7 @@ import com.ssafy.hebees.chat.repository.MessageRepository;
 import com.ssafy.hebees.chat.repository.SessionRepository;
 import com.ssafy.hebees.common.exception.BusinessException;
 import com.ssafy.hebees.common.exception.ErrorCode;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -44,8 +45,6 @@ public class MessageServiceImpl implements MessageService {
 
         validateOwnership(owner, sessionId);
 
-        long nextSeq = determineNextSeq(sessionId);
-
         UUID author = Optional.ofNullable(request.userNo()).orElse(owner);
 
         List<MessageReference> references = mapToReferences(request);
@@ -55,7 +54,6 @@ public class MessageServiceImpl implements MessageService {
             .messageNo(UUID.randomUUID())
             .role(request.role())
             .content(request.content())
-            .seq(nextSeq)
             .userNo(author)
             .llmNo(request.llmNo())
             .inputTokens(request.inputTokens())
@@ -83,22 +81,24 @@ public class MessageServiceImpl implements MessageService {
             : new MessageCursorRequest(null, null);
 
         int requestedSize = effectiveRequest.limit();
-        Long cursor = effectiveRequest.cursor();
+        LocalDateTime cursor = effectiveRequest.cursor();
 
         int fetchSize = requestedSize + 1;
-        Pageable pageable = PageRequest.of(0, fetchSize, Sort.by(Sort.Direction.DESC, "seq"));
+        Pageable pageable = PageRequest.of(0, fetchSize, Sort.by(Sort.Direction.DESC, "createdAt"));
 
         List<Message> fetched = cursor == null
-            ? messageRepository.findBySessionNoOrderBySeqDesc(sessionId, pageable)
-            : messageRepository.findBySessionNoAndSeqLessThanOrderBySeqDesc(sessionId, cursor,
-                pageable);
+            ? messageRepository.findBySessionNoOrderByCreatedAtDesc(sessionId, pageable)
+            : messageRepository.findBySessionNoAndCreatedAtBeforeOrderByCreatedAtDesc(sessionId,
+                cursor, pageable);
 
         boolean hasNext = fetched.size() > requestedSize;
         List<Message> limited = hasNext
             ? new ArrayList<>(fetched.subList(0, requestedSize))
             : new ArrayList<>(fetched);
 
-        Long nextCursor = hasNext && !limited.isEmpty() ? limited.getLast().getSeq() : null;
+        LocalDateTime nextCursor = hasNext && !limited.isEmpty()
+            ? limited.getLast().getCreatedAt()
+            : null;
 
         Collections.reverse(limited);
 
@@ -204,16 +204,6 @@ public class MessageServiceImpl implements MessageService {
         return documentNo;
     }
 
-    private long determineNextSeq(UUID sessionNo) {
-        Pageable topOne = PageRequest.of(0, 1, Sort.by(Sort.Direction.DESC, "seq"));
-        return messageRepository.findBySessionNoOrderBySeqDesc(sessionNo, topOne).stream()
-            .map(Message::getSeq)
-            .filter(Objects::nonNull)
-            .findFirst()
-            .map(seq -> seq + 1)
-            .orElse(1L);
-    }
-
     private List<MessageReference> mapToReferences(MessageCreateRequest request) {
         if (request.references() == null || request.references().isEmpty()) {
             return List.of();
@@ -247,7 +237,6 @@ public class MessageServiceImpl implements MessageService {
             chatMessage.getLlmNo(),
             chatMessage.getContent(),
             chatMessage.getCreatedAt(),
-            chatMessage.getSeq(),
             references
         );
     }

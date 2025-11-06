@@ -28,9 +28,6 @@ public record MessageResponse(
     @Schema(description = "생성 시각", type = "string", format = "date-time")
     LocalDateTime createdAt,
 
-    @Schema(description = "세션 내 순번")
-    Long seq,
-
     @Schema(description = "참조 문서 목록")
     List<ReferencedDocumentResponse> references
 ) {
