@@ -10,15 +10,13 @@ from .domains.file.routers.file_category import router as file_router
 from .domains.file.routers.files import router as files_router
 from .domains.file.routers.files_list import router as files_list_router
 from .domains.file.routers.files_presigned import router as files_presigned_router
+from .domains.file.routers.files_presigned_by_no import router as files_presigned_by_no_router
 from .domains.collection.routers.collections import router as collections_router
 from .domains.image.routers.image_controller import router as image_router
 from .domains.rag_setting.routers.strategy_router import router as strategy_router
 from .domains.rag_setting.routers.ingest_router import router as ingest_router
 from .domains.rag_setting.routers.query_router import router as query_router
-from .domains.rag_setting.routers.prompt_create import router as prompt_create_router
-from .domains.rag_setting.routers.prompt_read import router as prompt_read_router
-from .domains.rag_setting.routers.prompt_update import router as prompt_update_router
-from .domains.rag_setting.routers.prompt_delete import router as prompt_delete_router
+from .domains.collection.routers.test_collection_router import router as test_collection_router
 from .domains.monitoring.routers.monitoring_controller import router as monitoring_router
 from datetime import datetime
 
@@ -50,10 +48,12 @@ app.include_router(file_router, prefix="/api/v1")
 app.include_router(files_router, prefix="/api/v1")
 app.include_router(files_list_router, prefix="/api/v1")
 app.include_router(files_presigned_router, prefix="/api/v1")
+app.include_router(files_presigned_by_no_router, prefix="/api/v1")
 app.include_router(collections_router, prefix="/api/v1")
 app.include_router(image_router, prefix="/api/v1")
 app.include_router(strategy_router, prefix="/api/v1")
 app.include_router(ingest_router, prefix="/api/v1")
+app.include_router(test_collection_router, prefix="/api/v1")
 app.include_router(query_router, prefix="/api/v1")
 app.include_router(prompt_create_router, prefix="/api/v1")
 app.include_router(prompt_read_router, prefix="/api/v1")
@@ -75,3 +75,4 @@ async def health_check():
         "version": __version__,
         "timestamp": datetime.now().isoformat(),
     }
+

@@ -15,7 +15,7 @@ from ..services.file_category import list_file_categories as list_file_categorie
 router = APIRouter(prefix="/files/categories", tags=["File"])
 
 
-@router.get("/", response_model=BaseResponse[List[FileCategoryListItem]])
+@router.get("", response_model=BaseResponse[List[FileCategoryListItem]])
 async def list_file_categories(
     session: AsyncSession = Depends(get_db),
 ):
