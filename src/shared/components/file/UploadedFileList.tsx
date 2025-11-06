@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Download, Trash2, FileText } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Download, Trash2, FileText, X } from 'lucide-react';
 import Checkbox from '@/shared/components/Checkbox';
 import Tooltip from '@/shared/components/Tooltip';
 import Select from '@/shared/components/Select';
@@ -22,6 +22,7 @@ type Props = {
   onDownload?: (id: string) => void;
   onDelete?: (ids: string[]) => void;
   brand?: 'hebees' | 'retina';
+  onSelectChange?: (ids: string[]) => void;
 };
 
 export default function UploadedFileList({
@@ -30,6 +31,7 @@ export default function UploadedFileList({
   onDownload,
   onDelete,
   brand = 'hebees',
+  onSelectChange,
 }: Props) {
   const [fileType, setFileType] = useState<'all' | UploadedDoc['type']>('all');
   const [page, setPage] = useState(1);
@@ -42,7 +44,27 @@ export default function UploadedFileList({
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const pageItems = filtered.slice((page - 1) * pageSize, page * pageSize);
-  const selectedIds = Object.keys(selected).filter((id) => selected[id]);
+
+  const selectedIds = useMemo(() => Object.keys(selected).filter((id) => selected[id]), [selected]);
+
+  useEffect(() => {
+    onSelectChange?.(selectedIds);
+  }, [selectedIds, onSelectChange]);
+
+  useEffect(() => {
+    if (!docs.length) {
+      setSelected({});
+      return;
+    }
+    setSelected((prev) => {
+      const next: Record<string, boolean> = {};
+      const existing = new Set(docs.map((d) => d.id));
+      for (const id of Object.keys(prev)) {
+        if (existing.has(id)) next[id] = prev[id];
+      }
+      return next;
+    });
+  }, [docs]);
 
   const toggleAll = (checked: boolean) => {
     const idsOnPage = pageItems.map((d) => d.id);
@@ -84,6 +106,7 @@ export default function UploadedFileList({
                   indeterminate={
                     pageItems.some((d) => selected[d.id]) && !pageItems.every((d) => selected[d.id])
                   }
+                  brand={brand}
                   onChange={(e) => toggleAll(e.target.checked)}
                 />
               </th>
@@ -109,6 +132,7 @@ export default function UploadedFileList({
                     <Checkbox
                       checked={!!selected[doc.id]}
                       onChange={(e) => setSelected((s) => ({ ...s, [doc.id]: e.target.checked }))}
+                      brand={brand}
                     />
                   </td>
 
@@ -125,7 +149,12 @@ export default function UploadedFileList({
                     </div>
                   </td>
 
-                  <td className="px-4 py-2 text-right text-gray-600">{doc.sizeKB.toFixed(1)} KB</td>
+                  <td className="px-4 py-2 text-right text-gray-600">
+                    {doc.sizeKB >= 1024
+                      ? `${(doc.sizeKB / 1024).toFixed(1)} MB`
+                      : `${doc.sizeKB.toFixed(1)} KB`}
+                  </td>
+
                   <td className="px-4 py-2 text-right text-gray-600">{doc.uploadedAt ?? '-'}</td>
 
                   <td className="px-4 py-2">
@@ -164,15 +193,53 @@ export default function UploadedFileList({
       </div>
 
       <div className={`py-4 text-sm ${selectedIds.length ? brandText : 'text-gray-400'}`}>
-        {selectedIds.length ? (
-          <div
-            className={`flex items-center gap-2 rounded-md border px-3 py-2 ${brandBorder} ${brandBg}`}
-          >
-            <span>{selectedIds.length}개 파일이 선택되었습니다.</span>
-          </div>
-        ) : (
-          <span>파일을 선택하면 일괄 작업을 수행할 수 있어요.</span>
-        )}
+        <div className={`py-4 text-sm ${selectedIds.length ? brandText : 'text-gray-400'}`}>
+          {selectedIds.length ? (
+            <div
+              className={`flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 ${brandBorder} ${brandBg}`}
+            >
+              <span>{selectedIds.length}개 파일이 선택되었습니다.</span>
+
+              <div className="flex items-center gap-1">
+                <Tooltip content="선택 해제" side="bottom">
+                  <button
+                    type="button"
+                    onClick={() => setSelected({})}
+                    className="rounded-md p-2 hover:bg-white text-black"
+                  >
+                    <X size={16} />
+                  </button>
+                </Tooltip>
+
+                <Tooltip content="선택 다운로드" side="bottom">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      selectedIds.forEach((id, i) => {
+                        setTimeout(() => onDownload?.(id), i * 120);
+                      });
+                    }}
+                    className="rounded-md p-2 hover:bg-white text-black"
+                  >
+                    <Download size={16} />
+                  </button>
+                </Tooltip>
+
+                <Tooltip content="선택 삭제" side="bottom">
+                  <button
+                    type="button"
+                    onClick={() => onDelete?.(selectedIds)}
+                    className="rounded-md p-2 hover:bg-white text-red-600"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </Tooltip>
+              </div>
+            </div>
+          ) : (
+            <span>파일을 선택하면 일괄 작업을 수행할 수 있어요.</span>
+          )}
+        </div>
       </div>
 
       <div className="flex items-center justify-center gap-5 py-3 text-sm">

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Outlet, NavLink, useNavigate, useSearchParams } from 'react-router-dom';
 import { Menu, MessageSquare, Image, FolderCog, LogOut, Bell, UserCog, Search } from 'lucide-react';
 import Tooltip from '@/shared/components/Tooltip';
-import ChatList from '@/shared/components/chat/ChatList';
+import ChatList from '@/shared/components/chat/list/ChatList';
 import ChatSearchModal from '@/shared/components/chat/ChatSearchModal';
 import RetinaLogo from '@/assets/retina-logo.png';
 
@@ -27,7 +27,7 @@ export default function UserLayout() {
   const navigate = useNavigate();
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-transparent">
       <aside
         className={`sticky top-0 self-start shrink-0 h-dvh flex flex-col bg-white transition-all duration-300 shadow-sm ${
           isOpen ? 'w-64 border-r' : 'w-[64px] border-r'

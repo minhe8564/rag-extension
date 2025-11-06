@@ -90,7 +90,7 @@ async function refreshAccessToken(): Promise<string | null> {
   return refreshPromise;
 }
 
-function applyInterceptors(instance: typeof springApi) {
+function applyInterceptors(instance: typeof springApi | typeof ragApi | typeof fastApi) {
   // request
   instance.interceptors.request.use((config) => {
     const token = useAuthStore.getState().accessToken;

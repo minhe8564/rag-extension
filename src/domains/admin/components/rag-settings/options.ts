@@ -63,9 +63,7 @@ export const llmModelsOptions: Option[] = [
 export const fileTypeOptions: Option[] = [
   { label: '전체', value: 'all' },
   { label: 'PDF', value: 'pdf' },
+  { label: 'Markdown', value: 'md' },
   { label: 'Word', value: 'docx' },
-  { label: 'PPT', value: 'pptx' },
   { label: 'Excel', value: 'xlsx' },
-  { label: 'TXT', value: 'txt' },
-  { label: 'Image', value: 'image' },
 ];

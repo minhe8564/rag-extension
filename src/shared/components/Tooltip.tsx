@@ -21,7 +21,7 @@ export default function Tooltip({
   return (
     <div
       ref={ref}
-      className="relative inline-block"
+      className="relative inline-flex items-center"
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
       onFocus={() => setOpen(true)}

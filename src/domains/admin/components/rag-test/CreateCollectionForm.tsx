@@ -13,31 +13,28 @@ type Props = {
   onCancel: () => void;
   onCreate: (c: Collection) => void;
 };
-type Category = '업무 매뉴얼' | '정책/규정' | '개발 문서' | '홍보자료' | '이미지' | '기타';
 
-export function CreateCollectionForm({}: Props) {
+export function CreateCollectionForm(_: Props) {
   const navigate = useNavigate();
 
-  const defaultTemplate = (ingestTemplateOptions as any)?.[0]?.value ?? '';
+  const defaultTemplate = ingestTemplateOptions?.[0]?.value ?? '';
   const [name, setName] = useState('');
   const [template, setTemplate] = useState<string>(defaultTemplate);
   const [uploadedDocs, setUploadedDocs] = useState<UDoc[]>([]);
 
   const detectType = (f: File): UDoc['type'] => {
-    const t = f.type;
-    if (t.includes('pdf')) return 'pdf';
-    if (t.includes('presentation') || /\.pptx?$/i.test(f.name)) return 'pptx';
-    if (t.includes('sheet') || /\.xlsx?$/i.test(f.name)) return 'xlsx';
-    if (t.includes('word') || /\.docx?$/i.test(f.name)) return 'docx';
-    if (t.startsWith('image/')) return 'image';
+    const name = f.name.toLowerCase();
+    if (name.endsWith('.pdf')) return 'pdf';
+    if (name.endsWith('.md')) return 'md';
+    if (name.endsWith('.doc') || name.endsWith('.docx')) return 'docx';
+    if (name.endsWith('.xlsx')) return 'xlsx';
     return 'txt';
   };
 
-  const handleUpload = async (payload: { files: File[]; category: Category }) => {
-    const { files, category } = payload;
+  const handleUpload = ({ files, category }: { files: File[]; category: string }): void => {
     const now = new Date().toLocaleString();
 
-    const mapped: UDoc[] = files.map(f => ({
+    const mapped: UDoc[] = files.map((f) => ({
       id: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}_${f.name}`,
       name: f.name,
       sizeKB: f.size / 1024,
@@ -47,11 +44,19 @@ export function CreateCollectionForm({}: Props) {
       file: f,
     }));
 
-    setUploadedDocs(prev => [...mapped, ...prev]);
+    setUploadedDocs((prev) => [...mapped, ...prev]);
+
+    // 필요 시 내부에서 비동기 업로드 수행 (onUpload는 void 유지)
+    // void (async () => {
+    //   const form = new FormData();
+    //   files.forEach((f) => form.append('files', f));
+    //   form.append('category', category);
+    //   await fastApi.post('/api/v1/files/upload', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+    // })();
   };
 
   const handleDownload = (id: string) => {
-    const doc = uploadedDocs.find(d => d.id === id);
+    const doc = uploadedDocs.find((d) => d.id === id);
     if (!doc?.file) return;
     const url = URL.createObjectURL(doc.file);
     const a = document.createElement('a');
@@ -62,7 +67,7 @@ export function CreateCollectionForm({}: Props) {
   };
 
   const handleDelete = (ids: string[]) => {
-    setUploadedDocs(prev => prev.filter(d => !ids.includes(d.id)));
+    setUploadedDocs((prev) => prev.filter((d) => !ids.includes(d.id)));
   };
 
   return (
@@ -77,7 +82,7 @@ export function CreateCollectionForm({}: Props) {
               <Select
                 value={template}
                 onChange={setTemplate}
-                options={ingestTemplateOptions as any}
+                options={ingestTemplateOptions}
                 placeholder="선택하세요"
                 aria-label="Ingest 템플릿 선택"
               />
@@ -100,7 +105,7 @@ export function CreateCollectionForm({}: Props) {
             <input
               type="text"
               value={name}
-              onChange={e => setName(e.target.value)}
+              onChange={(e) => setName(e.target.value)}
               placeholder="예: HEBEES Test"
               className="w-full rounded-md border border-gray-200 px-3 py-2 text-base
                          focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-transparent"
@@ -112,10 +117,11 @@ export function CreateCollectionForm({}: Props) {
       <Card title="테스트 문서 업로드">
         <FileDropzone
           onUpload={handleUpload}
-          accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.txt,.png,.jpg,.jpeg"
-          maxSizeMB={50}
+          accept=".pdf,.md,.doc,.docx,.xlsx"
+          maxSizeMB={100}
           className="mt-4"
           brand="hebees"
+          defaultCategory="기타"
         />
 
         <UploadedFileList

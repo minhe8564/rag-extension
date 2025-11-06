@@ -1,45 +1,75 @@
-import { useRef, useState } from 'react';
-import type { DragEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import { UploadCloud } from 'lucide-react';
+import { getCategories } from '@/shared/api/file.api';
+import type { GetCategoriesResult } from '@/shared/types/file.types';
 
 type Brand = 'hebees' | 'retina';
-type Category = '업무 매뉴얼' | '정책/규정' | '개발 문서' | '홍보자료' | '이미지' | '기타';
+type CategoryName = string;
 
 type Props = {
-  onUpload: (payload: { files: File[]; category: Category }) => void;
+  onUpload: (payload: { files: File[]; category: CategoryName }) => void;
   accept?: string;
   multiple?: boolean;
   maxSizeMB?: number;
   disabled?: boolean;
   className?: string;
   brand?: Brand;
-  defaultCategory?: Category;
+  defaultCategory?: CategoryName;
 };
-
-const CATEGORIES: Category[] = [
-  '업무 매뉴얼',
-  '정책/규정',
-  '개발 문서',
-  '홍보자료',
-  '이미지',
-  '기타',
-];
 
 export default function FileDropzone({
   onUpload,
-  accept = '.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt',
+  accept = '.pdf,.md,.doc,.docx,.xlsx',
   multiple = true,
-  maxSizeMB = 50,
+  maxSizeMB = 100,
   disabled = false,
   className = '',
   brand = 'hebees',
   defaultCategory = '기타',
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const dragCounterRef = useRef(0);
+  const [categories, setCategories] = useState<CategoryName[]>([]);
+
+  useEffect(() => {
+    let ignore = false;
+    const ac = new AbortController();
+
+    (async () => {
+      const res = await getCategories();
+      if (ignore) return;
+      const result: GetCategoriesResult = res.data.result;
+      const names = (result.data ?? [])
+        .map((c) => c?.name)
+        .filter((v): v is string => Boolean(v && v.trim()));
+      setCategories(names);
+    })();
+
+    return () => {
+      ignore = true;
+      ac.abort();
+    };
+  }, []);
+
+  const categoryNames: CategoryName[] = useMemo(() => categories, [categories]);
+
+  const initialCategory = useMemo(() => {
+    if (categoryNames.includes(defaultCategory)) return defaultCategory;
+    return categoryNames[0] ?? defaultCategory ?? '기타';
+  }, [categoryNames, defaultCategory]);
+
+  const [category, setCategory] = useState<CategoryName>(initialCategory);
+
+  useEffect(() => {
+    if (!categoryNames.length) return;
+    if (!categoryNames.includes(category)) {
+      setCategory(categoryNames.includes(defaultCategory) ? defaultCategory : categoryNames[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoryNames.join('|')]);
+
   const [isOver, setIsOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [category, setCategory] = useState<Category>(defaultCategory);
-  const dragCounterRef = useRef(0);
 
   const openFileDialog = () => {
     if (!disabled) inputRef.current?.click();
@@ -49,7 +79,7 @@ export default function FileDropzone({
     const arr = Array.from(files);
     if (!arr.length) return;
 
-    const overs = arr.filter(f => f.size > maxSizeMB * 1024 * 1024);
+    const overs = arr.filter((f) => f.size > maxSizeMB * 1024 * 1024);
     if (overs.length) {
       setError(`파일당 최대 ${maxSizeMB}MB까지 업로드할 수 있어요.`);
       return;
@@ -134,7 +164,7 @@ export default function FileDropzone({
     <div className={className}>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <div className="flex flex-wrap gap-1.5">
-          {CATEGORIES.map(c => {
+          {categoryNames.map((c) => {
             const active = c === category;
             return (
               <button
@@ -159,7 +189,7 @@ export default function FileDropzone({
         role="button"
         tabIndex={0}
         onClick={openFileDialog}
-        onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && openFileDialog()}
+        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && openFileDialog()}
         onDragEnter={onDragEnter}
         onDragOver={onDragOver}
         onDragLeave={onDragLeave}
@@ -177,7 +207,7 @@ export default function FileDropzone({
 
           <p className="text-sm font-semibold text-gray-800">파일 업로드 후, RAG 챗봇 학습 시작</p>
           <p className="mt-1 text-xs text-gray-500">
-            PDF, DOCX, XLSX 파일을 드래그하거나 클릭하여 업로드 하세요.
+            PDF, Markdown, Word, Excel 파일을 드래그하거나 클릭하여 업로드 하세요.
           </p>
 
           <p className="mt-2 text-xs">
@@ -205,7 +235,7 @@ export default function FileDropzone({
           accept={accept}
           multiple={multiple}
           disabled={disabled}
-          onChange={e => e.target.files && handleFiles(e.target.files)}
+          onChange={(e) => e.target.files && handleFiles(e.target.files)}
           className="sr-only"
         />
       </div>

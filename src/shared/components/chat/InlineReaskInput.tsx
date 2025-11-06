@@ -6,7 +6,6 @@ type Props = {
   initialValue: string;
   onSubmit: (value: string) => void;
   onCancel: () => void;
-  placeholder?: string;
   autoFocus?: boolean;
 };
 
@@ -14,7 +13,6 @@ export default function InlineReaskInput({
   initialValue,
   onSubmit,
   onCancel,
-  placeholder = '질문을 수정하세요…',
   autoFocus = true,
 }: Props) {
   const [value, setValue] = useState(initialValue);
@@ -22,7 +20,6 @@ export default function InlineReaskInput({
 
   useEffect(() => {
     if (autoFocus) {
-      // textarea 높이 자동
       requestAnimationFrame(() => {
         if (ref.current) {
           ref.current.focus();
@@ -64,13 +61,13 @@ export default function InlineReaskInput({
           syncHeight();
         }}
         onKeyDown={handleKeyDown}
-        placeholder={placeholder}
+        placeholder="질문을 수정하세요."
         rows={1}
-        className="w-full resize-none rounded-md border px-2.5 py-1.5 text-sm outline-none focus:border-gray-400"
+        className="w-full resize-none rounded-md border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-0 focus:border-gray-400"
       />
       <div className="mt-2 flex items-center justify-end gap-2">
         <Tooltip content="취소" side="bottom">
-          <button onClick={onCancel} className="rounded-md p-1.5 text-gray-600 hover:bg-gray-100">
+          <button onClick={onCancel} className="rounded-md p-1.5 text-gray-600 hover:bg-white">
             <X size={16} />
           </button>
         </Tooltip>
@@ -80,7 +77,7 @@ export default function InlineReaskInput({
               const v = value.trim();
               if (v) onSubmit(v);
             }}
-            className="rounded-md p-1.5 text-[var(--color-retina)] hover:bg-gray-100"
+            className="rounded-md p-1.5 text-[var(--color-retina)] hover:bg-white"
           >
             <Check size={16} />
           </button>
