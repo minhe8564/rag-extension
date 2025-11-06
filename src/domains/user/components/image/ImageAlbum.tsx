@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import ImageModal from '@/domains/user/components/ImageModal';
-import PreviewTooltip from '@/domains/user/components/PreviewTooltip';
+import ImageModal from '@/domains/user/components/image/ImageModal';
+import PreviewTooltip from '@/domains/user/components/image/PreviewTooltip';
 import { getUserImages, deleteImage } from '@/domains/user/api/image.api';
 import type { GeneratedImage } from '@/domains/user/types/image.type';
 import { Loader2, ImageOff, Maximize2, Trash2 } from 'lucide-react';

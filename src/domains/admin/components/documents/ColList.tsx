@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { FolderOpen, FileText, ChevronLeft, ChevronRight, ChevronDown, Trash2 } from 'lucide-react';
-import { getCollections, getDocInCollections } from '@/domains/admin/api/documents.api';
-import type {
-  CollectionList,
-  getDocumentsInCollection,
-} from '@/domains/admin/types/documents.types';
+// import { getCollections, getDocInCollections } from '@/domains/admin/api/documents.api';
+// import type {
+//   CollectionList,
+//   getDocumentsInCollection,
+// } from '@/domains/admin/types/documents.types';
 
 export default function ColList() {
   const dummyCollections = [

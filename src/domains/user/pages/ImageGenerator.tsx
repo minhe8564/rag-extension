@@ -1,6 +1,6 @@
 import { Image } from 'lucide-react';
-import ImageGeneratorForm from '@/domains/user/components/ImageGeneratorForm';
-import ImageResultPane from '@/domains/user/components/ImageResultPane';
+import ImageGeneratorForm from '@/domains/user/components/image/ImageGeneratorForm';
+import ImageResultPane from '@/domains/user/components/image/ImageResultPanel';
 import { useState } from 'react';
 import { toast } from 'react-toastify';
 import { generateImages } from '@/domains/user/api/image.api';

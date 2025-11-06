@@ -5,17 +5,45 @@ type Props = {
   totalPages: number;
   onPageChange: (page: number) => void;
   className?: string;
+  hasPrev?: boolean;
+  hasNext?: boolean;
+  isLoading?: boolean;
 };
 
-export default function Pagination({ page, totalPages, onPageChange, className = '' }: Props) {
-  const prev = () => onPageChange(Math.max(1, page - 1));
-  const next = () => onPageChange(Math.min(totalPages, page + 1));
+export default function Pagination({
+  page,
+  totalPages,
+  onPageChange,
+  className = '',
+  hasPrev,
+  hasNext,
+  isLoading = false,
+}: Props) {
+  const canPrev = hasPrev ?? page > 1;
+  const canNext = hasNext ?? page < totalPages;
+
+  const goPage = (p: number) => {
+    if (isLoading) return;
+    onPageChange(p);
+  };
+
+  const prev = () => {
+    if (!canPrev || isLoading) return;
+    goPage(page - 1);
+  };
+
+  const next = () => {
+    if (!canNext || isLoading) return;
+    const target = hasNext !== undefined ? page + 1 : Math.min(totalPages, page + 1);
+    goPage(target);
+  };
 
   return (
     <div className={`flex items-center justify-center gap-5 py-3 text-sm ${className}`}>
       <button
+        type="button"
         onClick={prev}
-        disabled={page === 1}
+        disabled={!canPrev || isLoading}
         className="flex items-center gap-2 text-gray-700 disabled:text-gray-300"
       >
         <ChevronLeft size={16} />
@@ -23,14 +51,18 @@ export default function Pagination({ page, totalPages, onPageChange, className =
       </button>
 
       <div className="flex items-center gap-2 font-medium">
-        {Array.from({ length: totalPages }).map((_, i) => {
+        {Array.from({ length: Math.max(1, totalPages) }).map((_, i) => {
           const pageNum = i + 1;
           return (
             <button
+              type="button"
               key={pageNum}
-              onClick={() => onPageChange(pageNum)}
+              onClick={() => goPage(pageNum)}
+              disabled={isLoading}
               className={
-                page === pageNum ? 'font-semibold text-black' : 'text-gray-500 hover:text-black'
+                page === pageNum
+                  ? 'font-semibold text-black'
+                  : 'text-gray-500 hover:text-black disabled:text-gray-300'
               }
             >
               {pageNum}
@@ -40,8 +72,9 @@ export default function Pagination({ page, totalPages, onPageChange, className =
       </div>
 
       <button
+        type="button"
         onClick={next}
-        disabled={page === totalPages}
+        disabled={!canNext || isLoading}
         className="flex items-center gap-2 text-gray-700 disabled:text-gray-300"
       >
         <span className="hidden sm:inline">다음</span>

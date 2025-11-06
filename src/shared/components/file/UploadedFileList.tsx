@@ -12,8 +12,11 @@ export type UploadedDoc = {
   sizeKB: number;
   uploadedAt?: string;
   category?: string;
+  categoryId?: string;
   type: string;
   file?: File;
+  fileNo?: string;
+  status?: 'pending' | 'uploaded' | 'failed';
 };
 
 type Props = {
@@ -23,6 +26,7 @@ type Props = {
   onDelete?: (ids: string[]) => void;
   brand?: 'hebees' | 'retina';
   onSelectChange?: (ids: string[]) => void;
+  hideFooter?: boolean;
 };
 
 export default function UploadedFileList({
@@ -32,6 +36,7 @@ export default function UploadedFileList({
   onDelete,
   brand = 'hebees',
   onSelectChange,
+  hideFooter = false,
 }: Props) {
   const [fileType, setFileType] = useState<'all' | UploadedDoc['type']>('all');
   const [page, setPage] = useState(1);
@@ -43,7 +48,8 @@ export default function UploadedFileList({
   );
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const pageItems = filtered.slice((page - 1) * pageSize, page * pageSize);
+  const safePage = Math.min(page, totalPages);
+  const pageItems = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   const selectedIds = useMemo(() => Object.keys(selected).filter((id) => selected[id]), [selected]);
 
@@ -64,7 +70,15 @@ export default function UploadedFileList({
       }
       return next;
     });
-  }, [docs]);
+
+    setPage((p) =>
+      Math.min(
+        p,
+        Math.max(1, Math.ceil((fileType === 'all' ? docs.length : filtered.length) / pageSize))
+      )
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [docs, pageSize, fileType]);
 
   const toggleAll = (checked: boolean) => {
     const idsOnPage = pageItems.map((d) => d.id);
@@ -192,59 +206,63 @@ export default function UploadedFileList({
         </table>
       </div>
 
-      <div className={`py-4 text-sm ${selectedIds.length ? brandText : 'text-gray-400'}`}>
-        <div className={`py-4 text-sm ${selectedIds.length ? brandText : 'text-gray-400'}`}>
-          {selectedIds.length ? (
-            <div
-              className={`flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 ${brandBorder} ${brandBg}`}
-            >
-              <span>{selectedIds.length}개 파일이 선택되었습니다.</span>
+      {!hideFooter && (
+        <>
+          <div className={`py-4 text-sm ${selectedIds.length ? brandText : 'text-gray-400'}`}>
+            <div className={`py-4 text-sm ${selectedIds.length ? brandText : 'text-gray-400'}`}>
+              {selectedIds.length ? (
+                <div
+                  className={`flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 ${brandBorder} ${brandBg}`}
+                >
+                  <span>{selectedIds.length}개 파일이 선택되었습니다.</span>
 
-              <div className="flex items-center gap-1">
-                <Tooltip content="선택 해제" side="bottom">
-                  <button
-                    type="button"
-                    onClick={() => setSelected({})}
-                    className="rounded-md p-2 hover:bg-white text-black"
-                  >
-                    <X size={16} />
-                  </button>
-                </Tooltip>
+                  <div className="flex items-center gap-1">
+                    <Tooltip content="선택 해제" side="bottom">
+                      <button
+                        type="button"
+                        onClick={() => setSelected({})}
+                        className="rounded-md p-2 hover:bg-white text-black"
+                      >
+                        <X size={16} />
+                      </button>
+                    </Tooltip>
 
-                <Tooltip content="선택 다운로드" side="bottom">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      selectedIds.forEach((id, i) => {
-                        setTimeout(() => onDownload?.(id), i * 120);
-                      });
-                    }}
-                    className="rounded-md p-2 hover:bg-white text-black"
-                  >
-                    <Download size={16} />
-                  </button>
-                </Tooltip>
+                    <Tooltip content="선택 다운로드" side="bottom">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          selectedIds.forEach((id, i) => {
+                            setTimeout(() => onDownload?.(id), i * 120);
+                          });
+                        }}
+                        className="rounded-md p-2 hover:bg-white text-black"
+                      >
+                        <Download size={16} />
+                      </button>
+                    </Tooltip>
 
-                <Tooltip content="선택 삭제" side="bottom">
-                  <button
-                    type="button"
-                    onClick={() => onDelete?.(selectedIds)}
-                    className="rounded-md p-2 hover:bg-white text-red-600"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </Tooltip>
-              </div>
+                    <Tooltip content="선택 삭제" side="bottom">
+                      <button
+                        type="button"
+                        onClick={() => onDelete?.(selectedIds)}
+                        className="rounded-md p-2 hover:bg-white text-red-600"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </Tooltip>
+                  </div>
+                </div>
+              ) : (
+                <span>파일을 선택하면 일괄 작업을 수행할 수 있어요.</span>
+              )}
             </div>
-          ) : (
-            <span>파일을 선택하면 일괄 작업을 수행할 수 있어요.</span>
-          )}
-        </div>
-      </div>
+          </div>
 
-      <div className="flex items-center justify-center gap-5 py-3 text-sm">
-        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
-      </div>
+          <div className="flex items-center justify-center gap-5 py-3 text-sm">
+            <Pagination page={safePage} totalPages={totalPages} onPageChange={setPage} />
+          </div>
+        </>
+      )}
     </div>
   );
 }

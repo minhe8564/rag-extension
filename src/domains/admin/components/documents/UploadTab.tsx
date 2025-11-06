@@ -1,5 +1,5 @@
 import UploadFile from '@/domains/admin/components/documents/UploadFile';
-import UploadList from '@/domains/admin/components/documents/UploadList';
+// import UploadList from '@/domains/admin/components/documents/UploadList';
 import ColSection from '@/domains/admin/components/documents/ColSection';
 import SelectVectorization from '@/domains/admin/components/documents/SelectVectorization';
 import DuplicatedModal from '@/domains/admin/components/documents/DuplicatedModal';
@@ -38,12 +38,12 @@ export default function UploadTab() {
   };
 
   // 업로드 목록 변경 처리: 업로드 목록 갱신 + 체크 초기화 + 최종 선택 목록 동기화
-  const handleFilesChange = (nextFiles: FileType[]) => {
-    setUploadedFiles(nextFiles);
-    setSelectedFiles([]);
-    const existingNames = new Set(nextFiles.map((f) => f.name));
-    setFinalSelectedFiles((prev) => prev.filter((f) => existingNames.has(f.name)));
-  };
+  // const handleFilesChange = (nextFiles: FileType[]) => {
+  //   setUploadedFiles(nextFiles);
+  //   setSelectedFiles([]);
+  //   const existingNames = new Set(nextFiles.map((f) => f.name));
+  //   setFinalSelectedFiles((prev) => prev.filter((f) => existingNames.has(f.name)));
+  // };
 
   // 컬렉션 선택 (ColSection에서 온거)
   const handleCollectionSelect = (collectionName: 'public' | 'hebees' | null) => {
@@ -109,12 +109,12 @@ export default function UploadTab() {
         />
       )}
       <div className="flex gap-4">
-        <UploadList
+        {/* <UploadList
           files={uploadedFiles}
           onFilesChange={handleFilesChange}
           onSelectFiles={setSelectedFiles}
           selectedFiles={selectedFiles}
-        />
+        /> */}
         <ColSection
           selectedCollection={selectedCollection}
           onCollectionSelect={handleCollectionSelect}

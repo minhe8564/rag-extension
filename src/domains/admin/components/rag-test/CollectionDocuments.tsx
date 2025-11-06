@@ -12,7 +12,7 @@ export type DocItem = {
   sizeKB: number;
   embeddedAt?: string;
   category?: string;
-  type: 'pdf' | 'docx' | 'pptx' | 'xlsx' | 'txt' | 'image';
+  type: string;
 };
 
 type Props = {
@@ -40,7 +40,7 @@ export default function CollectionDocuments({
   const [selected, setSelected] = useState<Record<string, boolean>>({});
 
   const filtered = useMemo(
-    () => docs.filter(d => (fileType === 'all' ? true : d.type === fileType)),
+    () => docs.filter((d) => (fileType === 'all' ? true : d.type === fileType)),
     [docs, fileType]
   );
 
@@ -51,15 +51,15 @@ export default function CollectionDocuments({
     .map(([k]) => k);
 
   const toggleAll = (checked: boolean) => {
-    const idsOnPage = pageItems.map(d => d.id);
-    setSelected(prev => {
+    const idsOnPage = pageItems.map((d) => d.id);
+    setSelected((prev) => {
       const next = { ...prev };
-      idsOnPage.forEach(id => (next[id] = checked));
+      idsOnPage.forEach((id) => (next[id] = checked));
       return next;
     });
   };
 
-  const handleFileInput: React.ChangeEventHandler<HTMLInputElement> = e => {
+  const handleFileInput: React.ChangeEventHandler<HTMLInputElement> = (e) => {
     const files = e.target.files ? Array.from(e.target.files) : [];
     if (files.length && onUpload) onUpload(files);
     e.currentTarget.value = '';
@@ -72,8 +72,8 @@ export default function CollectionDocuments({
         <div className="flex items-center gap-2 flex-wrap">
           <Select
             value={fileType}
-            onChange={v => {
-              setFileType(v as any);
+            onChange={(v) => {
+              setFileType(v);
               setPage(1);
             }}
             options={fileTypeOptions}
@@ -121,11 +121,11 @@ export default function CollectionDocuments({
             <tr className="text-gray-600">
               <th className="w-10 px-4 py-2 text-left">
                 <Checkbox
-                  checked={pageItems.length > 0 && pageItems.every(d => selected[d.id])}
+                  checked={pageItems.length > 0 && pageItems.every((d) => selected[d.id])}
                   indeterminate={
-                    pageItems.some(d => selected[d.id]) && !pageItems.every(d => selected[d.id])
+                    pageItems.some((d) => selected[d.id]) && !pageItems.every((d) => selected[d.id])
                   }
-                  onChange={e => toggleAll(e.target.checked)}
+                  onChange={(e) => toggleAll(e.target.checked)}
                 />
               </th>
               <th className="px-4 py-2 text-left">파일명</th>
@@ -144,12 +144,12 @@ export default function CollectionDocuments({
               </tr>
             )}
 
-            {pageItems.map(doc => (
+            {pageItems.map((doc) => (
               <tr key={doc.id} className="border-b last:border-b-0">
                 <td className="px-4 py-2 align-middle">
                   <Checkbox
                     checked={!!selected[doc.id]}
-                    onChange={e => setSelected(s => ({ ...s, [doc.id]: e.target.checked }))}
+                    onChange={(e) => setSelected((s) => ({ ...s, [doc.id]: e.target.checked }))}
                   />
                 </td>
                 <td className="px-4 py-2">
@@ -205,7 +205,7 @@ export default function CollectionDocuments({
 
       <div className="flex items-center justify-center gap-5 text-sm py-3">
         <button
-          onClick={() => setPage(p => Math.max(1, p - 1))}
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
           disabled={page === 1}
           className="flex items-center gap-2 text-gray-700 disabled:text-gray-300"
         >
@@ -231,7 +231,7 @@ export default function CollectionDocuments({
         </div>
 
         <button
-          onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
           disabled={page === totalPages}
           className="flex items-center gap-1 text-gray-700 disabled:text-gray-300"
         >

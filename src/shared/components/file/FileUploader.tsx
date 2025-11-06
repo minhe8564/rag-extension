@@ -1,20 +1,21 @@
-import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
+import { useEffect, useRef, useState, type DragEvent } from 'react';
 import { UploadCloud } from 'lucide-react';
 import { getCategories } from '@/shared/api/file.api';
-import type { GetCategoriesResult } from '@/shared/types/file.types';
+import { categoryMap } from '@/shared/store/categoryMap';
 
 type Brand = 'hebees' | 'retina';
-type CategoryName = string;
+type CategoryId = string;
+type CategoryOption = { id: CategoryId; name: string };
 
 type Props = {
-  onUpload: (payload: { files: File[]; category: CategoryName }) => void;
+  onUpload: (payload: { files: File[]; category: CategoryId }) => void;
   accept?: string;
   multiple?: boolean;
   maxSizeMB?: number;
   disabled?: boolean;
   className?: string;
   brand?: Brand;
-  defaultCategory?: CategoryName;
+  defaultCategory?: string;
 };
 
 export default function FileDropzone({
@@ -29,47 +30,35 @@ export default function FileDropzone({
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const dragCounterRef = useRef(0);
-  const [categories, setCategories] = useState<CategoryName[]>([]);
 
-  useEffect(() => {
-    let ignore = false;
-    const ac = new AbortController();
-
-    (async () => {
-      const res = await getCategories();
-      if (ignore) return;
-      const result: GetCategoriesResult = res.data.result;
-      const names = (result.data ?? [])
-        .map((c) => c?.name)
-        .filter((v): v is string => Boolean(v && v.trim()));
-      setCategories(names);
-    })();
-
-    return () => {
-      ignore = true;
-      ac.abort();
-    };
-  }, []);
-
-  const categoryNames: CategoryName[] = useMemo(() => categories, [categories]);
-
-  const initialCategory = useMemo(() => {
-    if (categoryNames.includes(defaultCategory)) return defaultCategory;
-    return categoryNames[0] ?? defaultCategory ?? '기타';
-  }, [categoryNames, defaultCategory]);
-
-  const [category, setCategory] = useState<CategoryName>(initialCategory);
-
-  useEffect(() => {
-    if (!categoryNames.length) return;
-    if (!categoryNames.includes(category)) {
-      setCategory(categoryNames.includes(defaultCategory) ? defaultCategory : categoryNames[0]);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categoryNames.join('|')]);
-
+  const [categoryList, setCategoryList] = useState<CategoryOption[]>([]);
+  const [categoryId, setCategoryId] = useState<CategoryId>('');
   const [isOver, setIsOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const res = await getCategories();
+      const list = res.data.data ?? [];
+      list.forEach((c) => {
+        categoryMap[c.categoryNo] = c.name;
+      });
+      setCategoryList(list.map((c) => ({ id: c.categoryNo, name: c.name })));
+    })();
+  }, []);
+
+  const nameById = (id?: string) => (id ? (categoryMap[id] ?? '') : '');
+
+  useEffect(() => {
+    if (!categoryList.length) return;
+
+    const exists = categoryList.some((c) => c.id === categoryId);
+    if (!exists || !categoryId) {
+      const byName = categoryList.find((c) => c.name === defaultCategory)?.id;
+      const fallback = byName ?? categoryList[0]?.id ?? '';
+      if (fallback) setCategoryId(fallback);
+    }
+  }, [categoryList, defaultCategory, categoryId]);
 
   const openFileDialog = () => {
     if (!disabled) inputRef.current?.click();
@@ -85,13 +74,12 @@ export default function FileDropzone({
       return;
     }
 
-    if (!category) {
+    if (!categoryId) {
       setError('카테고리를 먼저 선택해주세요.');
       return;
     }
-
     setError(null);
-    onUpload({ files: arr, category });
+    onUpload({ files: arr, category: categoryId });
   };
 
   const onDragEnter = (e: DragEvent<HTMLDivElement>) => {
@@ -164,13 +152,13 @@ export default function FileDropzone({
     <div className={className}>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <div className="flex flex-wrap gap-1.5">
-          {categoryNames.map((c) => {
-            const active = c === category;
+          {categoryList.map((c) => {
+            const active = c.id === categoryId;
             return (
               <button
-                key={c}
+                key={c.id}
                 type="button"
-                onClick={() => setCategory(c)}
+                onClick={() => setCategoryId(c.id)}
                 className={[
                   'rounded-full border px-3 py-1.5 text-xs',
                   'transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2',
@@ -178,7 +166,7 @@ export default function FileDropzone({
                 ].join(' ')}
                 aria-pressed={active}
               >
-                {c}
+                {c.name}
               </button>
             );
           })}
@@ -196,7 +184,7 @@ export default function FileDropzone({
         onDrop={onDrop}
         className={dropzoneClass}
         aria-label="파일 업로드 영역"
-        aria-description={`현재 선택된 카테고리: ${category}`}
+        aria-description={`현재 선택된 카테고리: ${nameById(categoryId) || '없음'}`}
       >
         <div className="mx-auto max-w-xl text-center">
           <div
@@ -212,7 +200,7 @@ export default function FileDropzone({
 
           <p className="mt-2 text-xs">
             <span className="text-gray-500">선택된 카테고리:</span>{' '}
-            <span className="font-medium text-gray-800">{category}</span>
+            <span className="font-medium text-gray-800">{nameById(categoryId) || '없음'}</span>
           </p>
 
           <div className="mt-4">

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { springApi } from '@/shared/lib/apiInstance';
 import { Loader2, UserCog, Mail, Shield, Building2, Hash, UserSquare2, Images } from 'lucide-react';
 import ProfileInfoCard from '@/shared/components/ProfileInfoCard';
-import ImageAlbum from '@/domains/user/components/ImageAlbum';
+import ImageAlbum from '@/domains/user/components/image/ImageAlbum';
 
 type UserInfo = {
   userNo: string;

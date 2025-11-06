@@ -62,6 +62,10 @@ function shouldExcludeFromRefresh(url?: string): boolean {
   return REFRESH_EXCLUDE.some((re) => re.test(url));
 }
 
+function isRefreshUrl(url?: string): boolean {
+  return !!url && /\/api\/v1\/auth\/refresh(?:$|\?)/i.test(url);
+}
+
 // token setter
 function setAuthHeader(config: InternalAxiosRequestConfig, token: string) {
   config.headers = config.headers ?? {};
@@ -74,11 +78,10 @@ let refreshPromise: Promise<string | null> | null = null;
 async function refreshAccessToken(): Promise<string | null> {
   if (!refreshPromise) {
     refreshPromise = springApi
-      .post('/api/v1/auth/refresh')
+      .post('/api/v1/auth/refresh', undefined, { withCredentials: true })
       .then((res) => {
         const newToken = res?.data?.result?.accessToken;
         if (!newToken) throw new Error('No access token');
-
         useAuthStore.getState().setAccessToken(newToken);
         return newToken;
       })
@@ -94,6 +97,10 @@ function applyInterceptors(instance: typeof springApi | typeof ragApi | typeof f
   // request
   instance.interceptors.request.use((config) => {
     const token = useAuthStore.getState().accessToken;
+    if (isRefreshUrl(config.url)) {
+      if (config.headers) delete config.headers.Authorization;
+      return config;
+    }
     if (token) setAuthHeader(config, token);
     return config;
   });
@@ -113,7 +120,9 @@ function applyInterceptors(instance: typeof springApi | typeof ragApi | typeof f
 
         const newToken = await refreshAccessToken();
         if (newToken) {
+          useAuthStore.getState().setAccessToken(newToken);
           setAuthHeader(original, newToken);
+
           return instance(original);
         } else {
           toast.error('세션이 만료되었습니다. 다시 로그인해주세요.');

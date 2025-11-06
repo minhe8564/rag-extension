@@ -1,6 +1,6 @@
 import { Trash2, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
-import type { FileType, UploadedDocumentsProps } from '@/domains/admin/types/documents.types';
+import type { UploadedDocumentsProps } from '@/domains/admin/types/documents.types';
 
 export default function UploadedDocuments({
   files,
@@ -30,14 +30,14 @@ export default function UploadedDocuments({
   };
 
   // 개별 파일 선택 / 해제
-  const handleToggleFile = (file: FileType) => {
-    const isSelected = selectedFiles.some((f) => f.name === file.name);
-    if (isSelected) {
-      onSelectFiles(selectedFiles.filter((f) => f.name !== file.name));
-    } else {
-      onSelectFiles([...selectedFiles, file]);
-    }
-  };
+  // const handleToggleFile = (file: FileType) => {
+  //   const isSelected = selectedFiles.some((f) => f.name === file.name);
+  //   if (isSelected) {
+  //     onSelectFiles(selectedFiles.filter((f) => f.name !== file.name));
+  //   } else {
+  //     onSelectFiles([...selectedFiles, file]);
+  //   }
+  // };
 
   // 파일 삭제
   const handleDelete = () => {
@@ -93,7 +93,7 @@ export default function UploadedDocuments({
           {visibleFiles.map((file) => (
             <li
               key={file.name}
-              onClick={() => handleToggleFile(file)}
+              // onClick={() => handleToggleFile(file)}
               className="flex items-center justify-between pt-2 border-b border-gray-100 pb-1 last:border-none cursor-pointer hover:bg-[var(--color-hebees-bg)]/50 hover:ring-1 hover:ring-[var(--color-hebees)]"
             >
               <div className="flex items-center gap-2">
@@ -108,7 +108,7 @@ export default function UploadedDocuments({
                 type="checkbox"
                 checked={selectedFiles.some((f) => f.name === file.name)}
                 onClick={(e) => e.stopPropagation()}
-                onChange={() => handleToggleFile(file)}
+                // onChange={() => handleToggleFile(file)}
                 className="accent-[var(--color-hebees)] border-2 border-[var(--color-hebees)] rounded-sm cursor-pointer scale-110"
               />
             </li>
