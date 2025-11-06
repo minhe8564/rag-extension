@@ -68,41 +68,9 @@ async def update_ingest_template_endpoint(
         BaseResponse[IngestTemplateDetailResponse]: 수정된 템플릿 정보
 
     Raises:
-        HTTPException 400: 필수 파라미터 누락 또는 전략을 찾을 수 없음
+        HTTPException 400: 전략을 찾을 수 없음
         HTTPException 404: Ingest 템플릿을 찾을 수 없음
     """
-    # 필수 필드 검증
-    missing_fields = []
-
-    if not request.name:
-        missing_fields.append("name")
-    if not request.extractions or len(request.extractions) == 0:
-        missing_fields.append("extractions")
-    if not request.chunking:
-        missing_fields.append("chunking")
-    if not request.chunking or not request.chunking.no:
-        missing_fields.append("chunking.no")
-    if not request.denseEmbeddings or len(request.denseEmbeddings) == 0:
-        missing_fields.append("denseEmbeddings")
-    if not request.spareEmbedding:
-        missing_fields.append("spareEmbedding")
-    if not request.spareEmbedding or not request.spareEmbedding.no:
-        missing_fields.append("spareEmbedding.no")
-
-    if missing_fields:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "status": 400,
-                "code": "INVALID_INPUT",
-                "message": "파라미터가 누락되었습니다.",
-                "isSuccess": False,
-                "result": {
-                    "missing": missing_fields
-                }
-            }
-        )
-
     # 현재 스키마 제약: 첫 번째 항목만 사용
     first_extraction = request.extractions[0]
     first_dense_embedding = request.denseEmbeddings[0]
@@ -120,47 +88,25 @@ async def update_ingest_template_endpoint(
             embedding_no=request.spareEmbedding.no,
             embedding_parameters=request.spareEmbedding.parameters or {},
         )
-    except HTTPException as e:
-        # 전략을 찾을 수 없거나 템플릿을 찾을 수 없는 경우
-        if e.status_code == status.HTTP_400_BAD_REQUEST:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail={
-                    "status": 400,
-                    "code": "INVALID_INPUT",
-                    "message": str(e.detail),
-                    "isSuccess": False,
-                    "result": {}
-                }
-            )
-        elif e.status_code == status.HTTP_404_NOT_FOUND:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail={
-                    "status": 404,
-                    "code": "NOT_FOUND",
-                    "message": str(e.detail),
-                    "isSuccess": False,
-                    "result": {}
-                }
-            )
+    except HTTPException:
+        # 전역 예외 핸들러가 처리하도록 그대로 전파
         raise
 
-    # 필수 관계 데이터 검증
+    # 필수 관계 데이터 검증 (데이터 정합성 오류는 500)
     if not updated_ingest_group.extraction_strategy:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="추출 전략을 찾을 수 없습니다. 데이터 정합성을 확인해주세요."
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="데이터 정합성 오류: 추출 전략이 누락되었습니다. 관리자에게 문의하세요."
         )
     if not updated_ingest_group.chunking_strategy:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="청킹 전략을 찾을 수 없습니다. 데이터 정합성을 확인해주세요."
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="데이터 정합성 오류: 청킹 전략이 누락되었습니다. 관리자에게 문의하세요."
         )
     if not updated_ingest_group.embedding_strategy:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="임베딩 전략을 찾을 수 없습니다. 데이터 정합성을 확인해주세요."
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="데이터 정합성 오류: 임베딩 전략이 누락되었습니다. 관리자에게 문의하세요."
         )
 
     # Strategy 객체를 StrategyItem으로 변환하는 헬퍼 함수

@@ -13,19 +13,7 @@ from .domains.file.routers.files_presigned import router as files_presigned_rout
 from .domains.file.routers.files_presigned_by_no import router as files_presigned_by_no_router
 from .domains.collection.routers.collections import router as collections_router
 from .domains.image.routers.image_controller import router as image_router
-from .domains.rag_setting.routers.strategy_router import router as strategy_router
-from .domains.rag_setting.routers.ingest_create import router as ingest_create_router
-from .domains.rag_setting.routers.ingest_read import router as ingest_read_router
-from .domains.rag_setting.routers.ingest_update import router as ingest_update_router
-from .domains.rag_setting.routers.ingest_delete import router as ingest_delete_router
-from .domains.rag_setting.routers.query_create import router as query_create_router
-from .domains.rag_setting.routers.query_read import router as query_read_router
-from .domains.rag_setting.routers.query_update import router as query_update_router
-from .domains.rag_setting.routers.query_delete import router as query_delete_router
-from .domains.rag_setting.routers.prompt_create import router as prompt_create_router
-from .domains.rag_setting.routers.prompt_read import router as prompt_read_router
-from .domains.rag_setting.routers.prompt_update import router as prompt_update_router
-from .domains.rag_setting.routers.prompt_delete import router as prompt_delete_router
+from .domains.rag_setting.routers import rag_router
 from .domains.collection.routers.test_collection_router import router as test_collection_router
 from .domains.monitoring.routers.monitoring_controller import router as monitoring_router
 from datetime import datetime
@@ -54,27 +42,24 @@ app.add_middleware(
 # Register global exception handlers (BaseResponse-style)
 register_exception_handlers(app)
 
+# File domain routers
 app.include_router(file_router, prefix="/api/v1")
 app.include_router(files_router, prefix="/api/v1")
 app.include_router(files_list_router, prefix="/api/v1")
 app.include_router(files_presigned_router, prefix="/api/v1")
 app.include_router(files_presigned_by_no_router, prefix="/api/v1")
+
+# Collection domain routers
 app.include_router(collections_router, prefix="/api/v1")
-app.include_router(image_router, prefix="/api/v1")
-app.include_router(strategy_router, prefix="/api/v1")
-app.include_router(ingest_create_router, prefix="/api/v1")
-app.include_router(ingest_read_router, prefix="/api/v1")
-app.include_router(ingest_update_router, prefix="/api/v1")
-app.include_router(ingest_delete_router, prefix="/api/v1")
 app.include_router(test_collection_router, prefix="/api/v1")
-app.include_router(query_create_router, prefix="/api/v1")
-app.include_router(query_read_router, prefix="/api/v1")
-app.include_router(query_update_router, prefix="/api/v1")
-app.include_router(query_delete_router, prefix="/api/v1")
-app.include_router(prompt_create_router, prefix="/api/v1")
-app.include_router(prompt_read_router, prefix="/api/v1")
-app.include_router(prompt_update_router, prefix="/api/v1")
-app.include_router(prompt_delete_router, prefix="/api/v1")
+
+# Image domain router
+app.include_router(image_router, prefix="/api/v1")
+
+# RAG Setting domain router (통합)
+app.include_router(rag_router, prefix="/api/v1")
+
+# Monitoring domain router
 app.include_router(monitoring_router, prefix="/api/v1")
 
 @app.get("/")

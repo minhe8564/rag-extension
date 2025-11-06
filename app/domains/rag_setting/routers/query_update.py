@@ -163,35 +163,9 @@ async def update_query_template_endpoint(
         BaseResponse[QueryTemplateDetailResponse]: 수정된 Query 템플릿 상세 정보
 
     Raises:
-        HTTPException 400: 필수 파라미터 누락, UUID 형식 오류, 전략을 찾을 수 없음
+        HTTPException 400: UUID 형식 오류, 전략을 찾을 수 없음
         HTTPException 404: Query 템플릿을 찾을 수 없음
     """
-    # 필수 필드 검증
-    missing_fields = []
-    if not request.name:
-        missing_fields.append("name")
-    if not request.transformation or not request.transformation.no:
-        missing_fields.append("transformation.no")
-    if not request.retrieval or not request.retrieval.no:
-        missing_fields.append("retrieval.no")
-    if not request.reranking or not request.reranking.no:
-        missing_fields.append("reranking.no")
-    if not request.systemPrompt or not request.systemPrompt.no:
-        missing_fields.append("systemPrompt.no")
-    if not request.userPrompt or not request.userPrompt.no:
-        missing_fields.append("userPrompt.no")
-    if not request.generation or not request.generation.no:
-        missing_fields.append("generation.no")
-
-    if missing_fields:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "message": "파라미터가 누락되었습니다.",
-                "missing": missing_fields
-            }
-        )
-
     try:
         # Query 템플릿 수정
         updated_query_group = await update_query_template(
@@ -266,14 +240,6 @@ async def update_query_template_endpoint(
 
         return response
 
-    except HTTPException as e:
-        # UUID 형식 오류, 템플릿 또는 전략을 찾을 수 없는 경우
-        if e.status_code == status.HTTP_400_BAD_REQUEST:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail={
-                    "message": e.detail,
-                    "missing": []
-                }
-            )
+    except HTTPException:
+        # 전역 예외 핸들러가 처리하도록 그대로 전파
         raise

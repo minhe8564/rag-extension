@@ -143,21 +143,21 @@ async def get_ingest_template(
         ingest_no=ingestNo,
     )
 
-    # 필수 관계 데이터 검증
+    # 필수 관계 데이터 검증 (데이터 정합성 오류는 500)
     if not ingest_group.extraction_strategy:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="추출 전략을 찾을 수 없습니다. 데이터 정합성을 확인해주세요."
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="데이터 정합성 오류: 추출 전략이 누락되었습니다. 관리자에게 문의하세요."
         )
     if not ingest_group.chunking_strategy:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="청킹 전략을 찾을 수 없습니다. 데이터 정합성을 확인해주세요."
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="데이터 정합성 오류: 청킹 전략이 누락되었습니다. 관리자에게 문의하세요."
         )
     if not ingest_group.embedding_strategy:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="임베딩 전략을 찾을 수 없습니다. 데이터 정합성을 확인해주세요."
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="데이터 정합성 오류: 임베딩 전략이 누락되었습니다. 관리자에게 문의하세요."
         )
 
     # Strategy 객체를 StrategyItem으로 변환하는 헬퍼 함수
