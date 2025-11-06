@@ -10,13 +10,11 @@ import {
   ExternalLink,
   Download,
   EyeOff,
-  Copy,
   ChevronDown,
   Eye,
 } from 'lucide-react';
 import Tooltip from '@/shared/components/Tooltip';
 import clsx from 'clsx';
-import { toast } from 'react-toastify';
 
 type Props = {
   sessionNo: string;
@@ -38,8 +36,8 @@ export default function ReferencedDocsPanel({
   collapsedByDefault = false,
 }: Props) {
   const [open, setOpen] = useState(!collapsedByDefault);
-  const [hidden, setHidden] = useState(false); // 패널 자체 숨김
-  const lastCountRef = useRef<number>(0); // 숨김 상태에서도 N 표시용
+  const [hidden, setHidden] = useState(false);
+  const lastCountRef = useRef<number>(0);
 
   const { data, isFetching, isError, refetch } = useQuery({
     queryKey: ['refDocs', sessionNo, messageNo],
@@ -47,11 +45,10 @@ export default function ReferencedDocsPanel({
       const res = await getReferencedDocuments(sessionNo, messageNo);
       return (res.data.result?.data ?? []) as ReferencedDocument[];
     },
-    enabled: open && !hidden, // 열렸을 때만 로딩
+    enabled: open && !hidden,
     staleTime: 15_000,
   });
 
-  // 최신 카운트 저장 (숨김 상태에서 배지용)
   useEffect(() => {
     if (Array.isArray(data)) lastCountRef.current = data.length;
   }, [data]);
@@ -64,7 +61,6 @@ export default function ReferencedDocsPanel({
     return null;
   }
 
-  // 숨겨진 상태라면 "참조 문서 보기 (N)" 버튼만 노출
   if (hidden) {
     const count = docs.length || lastCountRef.current;
     return (

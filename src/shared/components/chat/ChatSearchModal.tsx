@@ -81,9 +81,6 @@ export default function ChatSearchModal({
     if (e.target === e.currentTarget) onClose();
   };
 
-  const pickDate = (s: SessionItem) =>
-    (s.lastRequestedAt || s.updatedAt || s.createdAt || '').slice(0, 10);
-
   const SessionRow = ({ s }: { s: SessionItem }) => (
     <li key={s.sessionNo}>
       <button
@@ -98,7 +95,7 @@ export default function ChatSearchModal({
           <div className="truncate text-[13px] font-medium text-gray-800">{s.title}</div>
           <div className="mt-0.5 flex items-center gap-2 text-[11px] text-gray-500">
             <span className="inline-flex items-center gap-1">
-              <Clock size={12} /> {formatIsoDatetime(pickDate(s))}
+              <Clock size={12} /> {formatIsoDatetime(s.updatedAt)}
             </span>
           </div>
         </div>

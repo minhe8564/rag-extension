@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Outlet, NavLink, useNavigate, useSearchParams } from 'react-router-dom';
 import { Menu, MessageSquare, Image, FolderCog, LogOut, Bell, UserCog, Search } from 'lucide-react';
 import Tooltip from '@/shared/components/Tooltip';
-import ChatList from '@/shared/components/chat/ChatList';
+import ChatList from '@/shared/components/chat/list/ChatList';
 import ChatSearchModal from '@/shared/components/chat/ChatSearchModal';
 import RetinaLogo from '@/assets/retina-logo.png';
 

@@ -1,14 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getSessions, deleteSession, updateSession } from '@/shared/api/chat.api';
 import type { SessionItem, ListSessionsResult } from '@/shared/types/chat.types';
 import type { ApiEnvelope } from '@/shared/lib/api.types';
-import { PencilLine, Trash2, Check, X, Loader2, ChevronDown, Clock } from 'lucide-react';
+import { ChevronDown, Loader2 } from 'lucide-react';
 import Tooltip from '@/shared/components/Tooltip';
 import ConfirmModal from '@/shared/components/ConfirmModal';
 import { toast } from 'react-toastify';
 import clsx from 'clsx';
-import { formatIsoDatetime } from '@/shared/util/iso';
+import ChatListItem from '@/shared/components/chat/list/ChatListItem';
 
 type ChatListProps = {
   activeSessionNo?: string;
@@ -21,13 +21,11 @@ export default function ChatList({ activeSessionNo, onSelect, pageSize = 20 }: C
   const [pageNum, setPageNum] = useState(0);
   const [items, setItems] = useState<SessionItem[]>([]);
   const [hasNext, setHasNext] = useState(true);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingTitle, setEditingTitle] = useState('');
-  const inputRef = useRef<HTMLInputElement | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<SessionItem | null>(null);
   const [localActiveNo, setLocalActiveNo] = useState<string | null>(null);
 
+  // 접기 상태
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     const v = localStorage.getItem('chatlist:collapsed');
     return v === '1';
@@ -40,6 +38,7 @@ export default function ChatList({ activeSessionNo, onSelect, pageSize = 20 }: C
     });
   };
 
+  // 목록 조회
   const { data, isFetching, isError, refetch } = useQuery<ApiEnvelope<ListSessionsResult>>({
     queryKey: ['sessions', pageNum, pageSize],
     queryFn: async () => {
@@ -107,14 +106,13 @@ export default function ChatList({ activeSessionNo, onSelect, pageSize = 20 }: C
     }
   };
 
+  // 삭제
   const { mutate: mutateDelete, isPending: deleting } = useMutation({
     mutationFn: async (sessionNo: string) => (await deleteSession(sessionNo)).data,
     onSuccess: (_data, sessionNo) => {
       toast.success('삭제 완료했습니다.');
       setItems((prev) => prev.filter((s) => s.sessionNo !== sessionNo));
-      if (pendingDelete?.sessionNo === sessionNo) {
-        setPendingDelete(null);
-      }
+      if (pendingDelete?.sessionNo === sessionNo) setPendingDelete(null);
       if (localActiveNo === sessionNo) setLocalActiveNo(null);
       setConfirmOpen(false);
       setPageNum(0);
@@ -123,6 +121,7 @@ export default function ChatList({ activeSessionNo, onSelect, pageSize = 20 }: C
     },
   });
 
+  // 제목 변경
   const { mutate: mutateRename, isPending: renaming } = useMutation({
     mutationFn: async ({ sessionNo, title }: { sessionNo: string; title: string }) =>
       (await updateSession(sessionNo, { title })).data,
@@ -133,26 +132,9 @@ export default function ChatList({ activeSessionNo, onSelect, pageSize = 20 }: C
           s.sessionNo === variables.sessionNo ? { ...s, title: variables.title } : s
         )
       );
-      setEditingId(null);
-      setEditingTitle('');
       qc.invalidateQueries({ queryKey: ['sessions'] });
     },
   });
-
-  const startEdit = (session: SessionItem) => {
-    setEditingId(session.sessionNo);
-    setEditingTitle(session.title || '');
-    setTimeout(() => inputRef.current?.focus(), 0);
-  };
-  const cancelEdit = () => {
-    setEditingId(null);
-    setEditingTitle('');
-  };
-  const submitEdit = (sessionNo: string) => {
-    const v = editingTitle.trim();
-    if (!v) return toast.warn('제목을 입력해주세요.');
-    mutateRename({ sessionNo, title: v });
-  };
 
   const requestDelete = (session: SessionItem) => {
     setPendingDelete(session);
@@ -172,6 +154,7 @@ export default function ChatList({ activeSessionNo, onSelect, pageSize = 20 }: C
   }, [activeSessionNo]);
 
   const isLoadingInitial = isFetching && pageNum === 0;
+  const activeNo = activeSessionNo ?? localActiveNo;
 
   return (
     <div className="flex h-full flex-col bg-white">
@@ -210,105 +193,21 @@ export default function ChatList({ activeSessionNo, onSelect, pageSize = 20 }: C
         {!collapsed && (
           <>
             <ul>
-              {items.map((session) => {
-                const isEditing = editingId === session.sessionNo;
-                const isActive = (no: string) => (activeSessionNo ?? localActiveNo) === no;
-
-                return (
-                  <li
-                    key={session.sessionNo}
-                    data-active={isActive(session.sessionNo) ? '1' : '0'}
-                    className={clsx(
-                      'group flex items-center rounded-md gap-2 px-3 py-2',
-                      isActive(session.sessionNo)
-                        ? 'bg-[var(--color-retina-bg)]'
-                        : 'hover:bg-gray-50'
-                    )}
-                  >
-                    <button
-                      onClick={() => {
-                        setLocalActiveNo(session.sessionNo);
-                        onSelect?.(session);
-                      }}
-                      className="flex-1 text-left"
-                      disabled={isEditing}
-                    >
-                      {isEditing ? (
-                        <div className="flex items-center gap-2">
-                          <input
-                            ref={inputRef}
-                            value={editingTitle}
-                            onChange={(e) => setEditingTitle(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') submitEdit(session.sessionNo);
-                              if (e.key === 'Escape') cancelEdit();
-                            }}
-                            className="w-full rounded-md border px-2.5 py-1.5 text-sm outline-none focus:outline-none focus:ring-0 focus:border-gray-400"
-                          />
-                        </div>
-                      ) : (
-                        <>
-                          <div className="line-clamp-1 mb-1 text-sm font-medium text-gray-800">
-                            {session.title || '제목 없음'}
-                          </div>
-                          <div className="inline-flex items-center text-xs text-gray-500 gap-1">
-                            <Clock size={12} />
-                            {formatIsoDatetime(session.updatedAt || session.createdAt)}
-                          </div>
-                        </>
-                      )}
-                    </button>
-
-                    <div className="flex items-center gap-1">
-                      {isEditing ? (
-                        <>
-                          <Tooltip content="저장" side="bottom">
-                            <button
-                              onClick={() => submitEdit(session.sessionNo)}
-                              disabled={renaming}
-                              className="rounded-md p-1.5 text-[var(--color-retina)] hover:bg-white"
-                            >
-                              {renaming ? (
-                                <Loader2 className="animate-spin" size={16} />
-                              ) : (
-                                <Check size={16} />
-                              )}
-                            </button>
-                          </Tooltip>
-                          <Tooltip content="취소" side="bottom">
-                            <button
-                              onClick={cancelEdit}
-                              className="rounded-md p-1.5 text-gray-500 hover:bg-white"
-                            >
-                              <X size={16} />
-                            </button>
-                          </Tooltip>
-                        </>
-                      ) : (
-                        <>
-                          <Tooltip content="이름 변경" side="bottom">
-                            <button
-                              onClick={() => startEdit(session)}
-                              className="hidden rounded-md p-1.5 text-gray-500 hover:bg-white group-hover:block"
-                            >
-                              <PencilLine size={16} />
-                            </button>
-                          </Tooltip>
-                          <Tooltip content="삭제" side="bottom">
-                            <button
-                              onClick={() => requestDelete(session)}
-                              className="hidden rounded-md p-1.5 text-red-500 hover:bg-white group-hover:block"
-                              disabled={deleting && pendingDelete?.sessionNo === session.sessionNo}
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </Tooltip>
-                        </>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
+              {items.map((session) => (
+                <ChatListItem
+                  key={session.sessionNo}
+                  session={session}
+                  isActive={activeNo === session.sessionNo}
+                  onSelect={(s) => {
+                    setLocalActiveNo(s.sessionNo);
+                    onSelect?.(s);
+                  }}
+                  onRename={(title) => mutateRename({ sessionNo: session.sessionNo, title })}
+                  onRequestDelete={() => requestDelete(session)}
+                  renaming={renaming}
+                  deleting={deleting && pendingDelete?.sessionNo === session.sessionNo}
+                />
+              ))}
             </ul>
 
             {items.length > 0 && hasNext && (
