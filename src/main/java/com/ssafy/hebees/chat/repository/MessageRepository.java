@@ -1,6 +1,7 @@
 package com.ssafy.hebees.chat.repository;
 
 import com.ssafy.hebees.chat.entity.Message;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -12,10 +13,10 @@ public interface MessageRepository extends MongoRepository<Message, ObjectId> {
 
     List<Message> findBySessionNoOrderByCreatedAtAsc(UUID sessionNo);
 
-    List<Message> findBySessionNoOrderBySeqDesc(UUID sessionNo, Pageable pageable);
+    List<Message> findBySessionNoOrderByCreatedAtDesc(UUID sessionNo, Pageable pageable);
 
-    List<Message> findBySessionNoAndSeqLessThanOrderBySeqDesc(UUID sessionNo, Long seq,
-        Pageable pageable);
+    List<Message> findBySessionNoAndCreatedAtBeforeOrderByCreatedAtDesc(UUID sessionNo,
+        LocalDateTime createdAt, Pageable pageable);
 
     Optional<Message> findBySessionNoAndMessageNo(UUID sessionNo, UUID messageNo);
 }

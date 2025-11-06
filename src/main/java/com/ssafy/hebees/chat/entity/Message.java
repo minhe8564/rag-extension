@@ -25,8 +25,7 @@ import org.springframework.data.mongodb.core.mapping.Field;
 @Document(collection = "MESSAGE")
 @CompoundIndexes({
     // 세션별 최신 스크롤 조회에 유용
-    @CompoundIndex(name = "IDX_SESSION_TIMESTAMP_DESC", def = "{'SESSION_NO': 1, 'CREATED_AT': -1}"),
-    @CompoundIndex(name = "IDX_SESSION_SEQ_DESC", def = "{'SESSION_NO': 1, 'SEQ': -1}")
+    @CompoundIndex(name = "IDX_SESSION_TIMESTAMP_DESC", def = "{'SESSION_NO': 1, 'CREATED_AT': -1}")
 })
 public class Message {
 
@@ -49,9 +48,6 @@ public class Message {
     @CreatedDate
     @Field("CREATED_AT")
     private LocalDateTime createdAt; // 생성 시각
-
-    @Field("SEQ")
-    private Long seq; // 커서 페이지용
 
     @Field("USER_NO")
     private UUID userNo; // 사용자 ID
