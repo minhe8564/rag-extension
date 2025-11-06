@@ -2,15 +2,26 @@ from typing import Optional, Dict, Any
 import math
 import uuid
 
-from fastapi import APIRouter, Depends, Query, HTTPException, status, Header
+from fastapi import APIRouter, Depends, Query, HTTPException, status, Header, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....core.database import get_db
 from ....core.schemas import BaseResponse, Result
 from ....core.check_role import check_role
-from ....core.error_responses import admin_only_responses, not_found_error_response
-from ..schemas.strategy import StrategyListItem, PaginationInfo, StrategyDetailResponse
-from ..services.strategy import list_strategies as list_strategies_service, get_strategy_by_no
+from ....core.error_responses import admin_only_responses, not_found_error_response, conflict_error_response
+from ..schemas.strategy import (
+    StrategyListItem,
+    PaginationInfo,
+    StrategyDetailResponse,
+    StrategyCreateRequest,
+    StrategyCreateResponse,
+)
+from ..services.strategy import (
+    list_strategies as list_strategies_service,
+    get_strategy_by_no,
+    create_strategy as create_strategy_service,
+    delete_strategy as delete_strategy_service,
+)
 
 
 router = APIRouter(prefix="/rag", tags=["RAG - Strategy Management"])
@@ -22,6 +33,78 @@ def _bytes_to_uuid_str(b: bytes) -> str:
         return str(uuid.UUID(bytes=b))
     except Exception:
         return b.hex()
+
+
+@router.post(
+    "/strategies",
+    response_model=BaseResponse[StrategyCreateResponse],
+    status_code=status.HTTP_201_CREATED,
+    summary="전략 생성",
+    description="새로운 RAG 전략을 생성합니다.",
+    responses={
+        201: {"description": "전략 생성 성공"},
+        404: not_found_error_response("전략 유형"),
+        409: conflict_error_response("전략"),
+    },
+)
+async def create_strategy(
+    request: StrategyCreateRequest,
+    session: AsyncSession = Depends(get_db),
+):
+    """
+    전략 생성
+
+    Args:
+        request: 전략 생성 요청 본문
+
+    Returns:
+        BaseResponse[StrategyCreateResponse]: 생성된 전략 ID
+    """
+
+    strategy = await create_strategy_service(
+        session=session,
+        name=request.name,
+        description=request.description,
+        parameter=request.parameter,
+        strategy_type_name=request.strategy_type,
+    )
+
+    return BaseResponse[StrategyCreateResponse](
+        status=201,
+        code="CREATED",
+        message="전략 생성에 성공하였습니다.",
+        isSuccess=True,
+        result=Result(
+            data=StrategyCreateResponse(
+                strategyNo=_bytes_to_uuid_str(strategy.strategy_no)
+            )
+        ),
+    )
+
+
+@router.delete(
+    "/strategy/{strategyNo}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="전략 삭제",
+    description="특정 전략을 삭제합니다.",
+    responses={
+        204: {"description": "전략 삭제 성공"},
+        400: {
+            "description": "잘못된 전략 ID",
+        },
+        404: not_found_error_response("전략"),
+        409: conflict_error_response("전략"),
+    },
+)
+async def delete_strategy(
+    strategyNo: str,
+    session: AsyncSession = Depends(get_db),
+):
+    """전략 삭제"""
+
+    await delete_strategy_service(session=session, strategy_no_str=strategyNo)
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get(
