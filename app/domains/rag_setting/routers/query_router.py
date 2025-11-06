@@ -60,7 +60,6 @@ router = APIRouter(prefix="/rag", tags=["RAG - Query Template Management"])
 async def create_query_template_endpoint(
     request: QueryTemplateCreateRequest,
     x_user_role: str = Depends(check_role("ADMIN")),
-    x_user_uuid: str = Header(..., alias="x-user-uuid"),
     session: AsyncSession = Depends(get_db),
 ):
     """
@@ -68,8 +67,7 @@ async def create_query_template_endpoint(
 
     Args:
         request: Query 템플릿 생성 요청
-        x_user_role: 사용자 역할 (헤더)
-        x_user_uuid: 사용자 UUID (헤더)
+        x_user_role: 사용자 역할 (헤더, 전역 security에서 자동 주입)
 
     Returns:
         BaseResponse[QueryTemplateCreateResponse]: 생성된 Query 템플릿 ID
@@ -193,7 +191,6 @@ async def list_query_templates_endpoint(
     pageSize: int = Query(20, ge=1, le=100, description="페이지 크기"),
     sort: str = Query("name", description="정렬 기준 (name, created_at)"),
     x_user_role: str = Depends(check_role("ADMIN")),
-    x_user_uuid: str = Header(..., alias="x-user-uuid"),
     session: AsyncSession = Depends(get_db),
 ):
     """
@@ -203,8 +200,7 @@ async def list_query_templates_endpoint(
         pageNum: 페이지 번호 (기본값: 1)
         pageSize: 페이지 크기 (기본값: 20, 최대값: 100)
         sort: 정렬 기준 (name, created_at)
-        x_user_role: 사용자 역할 (헤더)
-        x_user_uuid: 사용자 UUID (헤더)
+        x_user_role: 사용자 역할 (헤더, 전역 security에서 자동 주입)
 
     Returns:
         BaseResponse[Dict[str, Any]]: Query 템플릿 목록 및 페이지네이션 정보
@@ -382,7 +378,6 @@ async def list_query_templates_endpoint(
 async def get_query_template_endpoint(
     queryNo: str,
     x_user_role: str = Depends(check_role("ADMIN")),
-    x_user_uuid: str = Header(..., alias="x-user-uuid"),
     session: AsyncSession = Depends(get_db),
 ):
     """
@@ -390,8 +385,7 @@ async def get_query_template_endpoint(
 
     Args:
         queryNo: Query 템플릿 ID (UUID)
-        x_user_role: 사용자 역할 (헤더)
-        x_user_uuid: 사용자 UUID (헤더)
+        x_user_role: 사용자 역할 (헤더, 전역 security에서 자동 주입)
 
     Returns:
         BaseResponse[QueryTemplateDetailResponse]: Query 템플릿 상세 정보
@@ -582,7 +576,6 @@ async def update_query_template_endpoint(
     queryNo: str,
     request: QueryTemplateUpdateRequest,
     x_user_role: str = Depends(check_role("ADMIN")),
-    x_user_uuid: str = Header(..., alias="x-user-uuid"),
     session: AsyncSession = Depends(get_db),
 ):
     """
@@ -591,8 +584,7 @@ async def update_query_template_endpoint(
     Args:
         queryNo: Query 템플릿 ID (UUID)
         request: Query 템플릿 수정 요청
-        x_user_role: 사용자 역할 (헤더)
-        x_user_uuid: 사용자 UUID (헤더)
+        x_user_role: 사용자 역할 (헤더, 전역 security에서 자동 주입)
 
     Returns:
         BaseResponse[QueryTemplateDetailResponse]: 수정된 Query 템플릿 상세 정보
@@ -769,7 +761,6 @@ async def update_query_template_endpoint(
 async def delete_query_template_endpoint(
     queryNo: str,
     x_user_role: str = Depends(check_role("ADMIN")),
-    x_user_uuid: str = Header(..., alias="x-user-uuid"),
     session: AsyncSession = Depends(get_db),
 ):
     """
@@ -777,8 +768,7 @@ async def delete_query_template_endpoint(
 
     Args:
         queryNo: Query 템플릿 ID (UUID)
-        x_user_role: 사용자 역할 (관리자 확인)
-        x_user_uuid: 사용자 UUID
+        x_user_role: 사용자 역할 (헤더, 전역 security에서 자동 주입)
         session: 데이터베이스 세션
 
     Returns:

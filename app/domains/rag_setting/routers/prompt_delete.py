@@ -26,7 +26,6 @@ router = APIRouter(prefix="/rag", tags=["RAG - Prompt Management"])
 async def delete_prompt_endpoint(
     promptNo: str,
     x_user_role: str = Depends(check_role("ADMIN")),
-    x_user_uuid: str = Header(..., alias="x-user-uuid"),
     session: AsyncSession = Depends(get_db)
 ):
     """
@@ -34,8 +33,7 @@ async def delete_prompt_endpoint(
 
     Args:
         promptNo: 프롬프트 ID (UUID)
-        x_user_role: 사용자 역할 (헤더)
-        x_user_uuid: 사용자 UUID (헤더)
+        x_user_role: 사용자 역할 (헤더, 전역 security에서 자동 주입)
         session: 데이터베이스 세션
 
     Returns:
@@ -44,23 +42,11 @@ async def delete_prompt_endpoint(
     Raises:
         HTTPException 404: 프롬프트를 찾을 수 없음
     """
-    try:
-        # 프롬프트 삭제
-        await delete_prompt(
-            session=session,
-            prompt_no_str=promptNo
-        )
+    # 프롬프트 삭제
+    await delete_prompt(
+        session=session,
+        prompt_no_str=promptNo
+    )
 
-        # 204 No Content 반환
-        return Response(status_code=status.HTTP_204_NO_CONTENT)
-
-    except HTTPException:
-        # HTTPException은 그대로 전파 (custom exception handler가 처리)
-        raise
-
-    except Exception as e:
-        # 예상치 못한 오류
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"프롬프트 삭제 중 오류가 발생했습니다: {str(e)}"
-        )
+    # 204 No Content 반환
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

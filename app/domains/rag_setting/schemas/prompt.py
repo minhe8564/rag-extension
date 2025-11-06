@@ -17,16 +17,21 @@ class PromptCreateRequest(BaseModel):
     )
     type: Literal["system", "user"] = Field(
         ...,
-        description="프롬프트 유형 (구분용, DB 저장 안됨)"
+        description="프롬프트 유형 (system 또는 user)"
+    )
+    description: str = Field(
+        ...,
+        min_length=1,
+        max_length=255,
+        description="프롬프트 요약 설명 (최대 255자)"
     )
     content: str = Field(
         ...,
         min_length=1,
-        max_length=255,
-        description="프롬프트 내용"
+        description="프롬프트 실제 내용 (제한 없음, parameter JSON에 저장)"
     )
 
-    @field_validator('name', 'content')
+    @field_validator('name', 'description', 'content')
     @classmethod
     def validate_not_empty(cls, v: str) -> str:
         """공백 문자열 검증"""
@@ -48,7 +53,8 @@ class PromptListItem(BaseModel):
     promptNo: str = Field(..., description="프롬프트 ID (UUID)")
     name: str = Field(..., description="프롬프트명")
     type: Literal["system", "user"] = Field(..., description="프롬프트 유형")
-    content: str = Field(..., description="프롬프트 내용")
+    description: str = Field(..., description="프롬프트 요약 설명")
+    content: str = Field(..., description="프롬프트 실제 내용")
 
     class Config:
         from_attributes = True
@@ -68,7 +74,8 @@ class PromptDetailResponse(BaseModel):
     promptNo: str = Field(..., description="프롬프트 ID (UUID)")
     name: str = Field(..., description="프롬프트명")
     type: Literal["system", "user"] = Field(..., description="프롬프트 유형")
-    content: str = Field(..., description="프롬프트 내용")
+    description: str = Field(..., description="프롬프트 요약 설명")
+    content: str = Field(..., description="프롬프트 실제 내용")
 
     class Config:
         from_attributes = True
@@ -82,14 +89,19 @@ class PromptUpdateRequest(BaseModel):
         max_length=50,
         description="프롬프트명"
     )
-    content: str = Field(
+    description: str = Field(
         ...,
         min_length=1,
         max_length=255,
-        description="프롬프트 내용"
+        description="프롬프트 요약 설명 (최대 255자)"
+    )
+    content: str = Field(
+        ...,
+        min_length=1,
+        description="프롬프트 실제 내용 (제한 없음)"
     )
 
-    @field_validator('name', 'content')
+    @field_validator('name', 'description', 'content')
     @classmethod
     def validate_not_empty(cls, v: str) -> str:
         """공백 문자열 검증"""

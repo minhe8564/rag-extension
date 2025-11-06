@@ -39,7 +39,6 @@ async def get_prompts(
     pageSize: int = Query(20, ge=1, le=100, description="페이지 크기"),
     sort: str = Query("name", description="정렬 기준"),
     x_user_role: str = Depends(check_role("ADMIN")),
-    x_user_uuid: str = Header(..., alias="x-user-uuid"),
     session: AsyncSession = Depends(get_db)
 ):
     """
@@ -49,8 +48,7 @@ async def get_prompts(
         pageNum: 페이지 번호 (1부터 시작)
         pageSize: 페이지 크기 (1-100)
         sort: 정렬 기준 (기본: name)
-        x_user_role: 사용자 역할 (헤더)
-        x_user_uuid: 사용자 UUID (헤더)
+        x_user_role: 사용자 역할 (헤더, 전역 security에서 자동 주입)
         session: 데이터베이스 세션
 
     Returns:
@@ -70,7 +68,8 @@ async def get_prompts(
             promptNo=_bytes_to_uuid_str(prompt.strategy_no),
             name=prompt.name,
             type=prompt.parameter.get("type", "system") if prompt.parameter else "system",
-            content=prompt.description
+            description=prompt.description,
+            content=prompt.parameter.get("content", "") if prompt.parameter else ""
         )
         for prompt in prompts
     ]
@@ -109,7 +108,6 @@ async def get_prompts(
 async def get_prompt_detail(
     promptNo: str,
     x_user_role: str = Depends(check_role("ADMIN")),
-    x_user_uuid: str = Header(..., alias="x-user-uuid"),
     session: AsyncSession = Depends(get_db)
 ):
     """
@@ -117,8 +115,7 @@ async def get_prompt_detail(
 
     Args:
         promptNo: 프롬프트 ID (UUID)
-        x_user_role: 사용자 역할 (헤더)
-        x_user_uuid: 사용자 UUID (헤더)
+        x_user_role: 사용자 역할 (헤더, 전역 security에서 자동 주입)
         session: 데이터베이스 세션
 
     Returns:
@@ -141,7 +138,8 @@ async def get_prompt_detail(
         promptNo=_bytes_to_uuid_str(prompt.strategy_no),
         name=prompt.name,
         type=prompt.parameter.get("type", "system") if prompt.parameter else "system",
-        content=prompt.description
+        description=prompt.description,
+        content=prompt.parameter.get("content", "") if prompt.parameter else ""
     )
 
     return BaseResponse[PromptDetailResponse](

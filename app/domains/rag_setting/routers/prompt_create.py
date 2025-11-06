@@ -40,7 +40,6 @@ async def create_prompt_endpoint(
     request: PromptCreateRequest,
     response: Response,
     x_user_role: str = Depends(check_role("ADMIN")),
-    x_user_uuid: str = Header(..., alias="x-user-uuid"),
     session: AsyncSession = Depends(get_db),
 ):
     """
@@ -49,8 +48,7 @@ async def create_prompt_endpoint(
     Args:
         request: 프롬프트 생성 요청 데이터
         response: FastAPI Response 객체 (Location 헤더 설정용)
-        x_user_role: 사용자 역할 (헤더)
-        x_user_uuid: 사용자 UUID (헤더)
+        x_user_role: 사용자 역할 (헤더, 전역 security에서 자동 주입)
         session: 데이터베이스 세션
 
     Returns:
@@ -60,34 +58,23 @@ async def create_prompt_endpoint(
         HTTPException 400: 필수 파라미터 누락 또는 유효성 검증 실패
         HTTPException 409: 동일한 이름의 프롬프트 존재
     """
-    try:
-        # 프롬프트 생성
-        prompt_no = await create_prompt(
-            session=session,
-            name=request.name,
-            prompt_type=request.type,
-            content=request.content
-        )
+    # 프롬프트 생성
+    prompt_no = await create_prompt(
+        session=session,
+        name=request.name,
+        prompt_type=request.type,
+        description=request.description,
+        content=request.content
+    )
 
-        # Location 헤더 설정
-        response.headers["Location"] = f"/rag/prompts/{prompt_no}"
+    # Location 헤더 설정
+    response.headers["Location"] = f"/rag/prompts/{prompt_no}"
 
-        # 응답 반환
-        return BaseResponse[PromptCreateResponse](
-            status=201,
-            code="CREATED",
-            message="성공",
-            isSuccess=True,
-            result=Result(data=PromptCreateResponse(promptNo=prompt_no))
-        )
-
-    except HTTPException:
-        # HTTPException은 그대로 전파 (custom exception handler가 처리)
-        raise
-
-    except Exception as e:
-        # 예상치 못한 오류
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"프롬프트 생성 중 오류가 발생했습니다: {str(e)}"
-        )
+    # 응답 반환
+    return BaseResponse[PromptCreateResponse](
+        status=201,
+        code="CREATED",
+        message="성공",
+        isSuccess=True,
+        result=Result(data=PromptCreateResponse(promptNo=prompt_no))
+    )

@@ -82,20 +82,25 @@ async def create_prompt(
     session: AsyncSession,
     name: str,
     prompt_type: str,
+    description: str,
     content: str
 ) -> str:
     """
     프롬프트 생성
 
     프롬프트는 Strategy 테이블에 strategy_type='prompting'으로 저장됩니다.
-    type 필드는 parameter JSON에 메타데이터로 저장되며,
+    - description: 요약 설명 (Strategy.description, 최대 255자)
+    - content: 실제 프롬프트 내용 (parameter JSON, 제한 없음)
+    - type: 프롬프트 유형 (parameter JSON 메타데이터)
+
     실제 system/user 구분은 QUERY_GROUP 테이블에서 어느 필드에 참조되는지로 결정됩니다.
 
     Args:
         session: 데이터베이스 세션
         name: 프롬프트명
         prompt_type: 프롬프트 유형 (system 또는 user) - 메타데이터용
-        content: 프롬프트 내용
+        description: 프롬프트 요약 설명 (최대 255자)
+        content: 프롬프트 실제 내용 (제한 없음)
 
     Returns:
         생성된 프롬프트 ID (UUID 문자열)
@@ -119,10 +124,10 @@ async def create_prompt(
         strategy_no=generate_uuid_binary(),
         strategy_type_no=strategy_type.strategy_type_no,
         name=name,
-        description=content,
+        description=description,  # 요약 설명 (최대 255자)
         parameter={
-            "content": content,
-            "type": prompt_type  # 메타데이터로 type 저장 (선택적)
+            "content": content,  # 실제 프롬프트 내용 (제한 없음)
+            "type": prompt_type  # 메타데이터
         }
     )
 

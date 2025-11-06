@@ -37,15 +37,14 @@ async def get_strategies(
     pageSize: int = Query(20, ge=1, le=100, description="페이지 크기"),
     sort: str = Query("name", description="정렬 기준"),
     x_user_role: str = Depends(check_role("ADMIN")),
-    x_user_uuid: str = Header(..., alias="x-user-uuid"),
     session: AsyncSession = Depends(get_db),
 ):
     """
     전략 목록 조회
 
     Args:
-        x_user_role: 사용자 역할 (헤더)
-        x_user_uuid: 사용자 UUID (헤더)
+        x_user_role: 사용자 역할 (헤더, 전역 security에서 자동 주입)
+        session: 데이터베이스 세션
 
     Returns:
         BaseResponse: 전략 목록과 페이지네이션 정보
@@ -104,7 +103,6 @@ async def get_strategies(
 async def get_strategy_detail(
     strategyNo: str,
     x_user_role: str = Depends(check_role("ADMIN")),
-    x_user_uuid: str = Header(..., alias="x-user-uuid"),
     session: AsyncSession = Depends(get_db),
 ):
     """
@@ -112,8 +110,8 @@ async def get_strategy_detail(
 
     Args:
         strategyNo: 전략 ID (UUID)
-        x_user_role: 사용자 역할 (헤더)
-        x_user_uuid: 사용자 UUID (헤더)
+        x_user_role: 사용자 역할 (헤더, 전역 security에서 자동 주입)
+        session: 데이터베이스 세션
 
     Returns:
         BaseResponse[StrategyDetailResponse]: 전략 상세 정보

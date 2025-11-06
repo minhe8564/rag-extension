@@ -48,8 +48,9 @@ async def update_prompt(
     session: AsyncSession,
     prompt_no_str: str,
     name: str,
+    description: str,
     content: str
-) -> bool:
+) -> Strategy:
     """
     프롬프트 수정
 
@@ -57,10 +58,11 @@ async def update_prompt(
         session: 데이터베이스 세션
         prompt_no_str: 프롬프트 ID (UUID 문자열)
         name: 새로운 프롬프트명
-        content: 새로운 프롬프트 내용
+        description: 새로운 프롬프트 요약 설명 (최대 255자)
+        content: 새로운 프롬프트 실제 내용 (제한 없음)
 
     Returns:
-        수정 성공 여부
+        수정된 Strategy 객체
 
     Raises:
         HTTPException: 404 - 프롬프트를 찾을 수 없음
@@ -103,15 +105,16 @@ async def update_prompt(
 
     # 3. 프롬프트 수정
     prompt.name = name
-    prompt.description = content
+    prompt.description = description  # 요약 설명 (최대 255자)
 
-    # parameter JSON도 업데이트 (type은 유지)
+    # parameter JSON 업데이트 (type은 유지, content 업데이트)
     existing_type = prompt.parameter.get("type", "system") if prompt.parameter else "system"
     prompt.parameter = {
-        "content": content,
+        "content": content,  # 실제 프롬프트 내용 (제한 없음)
         "type": existing_type
     }
 
     await session.commit()
+    await session.refresh(prompt)
 
-    return True
+    return prompt
