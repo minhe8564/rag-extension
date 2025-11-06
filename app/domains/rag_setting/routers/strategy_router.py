@@ -2,18 +2,46 @@ from typing import Optional, Dict, Any
 import math
 import uuid
 
-from fastapi import APIRouter, Depends, Query, HTTPException, status, Header
+from fastapi import APIRouter, Depends, Query, HTTPException, status, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....core.database import get_db
 from ....core.schemas import BaseResponse, Result
-from ....core.check_role import check_role
-from ....core.error_responses import admin_only_responses, not_found_error_response
-from ..schemas.strategy import StrategyListItem, PaginationInfo, StrategyDetailResponse
-from ..services.strategy import list_strategies as list_strategies_service, get_strategy_by_no
+from ....core.error_responses import (
+    not_found_error_response,
+    conflict_error_response,
+    public_endpoint_responses,
+    unauthorized_error_response,
+)
+from ....core.check_role import check_jwt_token
+from ..schemas.strategy import (
+    StrategyListItem,
+    PaginationInfo,
+    StrategyDetailResponse,
+    StrategyCreateRequest,
+    StrategyCreateResponse,
+    StrategyTypeListItem,
+    StrategyTypeListResponse,
+    StrategyTypeCreateRequest,
+    StrategyTypeCreateResponse,
+)
+from ..services.strategy import (
+    list_strategies as list_strategies_service,
+    get_strategy_by_no,
+    create_strategy as create_strategy_service,
+    delete_strategy as delete_strategy_service,
+    list_strategy_types as list_strategy_types_service,
+    create_strategy_type as create_strategy_type_service,
+    delete_strategy_type as delete_strategy_type_service,
+    delete_strategy_type_by_name as delete_strategy_type_by_name_service,
+)
 
 
-router = APIRouter(prefix="/rag", tags=["RAG - Strategy Management"])
+router = APIRouter(
+    prefix="/rag",
+    tags=["RAG - Strategy Management"],
+    dependencies=[Depends(check_jwt_token())],
+)
 
 
 def _bytes_to_uuid_str(b: bytes) -> str:
@@ -24,28 +52,213 @@ def _bytes_to_uuid_str(b: bytes) -> str:
         return b.hex()
 
 
+@router.post(
+    "/strategies",
+    response_model=BaseResponse[StrategyCreateResponse],
+    status_code=status.HTTP_201_CREATED,
+    summary="전략 생성",
+    description="새로운 RAG 전략을 생성합니다.",
+    responses={
+        201: {"description": "전략 생성 성공"},
+        401: unauthorized_error_response(),
+        404: not_found_error_response("전략 유형"),
+        409: conflict_error_response("전략"),
+    },
+)
+async def create_strategy(
+    request: StrategyCreateRequest,
+    session: AsyncSession = Depends(get_db),
+):
+    """
+    전략 생성
+
+    Args:
+        request: 전략 생성 요청 본문
+
+    Returns:
+        BaseResponse[StrategyCreateResponse]: 생성된 전략 ID
+    """
+
+    strategy = await create_strategy_service(
+        session=session,
+        name=request.name,
+        description=request.description,
+        parameter=request.parameter,
+        strategy_type_name=request.strategy_type,
+    )
+
+    return BaseResponse[StrategyCreateResponse](
+        status=201,
+        code="CREATED",
+        message="전략 생성에 성공하였습니다.",
+        isSuccess=True,
+        result=Result(
+            data=StrategyCreateResponse(
+                strategyNo=_bytes_to_uuid_str(strategy.strategy_no)
+            )
+        ),
+    )
+
+
+@router.delete(
+    "/strategy/{strategyNo}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="전략 삭제",
+    description="특정 전략을 삭제합니다.",
+    responses={
+        204: {"description": "전략 삭제 성공"},
+        400: {
+            "description": "잘못된 전략 ID",
+        },
+        401: unauthorized_error_response(),
+        404: not_found_error_response("전략"),
+        409: conflict_error_response("전략"),
+    },
+)
+async def delete_strategy(
+    strategyNo: str,
+    session: AsyncSession = Depends(get_db),
+):
+    """전략 삭제"""
+
+    await delete_strategy_service(session=session, strategy_no_str=strategyNo)
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get(
+    "/strategies/types",
+    response_model=BaseResponse[StrategyTypeListResponse],
+    summary="전략 유형 목록 조회",
+    description="전략 유형 목록을 조회합니다.",
+    responses={
+        200: {"description": "전략 유형 목록 조회 성공"},
+        401: unauthorized_error_response(),
+    },
+)
+async def get_strategy_types(
+    session: AsyncSession = Depends(get_db),
+):
+    """전략 유형 목록 조회"""
+
+    strategy_types = await list_strategy_types_service(session=session)
+
+    items = [
+        StrategyTypeListItem(
+            strategyTypeNo=_bytes_to_uuid_str(strategy_type.strategy_type_no),
+            name=strategy_type.name,
+        )
+        for strategy_type in strategy_types
+    ]
+
+    return BaseResponse[StrategyTypeListResponse](
+        status=200,
+        code="OK",
+        message="전략 유형 목록 조회에 성공하였습니다.",
+        isSuccess=True,
+        result=Result(data=StrategyTypeListResponse(data=items)),
+    )
+
+
+@router.post(
+    "/strategies/types",
+    response_model=BaseResponse[StrategyTypeCreateResponse],
+    status_code=status.HTTP_201_CREATED,
+    summary="전략 유형 생성",
+    description="새로운 전략 유형을 생성합니다.",
+    responses={
+        201: {"description": "전략 유형 생성 성공"},
+        401: unauthorized_error_response(),
+        409: conflict_error_response("전략 유형"),
+    },
+)
+async def create_strategy_type(
+    request: StrategyTypeCreateRequest,
+    session: AsyncSession = Depends(get_db),
+):
+    """전략 유형 생성"""
+
+    strategy_type = await create_strategy_type_service(session=session, name=request.name)
+
+    return BaseResponse[StrategyTypeCreateResponse](
+        status=201,
+        code="CREATED",
+        message="전략 유형 생성에 성공하였습니다.",
+        isSuccess=True,
+        result=Result(
+            data=StrategyTypeCreateResponse(
+                strategyTypeNo=_bytes_to_uuid_str(strategy_type.strategy_type_no)
+            )
+        ),
+    )
+
+
+@router.delete(
+    "/strategies/types/{typeNo}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="전략 유형 삭제",
+    description="특정 전략 유형을 삭제합니다.",
+    responses={
+        204: {"description": "전략 유형 삭제 성공"},
+        400: {"description": "잘못된 전략 유형 ID"},
+        401: unauthorized_error_response(),
+        404: not_found_error_response("전략 유형"),
+        409: conflict_error_response("전략 유형"),
+    },
+)
+async def delete_strategy_type(
+    typeNo: str,
+    session: AsyncSession = Depends(get_db),
+):
+    """전략 유형 삭제"""
+
+    await delete_strategy_type_service(session=session, strategy_type_no_str=typeNo)
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.delete(
+    "/strategies/types",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="전략 유형 삭제 (이름)",
+    description="전략 유형 이름으로 전략 유형을 삭제합니다.",
+    responses={
+        204: {"description": "전략 유형 삭제 성공"},
+        401: unauthorized_error_response(),
+        404: not_found_error_response("전략 유형"),
+        409: conflict_error_response("전략 유형"),
+    },
+)
+async def delete_strategy_type_by_name(
+    name: str = Query(..., description="삭제할 전략 유형 이름"),
+    session: AsyncSession = Depends(get_db),
+):
+    """전략 유형을 이름으로 삭제"""
+
+    await delete_strategy_type_by_name_service(session=session, name=name)
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.get(
     "/strategies",
     response_model=BaseResponse[Dict[str, Any]],
-    summary="전략 목록 조회 (관리자 전용)",
-    description="RAG 전략 목록을 조회합니다. 관리자만 접근 가능합니다.",
-    responses=admin_only_responses(),
+    summary="전략 목록 조회",
+    description="RAG 전략 목록을 조회합니다.",
+    responses={**public_endpoint_responses(), 401: unauthorized_error_response()},
 )
 async def get_strategies(
     type: Optional[str] = Query(None, description="전략 유형 필터"),
     pageNum: int = Query(1, ge=1, description="페이지 번호"),
     pageSize: int = Query(20, ge=1, le=100, description="페이지 크기"),
     sort: str = Query("name", description="정렬 기준"),
-    x_user_role: str = Depends(check_role("ADMIN")),
-    x_user_uuid: str = Header(..., alias="x-user-uuid"),
     session: AsyncSession = Depends(get_db),
 ):
     """
     전략 목록 조회
 
     Args:
-        x_user_role: 사용자 역할 (헤더)
-        x_user_uuid: 사용자 UUID (헤더)
+        session: 데이터베이스 세션
 
     Returns:
         BaseResponse: 전략 목록과 페이지네이션 정보
@@ -94,17 +307,15 @@ async def get_strategies(
 @router.get(
     "/strategies/{strategyNo}",
     response_model=BaseResponse[StrategyDetailResponse],
-    summary="전략 상세 조회 (관리자 전용)",
-    description="특정 전략의 상세 정보를 조회합니다. 관리자만 접근 가능합니다.",
+    summary="전략 상세 조회",
+    description="특정 전략의 상세 정보를 조회합니다.",
     responses={
-        **admin_only_responses(),
+        401: unauthorized_error_response(),
         404: not_found_error_response("전략"),
     },
 )
 async def get_strategy_detail(
     strategyNo: str,
-    x_user_role: str = Depends(check_role("ADMIN")),
-    x_user_uuid: str = Header(..., alias="x-user-uuid"),
     session: AsyncSession = Depends(get_db),
 ):
     """
@@ -112,8 +323,7 @@ async def get_strategy_detail(
 
     Args:
         strategyNo: 전략 ID (UUID)
-        x_user_role: 사용자 역할 (헤더)
-        x_user_uuid: 사용자 UUID (헤더)
+        session: 데이터베이스 세션
 
     Returns:
         BaseResponse[StrategyDetailResponse]: 전략 상세 정보

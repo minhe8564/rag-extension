@@ -251,7 +251,7 @@ async def update_ingest_template(
     chunking_parameters: dict,
     embedding_no: str,
     embedding_parameters: dict,
-) -> None:
+) -> IngestGroup:
     """
     Ingest 템플릿 수정
 
@@ -265,6 +265,9 @@ async def update_ingest_template(
         chunking_parameters: 청킹 전략 파라미터
         embedding_no: 임베딩 전략 ID
         embedding_parameters: 임베딩 전략 파라미터
+
+    Returns:
+        수정된 IngestGroup 객체
 
     Raises:
         HTTPException: 템플릿을 찾을 수 없거나 전략을 찾을 수 없는 경우
@@ -320,6 +323,21 @@ async def update_ingest_template(
     ingest_group.embedding_parameter = embedding_parameters or {}
 
     await session.commit()
+
+    # 관계 데이터와 함께 다시 조회
+    query = (
+        select(IngestGroup)
+        .where(IngestGroup.ingest_group_no == ingest_binary)
+        .options(
+            selectinload(IngestGroup.extraction_strategy),
+            selectinload(IngestGroup.chunking_strategy),
+            selectinload(IngestGroup.embedding_strategy)
+        )
+    )
+    result = await session.execute(query)
+    updated_ingest_group = result.scalar_one()
+
+    return updated_ingest_group
 
 
 async def delete_ingest_template(
