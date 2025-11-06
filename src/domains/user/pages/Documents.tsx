@@ -1,29 +1,26 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import FileDropzone from '@/shared/components/file/FileUploader';
 import UploadedFileList from '@/shared/components/file/UploadedFileList';
 import type { UploadedDoc as UDoc } from '@/shared/components/file/UploadedFileList';
 import { FileText } from 'lucide-react';
 
-type Category = '업무 매뉴얼' | '정책/규정' | '개발 문서' | '홍보자료' | '이미지' | '기타';
-
 export default function Documents() {
   const [uploadedDocs, setUploadedDocs] = useState<UDoc[]>([]);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const detectType = (f: File): UDoc['type'] => {
-    const t = f.type;
-    if (t.includes('pdf')) return 'pdf';
-    if (t.includes('presentation') || /\.pptx?$/i.test(f.name)) return 'pptx';
-    if (t.includes('sheet') || /\.xlsx?$/i.test(f.name)) return 'xlsx';
-    if (t.includes('word') || /\.docx?$/i.test(f.name)) return 'docx';
-    if (t.startsWith('image/')) return 'image';
+    const name = f.name.toLowerCase();
+    if (name.endsWith('.pdf')) return 'pdf';
+    if (name.endsWith('.md')) return 'md';
+    if (name.endsWith('.doc') || name.endsWith('.docx')) return 'docx';
+    if (name.endsWith('.xlsx')) return 'xlsx';
     return 'txt';
   };
 
-  const handleUpload = async (payload: { files: File[]; category: Category }) => {
-    const { files, category } = payload;
+  const handleUpload = ({ files, category }: { files: File[]; category: string }) => {
     const now = new Date().toLocaleString();
 
-    const mapped: UDoc[] = files.map(f => ({
+    const mapped: UDoc[] = files.map((f) => ({
       id: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}_${f.name}`,
       name: f.name,
       sizeKB: f.size / 1024,
@@ -33,11 +30,13 @@ export default function Documents() {
       file: f,
     }));
 
-    setUploadedDocs(prev => [...mapped, ...prev]);
+    setUploadedDocs((prev) => [...mapped, ...prev]);
+
+    // 서버 업로드 필요 시 여기서 FormData 비동기 호출 (void 유지)
   };
 
   const handleDownload = (id: string) => {
-    const doc = uploadedDocs.find(d => d.id === id);
+    const doc = uploadedDocs.find((d) => d.id === id);
     if (!doc?.file) return;
     const url = URL.createObjectURL(doc.file);
     const a = document.createElement('a');
@@ -45,6 +44,35 @@ export default function Documents() {
     a.download = doc.name;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleDelete = (ids: string[]) => {
+    setUploadedDocs((prev) => prev.filter((d) => !ids.includes(d.id)));
+    setSelectedIds((prev) => prev.filter((id) => !ids.includes(id)));
+  };
+
+  const selectedDocs = useMemo(
+    () => uploadedDocs.filter((d) => selectedIds.includes(d.id)),
+    [uploadedDocs, selectedIds]
+  );
+
+  const selectedTotalKB = useMemo(
+    () => selectedDocs.reduce((sum, d) => sum + (d.sizeKB ?? 0), 0),
+    [selectedDocs]
+  );
+
+  const selectedTotalStr =
+    selectedTotalKB >= 1024
+      ? `${(selectedTotalKB / 1024).toFixed(1)} MB`
+      : `${selectedTotalKB.toFixed(1)} KB`;
+
+  const ingestSelected = async () => {
+    // const payload = selectedDocs.map(d => ({ id: d.id }));  // 또는 파일/카테고리 등
+    // await fastApi.post('/api/v1/rag/ingest', payload);
+    console.log(
+      'INGEST start:',
+      selectedDocs.map((d) => d.name)
+    );
   };
 
   return (
@@ -63,8 +91,8 @@ export default function Documents() {
 
       <FileDropzone
         onUpload={handleUpload}
-        accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.txt,.png,.jpg,.jpeg"
-        maxSizeMB={50}
+        accept=".pdf,.md,.doc,.docx,.xlsx"
+        maxSizeMB={100}
         className="mt-4"
         brand="retina"
         defaultCategory="기타"
@@ -73,9 +101,31 @@ export default function Documents() {
       <UploadedFileList
         docs={uploadedDocs}
         onDownload={handleDownload}
-        onDelete={ids => setUploadedDocs(prev => prev.filter(d => !ids.includes(d.id)))}
+        onDelete={handleDelete}
         brand="retina"
+        onSelectChange={setSelectedIds}
       />
+
+      {selectedIds.length > 0 && (
+        <div className="mt-6">
+          <div className="mx-auto w-full rounded-xl border border-gray-200 bg-white/95 backdrop-blur p-4 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-gray-700">
+                선택된 파일 <span className="font-medium">{selectedIds.length}</span>개 · 총{' '}
+                <span className="font-medium">{selectedTotalStr}</span>
+              </p>
+
+              <button
+                type="button"
+                onClick={ingestSelected}
+                className="inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-semibold text-white bg-[var(--color-retina)] hover:bg-[var(--color-retina)]/90"
+              >
+                문서 업로드
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
