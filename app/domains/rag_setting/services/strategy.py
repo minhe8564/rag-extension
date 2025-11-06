@@ -121,6 +121,46 @@ async def create_strategy_type(
     return strategy_type
 
 
+async def update_strategy_type(
+    session: AsyncSession,
+    strategy_type_no_str: str,
+    name: str,
+) -> StrategyType:
+    """전략 유형 이름 수정"""
+
+    try:
+        strategy_type_no_bytes = uuid.UUID(strategy_type_no_str).bytes
+    except (ValueError, AttributeError):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="유효하지 않은 전략 유형 ID입니다.",
+        )
+
+    stmt = select(StrategyType).where(StrategyType.strategy_type_no == strategy_type_no_bytes)
+    result = await session.execute(stmt)
+    strategy_type = result.scalar_one_or_none()
+
+    if not strategy_type:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="전략 유형을 찾을 수 없습니다.",
+        )
+
+    duplicate_stmt = select(StrategyType).where(StrategyType.name == name, StrategyType.strategy_type_no != strategy_type_no_bytes)
+    duplicate_result = await session.execute(duplicate_stmt)
+    if duplicate_result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="동일한 이름의 전략 유형이 이미 존재합니다.",
+        )
+
+    strategy_type.name = name
+    await session.commit()
+    await session.refresh(strategy_type)
+
+    return strategy_type
+
+
 async def delete_strategy_type(
     session: AsyncSession,
     strategy_type_no_str: str,
@@ -277,6 +317,73 @@ async def create_strategy(
     )
 
     session.add(strategy)
+    await session.commit()
+    await session.refresh(strategy)
+
+    return strategy
+
+
+async def update_strategy(
+    session: AsyncSession,
+    strategy_no_str: str,
+    name: str,
+    description: str,
+    parameter: Optional[Dict[str, Any]],
+    strategy_type_name: Optional[str] = None,
+) -> Strategy:
+    """전략 수정"""
+
+    try:
+        strategy_no_bytes = uuid.UUID(strategy_no_str).bytes
+    except (ValueError, AttributeError):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="유효하지 않은 전략 ID입니다.",
+        )
+
+    stmt = select(Strategy).options(selectinload(Strategy.strategy_type)).where(Strategy.strategy_no == strategy_no_bytes)
+    result = await session.execute(stmt)
+    strategy = result.scalar_one_or_none()
+
+    if not strategy:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="전략을 찾을 수 없습니다.",
+        )
+
+    # 유형 변경이 요청된 경우 이름으로 조회
+    if strategy_type_name:
+        type_stmt = select(StrategyType).where(StrategyType.name == strategy_type_name)
+        type_result = await session.execute(type_stmt)
+        strategy_type = type_result.scalar_one_or_none()
+
+        if not strategy_type:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="전략 유형을 찾을 수 없습니다.",
+            )
+
+        strategy.strategy_type_no = strategy_type.strategy_type_no
+        strategy.strategy_type = strategy_type
+
+    # 동일 이름 중복 여부 확인 (같은 타입 내에서)
+    type_no_for_duplicate = strategy.strategy_type_no
+    duplicate_stmt = select(Strategy).where(
+        Strategy.name == name,
+        Strategy.strategy_type_no == type_no_for_duplicate,
+        Strategy.strategy_no != strategy_no_bytes,
+    )
+    duplicate_result = await session.execute(duplicate_stmt)
+    if duplicate_result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="동일한 이름의 전략이 이미 존재합니다.",
+        )
+
+    strategy.name = name
+    strategy.description = description
+    strategy.parameter = parameter or {}
+
     await session.commit()
     await session.refresh(strategy)
 
