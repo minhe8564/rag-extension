@@ -6,7 +6,6 @@ export type LoginResult = {
   roleName: 'ADMIN' | 'USER';
   businessType: number;
   accessToken: string;
-  refreshToken: string;
 };
 
 export const login = async (email: string, password: string) => {

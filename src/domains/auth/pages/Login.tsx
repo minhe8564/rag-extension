@@ -57,7 +57,7 @@ export default function Login() {
           <FormInput
             type="email"
             value={email}
-            onChange={e => setEmail(e.target.value)}
+            onChange={(e) => setEmail(e.target.value)}
             placeholder="이메일"
             required
             autoComplete="email"
@@ -65,7 +65,7 @@ export default function Login() {
           <FormInput
             type="password"
             value={password}
-            onChange={e => setPassword(e.target.value)}
+            onChange={(e) => setPassword(e.target.value)}
             placeholder="비밀번호"
             required
             autoComplete="current-password"

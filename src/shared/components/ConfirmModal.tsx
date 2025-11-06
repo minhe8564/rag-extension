@@ -1,4 +1,6 @@
+// ConfirmModal.tsx
 import { useEffect, useId } from 'react';
+import { createPortal } from 'react-dom';
 
 interface ConfirmModalProps {
   open: boolean;
@@ -9,6 +11,7 @@ interface ConfirmModalProps {
   confirmText?: string;
   cancelText?: string;
   variant?: 'primary' | 'danger';
+  zIndex?: number;
 }
 
 export default function ConfirmModal({
@@ -20,6 +23,7 @@ export default function ConfirmModal({
   confirmText = '확인',
   cancelText = '취소',
   variant = 'primary',
+  zIndex = 10050,
 }: ConfirmModalProps) {
   const id = useId();
 
@@ -37,19 +41,21 @@ export default function ConfirmModal({
       ? 'bg-black text-white hover:opacity-80'
       : 'bg-[var(--color-hebees-bg)] text-white hover:brightness-95';
 
-  return (
+  const node = (
     <div
-      className="fixed inset-0 bg-black/70 flex justify-center items-center z-50"
-      onClick={e => e.target === e.currentTarget && onClose()}
+      className="fixed inset-0 flex items-center justify-center"
+      style={{ zIndex }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}
       role="dialog"
       aria-labelledby={id}
       aria-modal="true"
     >
-      <div className="bg-white rounded-lg shadow-2xl p-8 w-full max-w-md">
-        <h2 className="text-2xl font-bold text-center mb-6">{title}</h2>
-
+      <div className="absolute inset-0 bg-black/70" />
+      <div className="relative bg-white rounded-lg shadow-2xl p-8 w-full max-w-md">
+        <h2 id={id} className="text-2xl font-bold text-center mb-6">
+          {title}
+        </h2>
         <p className="mb-6 text-center text-base text-gray-600 whitespace-pre-line">{message}</p>
-
         <div className="flex justify-center gap-3">
           <button
             onClick={onClose}
@@ -57,14 +63,13 @@ export default function ConfirmModal({
           >
             {cancelText}
           </button>
-          <button
-            onClick={onConfirm}
-            className={`rounded-md px-4 py-2 text-sm font-regular ${confirmColor}`}
-          >
+          <button onClick={onConfirm} className={`rounded-md px-4 py-2 text-sm ${confirmColor}`}>
             {confirmText}
           </button>
         </div>
       </div>
     </div>
   );
+
+  return createPortal(node, document.body);
 }

@@ -12,7 +12,7 @@ export type UploadedDoc = {
   sizeKB: number;
   uploadedAt?: string;
   category?: string;
-  type: 'pdf' | 'docx' | 'pptx' | 'xlsx' | 'txt' | 'image';
+  type: string;
   file?: File;
 };
 
@@ -36,19 +36,19 @@ export default function UploadedFileList({
   const [selected, setSelected] = useState<Record<string, boolean>>({});
 
   const filtered = useMemo(
-    () => (fileType === 'all' ? docs : docs.filter(d => d.type === fileType)),
+    () => (fileType === 'all' ? docs : docs.filter((d) => d.type === fileType)),
     [docs, fileType]
   );
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const pageItems = filtered.slice((page - 1) * pageSize, page * pageSize);
-  const selectedIds = Object.keys(selected).filter(id => selected[id]);
+  const selectedIds = Object.keys(selected).filter((id) => selected[id]);
 
   const toggleAll = (checked: boolean) => {
-    const idsOnPage = pageItems.map(d => d.id);
-    setSelected(prev => {
+    const idsOnPage = pageItems.map((d) => d.id);
+    setSelected((prev) => {
       const next = { ...prev };
-      idsOnPage.forEach(id => (next[id] = checked));
+      idsOnPage.forEach((id) => (next[id] = checked));
       return next;
     });
   };
@@ -65,8 +65,8 @@ export default function UploadedFileList({
       <div className="mb-4 flex flex-wrap items-center justify-end">
         <Select
           value={fileType}
-          onChange={v => {
-            setFileType(v as any);
+          onChange={(v) => {
+            setFileType(v);
             setPage(1);
           }}
           options={fileTypeOptions}
@@ -80,11 +80,11 @@ export default function UploadedFileList({
             <tr className="text-gray-600">
               <th className="w-10 px-4 py-2 text-left">
                 <Checkbox
-                  checked={pageItems.length > 0 && pageItems.every(d => selected[d.id])}
+                  checked={pageItems.length > 0 && pageItems.every((d) => selected[d.id])}
                   indeterminate={
-                    pageItems.some(d => selected[d.id]) && !pageItems.every(d => selected[d.id])
+                    pageItems.some((d) => selected[d.id]) && !pageItems.every((d) => selected[d.id])
                   }
-                  onChange={e => toggleAll(e.target.checked)}
+                  onChange={(e) => toggleAll(e.target.checked)}
                 />
               </th>
               <th className="px-4 py-2 text-left">파일명</th>
@@ -103,12 +103,12 @@ export default function UploadedFileList({
                 </td>
               </tr>
             ) : (
-              pageItems.map(doc => (
+              pageItems.map((doc) => (
                 <tr key={doc.id} className="border-b last:border-b-0">
                   <td className="px-4 py-2">
                     <Checkbox
                       checked={!!selected[doc.id]}
-                      onChange={e => setSelected(s => ({ ...s, [doc.id]: e.target.checked }))}
+                      onChange={(e) => setSelected((s) => ({ ...s, [doc.id]: e.target.checked }))}
                     />
                   </td>
 

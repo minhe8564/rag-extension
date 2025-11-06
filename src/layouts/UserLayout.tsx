@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { Outlet, NavLink } from 'react-router-dom';
-import { Menu, MessageSquare, Image, FolderCog, LogOut, Bell, UserCog } from 'lucide-react';
+import { Outlet, NavLink, useNavigate, useSearchParams } from 'react-router-dom';
+import { Menu, MessageSquare, Image, FolderCog, LogOut, Bell, UserCog, Search } from 'lucide-react';
 import Tooltip from '@/shared/components/Tooltip';
+import ChatList from '@/shared/components/chat/ChatList';
+import ChatSearchModal from '@/shared/components/chat/ChatSearchModal';
 import RetinaLogo from '@/assets/retina-logo.png';
 
 const labelCls = (isOpen: boolean) =>
@@ -18,6 +20,11 @@ const linkCls = ({ isActive }: { isActive: boolean }) =>
 
 export default function UserLayout() {
   const [isOpen, setIsOpen] = useState(true);
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const [sp] = useSearchParams();
+  const activeSessionNo = sp.get('session') || undefined;
+  const navigate = useNavigate();
 
   return (
     <div className="flex min-h-screen">
@@ -35,7 +42,7 @@ export default function UserLayout() {
             <div className="w-full flex justify-center">
               <Tooltip content="사이드바 열기" side="bottom" shiftX={15}>
                 <button
-                  onClick={() => setIsOpen(prev => !prev)}
+                  onClick={() => setIsOpen((prev) => !prev)}
                   className="text-[var(--color-retina)] hover:text-[var(--color-retina-dark)]"
                 >
                   <Menu size={22} />
@@ -60,7 +67,7 @@ export default function UserLayout() {
           <NavLink to="/user/chat/text" className={linkCls}>
             <MessageSquare size={18} className="flex-shrink-0" />
             <div className={labelCls(isOpen)}>
-              <span className="inline-block">텍스트 채팅</span>
+              <span className="inline-block">RAG 채팅</span>
             </div>
           </NavLink>
 
@@ -77,7 +84,31 @@ export default function UserLayout() {
               <span className="inline-block">내 문서 관리</span>
             </div>
           </NavLink>
+
+          <button
+            type="button"
+            className={
+              'flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ' +
+              'text-gray-700 hover:bg-[var(--color-retina)] hover:text-white'
+            }
+            onClick={() => setOpen(true)}
+          >
+            <Search size={18} className="flex-shrink-0" />
+            <div className={labelCls(isOpen)}>
+              <span className="inline-block">채팅 검색</span>
+            </div>
+          </button>
         </nav>
+
+        {isOpen && (
+          <div className="mt-3 px-2">
+            <ChatList
+              activeSessionNo={activeSessionNo}
+              onSelect={(s) => navigate(`/user/chat/text/${s.sessionNo}`)}
+              pageSize={20}
+            />
+          </div>
+        )}
 
         <div className="mt-auto px-2 pb-4">
           <NavLink
@@ -112,6 +143,14 @@ export default function UserLayout() {
           <Outlet />
         </div>
       </main>
+
+      <ChatSearchModal
+        open={open}
+        value={q}
+        onValueChange={setQ}
+        onClose={() => setOpen(false)}
+        onSelect={(s) => navigate(`/user/chat/text?session=${s.sessionNo}`)}
+      />
     </div>
   );
 }

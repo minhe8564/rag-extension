@@ -1,6 +1,7 @@
 // src/router/user.routes.ts
 import { createElement, lazy, Suspense } from 'react';
 import type { RouteObject } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import RequireAuth from '@/guards/RequireAuth';
 import UserLayout from '@/layouts/UserLayout';
 
@@ -22,8 +23,9 @@ export const userRoutes: RouteObject = {
     {
       element: createElement(Suspense, { fallback: FallbackDiv }, createElement(UserLayout)),
       children: [
-        { index: true, element: createElement(UserTextChat) }, // /user
+        { index: true, element: createElement(Navigate, { to: 'chat/text', replace: true }) },
         { path: 'chat/text', element: createElement(UserTextChat) },
+        { path: 'chat/text/:sessionNo', element: createElement(UserTextChat) },
         { path: 'chat/image', element: createElement(UserImageChat) },
         { path: 'documents', element: createElement(UserDocuments) },
         { path: 'profile', element: createElement(UserProfile) },

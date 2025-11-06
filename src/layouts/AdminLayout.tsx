@@ -85,7 +85,7 @@ export default function AdminLayout() {
           <NavLink to="/admin/chat" className={linkCls}>
             <MessageCirclePlus size={18} className="flex-shrink-0" />
             <div className={labelCls(isOpen)}>
-              <span className="inline-block">새 채팅 시작하기</span>
+              <span className="inline-block">RAG 채팅</span>
             </div>
           </NavLink>
 

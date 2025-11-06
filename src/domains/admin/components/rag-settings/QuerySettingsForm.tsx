@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Card from '@/shared/components/Card';
 import { LabelRow } from '@/domains/admin/components/rag-settings/ui/labelRow';
 import Select from '@/shared/components/Select';
+import type { Option } from '@/shared/components/Select';
 import { Slider } from '@/domains/admin/components/rag-settings/ui/Slider';
 import { Toggle } from '@/domains/admin/components/rag-settings/ui/Toggle';
 import PromptManager from '@/domains/admin/components/rag-settings/PromptManager';
@@ -80,7 +81,7 @@ export function QuerySettingsForm({
             <Select
               value={template}
               onChange={onTemplateChange}
-              options={queryTemplateOptions as any}
+              options={queryTemplateOptions as Option[]}
             />
           </div>
 
@@ -103,7 +104,7 @@ export function QuerySettingsForm({
             <Select
               value={queryEngine}
               onChange={setQueryEngine}
-              options={queryTransFormOptions as any}
+              options={queryTransFormOptions as Option[]}
             />
           </div>
         </div>
@@ -114,7 +115,7 @@ export function QuerySettingsForm({
             <Select
               value={searchAlgorithm}
               onChange={setSearchAlgorithm}
-              options={searchAlgorithmOptions as any}
+              options={searchAlgorithmOptions as Option[]}
             />
           </div>
         </div>
@@ -125,7 +126,7 @@ export function QuerySettingsForm({
             <input
               type="number"
               value={topK}
-              onChange={e => setTopK(Math.max(1, Number(e.target.value) || 1))}
+              onChange={(e) => setTopK(Math.max(1, Number(e.target.value) || 1))}
               min={1}
               className="w-full rounded-md border border-gray-200 px-3 py-2 text-base
                 focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-transparent
@@ -144,7 +145,11 @@ export function QuerySettingsForm({
         <div className="flex items-center justify-between gap-4">
           <LabelRow label="Re-ranking" hint="검색된 결과의 순위를 재조정하여 정확도를 높입니다." />
           <div className="max-w-sm w-full">
-            <Select value={reranking} onChange={setReranking} options={rerankingOptions as any} />
+            <Select
+              value={reranking}
+              onChange={setReranking}
+              options={rerankingOptions as Option[]}
+            />
           </div>
         </div>
       </Card>
@@ -167,7 +172,11 @@ export function QuerySettingsForm({
         <div className="flex items-center justify-between gap-4 mb-6">
           <LabelRow label="LLM 모델 선택" hint="응답을 생성할 언어 모델을 선택합니다." />
           <div className="max-w-xs w-full">
-            <Select value={llmModel} onChange={setLlmModel} options={llmModelsOptions as any} />
+            <Select
+              value={llmModel}
+              onChange={setLlmModel}
+              options={llmModelsOptions as Option[]}
+            />
           </div>
         </div>
 
@@ -186,7 +195,7 @@ export function QuerySettingsForm({
           <div className="flex-shrink-0">
             <Toggle
               checked={multimodal}
-              onChange={v => {
+              onChange={(v) => {
                 setMultimodal(v);
                 console.log('toggle multimodal', v);
               }}

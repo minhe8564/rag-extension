@@ -23,6 +23,9 @@ importers:
       event-source-polyfill:
         specifier: ^1.0.31
         version: 1.0.31
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
       highcharts:
         specifier: ^12.4.0
         version: 12.4.0

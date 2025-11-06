@@ -103,7 +103,7 @@ export default function ImageModal({ open, onClose, imageId, fallbackUrl }: Imag
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9998] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+      className="fixed inset-0 z-[9998] bg-black/60 flex items-center justify-center p-4"
       onClick={handleOverlayClick}
       role="dialog"
       aria-modal="true"

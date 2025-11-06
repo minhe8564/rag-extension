@@ -44,6 +44,6 @@ export const getImageDetail = async (imageId: string): Promise<GenerateImageResp
 
 // 이미지 삭제
 export const deleteImage = async (imageId: string): Promise<boolean> => {
-  const { data } = await fastApi.delete<ApiEnvelope<null>>(`/api/v1/images/${imageId}`);
-  return data.isSuccess;
+  const res = await fastApi.delete(`/api/v1/images/${imageId}`);
+  return res.status === 204;
 };

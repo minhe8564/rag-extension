@@ -17,10 +17,8 @@ export default function PromptManager({ storageKey, initialPrompts, onChange }: 
   const lsKey = `pm:${storageKey}`;
 
   const load = (): Prompt[] => {
-    try {
-      const raw = localStorage.getItem(lsKey);
-      if (raw) return JSON.parse(raw);
-    } catch {}
+    const raw = localStorage.getItem(lsKey);
+    if (raw) return JSON.parse(raw);
     return initialPrompts ?? [];
   };
 
@@ -32,13 +30,13 @@ export default function PromptManager({ storageKey, initialPrompts, onChange }: 
   const [openDelete, setOpenDelete] = useState(false);
 
   const selected = useMemo(
-    () => (selectedId ? (prompts.find(p => p.id === selectedId) ?? null) : null),
+    () => (selectedId ? (prompts.find((p) => p.id === selectedId) ?? null) : null),
     [prompts, selectedId]
   );
 
   const selectOptions = useMemo(
     () =>
-      prompts.map(p => ({
+      prompts.map((p) => ({
         label: p.name,
         value: p.id,
         desc: p.content.slice(0, 60),
@@ -53,7 +51,7 @@ export default function PromptManager({ storageKey, initialPrompts, onChange }: 
   };
 
   const handleSelect = (id: string) => {
-    const target = prompts.find(p => p.id === id);
+    const target = prompts.find((p) => p.id === id);
     if (!target) return;
     setSelectedId(id);
     setDraft({ ...target });
@@ -77,7 +75,7 @@ export default function PromptManager({ storageKey, initialPrompts, onChange }: 
   const confirmDelete = () => {
     if (!selected) return;
 
-    const next = prompts.filter(p => p.id !== selected.id);
+    const next = prompts.filter((p) => p.id !== selected.id);
     persist(next);
 
     if (next.length === 0) {
@@ -105,7 +103,7 @@ export default function PromptManager({ storageKey, initialPrompts, onChange }: 
     }
 
     if (!selected) return;
-    const next = prompts.map(p => (p.id === selected.id ? { ...draft } : p));
+    const next = prompts.map((p) => (p.id === selected.id ? { ...draft } : p));
     persist(next);
     setIsDirty(false);
   };
@@ -117,7 +115,7 @@ export default function PromptManager({ storageKey, initialPrompts, onChange }: 
           <div className="max-w-xs w-full">
             <Select
               value={isNew ? null : selectedId}
-              onChange={id => handleSelect(id)}
+              onChange={(id) => handleSelect(id)}
               options={selectOptions}
               placeholder="템플릿 선택"
               disabled={prompts.length === 0}
@@ -172,9 +170,9 @@ export default function PromptManager({ storageKey, initialPrompts, onChange }: 
         <input
           className="w-full rounded-md border border-gray-200 px-3 py-2 text-base focus:outline-none focus:ring-0 focus:border-gray-400"
           value={draft?.name ?? ''}
-          onChange={e => {
+          onChange={(e) => {
             if (!draft) return;
-            setDraft(d => ({ ...(d as Prompt), name: e.target.value }));
+            setDraft((d) => ({ ...(d as Prompt), name: e.target.value }));
             setIsDirty(true);
           }}
           placeholder="프롬프트 이름"
@@ -184,9 +182,9 @@ export default function PromptManager({ storageKey, initialPrompts, onChange }: 
         <textarea
           className="w-full min-h-[240px] rounded-md border border-gray-200 px-3 py-2 text-sm leading-6 focus:outline-none focus:ring-0 focus:border-gray-400"
           value={draft?.content ?? ''}
-          onChange={e => {
+          onChange={(e) => {
             if (!draft) return;
-            setDraft(d => ({ ...(d as Prompt), content: e.target.value }));
+            setDraft((d) => ({ ...(d as Prompt), content: e.target.value }));
             setIsDirty(true);
           }}
           placeholder="프롬프트 내용을 입력하세요"

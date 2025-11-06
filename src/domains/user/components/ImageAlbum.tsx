@@ -4,6 +4,8 @@ import PreviewTooltip from '@/domains/user/components/PreviewTooltip';
 import { getUserImages, deleteImage } from '@/domains/user/api/image.api';
 import type { GeneratedImage } from '@/domains/user/types/image.type';
 import { Loader2, ImageOff, Maximize2, Trash2 } from 'lucide-react';
+import { toast } from 'react-toastify';
+import ConfirmModal from '@/shared/components/ConfirmModal';
 
 export default function ImageAlbum() {
   const [images, setImages] = useState<GeneratedImage[]>([]);
@@ -14,6 +16,8 @@ export default function ImageAlbum() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [openFallbackUrl, setOpenFallbackUrl] = useState<string | undefined>(undefined);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchImages = async () => {
@@ -46,23 +50,30 @@ export default function ImageAlbum() {
     setOpenFallbackUrl(fallbackUrl);
   };
 
-  const onDelete = async (imageId: string) => {
-    const target = images.find((i) => i.image_id === imageId);
-    const name = target?.image_id ?? '이미지';
-    if (!confirm(`정말 삭제할까요?\n- ${name}`)) return;
+  const askDelete = (imageId: string) => {
+    setPendingDeleteId(imageId);
+    setConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!pendingDeleteId) return;
+
+    const imageId = pendingDeleteId;
+    setConfirmOpen(false);
+    setPendingDeleteId(null);
 
     setDeletingId(imageId);
-    // 낙관적 업데이트
+
     const prev = images;
     setImages((arr) => arr.filter((i) => i.image_id !== imageId));
 
     try {
       const ok = await deleteImage(imageId);
       if (!ok) throw new Error('삭제 실패');
-    } catch (e) {
-      // 롤백
+      toast.success(`이미지가 삭제되었습니다.`);
+    } catch {
       setImages(prev);
-      alert('삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+      toast.error('삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.');
     } finally {
       setDeletingId(null);
     }
@@ -87,7 +98,7 @@ export default function ImageAlbum() {
   return (
     <>
       <div
-        className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-6"
+        className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-6 z-0"
         onMouseMove={onMouseMove}
       >
         {images.map((img) => (
@@ -126,7 +137,7 @@ export default function ImageAlbum() {
                 className="rounded-full bg-white/90 backdrop-blur p-2 shadow hover:bg-white disabled:opacity-50"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onDelete(img.image_id);
+                  askDelete(img.image_id);
                 }}
                 disabled={deletingId === img.image_id}
                 aria-label="삭제"
@@ -150,6 +161,17 @@ export default function ImageAlbum() {
         onClose={() => setOpenId(null)}
         imageId={openId}
         fallbackUrl={openFallbackUrl}
+      />
+
+      <ConfirmModal
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={handleConfirmDelete}
+        title="이미지 삭제"
+        message={`정말 삭제할까요?\n [ImageId] ${pendingDeleteId ?? ''}`}
+        confirmText="삭제"
+        cancelText="취소"
+        variant="danger"
       />
     </>
   );

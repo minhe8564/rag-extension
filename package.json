@@ -48,6 +48,7 @@
     "@tanstack/react-query-devtools": "^5.90.2",
     "axios": "^1.12.2",
     "event-source-polyfill": "^1.0.31",
+    "clsx": "^2.1.1",
     "highcharts": "^12.4.0",
     "highcharts-react-official": "^3.2.3",
     "lucide-react": "^0.548.0",

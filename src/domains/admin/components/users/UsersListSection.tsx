@@ -25,25 +25,24 @@ export default function UsersListSection() {
   const loadUsers = async () => {
     try {
       setLoading(true);
-      const result = await getUsers({ pageSize: 9999 }); // 전체 유저 가져오기
+      const result = await getUsers();
       setAllUsers(result.data);
     } finally {
       setLoading(false);
     }
   };
 
-  // ✅ 필터 + 검색 + 페이지 적용
   const filteredUsers = useMemo(() => {
     let filtered = [...allUsers];
 
     if (filterRole !== 'ALL') {
-      filtered = filtered.filter(u => String(u.role) === filterRole);
+      filtered = filtered.filter((u) => String(u.role) === filterRole);
     }
 
     if (keyword.trim()) {
       const lower = keyword.toLowerCase();
       filtered = filtered.filter(
-        u => u.name.toLowerCase().includes(lower) || u.email.toLowerCase().includes(lower)
+        (u) => u.name.toLowerCase().includes(lower) || u.email.toLowerCase().includes(lower)
       );
     }
 
@@ -77,7 +76,7 @@ export default function UsersListSection() {
         <div className="flex gap-2">
           <Select
             value={filterRole}
-            onChange={v => {
+            onChange={(v) => {
               setFilterRole(v);
               setPageNum(1);
             }}
@@ -90,7 +89,7 @@ export default function UsersListSection() {
         <div className="flex gap-2">
           <input
             value={keyword}
-            onChange={e => {
+            onChange={(e) => {
               setKeyword(e.target.value);
               setPageNum(1);
             }}
@@ -131,7 +130,7 @@ export default function UsersListSection() {
                 </td>
               </tr>
             ) : (
-              paginatedUsers.map(u => (
+              paginatedUsers.map((u) => (
                 <tr key={u.userNo} className="border-t hover:bg-gray-50">
                   <td className="px-4 py-3">{u.email}</td>
                   <td className="px-4 py-3">{u.name}</td>

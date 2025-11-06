@@ -56,7 +56,7 @@ export default function ErrorTypes() {
     return 'bg-gray-100 text-gray-700 border border-gray-300';
   };
 
-  const startIndex = (currentPage - 1) * pageSize;
+  const startIndex = (pageNum - 1) * pageSize;
   const pageItems = sortedErrors.slice(startIndex, startIndex + pageSize);
 
   return (
@@ -87,14 +87,7 @@ export default function ErrorTypes() {
           </li>
         ))}
       </ul>
-      <Pagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={(p) => {
-          if (p < 1 || p > totalPages) return;
-          setCurrentPage(p);
-        }}
-      />
+      <Pagination page={pageNum} totalPages={totalPages} onPageChange={setPageNum} />
     </Card>
   );
 }

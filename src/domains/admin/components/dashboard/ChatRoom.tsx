@@ -88,7 +88,7 @@ export default function ChatRoom() {
         ))}
       </ul>
       <Pagination
-        currentPage={currentPage}
+        page={currentPage}
         totalPages={totalPages}
         onPageChange={(p) => {
           if (p < 1 || p > totalPages) return;
