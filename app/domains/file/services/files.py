@@ -306,7 +306,7 @@ async def list_files_by_offer(
             )
         )
 
-    return items
+    return items, total_items
 
 
 def _get_minio_client_for_base(base_url: str) -> Minio:
