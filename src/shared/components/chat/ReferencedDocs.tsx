@@ -8,12 +8,10 @@ import {
   File,
   FileSearch,
   ExternalLink,
-  Link as LinkIcon,
   Download,
-  Trash2,
+  EyeOff,
   Copy,
   ChevronDown,
-  RotateCw,
   Eye,
 } from 'lucide-react';
 import Tooltip from '@/shared/components/Tooltip';
@@ -24,7 +22,6 @@ type Props = {
   sessionNo: string;
   messageNo: string;
   collapsedByDefault?: boolean;
-  className?: string;
 };
 
 const getIconByType = (type?: string) => {
@@ -39,11 +36,9 @@ export default function ReferencedDocsPanel({
   sessionNo,
   messageNo,
   collapsedByDefault = false,
-  className,
 }: Props) {
   const [open, setOpen] = useState(!collapsedByDefault);
   const [hidden, setHidden] = useState(false); // 패널 자체 숨김
-  const [removedIds, setRemovedIds] = useState<Set<string>>(new Set()); // 문서별 숨김
   const lastCountRef = useRef<number>(0); // 숨김 상태에서도 N 표시용
 
   const { data, isFetching, isError, refetch } = useQuery({
@@ -62,24 +57,26 @@ export default function ReferencedDocsPanel({
   }, [data]);
 
   const docs = useMemo(() => {
-    const raw = (data ?? []) as ReferencedDocument[];
-    const filtered = raw.filter((d) => !removedIds.has(d.fileNo));
-    return filtered.sort((a, b) => a.index - b.index);
-  }, [data, removedIds]);
+    return (data ?? []) as ReferencedDocument[];
+  }, [data]);
+
+  if (docs.length === 0) {
+    return null;
+  }
 
   // 숨겨진 상태라면 "참조 문서 보기 (N)" 버튼만 노출
   if (hidden) {
     const count = docs.length || lastCountRef.current;
     return (
-      <div className={clsx('mt-2', className)}>
+      <div className="mt-2 text-gray-500 text-xs">
         <button
           onClick={() => {
             setHidden(false);
             setOpen(true);
           }}
-          className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm hover:bg-gray-50"
+          className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 hover:bg-gray-50 hover:text-black"
         >
-          <Eye size={16} />
+          <Eye size={14} />
           참조 문서 보기{typeof count === 'number' ? ` (${count})` : ''}
         </button>
       </div>
@@ -87,8 +84,7 @@ export default function ReferencedDocsPanel({
   }
 
   return (
-    <div className={clsx('mt-3 rounded-lg border bg-gray-50', className)}>
-      {/* Header */}
+    <div className="mt-3 rounded-lg border bg-gray-50">
       <div className="w-full flex items-center justify-between px-3 py-2">
         <button
           type="button"
@@ -98,10 +94,7 @@ export default function ReferencedDocsPanel({
         >
           <FileSearch size={16} className="text-gray-500" />
           참조 문서
-          <span className="text-gray-400">
-            ({docs.length}
-            {isFetching ? '…' : ''})
-          </span>
+          <span className="text-gray-400">({docs.length})</span>
           <ChevronDown
             size={16}
             className={clsx(
@@ -112,25 +105,14 @@ export default function ReferencedDocsPanel({
         </button>
 
         <div className="flex items-center gap-1">
-          <Tooltip content="새로고침" side="bottom">
-            <button
-              onClick={() => refetch()}
-              disabled={isFetching}
-              className="rounded p-1 hover:bg-gray-100 disabled:opacity-60"
-            >
-              <RotateCw size={16} className={clsx('text-gray-600', isFetching && 'animate-spin')} />
-            </button>
-          </Tooltip>
-
-          <Tooltip content="패널 숨기기" side="bottom">
+          <Tooltip content="참조 문서 숨기기" side="bottom">
             <button onClick={() => setHidden(true)} className="rounded p-1 hover:bg-gray-100">
-              <Trash2 size={16} className="text-gray-600" />
+              <EyeOff size={16} className="text-gray-600" />
             </button>
           </Tooltip>
         </div>
       </div>
 
-      {/* Body */}
       {open && (
         <div className="px-3 pb-3">
           {isError ? (
@@ -142,10 +124,6 @@ export default function ReferencedDocsPanel({
             </div>
           ) : isFetching && !data ? (
             <div className="rounded-md border bg-white p-3 text-sm text-gray-500">불러오는 중…</div>
-          ) : docs.length === 0 ? (
-            <div className="rounded-md border bg-white p-3 text-sm text-gray-500">
-              표시할 참조 문서가 없어요.
-            </div>
           ) : (
             <ul className="space-y-2">
               {docs.map((d) => {
@@ -185,49 +163,9 @@ export default function ReferencedDocsPanel({
                             target="_blank"
                             rel="noreferrer"
                             className="rounded p-1 hover:bg-gray-100"
-                            aria-label="open"
                           >
                             <ExternalLink size={16} className="text-gray-600" />
                           </a>
-                        </Tooltip>
-
-                        <Tooltip content="URL 복사" side="bottom">
-                          <button
-                            onClick={() => {
-                              navigator.clipboard.writeText(d.downloadUrl);
-                              toast.success('URL을 복사했어요.');
-                            }}
-                            className="rounded p-1 hover:bg-gray-100"
-                            aria-label="copy url"
-                          >
-                            <LinkIcon size={16} className="text-gray-600" />
-                          </button>
-                        </Tooltip>
-
-                        <Tooltip content="제목 복사" side="bottom">
-                          <button
-                            onClick={() => {
-                              navigator.clipboard.writeText(title);
-                              toast.success('제목을 복사했어요.');
-                            }}
-                            className="rounded p-1 hover:bg-gray-100"
-                            aria-label="copy title"
-                          >
-                            <Copy size={16} className="text-gray-600" />
-                          </button>
-                        </Tooltip>
-
-                        <Tooltip content="이 항목 숨기기" side="bottom">
-                          <button
-                            onClick={() => {
-                              setRemovedIds((prev) => new Set(prev).add(d.fileNo));
-                              toast.success('목록에서 숨겼어요.');
-                            }}
-                            className="rounded p-1 hover:bg-gray-100"
-                            aria-label="remove"
-                          >
-                            <Trash2 size={16} className="text-gray-600" />
-                          </button>
                         </Tooltip>
 
                         <Tooltip content="다운로드" side="bottom">
@@ -235,7 +173,6 @@ export default function ReferencedDocsPanel({
                             href={d.downloadUrl}
                             download
                             className="rounded p-1 hover:bg-gray-100"
-                            aria-label="download"
                           >
                             <Download size={16} className="text-gray-600" />
                           </a>

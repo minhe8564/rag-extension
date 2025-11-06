@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useParams, useSearchParams } from 'react-router-dom';
-import ChatInput from '@/shared/components/chat/ChatInput';
-import Tooltip from '@/shared/components/Tooltip';
 import { toast } from 'react-toastify';
-import { formatIsoDatetime } from '@/shared/util/iso';
-import { Wand2 } from 'lucide-react';
-import InlineReaskInput from '@/shared/components/chat/InlineReaskInput';
-import ReferencedDocsPanel from '@/shared/components/chat/ReferencedDocs';
+import ChatInput from '@/shared/components/chat/ChatInput';
+import ChatMessageItem from '@/shared/components/chat/ChatMessageItem';
+import type { UiMsg, UiRole } from '@/shared/components/chat/ChatMessageItem';
+import { getMessages, sendMessage, createSession } from '@/shared/api/chat.api';
+import ScrollToBottomButton from '@/shared/components/chat/ScrollToBottomButton';
 
 import type {
   ChatRole,
@@ -15,19 +14,7 @@ import type {
   SendMessageRequest,
   SendMessageResult,
   CreateSessionResult,
-  ReferencedDocument,
 } from '@/shared/types/chat.types';
-
-import { getMessages, sendMessage, createSession } from '@/shared/api/chat.api';
-
-type UiRole = 'user' | 'assistant' | 'system' | 'tool';
-type UiMsg = {
-  role: UiRole;
-  content: string;
-  createdAt?: string;
-  messageNo?: string;
-  referencedDocuments?: ReferencedDocument[];
-};
 
 const mapRole = (r: ChatRole): UiRole => (r === 'human' ? 'user' : r === 'ai' ? 'assistant' : r);
 
@@ -58,6 +45,13 @@ export default function TextChat() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [editingDraft, setEditingDraft] = useState<string>('');
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const isAtBottom = () => {
+    const el = scrollRef.current;
+    if (!el) return true;
+    return el.scrollTop + el.clientHeight >= el.scrollHeight - 50;
+  };
 
   const startReask = (idx: number, content: string) => {
     setEditingIdx(idx);
@@ -94,7 +88,6 @@ export default function TextChat() {
 
         setList(mapped);
 
-        // 쿼리/레거시 진입이면 주소 정규화
         if (location.pathname.includes('text:session=') || location.search.includes('session=')) {
           window.history.replaceState(history.state, '', `/user/chat/text/${derivedSessionNo}`);
         }
@@ -106,9 +99,11 @@ export default function TextChat() {
     })();
   }, [derivedSessionNo]);
 
-  // 새 메시지 추가 시 맨 아래로
+  // 새 메시지 추가 시: 내가 바닥에 있을 때만 자동 스크롤
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (isAtBottom()) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [list.length]);
 
   const ensureSession = async () => {
@@ -132,7 +127,6 @@ export default function TextChat() {
         role: 'assistant',
         content: result.content ?? '(응답이 없습니다)',
         createdAt: result.timestamp,
-        // result.messageNo가 있다면 여기에 넣어주세요.
         // messageNo: result.messageNo,
       };
       setList((prev) => [...prev, assistant]);
@@ -145,80 +139,39 @@ export default function TextChat() {
   const hasMessages = list.length > 0;
 
   return (
-    <section className="h-[calc(100vh-62px)] flex flex-col z-0">
+    <section className="flex flex-col z-0 h-full">
       {hasMessages ? (
         <>
-          <div className="flex-1 min-h-0 w-full flex justify-center overflow-y-scroll no-scrollbar">
-            <div className="w-full max-w-[75%] space-y-6 px-12 py-4">
-              {list.map((m, i) => {
-                const isUser = m.role === 'user';
-                const isEditingThis = isUser && editingIdx === i;
-
-                return (
-                  <div
-                    key={m.messageNo ?? i}
-                    className={
-                      'w-fit max-w-[75%] rounded-md border p-3 relative group break-words ' +
-                      (isUser ? 'ml-auto bg-[var(--color-retina-bg)] text-black' : 'bg-white')
-                    }
-                  >
-                    {/* 본문: 사용자 메시지 에디팅 시 인라인 입력 박스로 대체 */}
-                    {isEditingThis ? (
-                      <InlineReaskInput
-                        initialValue={editingDraft || m.content}
-                        onCancel={cancelReask}
-                        onSubmit={submitReask}
-                        placeholder="질문을 수정하세요… (Enter 전송, Shift+Enter 줄바꿈)"
-                      />
-                    ) : (
-                      <div className="whitespace-pre-wrap">{m.content}</div>
-                    )}
-
-                    {/* assistant 타임스탬프 */}
-                    {!isUser && m.createdAt && (
-                      <div className="text-[10px] text-gray-400 mt-1">
-                        {formatIsoDatetime(m.createdAt)}
-                      </div>
-                    )}
-
-                    {/* 액션바: 사용자 = 질문 재생성만, 어시스턴트는 생략 */}
-                    <div
-                      className={`
-                        absolute flex gap-2 items-center
-                        ${isUser ? 'right-2' : 'left-2'}
-                        bottom-[-30px] opacity-0 group-hover:opacity-100
-                        transition-opacity duration-200
-                      `}
-                    >
-                      {isUser && !isEditingThis && (
-                        <Tooltip content="질문 재생성 (수정 후 전송)" side="bottom">
-                          <button
-                            onClick={() => startReask(i, m.content)}
-                            className="p-1 rounded hover:bg-gray-100"
-                          >
-                            <Wand2 size={14} className="text-gray-500" />
-                          </button>
-                        </Tooltip>
-                      )}
-                    </div>
-
-                    {/* 어시스턴트 메시지의 참조 문서 패널 */}
-                    {!isUser && m.messageNo && currentSessionNo ? (
-                      <ReferencedDocsPanel
-                        sessionNo={currentSessionNo}
-                        messageNo={m.messageNo}
-                        collapsedByDefault={false}
-                      />
-                    ) : null}
-                  </div>
-                );
-              })}
+          <div
+            ref={scrollRef}
+            className="relative flex-1 min-h-0 w-full flex justify-center overflow-y-auto no-scrollbar"
+          >
+            <div className="w-full max-w-[75%] space-y-10 px-12 py-4">
+              {list.map((m, i) => (
+                <ChatMessageItem
+                  key={m.messageNo ?? i}
+                  msg={m}
+                  index={i}
+                  currentSessionNo={currentSessionNo}
+                  isEditing={m.role === 'user' && editingIdx === i}
+                  editingDraft={editingDraft}
+                  onStartReask={startReask}
+                  onCancelReask={cancelReask}
+                  onSubmitReask={submitReask}
+                />
+              ))}
               <div ref={bottomRef} />
             </div>
           </div>
-
-          <div className="sticky bottom-0 shrink-0 w-full flex justify-center pb-5 bg-white">
-            <div className="w-full max-w-[75%]">
+          <div className="sticky bottom-0 shrink-0 w-full flex flex-col items-center">
+            <div className="relative w-full flex justify-center mb-4">
+              <ScrollToBottomButton
+                containerRef={scrollRef}
+                watch={list.length}
+                className="absolute bottom-0"
+              />
+            </div>
+            <div className="w-full max-w-[75%] pb-6 bg-white">
               <ChatInput onSend={handleSend} variant="retina" />
             </div>
           </div>

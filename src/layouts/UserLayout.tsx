@@ -27,7 +27,7 @@ export default function UserLayout() {
   const navigate = useNavigate();
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-transparent">
       <aside
         className={`sticky top-0 self-start shrink-0 h-dvh flex flex-col bg-white transition-all duration-300 shadow-sm ${
           isOpen ? 'w-64 border-r' : 'w-[64px] border-r'
