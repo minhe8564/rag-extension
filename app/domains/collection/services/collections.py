@@ -64,6 +64,9 @@ async def list_collections_by_offer(
     items = [
         CollectionListItem(
             collectionNo=_bytes_to_uuid_str(row.collection_no),
+            name=row.name,
+            version=row.version,
+            ingestGroupNo=_bytes_to_uuid_str(row.ingest_group_no),
             createdAt=row.created_at,
         )
         for row in rows
