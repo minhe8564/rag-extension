@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Users, FileText, TriangleAlert, TrendingUp, TrendingDown } from 'lucide-react';
 import Card from '@/shared/components/Card';
 import { EventSourcePolyfill } from 'event-source-polyfill';
-
+import { useAuthStore } from '@/domains/auth/store/auth.store';
 import {
   getTotalUserCount,
   getUserChangeTrend,
@@ -23,6 +23,7 @@ export default function NumberBoard() {
 
   const SPRING_API_BASE_URL = import.meta.env.VITE_SPRING_BASE_URL;
 
+  const token = useAuthStore((state) => state.accessToken);
   // 실시간 데이터 로딩
   useEffect(() => {
     // getUserCount();
@@ -30,9 +31,16 @@ export default function NumberBoard() {
     // getErrorCount();
 
     // 3개의 EventSource를 한번에 관리
-    const authData = localStorage.getItem('auth-storage');
-    const token = authData ? JSON.parse(authData)?.state?.accessToken : null;
+    // const authData = localStorage.getItem('auth-storage');
+    // const token = authData ? JSON.parse(authData)?.state?.accessToken : null;
     console.log(token);
+
+    // 토큰 없으면 실행 x
+    if (!token) {
+      console.error('No access token found for SSE connection.');
+      return;
+    }
+
     const sources = {
       user: new EventSourcePolyfill(
         `${SPRING_API_BASE_URL}/api/v1/analytics/metrics/access-users/stream`,
@@ -114,6 +122,9 @@ export default function NumberBoard() {
     return () => {
       Object.values(sources).forEach((s) => s.close());
       console.log(' SSE 연결 종료');
+      sources.user.close();
+      sources.document.close();
+      sources.error.close();
     };
   }, []);
 
