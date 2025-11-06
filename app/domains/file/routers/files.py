@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from fastapi import APIRouter, Depends, File as FFile, UploadFile, Request, HTTPException, status, BackgroundTasks
 from typing import List
