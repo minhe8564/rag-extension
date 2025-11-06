@@ -2,7 +2,7 @@ from typing import Optional, Dict, Any
 import math
 import uuid
 
-from fastapi import APIRouter, Depends, Query, HTTPException, status, Header, Response
+from fastapi import APIRouter, Depends, Query, HTTPException, status, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....core.database import get_db
@@ -11,7 +11,9 @@ from ....core.error_responses import (
     not_found_error_response,
     conflict_error_response,
     public_endpoint_responses,
+    unauthorized_error_response,
 )
+from ....core.check_role import check_jwt_token
 from ..schemas.strategy import (
     StrategyListItem,
     PaginationInfo,
@@ -35,7 +37,11 @@ from ..services.strategy import (
 )
 
 
-router = APIRouter(prefix="/rag", tags=["RAG - Strategy Management"])
+router = APIRouter(
+    prefix="/rag",
+    tags=["RAG - Strategy Management"],
+    dependencies=[Depends(check_jwt_token())],
+)
 
 
 def _bytes_to_uuid_str(b: bytes) -> str:
@@ -54,6 +60,7 @@ def _bytes_to_uuid_str(b: bytes) -> str:
     description="새로운 RAG 전략을 생성합니다.",
     responses={
         201: {"description": "전략 생성 성공"},
+        401: unauthorized_error_response(),
         404: not_found_error_response("전략 유형"),
         409: conflict_error_response("전략"),
     },
@@ -103,6 +110,7 @@ async def create_strategy(
         400: {
             "description": "잘못된 전략 ID",
         },
+        401: unauthorized_error_response(),
         404: not_found_error_response("전략"),
         409: conflict_error_response("전략"),
     },
@@ -123,6 +131,10 @@ async def delete_strategy(
     response_model=BaseResponse[StrategyTypeListResponse],
     summary="전략 유형 목록 조회",
     description="전략 유형 목록을 조회합니다.",
+    responses={
+        200: {"description": "전략 유형 목록 조회 성공"},
+        401: unauthorized_error_response(),
+    },
 )
 async def get_strategy_types(
     session: AsyncSession = Depends(get_db),
@@ -156,6 +168,7 @@ async def get_strategy_types(
     description="새로운 전략 유형을 생성합니다.",
     responses={
         201: {"description": "전략 유형 생성 성공"},
+        401: unauthorized_error_response(),
         409: conflict_error_response("전략 유형"),
     },
 )
@@ -188,6 +201,7 @@ async def create_strategy_type(
     responses={
         204: {"description": "전략 유형 삭제 성공"},
         400: {"description": "잘못된 전략 유형 ID"},
+        401: unauthorized_error_response(),
         404: not_found_error_response("전략 유형"),
         409: conflict_error_response("전략 유형"),
     },
@@ -210,6 +224,7 @@ async def delete_strategy_type(
     description="전략 유형 이름으로 전략 유형을 삭제합니다.",
     responses={
         204: {"description": "전략 유형 삭제 성공"},
+        401: unauthorized_error_response(),
         404: not_found_error_response("전략 유형"),
         409: conflict_error_response("전략 유형"),
     },
@@ -230,7 +245,7 @@ async def delete_strategy_type_by_name(
     response_model=BaseResponse[Dict[str, Any]],
     summary="전략 목록 조회",
     description="RAG 전략 목록을 조회합니다.",
-    responses=public_endpoint_responses(),
+    responses={**public_endpoint_responses(), 401: unauthorized_error_response()},
 )
 async def get_strategies(
     type: Optional[str] = Query(None, description="전략 유형 필터"),
@@ -295,6 +310,7 @@ async def get_strategies(
     summary="전략 상세 조회",
     description="특정 전략의 상세 정보를 조회합니다.",
     responses={
+        401: unauthorized_error_response(),
         404: not_found_error_response("전략"),
     },
 )
