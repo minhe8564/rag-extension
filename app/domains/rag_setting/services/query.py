@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Optional, Tuple, List
 import uuid
 
-from sqlalchemy import select, func
+from sqlalchemy import select, func, update
 from sqlalchemy.orm import noload, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
@@ -51,6 +51,7 @@ async def create_query_template(
     user_prompt_parameters: dict,
     generation_no: str,
     generation_parameters: dict,
+    is_default: bool = False,
 ) -> str:
     """
     Query 템플릿 생성
@@ -120,10 +121,18 @@ async def create_query_template(
             detail=f"생성 전략을 찾을 수 없습니다: {generation_no}"
         )
 
+    # 기존 기본 템플릿 해제
+    if is_default:
+        await session.execute(
+            update(QueryGroup)
+            .where(QueryGroup.is_default.is_(True))
+            .values(is_default=False)
+        )
+
     # Query 그룹 생성
     query_group = QueryGroup(
         name=name,
-        is_default=False,
+        is_default=is_default,
         transformation_strategy_no=uuid_to_binary(transformation_no),
         retrieval_strategy_no=uuid_to_binary(retrieval_no),
         reranking_strategy_no=uuid_to_binary(reranking_no),
@@ -285,6 +294,7 @@ async def update_query_template(
     user_prompt_parameters: dict,
     generation_no: str,
     generation_parameters: dict,
+    is_default: Optional[bool] = None,
 ) -> QueryGroup:
     """
     Query 템플릿 수정
@@ -374,6 +384,20 @@ async def update_query_template(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"생성 전략을 찾을 수 없습니다: {generation_no}"
         )
+
+    # 기본 템플릿 설정 여부 처리
+    if is_default is True:
+        await session.execute(
+            update(QueryGroup)
+            .where(
+                QueryGroup.is_default.is_(True),
+                QueryGroup.query_group_no != query_binary,
+            )
+            .values(is_default=False)
+        )
+        query_group.is_default = True
+    elif is_default is False:
+        query_group.is_default = False
 
     # Query 템플릿 업데이트
     query_group.name = name

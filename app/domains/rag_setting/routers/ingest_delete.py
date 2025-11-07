@@ -6,7 +6,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....core.database import get_db
 from ....core.check_role import check_role
-from ....core.error_responses import admin_only_responses
 from ..services.ingest import delete_ingest_template
 
 
@@ -18,10 +17,6 @@ router = APIRouter(prefix="/rag", tags=["RAG - Ingest Template Management"])
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Ingest 템플릿 삭제 (관리자 전용)",
     description="Ingest 템플릿을 삭제합니다. 관리자만 접근 가능합니다.",
-    responses={
-        **admin_only_responses(),
-        204: {"description": "템플릿 삭제 성공 (응답 본문 없음)"},
-    },
 )
 async def delete_ingest_template_endpoint(
     ingestNo: str,

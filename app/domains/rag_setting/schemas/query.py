@@ -24,6 +24,7 @@ class QueryTemplateCreateRequest(BaseModel):
     systemPrompt: StrategyWithParameter = Field(..., description="시스템 프롬프트 전략")
     userPrompt: StrategyWithParameter = Field(..., description="사용자 프롬프트 전략")
     generation: StrategyWithParameter = Field(..., description="생성 전략")
+    isDefault: bool = Field(False, description="기본 템플릿 여부", json_schema_extra={"example": False})
 
     class Config:
         json_schema_extra = {
@@ -71,7 +72,8 @@ class QueryTemplateCreateRequest(BaseModel):
                         "maxTokens": 768,
                         "topP": 0.95
                     }
-                }
+                },
+                "isDefault": False
             }
         }
 
@@ -127,6 +129,7 @@ class QueryTemplateUpdateRequest(BaseModel):
     systemPrompt: StrategyWithParameter = Field(..., description="시스템 프롬프트 전략")
     userPrompt: StrategyWithParameter = Field(..., description="사용자 프롬프트 전략")
     generation: StrategyWithParameter = Field(..., description="생성 전략")
+    isDefault: Optional[bool] = Field(None, description="기본 템플릿 여부")
 
     class Config:
         json_schema_extra = {
@@ -163,6 +166,7 @@ class QueryTemplateUpdateRequest(BaseModel):
                         "max_tokens": 768,
                         "topP": 0.95
                     }
-                }
+                },
+                "isDefault": True
             }
         }
