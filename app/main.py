@@ -14,7 +14,7 @@ from .domains.file.routers.files_presigned_by_no import router as files_presigne
 from .domains.collection.routers.collections import router as collections_router
 from .domains.image.routers.image_controller import router as image_router
 from .domains.rag_setting.routers import rag_router
-from .domains.collection.routers.test_collection_router import router as test_collection_router
+from .domains.test.routers.test_collection_router import router as test_collection_router
 from .domains.monitoring.routers.monitoring_controller import router as monitoring_router
 from datetime import datetime
 
