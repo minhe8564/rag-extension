@@ -1,7 +1,8 @@
 import uuid
 from typing import List, Optional
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
+
 
 from ..models.test_collection import TestCollection
 
@@ -15,6 +16,11 @@ def _bytes_to_uuid_str(b: bytes) -> str:
 
 def _uuid_str_to_bytes(u: str) -> bytes:
     return uuid.UUID(u).bytes
+
+async def count_test_collections(session: AsyncSession) -> int:
+    stmt = select(func.count()).select_from(TestCollection)
+    result = await session.execute(stmt)
+    return result.scalar_one()
 
 
 async def list_test_collections(

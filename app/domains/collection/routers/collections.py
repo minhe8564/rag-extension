@@ -21,7 +21,7 @@ router = APIRouter(prefix="/collections", tags=["Collection"])
 async def list_collection_files(
     collection_no: str,
     pageNum: int = Query(1, ge=1, description="페이지 번호"),
-    pageSize: int = Query(20, ge=1, le=100, description="페이지 크기"),
+    pageSize: int = Query(5, ge=1, le=100, description="페이지 크기"),
     session: AsyncSession = Depends(get_db),
     http_request: Request = None,
 ):
@@ -51,7 +51,7 @@ async def list_collection_files(
     return BaseResponse[Dict[str, Any]](
         status=200,
         code="OK",
-        message="Fetched collection files successfully.",
+        message="컬렉션 조회 성공",
         isSuccess=True,
         result={
             "data": {
