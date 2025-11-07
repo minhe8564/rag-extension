@@ -21,6 +21,12 @@ RUN set -eux; \
     uv sync --frozen --no-dev; \
     .venv/bin/python -c "import uvicorn; print(f'✓ uvicorn {uvicorn.__version__} installed')" || (echo "ERROR: uvicorn not found!" && exit 1)
 
+# CUDA 버전 PyTorch 설치 (시스템 uv 사용, venv 지정)
+RUN uv pip install --python /app/.venv/bin/python --no-cache-dir --index-url https://download.pytorch.org/whl/cu126 \
+    torch==2.7.0+cu126 \
+    torchvision==0.22.0+cu126 \
+    torchaudio==2.7.0+cu126
+
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -37,9 +43,6 @@ COPY --from=builder /app/pyproject.toml /app/uv.lock ./
 # 앱 코드 복사
 COPY . .
 
-# .env 파일 복사 (선택적 - 보안 주의)
-# COPY .env . || true
-
 # 가상환경 우선 사용
 ENV PATH="/app/.venv/bin:${PATH}"
 
@@ -51,8 +54,8 @@ RUN /app/.venv/bin/python -c "import uvicorn; print(f'uvicorn version: {uvicorn.
 ENV HF_HOME=/cache/hf \
     TRANSFORMERS_CACHE=/cache/hf \
     WORK_DIR=/work \
-    MARKER_DEVICE=cpu \
-    MARKER_DTYPE=float32 \
+    MARKER_DEVICE=cuda \
+    MARKER_DTYPE=float16 \
     TQDM_DISABLE=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
