@@ -1,28 +1,24 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Request, HTTPException, status, Query, Depends
+from fastapi import APIRouter, Depends, Request, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 import uuid
 
-from app.core.schemas import BaseResponse
 from app.core.database import get_db
-from ..schemas.response.presigned_url import PresignedUrl
-from ..services import files as files_service
+from app.core.schemas import BaseResponse
 from ..repositories.file_repository import FileRepository
+from ..services.common import _get_offer_no_by_user
+from ..services.delete import delete_file_entity
 
 
 router = APIRouter(prefix="/files", tags=["File"])
 
 
-@router.get("/{fileNo}/presigned", response_model=BaseResponse[PresignedUrl])
-async def generate_presigned_url_by_file_no(
+@router.delete("/{fileNo}", response_model=BaseResponse[dict])
+async def delete_file(
     fileNo: str,
     http_request: Request,
     session: AsyncSession = Depends(get_db),
-    days: int = Query(7, ge=1, le=7, description="만료 일수(1~7일)"),
-    inline: bool = Query(False, description="표시 방식(true=inline, false=download). 기본값: download"),
-    contentType: str | None = Query(None, description="응답 Content-Type 강제 지정"),
-    versionId: str | None = Query(None, description="특정 버전 ID"),
 ):
     x_user_role = http_request.headers.get("x-user-role")
     x_user_uuid = http_request.headers.get("x-user-uuid")
@@ -38,28 +34,26 @@ async def generate_presigned_url_by_file_no(
     if not file_rec:
         raise HTTPException(status_code=404, detail="File not found")
 
-    if x_user_role != "ADMIN":
+    # Permission check: non-ADMIN can only delete their offer's file
+    role_upper = (x_user_role or "").upper()
+    if role_upper != "ADMIN":
         try:
             user_no_bytes = uuid.UUID(x_user_uuid).bytes
         except Exception:
             raise HTTPException(status_code=400, detail="Invalid x-user-uuid format (UUID required)")
-        offer_no = await files_service._get_offer_no_by_user(session, user_no_bytes)
+        offer_no = await _get_offer_no_by_user(session, user_no_bytes)
         if file_rec.offer_no != offer_no:
             raise HTTPException(status_code=403, detail="Forbidden: file does not belong to your offer")
 
-    url = await files_service.get_presigned_url(
-        bucket=file_rec.bucket,
-        object_name=file_rec.path,
-        content_type=contentType,
-        days=days,
-        version_id=versionId,
-        inline=inline,
-    )
+    # Perform deletion (MinIO -> vector cleanup -> DB)
+    await delete_file_entity(session, file_row=file_rec, user_role=role_upper)
+    await session.commit()
 
-    return BaseResponse[PresignedUrl](
+    return BaseResponse[dict](
         status=200,
         code="OK",
-        message="Presigned URL 생성 완료",
+        message="파일 삭제 완료",
         isSuccess=True,
-        result={"data": PresignedUrl(url=url)},
+        result={"data": {"fileNo": fileNo, "deleted": True}},
     )
+

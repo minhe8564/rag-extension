@@ -7,10 +7,11 @@ from .core.utils import custom_openapi
 from .core.exception_handlers import register_exception_handlers
 
 from .domains.file.routers.file_category import router as file_router
-from .domains.file.routers.files import router as files_router
-from .domains.file.routers.files_list import router as files_list_router
-from .domains.file.routers.files_presigned import router as files_presigned_router
-from .domains.file.routers.files_presigned_by_no import router as files_presigned_by_no_router
+from .domains.file.routers.file_upload import router as files_router
+from .domains.file.routers.file_list import router as files_list_router
+from .domains.file.routers.file_presigned import router as files_presigned_router
+from .domains.file.routers.file_presigned_by_no import router as files_presigned_by_no_router
+from .domains.file.routers.file_delete import router as files_delete_router
 from .domains.collection.routers.collections import router as collections_router
 from .domains.image.routers.image_controller import router as image_router
 from .domains.rag_setting.routers import rag_router
@@ -49,6 +50,7 @@ app.include_router(files_router, prefix="/api/v1")
 app.include_router(files_list_router, prefix="/api/v1")
 app.include_router(files_presigned_router, prefix="/api/v1")
 app.include_router(files_presigned_by_no_router, prefix="/api/v1")
+app.include_router(files_delete_router, prefix="/api/v1")
 
 # Collection domain routers
 app.include_router(collections_router, prefix="/api/v1")

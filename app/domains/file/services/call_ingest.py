@@ -41,4 +41,3 @@ async def call_ingest(*, user_role: str, batch_meta: UploadBatchMeta) -> None:
             logger.info("Ingest call success: status=%s", resp.status_code)
     except Exception as e:
         logger.exception("Ingest call failed: %s", e)
-
