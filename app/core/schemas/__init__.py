@@ -9,6 +9,7 @@ T = TypeVar("T")
 
 class Result(BaseModel, Generic[T]):
     data: T
+    pagination: "Pagination | None" = None
 
 
 class BaseResponse(BaseModel, Generic[T]):
