@@ -17,6 +17,7 @@ class RoleChecker:
             default=None,
             alias="x-user-role",
             description="게이트웨이가 전달하는 사용자 역할 헤더 (예: USER, ADMIN)",
+            include_in_schema=False,
         ),
     ) -> str:
         if x_user_role is None:
