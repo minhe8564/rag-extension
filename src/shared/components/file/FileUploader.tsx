@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState, type DragEvent } from 'react';
 import { UploadCloud } from 'lucide-react';
 import { getCategories } from '@/shared/api/file.api';
-import { categoryMap } from '@/shared/store/categoryMap';
+import { useCategoryStore } from '@/shared/store/categoryMap';
 
 type Brand = 'hebees' | 'retina';
 type CategoryId = string;
-type CategoryOption = { id: CategoryId; name: string };
 
 type Props = {
   onUpload: (payload: { files: File[]; category: CategoryId }) => void;
@@ -31,33 +30,43 @@ export default function FileDropzone({
   const inputRef = useRef<HTMLInputElement>(null);
   const dragCounterRef = useRef(0);
 
-  const [categoryList, setCategoryList] = useState<CategoryOption[]>([]);
+  const categoryList = useCategoryStore((s) => s.categoryList);
+  const categoryMap = useCategoryStore((s) => s.categoryMap);
+  const setCategories = useCategoryStore((s) => s.setCategories);
+
   const [categoryId, setCategoryId] = useState<CategoryId>('');
   const [isOver, setIsOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let active = true;
+    if (categoryList.length > 0) return;
+
     (async () => {
       const res = await getCategories();
-      const list = res.data.data ?? [];
-      list.forEach((c) => {
-        categoryMap[c.categoryNo] = c.name;
-      });
-      setCategoryList(list.map((c) => ({ id: c.categoryNo, name: c.name })));
+      const list = (res.data?.result?.data ?? res.data?.result ?? []) as Array<{
+        categoryNo: string;
+        name: string;
+      }>;
+      if (!active) return;
+      setCategories(list);
     })();
-  }, []);
+
+    return () => {
+      active = false;
+    };
+  }, [categoryList.length, setCategories]);
 
   const nameById = (id?: string) => (id ? (categoryMap[id] ?? '') : '');
 
   useEffect(() => {
     if (!categoryList.length) return;
-
     const exists = categoryList.some((c) => c.id === categoryId);
-    if (!exists || !categoryId) {
-      const byName = categoryList.find((c) => c.name === defaultCategory)?.id;
-      const fallback = byName ?? categoryList[0]?.id ?? '';
-      if (fallback) setCategoryId(fallback);
-    }
+    if (exists && categoryId) return;
+
+    const byName = categoryList.find((c) => c.name === defaultCategory)?.id;
+    const fallback = byName ?? categoryList[0]?.id ?? '';
+    if (fallback) setCategoryId(fallback);
   }, [categoryList, defaultCategory, categoryId]);
 
   const openFileDialog = () => {

@@ -151,7 +151,7 @@ export default function UsersListSection() {
       </div>
 
       <Pagination
-        page={pageNum}
+        pageNum={pageNum}
         totalPages={totalPages}
         onPageChange={setPageNum}
         className="mt-4"

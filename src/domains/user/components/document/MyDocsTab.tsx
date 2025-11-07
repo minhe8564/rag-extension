@@ -10,7 +10,7 @@ const PAGE_SIZE = 20;
 
 export default function MyDocsTab() {
   const [myDocs, setMyDocs] = useState<MyDoc[]>([]);
-  const [page, setPage] = useState(() => {
+  const [pageNum, setPageNum] = useState(() => {
     const q = new URLSearchParams(window.location.search);
     const p = Number(q.get('p') ?? '1');
     return Number.isFinite(p) && p > 0 ? p : 1;
@@ -31,8 +31,8 @@ export default function MyDocsTab() {
       setLoading(true);
       try {
         const { items, total, totalPages, hasNext } = await fetchMyDocumentsNormalized({
-          page,
-          size: PAGE_SIZE,
+          pageNum,
+          pageSize: PAGE_SIZE,
         });
 
         if (!active || myReqId !== reqSeq.current) return;
@@ -47,15 +47,15 @@ export default function MyDocsTab() {
     })();
 
     const url = new URL(window.location.href);
-    url.searchParams.set('p', String(page));
+    url.searchParams.set('p', String(pageNum));
     window.history.replaceState({}, '', url);
 
     return () => {
       active = false;
     };
-  }, [page, refreshTick]);
+  }, [pageNum, refreshTick]);
 
-  const hasPrev = page > 1;
+  const hasPrev = pageNum > 1;
 
   const uploadedDocs: UploadedDoc[] = useMemo(
     () =>
@@ -106,20 +106,21 @@ export default function MyDocsTab() {
             hideFooter
           />
         )}
+
         {totalPages > 1 && (
           <Pagination
-            page={page}
+            pageNum={pageNum}
             totalPages={totalPages}
             hasPrev={hasPrev}
-            hasNext={hasNext || page < totalPages}
+            hasNext={hasNext || pageNum < totalPages}
             isLoading={loading}
             onPageChange={(newPage) => {
-              const isNextClick = newPage === page + 1;
+              const isNextClick = newPage === pageNum + 1;
               if (newPage < 1) return;
               if (!isNextClick && newPage > totalPages) return;
-              if (isNextClick && !(hasNext || page < totalPages)) return;
+              if (isNextClick && !(hasNext || pageNum < totalPages)) return;
 
-              setPage(newPage);
+              setPageNum(newPage);
               window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
             }}
             className="mt-4"

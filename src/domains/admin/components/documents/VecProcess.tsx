@@ -40,7 +40,7 @@ export default function VecProcess({
       <div className="flex justify-between items-center mb-4 border-b pb-2">
         {/* 오른쪽 페이지네이션 */}
         <Pagination
-          page={currentIndex + 1}
+          pageNum={currentIndex + 1}
           totalPages={totalFiles}
           onPageChange={handlePageChange}
         />

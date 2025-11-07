@@ -87,7 +87,7 @@ export default function ErrorTypes() {
           </li>
         ))}
       </ul>
-      <Pagination page={pageNum} totalPages={totalPages} onPageChange={setPageNum} />
+      <Pagination pageNum={pageNum} totalPages={totalPages} onPageChange={setPageNum} />
     </Card>
   );
 }
