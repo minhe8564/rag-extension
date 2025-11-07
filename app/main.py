@@ -16,6 +16,7 @@ from .domains.image.routers.image_controller import router as image_router
 from .domains.rag_setting.routers import rag_router
 from .domains.test.routers.test_collection_router import router as test_collection_router
 from .domains.monitoring.routers.monitoring_controller import router as monitoring_router
+from .domains.runpod.routers.runpod_controller import router as runpod_router
 from datetime import datetime
 
 app = FastAPI(
@@ -61,6 +62,7 @@ app.include_router(rag_router, prefix="/api/v1")
 
 # Monitoring domain router
 app.include_router(monitoring_router, prefix="/api/v1")
+app.include_router(runpod_router, prefix="/api/v1")
 
 @app.get("/")
 async def root():
