@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Generic, TypeVar
+from typing import Generic, TypeVar, Dict, Any
 from pydantic import BaseModel
 
 
@@ -9,6 +9,7 @@ T = TypeVar("T")
 
 class Result(BaseModel, Generic[T]):
     data: T
+    pagination: "Pagination | None" = None
 
 
 class BaseResponse(BaseModel, Generic[T]):
@@ -16,7 +17,7 @@ class BaseResponse(BaseModel, Generic[T]):
     code: str
     message: str
     isSuccess: bool
-    result: Result[T]
+    result: Result[T] | Dict[str, Any]
 
 
 class Pagination(BaseModel):

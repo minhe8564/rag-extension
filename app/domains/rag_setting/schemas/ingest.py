@@ -113,6 +113,7 @@ class StrategyUpdateItem(BaseModel):
 class IngestTemplateUpdateRequest(BaseModel):
     """Ingest 템플릿 수정 요청"""
     name: str = Field(..., description="템플릿 이름", max_length=100)
+    isDefault: bool = Field(False, description="기본 템플릿 여부")
     extractions: List[StrategyUpdateItem] = Field(..., description="추출 전략 목록")
     chunking: StrategyUpdateItem = Field(..., description="청킹 전략")
     denseEmbeddings: List[StrategyUpdateItem] = Field(..., description="밀집 임베딩 전략 목록")

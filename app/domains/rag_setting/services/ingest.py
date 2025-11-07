@@ -295,6 +295,7 @@ async def update_ingest_template(
     chunking_parameters: dict,
     embedding_no: str,
     embedding_parameters: dict,
+    is_default: bool,
 ) -> IngestGroup:
     """
     Ingest 템플릿 수정
@@ -348,6 +349,19 @@ async def update_ingest_template(
     ingest_group.extraction_parameter = extraction_parameters or {}
     ingest_group.chunking_parameter = chunking_parameters or {}
     ingest_group.embedding_parameter = embedding_parameters or {}
+
+    if is_default:
+        await session.execute(
+            update(IngestGroup)
+            .where(
+                IngestGroup.is_default.is_(True),
+                IngestGroup.ingest_group_no != ingest_binary,
+            )
+            .values(is_default=False)
+        )
+        ingest_group.is_default = True
+    else:
+        ingest_group.is_default = False
 
     await session.commit()
 

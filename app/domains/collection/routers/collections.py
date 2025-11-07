@@ -17,7 +17,7 @@ from app.domains.file.schemas.response.files import FileListItem
 router = APIRouter(prefix="/collections", tags=["Collection"])
 
 
-@router.get("/{collection_no}/files", response_model=BaseResponse[Dict[str, Any]])
+@router.get("/{collection_no}/files", response_model=BaseResponse[List[FileListItem]])
 async def list_collection_files(
     collection_no: str,
     pageNum: int = Query(1, ge=1, description="페이지 번호"),
@@ -48,30 +48,28 @@ async def list_collection_files(
     total_pages = math.ceil(total_items / pageSize) if total_items > 0 else 0
     has_next = pageNum < total_pages
 
-    return BaseResponse[Dict[str, Any]](
+    return BaseResponse[List[FileListItem]](
         status=200,
         code="OK",
         message="컬렉션 조회 성공",
         isSuccess=True,
         result={
-            "data": {
-                "data": items,
-                "pagination": Pagination(
+            "data": items,
+            "pagination": Pagination(
                     pageNum=pageNum,
                     pageSize=pageSize,
                     totalItems=total_items,
                     totalPages=total_pages,
                     hasNext=has_next,
-                ),
-            }
+            ),
         },
     )
 
 
-@router.get("", response_model=BaseResponse[Dict[str, Any]])
+@router.get("", response_model=BaseResponse[List[CollectionListItem]])
 async def list_collections(
     pageNum: int = Query(1, ge=1, description="페이지 번호"),
-    pageSize: int = Query(20, ge=1, le=100, description="페이지 크기"),
+    pageSize: int = Query(5, ge=1, le=100, description="페이지 크기"),
     session: AsyncSession = Depends(get_db),
     http_request: Request = None,
 ):
@@ -97,21 +95,19 @@ async def list_collections(
     total_pages = math.ceil(total_items / pageSize) if total_items > 0 else 0
     has_next = pageNum < total_pages
 
-    return BaseResponse[Dict[str, Any]](
+    return BaseResponse[List[CollectionListItem]](
         status=200,
         code="OK",
-        message="Fetched collections successfully.",
+        message="컬렉션 조회 성공",
         isSuccess=True,
         result={
-            "data": {
-                "data": items,
-                "pagination": Pagination(
+            "data": items,
+            "pagination": Pagination(
                     pageNum=pageNum,
                     pageSize=pageSize,
                     totalItems=total_items,
                     totalPages=total_pages,
                     hasNext=has_next,
-                ),
-            }
+            ),
         },
     )

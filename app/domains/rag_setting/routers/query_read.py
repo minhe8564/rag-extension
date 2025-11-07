@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ....core.database import get_db
 from ....core.schemas import BaseResponse, Result
 from ....core.check_role import check_role
-from ....core.error_responses import admin_only_responses, invalid_input_error_response
 from ..schemas.query import (
     QueryTemplateListItem,
     QueryTemplateDetailResponse,
@@ -34,7 +33,6 @@ MAX_PAGE_SIZE = 100
     summary="Query 템플릿 목록 조회 (관리자 전용)",
     description="Query 템플릿 목록을 조회합니다. 관리자만 접근 가능합니다.",
     responses={
-        **admin_only_responses(),
         200: {
             "description": "Query 템플릿 목록 조회 성공",
             "content": {
@@ -47,13 +45,18 @@ MAX_PAGE_SIZE = 100
                         "result": {
                             "data": [
                                 {
-                                    "queryNo": "query0001",
+                                    "queryNo": "56511d54-b561-4a7c-9e0c-4bd1d0961ac8",
                                     "name": "기본 Query 템플릿",
                                     "isDefault": True
+                                },
+                                {
+                                    "queryNo": "56511d54-b561-4a7c-9e0c-4bd1d0961ac8",
+                                    "name": "확장된 Query 템플릿",
+                                    "isDefault": False
                                 }
                             ],
                             "pagination": {
-                                "totalItems": 1,
+                                "totalItems": 2,
                                 "totalPages": 1,
                                 "currentPage": 1,
                                 "pageSize": 20,
@@ -64,7 +67,6 @@ MAX_PAGE_SIZE = 100
                 }
             }
         },
-        400: invalid_input_error_response(["pageNum", "pageSize"]),
     },
 )
 async def list_query_templates_endpoint(
@@ -80,32 +82,19 @@ async def list_query_templates_endpoint(
     Args:
         pageNum: 페이지 번호 (기본값: 1)
         pageSize: 페이지 크기 (기본값: 20, 최대값: 100)
-        sort: 정렬 기준 (name, created_at)
         x_user_role: 사용자 역할 (헤더, 전역 security에서 자동 주입)
         session: 데이터베이스 세션
 
     Returns:
         BaseResponse[Dict[str, Any]]: Query 템플릿 목록 및 페이지네이션 정보
-
-    Raises:
-        HTTPException 400: 정렬 기준이 올바르지 않음
     """
-    # Validate sort parameter
-    if sort not in ["name", "created_at"]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "message": "정렬 기준이 올바르지 않습니다.",
-                "missing": ["sort"]
-            }
-        )
 
     # Get query templates
     query_templates, total_items = await list_query_templates(
         session=session,
         page_num=pageNum,
         page_size=pageSize,
-        sort_by=sort,
+        sort_by="name",
     )
 
     # Transform to response schema
@@ -136,13 +125,12 @@ async def list_query_templates_endpoint(
         code="SUCCESS",
         message="Query 템플릿 목록 조회에 성공하였습니다.",
         isSuccess=True,
-        result=Result(
-            data={
+        result={
                 "data": [item.model_dump() for item in data],
                 "pagination": pagination.model_dump(),
             }
-        )
     )
+    
 
     return response
 
@@ -154,7 +142,6 @@ async def list_query_templates_endpoint(
     summary="Query 템플릿 상세 조회 (관리자 전용)",
     description="Query 템플릿 상세 정보를 조회합니다. 관리자만 접근 가능합니다.",
     responses={
-        **admin_only_responses(),
         200: {
             "description": "Query 템플릿 상세 조회 성공",
             "content": {
@@ -172,13 +159,14 @@ async def list_query_templates_endpoint(
                                 "no": "1a7c2b6e-4d3f-45b1-98c0-6e2c4f9a7b32",
                                 "name": "HyDE",
                                 "description": "질문을 가상의 이상적 문서로 확장하여 검색 적합도를 높임",
-                                "parameters": {}
+                                "parameters": { "code": "HyDE" }
                             },
                             "retrieval": {
                                 "no": "7e3b9d12-8a41-4a1a-9c45-2f9d3a6b1c54",
                                 "name": "Hybrid",
                                 "description": "시맨틱 검색 + 키워드 검색 후 리랭킹",
                                 "parameters": {
+                                    "code": "Hybrid",
                                     "semantic": {"top_k": 20, "threshold": 0.6},
                                     "keyword": {"top_k": 20},
                                     "reranker": {"type": "weighted", "weight": 0.4, "top_k": 10}
@@ -195,65 +183,34 @@ async def list_query_templates_endpoint(
                             },
                             "systemPrompt": {
                                 "no": "b2e7c1a9-5d2f-4b3c-8a11-7f9e2c3d4a66",
-                                "name": "System.GroundedAnswer",
-                                "description": "출처 인용, 근거 기반의 간결한 답변 지시",
+                                "name": "기본 시스템 프롬프트",
+                                "description": "기본 시스템 프롬프트",
                                 "parameters": {
-                                    "type": "system",
-                                    "content": "너는 내부 문서를 근거로만 답한다."
+                                    "content": "당신은 유용한 RAG 어시스턴트입니다. 사용자의 언어(기본: 한국어)로 간결하게 답하고, 정확성을 최우선으로 하며, 모든 주장은 검색·조회된 출처에 근거해 제시하세요."
                                 }
                             },
                             "userPrompt": {
                                 "no": "4f1a2c3b-9d7e-4e55-8a66-1b2c3d4e5f70",
-                                "name": "UserTemplate.QA",
-                                "description": "사용자 질의 템플릿과 컨텍스트 주입",
+                                "name": "기본 사용자 프롬프트",
+                                "description": "기본 사용자 프롬프트",
                                 "parameters": {
-                                    "type": "user",
-                                    "content": "질문: {{query}}"
+                                    "content": "다음 지침을 따라 한국어로 간결하게 답하세요: (1) 아래 참고문서에서 근거를 먼저 찾고, (2) 문서 내용에 한해 답변하세요.\n질문: {{user_query}}\n참고문서: {{docs}}"
                                 }
                             },
                             "generation": {
                                 "no": "d8b7c6a5-3e2d-4c1b-9a8f-7e6d5c4b3a21",
-                                "name": "ChatGPT",
-                                "description": "ChatGPT 최신 모델 사용",
+                                "name": "qwen3-vl:8b",
+                                "description": "알리바바 최신 텍스트 생성 모델",
                                 "parameters": {
-                                    "model": "gpt-4o",
+                                    "model": "qwen3-vl:8b",
+                                    "provider": "ollama",
                                     "temperature": 0.3,
                                     "timeout": 100,
                                     "maxRetries": 5,
-                                    "stop": ["그만"],
                                     "max_tokens": 768,
-                                    "top_p": 0.95
                                 }
                             }
                         }
-                    }
-                }
-            }
-        },
-        400: {
-            "description": "잘못된 요청",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "status": 400,
-                        "code": "VALIDATION_FAILED",
-                        "message": "올바르지 않은 Query 템플릿 ID 형식입니다.",
-                        "isSuccess": False,
-                        "result": {}
-                    }
-                }
-            }
-        },
-        404: {
-            "description": "Query 템플릿을 찾을 수 없음",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "status": 404,
-                        "code": "NOT_FOUND",
-                        "message": "대상을 찾을 수 없습니다.",
-                        "isSuccess": False,
-                        "result": {}
                     }
                 }
             }
@@ -327,12 +284,12 @@ async def get_query_template_endpoint(
     )
 
     # 응답 생성
-    response = BaseResponse[QueryTemplateDetailResponse](
+    response = BaseResponse[Dict[str, Any]](
         status=200,
         code="OK",
         message="Query 템플릿 상세 조회에 성공하였습니다.",
         isSuccess=True,
-        result=Result(data=detail)
+        result=detail
     )
 
     return response
