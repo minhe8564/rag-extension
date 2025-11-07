@@ -9,11 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ....core.database import get_db
 from ....core.schemas import BaseResponse, Result
 from ....core.check_role import check_role
-from ....core.error_responses import (
-    admin_only_responses,
-    invalid_input_error_response,
-    not_found_template_response,
-)
 from ..schemas.ingest import (
     IngestTemplateUpdateRequest,
     IngestTemplateDetailResponse,
@@ -23,8 +18,6 @@ from ..services.ingest import update_ingest_template
 
 
 router = APIRouter(prefix="/rag", tags=["RAG - Ingest Template Management"])
-
-
 def _bytes_to_uuid_str(b: bytes) -> str:
     """UUID 바이너리를 문자열로 변환"""
     try:
@@ -38,11 +31,6 @@ def _bytes_to_uuid_str(b: bytes) -> str:
     response_model=BaseResponse[IngestTemplateDetailResponse],
     summary="Ingest 템플릿 수정 (관리자 전용)",
     description="Ingest 템플릿을 수정합니다. 관리자만 접근 가능합니다.",
-    responses={
-        **admin_only_responses(),
-        400: invalid_input_error_response(["name", "chunking", "chunking.no"]),
-        404: not_found_template_response(),
-    },
 )
 async def update_ingest_template_endpoint(
     ingestNo: str,
@@ -87,6 +75,7 @@ async def update_ingest_template_endpoint(
             chunking_parameters=request.chunking.parameters or {},
             embedding_no=request.spareEmbedding.no,
             embedding_parameters=request.spareEmbedding.parameters or {},
+            is_default=request.isDefault,
         )
     except HTTPException:
         # 전역 예외 핸들러가 처리하도록 그대로 전파

@@ -10,11 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ....core.database import get_db
 from ....core.schemas import BaseResponse, Result
 from ....core.check_role import check_role
-from ....core.error_responses import (
-    admin_only_responses,
-    invalid_input_error_response,
-    not_found_template_response,
-)
 from ..schemas.ingest import (
     IngestGroupListItem,
     IngestGroupListResponse,
@@ -26,8 +21,6 @@ from ..services.ingest import list_ingest_groups, get_ingest_template_detail
 
 
 router = APIRouter(prefix="/rag", tags=["RAG - Ingest Template Management"])
-
-
 def _bytes_to_uuid_str(b: bytes) -> str:
     """UUID 바이너리를 문자열로 변환"""
     try:
@@ -41,7 +34,6 @@ def _bytes_to_uuid_str(b: bytes) -> str:
     response_model=BaseResponse[IngestGroupListResponse],
     summary="Ingest 템플릿 목록 조회 (관리자 전용)",
     description="Ingest 템플릿 목록을 조회합니다. 관리자만 접근 가능합니다.",
-    responses=admin_only_responses(),
 )
 async def get_ingest_templates(
     pageNum: int = Query(1, ge=1, description="페이지 번호"),
@@ -106,11 +98,6 @@ async def get_ingest_templates(
     response_model=BaseResponse[IngestTemplateDetailResponse],
     summary="Ingest 템플릿 상세 조회 (관리자 전용)",
     description="Ingest 템플릿 상세 정보를 조회합니다. 관리자만 접근 가능합니다.",
-    responses={
-        **admin_only_responses(),
-        400: invalid_input_error_response(["ingestNo"]),
-        404: not_found_template_response(),
-    },
 )
 async def get_ingest_template(
     ingestNo: str,

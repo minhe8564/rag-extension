@@ -1,39 +1,25 @@
 """
 Ingest 템플릿 생성 라우터
 """
+from typing import Any
+
 from fastapi import APIRouter, Depends, status, HTTPException, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....core.database import get_db
 from ....core.schemas import BaseResponse, Result
 from ....core.check_role import check_role
-from ....core.error_responses import admin_only_responses, invalid_input_error_response
 from ..schemas.ingest import IngestTemplateCreateRequest, IngestTemplateCreateResponse
 from ..services.ingest import create_ingest_template
 
 
 router = APIRouter(prefix="/rag", tags=["RAG - Ingest Template Management"])
-
-
 @router.post(
     "/ingest-templates",
     response_model=BaseResponse[IngestTemplateCreateResponse],
     status_code=status.HTTP_201_CREATED,
     summary="Ingest 템플릿 생성 (관리자 전용)",
     description="새로운 Ingest 템플릿을 생성합니다. 관리자만 접근 가능합니다.",
-    responses={
-        **admin_only_responses(),
-        201: {
-            "description": "템플릿 생성 성공",
-            "headers": {
-                "Location": {
-                    "description": "생성된 리소스의 URI",
-                    "schema": {"type": "string"}
-                }
-            }
-        },
-        400: invalid_input_error_response(["name", "chunking", "chunking.no"]),
-    },
 )
 async def create_ingest_template_endpoint(
     request: IngestTemplateCreateRequest,

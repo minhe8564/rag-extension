@@ -11,7 +11,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ....core.database import get_db
 from ....core.schemas import BaseResponse, Result
 from ....core.check_role import check_role
-from ....core.error_responses import admin_only_responses, not_found_error_response
 from ..schemas.prompt import PromptListItem, PaginationInfo, PromptDetailResponse
 from ..services.prompt_read import list_prompts, get_prompt_by_no
 
@@ -32,7 +31,6 @@ def _bytes_to_uuid_str(b: bytes) -> str:
     response_model=BaseResponse[Dict[str, Any]],
     summary="프롬프트 목록 조회",
     description="프롬프트 목록을 조회합니다. 관리자만 접근 가능합니다.",
-    responses=admin_only_responses()
 )
 async def get_prompts(
     pageNum: int = Query(1, ge=1, description="페이지 번호"),
@@ -100,10 +98,6 @@ async def get_prompts(
     response_model=BaseResponse[PromptDetailResponse],
     summary="프롬프트 상세 조회",
     description="특정 프롬프트의 상세 정보를 조회합니다. 관리자만 접근 가능합니다.",
-    responses={
-        **admin_only_responses(),
-        404: not_found_error_response("프롬프트"),
-    }
 )
 async def get_prompt_detail(
     promptNo: str,

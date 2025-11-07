@@ -1,7 +1,6 @@
 """
 프롬프트 수정 라우터
 """
-from typing import Dict, Any
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status, Header
@@ -10,12 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ....core.database import get_db
 from ....core.schemas import BaseResponse, Result
 from ....core.check_role import check_role
-from ....core.error_responses import (
-    admin_only_responses,
-    not_found_error_response,
-    conflict_error_response,
-    invalid_input_error_response
-)
 from ..schemas.prompt import PromptUpdateRequest, PromptDetailResponse
 from ..services.prompt_update import update_prompt
 
@@ -28,12 +21,6 @@ router = APIRouter(prefix="/rag", tags=["RAG - Prompt Management"])
     response_model=BaseResponse[PromptDetailResponse],
     summary="프롬프트 수정",
     description="프롬프트를 수정합니다. 관리자만 접근 가능합니다.",
-    responses={
-        **admin_only_responses(),
-        400: invalid_input_error_response(["name", "description", "content"]),
-        404: not_found_error_response("프롬프트"),
-        409: conflict_error_response("프롬프트"),
-    }
 )
 async def update_prompt_endpoint(
     promptNo: str,

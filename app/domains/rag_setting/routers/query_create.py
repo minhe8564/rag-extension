@@ -1,14 +1,15 @@
 """
 Query 템플릿 생성 라우터
 """
+from typing import Any, Dict
+
 from fastapi import APIRouter, Depends, status, HTTPException
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....core.database import get_db
-from ....core.schemas import BaseResponse, Result
+from ....core.schemas import BaseResponse
 from ....core.check_role import check_role
-from ....core.error_responses import admin_only_responses, invalid_input_error_response
 from ..schemas.query import QueryTemplateCreateRequest, QueryTemplateCreateResponse
 from ..services.query import create_query_template
 
@@ -23,7 +24,6 @@ router = APIRouter(prefix="/rag", tags=["RAG - Query Template Management"])
     summary="Query 템플릿 생성 (관리자 전용)",
     description="Query 템플릿을 생성합니다. 관리자만 접근 가능합니다.",
     responses={
-        **admin_only_responses(),
         201: {
             "description": "Query 템플릿 생성 성공",
             "content": {
@@ -34,15 +34,12 @@ router = APIRouter(prefix="/rag", tags=["RAG - Query Template Management"])
                         "message": "성공",
                         "isSuccess": True,
                         "result": {
-                            "data": {
-                                "queryNo": "query0001"
-                            }
+                            "queryNo": "92514bae-2bcf-479f-a549-1db3bb68a699"
                         }
                     }
                 }
             }
         },
-        400: invalid_input_error_response(["name", "transformation", "generation.no"]),
     },
 )
 async def create_query_template_endpoint(
@@ -81,15 +78,16 @@ async def create_query_template_endpoint(
             user_prompt_parameters=request.userPrompt.parameters or {},
             generation_no=request.generation.no,
             generation_parameters=request.generation.parameters or {},
+            is_default=request.isDefault,
         )
 
         # 응답 생성
-        response = BaseResponse[QueryTemplateCreateResponse](
+        response = BaseResponse[Dict[str, Any]](
             status=201,
             code="CREATED",
-            message="성공",
+            message="Query 템플릿 생성 성공",
             isSuccess=True,
-            result=Result(data=QueryTemplateCreateResponse(queryNo=query_no))
+            result={"queryNo": query_no}
         )
 
         # Location 헤더 추가
