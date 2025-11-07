@@ -1,93 +1,119 @@
 # rag-extractor-deploy
 
+RAG Extractor API - FastAPI 기반 프로젝트
 
-
-## Getting started
-
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
-
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+## 프로젝트 구조
 
 ```
-cd existing_repo
-git remote add origin https://lab.ssafy.com/gd10080008/rag-extractor-deploy.git
-git branch -M master
-git push -uf origin master
+rag-extractor-deploy/
+├── app/
+│   ├── __init__.py
+│   ├── main.py              # FastAPI 애플리케이션 진입점
+│   ├── core/
+│   │   ├── __init__.py
+│   │   └── config.py        # Settings 클래스 (.env 기반 설정)
+│   ├── api/
+│   │   ├── __init__.py
+│   │   └── routes/
+│   │       ├── __init__.py
+│   │       └── health.py    # Health check 엔드포인트
+│   ├── models/              # 데이터 모델
+│   └── services/            # 비즈니스 로직
+├── .env                     # 환경 변수 (로컬)
+├── .env.example             # 환경 변수 템플릿
+├── pyproject.toml           # uv 프로젝트 설정
+└── requirements.txt         # pip 호환성 (참고용)
 ```
 
-## Integrate with your tools
+## 시작하기
 
-- [ ] [Set up project integrations](https://lab.ssafy.com/gd10080008/rag-extractor-deploy/-/settings/integrations)
+### 사전 요구사항
 
-## Collaborate with your team
+- Python 3.9 이상
+- [uv](https://github.com/astral-sh/uv) 패키지 관리자
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+### 설치
 
-## Test and Deploy
+1. uv 설치 (이미 설치되어 있다면 생략)
+   ```bash
+   # Windows (PowerShell)
+   powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+   
+   # 또는 pip로 설치
+   pip install uv
+   ```
 
-Use the built-in continuous integration in GitLab.
+2. 프로젝트 클론 및 디렉토리 이동
+   ```bash
+   cd rag-extractor-deploy
+   ```
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+3. 의존성 설치
+   ```bash
+   uv sync
+   ```
 
-***
+4. 환경 변수 설정
+   ```bash
+   # .env.example을 복사하여 .env 파일 생성
+   cp .env.example .env
+   
+   # .env 파일을 편집하여 필요한 환경 변수 설정
+   ```
 
-# Editing this README
+### 실행
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+```bash
+# uv를 사용하여 실행
+uv run python -m app.main
 
-## Suggestions for a good README
+# 또는 uvicorn 직접 실행
+uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+서버가 실행되면 다음 URL에서 접근할 수 있습니다:
+- API: http://localhost:8000
+- API 문서 (Swagger): http://localhost:8000/docs
+- API 문서 (ReDoc): http://localhost:8000/redoc
 
-## Name
-Choose a self-explaining name for your project.
+### 환경 변수
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+`.env` 파일에서 다음 환경 변수를 설정할 수 있습니다:
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+- `APP_NAME`: 애플리케이션 이름
+- `APP_VERSION`: 애플리케이션 버전
+- `DEBUG`: 디버그 모드 (True/False)
+- `HOST`: 서버 호스트
+- `PORT`: 서버 포트
+- `API_V1_PREFIX`: API v1 경로 prefix
+- `CORS_ORIGINS`: CORS 허용 오리진 (쉼표로 구분)
+- `DATABASE_URL`: 데이터베이스 연결 URL (선택사항)
+- `SECRET_KEY`: 보안 키 (선택사항)
+- `LOG_LEVEL`: 로그 레벨
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+## 개발
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+### 의존성 추가
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+```bash
+# 패키지 추가
+uv add <package-name>
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+# 개발 의존성 추가
+uv add --dev <package-name>
+```
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+### 의존성 업데이트
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+```bash
+uv sync
+```
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+## API 엔드포인트
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+- `GET /`: 루트 엔드포인트
+- `GET /api/v1/health`: Health check
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+## 라이선스
 
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+[라이선스 정보를 여기에 추가하세요]
