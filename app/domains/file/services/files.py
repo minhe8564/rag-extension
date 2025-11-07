@@ -32,7 +32,6 @@ def _uuid_str_to_bytes(u: str, *, field_name: Optional[str] = None) -> bytes:
         return uuid.UUID(u).bytes
     except Exception:
         fn = field_name or "uuid"
-        # Log and raise a client error so it doesn't surface as 500
         try:
             logger.warning("Invalid UUID for %s: %r", fn, u)
         except Exception:
@@ -95,6 +94,53 @@ def _split_name_ext(filename: str) -> tuple[str, str]:
     ext = Path(p).suffix  # includes dot or empty
     return stem, ext
 
+
+async def _handle_name_conflict(
+    session: AsyncSession,
+    *,
+    bucket_name: str,
+    category_no_bytes: bytes,
+    original_name: str,
+    policy: str,
+) -> None:
+    policy = (policy or "reject").lower()
+    if policy not in {"reject", "overwrite"}:
+        raise HTTPException(status_code=400, detail="onNameConflict 값이 올바르지 않습니다.")
+
+    if policy == "reject":
+        stmt = (
+            select(File.file_no)
+            .where(File.bucket == bucket_name)
+            .where(File.file_category_no == category_no_bytes)
+            .where(File.name == original_name)
+        )
+        res = await session.execute(stmt)
+        if res.scalar_one_or_none() is not None:
+            raise HTTPException(status_code=409, detail="해당 파일명은 이미 존재합니다.")
+        return
+
+    # overwrite: remove existing objects and rows with the same name
+    stmt = (
+        select(File)
+        .where(File.bucket == bucket_name)
+        .where(File.file_category_no == category_no_bytes)
+        .where(File.name == original_name)
+    )
+    res = await session.execute(stmt)
+    existing_rows = list(res.scalars().all())
+    for row in existing_rows:
+        try:
+            remove_object(bucket_name, row.path)
+        except Exception as e:
+            try:
+                logger.warning("Failed to remove existing object on overwrite: %s", e)
+            except Exception:
+                pass
+        await session.delete(row)
+    if existing_rows:
+        await session.flush()
+
+
 async def upload_file(
     session: AsyncSession,
     *,
@@ -108,7 +154,6 @@ async def upload_file(
     collection_no: Optional[str] = None,
     source_no: Optional[str] = None,
 ) -> tuple[str, IngestFileMeta]:
-    # MinIO helpers provided by app.core.minio_client
     # Validate inputs and derive required values
     user_no_bytes = _uuid_str_to_bytes(user_no, field_name="userNo")
     category_no_bytes = _uuid_str_to_bytes(category_no, field_name="categoryNo")
@@ -125,8 +170,18 @@ async def upload_file(
     stem, ext_with_dot = _split_name_ext(original_filename)
     ext = (ext_with_dot[1:] if ext_with_dot.startswith(".") else ext_with_dot).lower()
 
-    # Conflict handling
+    # Conflict handling by filename within bucket/category
     original_name = Path(original_filename).name
+    policy = (on_name_conflict or "reject").lower()
+    await _handle_name_conflict(
+        session,
+        bucket_name=bucket_name,
+        category_no_bytes=category_no_bytes,
+        original_name=original_name,
+        policy=policy,
+    )
+
+    # Upload to MinIO
     file_no_bytes = uuid.uuid4().bytes
     file_id_str = str(uuid.UUID(bytes=file_no_bytes))
     object_filename = file_id_str + (ext_with_dot or "")

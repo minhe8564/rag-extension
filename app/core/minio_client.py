@@ -57,3 +57,14 @@ def put_object(bucket_name: str, object_name: str, data: bytes, content_type: st
         content_type=content_type or "application/octet-stream",
     )
 
+
+def remove_object(bucket_name: str, object_name: str) -> None:
+    """Remove an object if it exists. Swallows not-found errors."""
+    client = get_minio_client()
+    try:
+        client.remove_object(bucket_name, object_name)
+    except S3Error as e:
+        # Ignore if object does not exist; re-raise unexpected errors
+        if e.code not in {"NoSuchKey", "NotFound", "NoSuchObject"}:
+            raise
+

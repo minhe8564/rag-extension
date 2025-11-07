@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Header, Request, HTTPException, status, Query
-from typing import Dict, Any
+from typing import Dict, Any, List
 import math
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,10 +14,10 @@ from ..services import files as files_service
 router = APIRouter(prefix="/files", tags=["File"])
 
 
-@router.get("", response_model=BaseResponse[Dict[str, Any]])
+@router.get("", response_model=BaseResponse[List[FileListItem]])
 async def list_my_files(
     pageNum: int = Query(1, ge=1, description="페이지 번호"),
-    pageSize: int = Query(20, ge=1, le=100, description="페이지 크기"),
+    pageSize: int = Query(5, ge=1, le=100, description="페이지 크기"),
     category: str | None = None,
     session: AsyncSession = Depends(get_db),
     http_request: Request = None,
@@ -45,21 +45,19 @@ async def list_my_files(
     has_next = pageNum < total_pages
 
     # Include pagination info in response (wrap both under result.data)
-    return BaseResponse[Dict[str, Any]](
+    return BaseResponse[List[FileListItem]](
         status=200,
         code="OK",
         message="문서 목록 조회에 성공했습니다.",
         isSuccess=True,
         result={
-            "data": {
-                "data": items,
-                "pagination": Pagination(
+            "data": items,
+            "pagination": Pagination(
                     pageNum=pageNum,
                     pageSize=pageSize,
                     totalItems=total_items,
                     totalPages=total_pages,
                     hasNext=has_next,
-                ),
-            }
+            ),
         },
     )

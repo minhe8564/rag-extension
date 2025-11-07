@@ -29,7 +29,7 @@ def _bytes_to_uuid_str(b: bytes) -> str:
 
 @router.get(
     "/collections",
-    response_model=BaseResponse[Dict[str, Any]],
+    response_model=BaseResponse[List[TestCollectionListItem]],
     summary="Test Collection 목록 조회 (관리자)",
     description="Test Collection 목록을 조회합니다. 관리자 전용.",
 )
@@ -69,29 +69,27 @@ async def get_test_collections(
     total_pages = ceil(total_items / pageSize) if total_items > 0 else 1
     has_next = pageNum < total_pages
 
-    return  BaseResponse[Dict[str, Any]](
+    return  BaseResponse[List[TestCollectionListItem]](
         status=200,
         code="OK",
         message="조회 성공",
         isSuccess=True,
         result={
-            "data": {
-                "data": items,
-                "pagination": Pagination(
-                    pageNum=pageNum,
-                    pageSize=pageSize,
-                    totalItems=total_items,
-                    totalPages=total_pages,
-                    hasNext=has_next,
-                ),
-            }
+            "data": items,
+            "pagination": Pagination(
+                pageNum=pageNum,
+                pageSize=pageSize,
+                totalItems=total_items,
+                totalPages=total_pages,
+                hasNext=has_next,
+            ),
         },
     )
 
 
 @router.get(
     "/collections/{test_collection_no}/files",
-    response_model=BaseResponse[Dict[str, Any]],
+    response_model=BaseResponse[List[TestFileListItem]],
     summary="Test Collection 문서 목록 조회",
     description="Test Collection 내 문서 목록을 페이지네이션하여 조회합니다.",
 )
@@ -123,21 +121,19 @@ async def get_test_collection_files(
     total_pages = ceil(total_items / pageSize) if total_items > 0 else 1
     has_next = pageNum < total_pages
 
-    return BaseResponse[Dict[str, Any]](
+    return BaseResponse[List[TestFileListItem]](
         status=200,
         code="OK",
         message="조회 성공",
         isSuccess=True,
         result={
-            "data": {
-                "data": rows,
-                "pagination": Pagination(
-                    pageNum=pageNum,
-                    pageSize=pageSize,
-                    totalItems=total_items,
-                    totalPages=total_pages,
-                    hasNext=has_next,
-                ),
-            }
+            "data": rows,
+            "pagination": Pagination(
+                pageNum=pageNum,
+                pageSize=pageSize,
+                totalItems=total_items,
+                totalPages=total_pages,
+                hasNext=has_next,
+            )
         },
     )
