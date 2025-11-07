@@ -30,10 +30,7 @@ async def create_ingest_template_endpoint(
     """
     Ingest 템플릿 생성
 
-    현재 데이터베이스 스키마 제약으로 인해:
-    - extractions 리스트에서 첫 번째 항목만 사용됩니다
-    - denseEmbeddings 리스트에서 첫 번째 항목만 사용됩니다
-    - spareEmbedding이 메인 임베딩 전략으로 사용됩니다
+    extractions와 denseEmbeddings, spareEmbedding을 모두 별도 그룹 테이블에 저장합니다.
 
     Args:
         request: Ingest 템플릿 생성 요청
@@ -47,22 +44,42 @@ async def create_ingest_template_endpoint(
     Raises:
         HTTPException 400: 전략을 찾을 수 없음
     """
-    # 현재 스키마 제약: 첫 번째 항목만 사용
-    first_extraction = request.extractions[0]
-    first_dense_embedding = request.denseEmbeddings[0]
+    # extractions 리스트를 dict 형태로 변환
+    extractions = [
+        {
+            "no": ext.no,
+            "name": ext.name if hasattr(ext, 'name') else "추출 전략",
+            "parameters": ext.parameters or {}
+        }
+        for ext in request.extractions
+    ]
 
-    # 템플릿 생성 (spareEmbedding을 메인 임베딩으로 사용)
+    # embeddings 리스트 생성 (denseEmbeddings + spareEmbedding)
+    embeddings = [
+        {
+            "no": emb.no,
+            "name": emb.name if hasattr(emb, 'name') else "임베딩 전략",
+            "parameters": emb.parameters or {}
+        }
+        for emb in request.denseEmbeddings
+    ]
+    # spareEmbedding 추가
+    embeddings.append({
+        "no": request.spareEmbedding.no,
+        "name": request.spareEmbedding.name if hasattr(request.spareEmbedding, 'name') else "희소 임베딩 전략",
+        "parameters": request.spareEmbedding.parameters or {}
+    })
+
+    # 템플릿 생성
     try:
         ingest_no = await create_ingest_template(
             session=session,
             name=request.name,
             is_default=request.isDefault,
-            extraction_no=first_extraction.no,
-            extraction_parameters=first_extraction.parameters or {},
+            extractions=extractions,
             chunking_no=request.chunking.no,
             chunking_parameters=request.chunking.parameters or {},
-            embedding_no=request.spareEmbedding.no,
-            embedding_parameters=request.spareEmbedding.parameters or {},
+            embeddings=embeddings,
         )
     except HTTPException:
         # 전역 예외 핸들러가 처리하도록 그대로 전파

@@ -41,10 +41,7 @@ async def update_ingest_template_endpoint(
     """
     Ingest 템플릿 수정
 
-    현재 데이터베이스 스키마 제약으로 인해:
-    - extractions 리스트에서 첫 번째 항목만 사용됩니다
-    - denseEmbeddings 리스트에서 첫 번째 항목만 사용됩니다
-    - spareEmbedding이 메인 임베딩 전략으로 사용됩니다
+    extractions와 denseEmbeddings, spareEmbedding을 모두 별도 그룹 테이블에 저장합니다.
 
     Args:
         ingestNo: Ingest 템플릿 ID (UUID)
@@ -59,64 +56,67 @@ async def update_ingest_template_endpoint(
         HTTPException 400: 전략을 찾을 수 없음
         HTTPException 404: Ingest 템플릿을 찾을 수 없음
     """
-    # 현재 스키마 제약: 첫 번째 항목만 사용
-    first_extraction = request.extractions[0]
-    first_dense_embedding = request.denseEmbeddings[0]
+    # extractions 리스트를 dict 형태로 변환
+    extractions = [
+        {
+            "no": ext.no,
+            "name": "추출 전략",
+            "parameters": ext.parameters or {}
+        }
+        for ext in request.extractions
+    ]
 
-    # 템플릿 수정 (spareEmbedding을 메인 임베딩으로 사용)
+    # embeddings 리스트 생성 (denseEmbeddings + spareEmbedding)
+    embeddings = [
+        {
+            "no": emb.no,
+            "name": "임베딩 전략",
+            "parameters": emb.parameters or {}
+        }
+        for emb in request.denseEmbeddings
+    ]
+    # spareEmbedding 추가
+    embeddings.append({
+        "no": request.spareEmbedding.no,
+        "name": "희소 임베딩 전략",
+        "parameters": request.spareEmbedding.parameters or {}
+    })
+
+    # 템플릿 수정
     try:
         updated_ingest_group = await update_ingest_template(
             session=session,
             ingest_no=ingestNo,
             name=request.name,
-            extraction_no=first_extraction.no,
-            extraction_parameters=first_extraction.parameters or {},
+            extractions=extractions,
             chunking_no=request.chunking.no,
             chunking_parameters=request.chunking.parameters or {},
-            embedding_no=request.spareEmbedding.no,
-            embedding_parameters=request.spareEmbedding.parameters or {},
+            embeddings=embeddings,
             is_default=request.isDefault,
         )
     except HTTPException:
         # 전역 예외 핸들러가 처리하도록 그대로 전파
         raise
 
-    # 필수 관계 데이터 검증 (데이터 정합성 오류는 500)
-    if not updated_ingest_group.extraction_strategy:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="데이터 정합성 오류: 추출 전략이 누락되었습니다. 관리자에게 문의하세요."
-        )
+    # 필수 관계 데이터 검증
     if not updated_ingest_group.chunking_strategy:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="데이터 정합성 오류: 청킹 전략이 누락되었습니다. 관리자에게 문의하세요."
         )
-    if not updated_ingest_group.embedding_strategy:
+    if not updated_ingest_group.extraction_groups:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="데이터 정합성 오류: 추출 전략이 누락되었습니다. 관리자에게 문의하세요."
+        )
+    if not updated_ingest_group.embedding_groups:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="데이터 정합성 오류: 임베딩 전략이 누락되었습니다. 관리자에게 문의하세요."
         )
 
-    # Strategy 객체를 StrategyItem으로 변환하는 헬퍼 함수
-    def strategy_to_item(strategy) -> StrategyItem:
-        return StrategyItem(
-            no=_bytes_to_uuid_str(strategy.strategy_no),
-            name=strategy.name,
-            description=strategy.description or "",
-            parameters=strategy.parameter or {}
-        )
-
-    # 응답 데이터 변환
-    response_data = IngestTemplateDetailResponse(
-        ingestNo=_bytes_to_uuid_str(updated_ingest_group.ingest_group_no),
-        name=updated_ingest_group.name,
-        isDefault=updated_ingest_group.is_default,
-        extractions=[strategy_to_item(updated_ingest_group.extraction_strategy)],
-        chunking=strategy_to_item(updated_ingest_group.chunking_strategy),
-        denseEmbeddings=[strategy_to_item(updated_ingest_group.embedding_strategy)],
-        spareEmbedding=strategy_to_item(updated_ingest_group.embedding_strategy),
-    )
+    # 응답 데이터 변환 (스키마 메서드 사용)
+    response_data = IngestTemplateDetailResponse.from_ingest_group(updated_ingest_group)
 
     return BaseResponse[IngestTemplateDetailResponse](
         status=200,

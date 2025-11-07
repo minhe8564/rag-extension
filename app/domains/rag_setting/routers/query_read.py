@@ -12,7 +12,6 @@ from ....core.check_role import check_role
 from ..schemas.query import (
     QueryTemplateListItem,
     QueryTemplateDetailResponse,
-    StrategyDetail,
 )
 from ..schemas.strategy import PaginationInfo
 from ..services.query import list_query_templates, get_query_template
@@ -240,56 +239,16 @@ async def get_query_template_endpoint(
     # Query 템플릿 조회
     query_group = await get_query_template(session=session, query_no=queryNo)
 
-    # 응답 데이터 생성
-    detail = QueryTemplateDetailResponse(
-        queryNo=binary_to_uuid(query_group.query_group_no),
-        name=query_group.name,
-        isDefault=query_group.is_default,
-        transformation=StrategyDetail(
-            no=binary_to_uuid(query_group.transformation_strategy.strategy_no),
-            name=query_group.transformation_strategy.name,
-            description=query_group.transformation_strategy.description or "",
-            parameters=query_group.transformation_parameter or {},
-        ),
-        retrieval=StrategyDetail(
-            no=binary_to_uuid(query_group.retrieval_strategy.strategy_no),
-            name=query_group.retrieval_strategy.name,
-            description=query_group.retrieval_strategy.description or "",
-            parameters=query_group.retrieval_parameter or {},
-        ),
-        reranking=StrategyDetail(
-            no=binary_to_uuid(query_group.reranking_strategy.strategy_no),
-            name=query_group.reranking_strategy.name,
-            description=query_group.reranking_strategy.description or "",
-            parameters=query_group.reranking_parameter or {},
-        ),
-        systemPrompt=StrategyDetail(
-            no=binary_to_uuid(query_group.system_prompting_strategy.strategy_no),
-            name=query_group.system_prompting_strategy.name,
-            description=query_group.system_prompting_strategy.description or "",
-            parameters=query_group.system_prompting_parameter or {},
-        ),
-        userPrompt=StrategyDetail(
-            no=binary_to_uuid(query_group.user_prompting_strategy.strategy_no),
-            name=query_group.user_prompting_strategy.name,
-            description=query_group.user_prompting_strategy.description or "",
-            parameters=query_group.user_prompting_parameter or {},
-        ),
-        generation=StrategyDetail(
-            no=binary_to_uuid(query_group.generation_strategy.strategy_no),
-            name=query_group.generation_strategy.name,
-            description=query_group.generation_strategy.description or "",
-            parameters=query_group.generation_parameter or {},
-        ),
-    )
+    # 응답 데이터 생성 (스키마 메서드 사용)
+    detail = QueryTemplateDetailResponse.from_query_group(query_group)
 
     # 응답 생성
-    response = BaseResponse[Dict[str, Any]](
+    response = BaseResponse[QueryTemplateDetailResponse](
         status=200,
         code="OK",
         message="Query 템플릿 상세 조회에 성공하였습니다.",
         isSuccess=True,
-        result=detail
+        result=Result(data=detail)
     )
 
     return response

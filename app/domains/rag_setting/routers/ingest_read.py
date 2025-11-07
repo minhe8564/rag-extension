@@ -14,7 +14,6 @@ from ..schemas.ingest import (
     IngestGroupListItem,
     IngestGroupListResponse,
     IngestTemplateDetailResponse,
-    StrategyItem,
 )
 from ..schemas.strategy import PaginationInfo
 from ..services.ingest import list_ingest_groups, get_ingest_template_detail
@@ -153,26 +152,8 @@ async def get_ingest_template(
             detail="데이터 정합성 오류: 임베딩 전략이 누락되었습니다. 관리자에게 문의하세요."
         )
 
-    # Strategy 객체를 StrategyItem으로 변환하는 헬퍼 함수
-    def strategy_to_item(strategy) -> StrategyItem:
-        return StrategyItem(
-            no=_bytes_to_uuid_str(strategy.strategy_no),
-            name=strategy.name,
-            description=strategy.description or "",
-            parameters=strategy.parameter or {}
-        )
-
-    # 응답 데이터 변환
-    # 현재 스키마 제약: 단일 전략을 리스트로 반환
-    response_data = IngestTemplateDetailResponse(
-        ingestNo=_bytes_to_uuid_str(ingest_group.ingest_group_no),
-        name=ingest_group.name,
-        isDefault=ingest_group.is_default,
-        extractions=[strategy_to_item(ingest_group.extraction_strategy)],
-        chunking=strategy_to_item(ingest_group.chunking_strategy),
-        denseEmbeddings=[strategy_to_item(ingest_group.embedding_strategy)],
-        spareEmbedding=strategy_to_item(ingest_group.embedding_strategy),
-    )
+    # 응답 데이터 변환 (스키마 메서드 사용)
+    response_data = IngestTemplateDetailResponse.from_ingest_group(ingest_group)
 
     return BaseResponse[IngestTemplateDetailResponse](
         status=200,
