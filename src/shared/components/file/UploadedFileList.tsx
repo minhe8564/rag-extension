@@ -5,14 +5,15 @@ import Tooltip from '@/shared/components/Tooltip';
 import Select from '@/shared/components/Select';
 import Pagination from '@/shared/components/Pagination';
 import { fileTypeOptions } from '@/domains/admin/components/rag-settings/options';
+import { useCategoryStore } from '@/shared/store/categoryMap'; // ✅ 전역 store에서 맵/리스트 사용
 
 export type UploadedDoc = {
   id: string;
   name: string;
   sizeKB: number;
   uploadedAt?: string;
-  category?: string;
-  categoryId?: string;
+  category?: string; // 서버가 준 이름(있으면 fallback으로 사용)
+  categoryId?: string; // ✅ 이 id로 store에서 이름 조회
   type: string;
   file?: File;
   fileNo?: string;
@@ -42,14 +43,23 @@ export default function UploadedFileList({
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
 
+  // ✅ 전역 store에서 카테고리 맵을 가져와서 이름 매핑에 사용
+  const categoryMap = useCategoryStore((s) => s.categoryMap);
+
   const filtered = useMemo(
     () => (fileType === 'all' ? docs : docs.filter((d) => d.type === fileType)),
     [docs, fileType]
   );
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(filtered.length / pageSize)),
+    [filtered.length, pageSize]
+  );
   const safePage = Math.min(page, totalPages);
-  const pageItems = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
+  const pageItems = useMemo(
+    () => filtered.slice((safePage - 1) * pageSize, safePage * pageSize),
+    [filtered, safePage, pageSize]
+  );
 
   const selectedIds = useMemo(() => Object.keys(selected).filter((id) => selected[id]), [selected]);
 
@@ -140,67 +150,75 @@ export default function UploadedFileList({
                 </td>
               </tr>
             ) : (
-              pageItems.map((doc) => (
-                <tr key={doc.id} className="border-b last:border-b-0">
-                  <td className="px-4 py-2">
-                    <Checkbox
-                      checked={!!selected[doc.id]}
-                      onChange={(e) => setSelected((s) => ({ ...s, [doc.id]: e.target.checked }))}
-                      brand={brand}
-                    />
-                  </td>
+              pageItems.map((doc) => {
+                // ✅ store 기반 매핑: id → name, 없으면 서버 제공명 → '기타'
+                const categoryName =
+                  (doc.categoryId ? categoryMap[doc.categoryId] : undefined) ??
+                  doc.category ??
+                  '기타';
 
-                  <td className="max-w-[200px] px-4 py-2 sm:max-w-[300px]">
-                    <div className="min-w-0 flex items-center gap-2">
-                      <div className="flex h-4 w-4 shrink-0 items-center justify-center">
-                        <FileText size={16} className={brandText} />
-                      </div>
-                      <span className="min-w-0 flex-1">
-                        <span className="block w-full truncate text-sm text-gray-800">
-                          {doc.name}
+                return (
+                  <tr key={doc.id} className="border-b last:border-b-0">
+                    <td className="px-4 py-2">
+                      <Checkbox
+                        checked={!!selected[doc.id]}
+                        onChange={(e) => setSelected((s) => ({ ...s, [doc.id]: e.target.checked }))}
+                        brand={brand}
+                      />
+                    </td>
+
+                    <td className="max-w-[200px] px-4 py-2 sm:max-w-[300px]">
+                      <div className="min-w-0 flex items-center gap-2">
+                        <div className="flex h-4 w-4 shrink-0 items-center justify-center">
+                          <FileText size={16} className={brandText} />
+                        </div>
+                        <span className="min-w-0 flex-1">
+                          <span className="block w-full truncate text-sm text-gray-800">
+                            {doc.name}
+                          </span>
                         </span>
-                      </span>
-                    </div>
-                  </td>
+                      </div>
+                    </td>
 
-                  <td className="px-4 py-2 text-right text-gray-600">
-                    {doc.sizeKB >= 1024
-                      ? `${(doc.sizeKB / 1024).toFixed(1)} MB`
-                      : `${doc.sizeKB.toFixed(1)} KB`}
-                  </td>
+                    <td className="px-4 py-2 text-right text-gray-600">
+                      {doc.sizeKB >= 1024
+                        ? `${(doc.sizeKB / 1024).toFixed(1)} MB`
+                        : `${doc.sizeKB.toFixed(1)} KB`}
+                    </td>
 
-                  <td className="px-4 py-2 text-right text-gray-600">{doc.uploadedAt ?? '-'}</td>
+                    <td className="px-4 py-2 text-right text-gray-600">{doc.uploadedAt ?? '-'}</td>
 
-                  <td className="px-4 py-2">
-                    <div className="flex justify-end">
-                      <span className="inline-flex items-center rounded-full border border-gray-300 px-3 py-1 text-xs text-gray-700">
-                        {doc.category ?? '기타'}
-                      </span>
-                    </div>
-                  </td>
+                    <td className="px-4 py-2">
+                      <div className="flex justify-end">
+                        <span className="inline-flex items-center rounded-full border border-gray-300 px-3 py-1 text-xs text-gray-700">
+                          {categoryName}
+                        </span>
+                      </div>
+                    </td>
 
-                  <td className="px-2 py-2">
-                    <div className="flex items-center justify-end gap-1.5">
-                      <Tooltip content="다운로드" side="top" offset={1}>
-                        <button
-                          className="rounded-md p-2 hover:bg-gray-50"
-                          onClick={() => onDownload?.(doc.id)}
-                        >
-                          <Download size={16} />
-                        </button>
-                      </Tooltip>
-                      <Tooltip content="삭제" side="top" offset={1}>
-                        <button
-                          className="rounded-md p-2 text-red-600 hover:bg-red-50"
-                          onClick={() => onDelete?.([doc.id])}
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </Tooltip>
-                    </div>
-                  </td>
-                </tr>
-              ))
+                    <td className="px-2 py-2">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Tooltip content="다운로드" side="top" offset={1}>
+                          <button
+                            className="rounded-md p-2 hover:bg-gray-50"
+                            onClick={() => onDownload?.(doc.id)}
+                          >
+                            <Download size={16} />
+                          </button>
+                        </Tooltip>
+                        <Tooltip content="삭제" side="top" offset={1}>
+                          <button
+                            className="rounded-md p-2 text-red-600 hover:bg-red-50"
+                            onClick={() => onDelete?.([doc.id])}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </Tooltip>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
@@ -259,7 +277,7 @@ export default function UploadedFileList({
           </div>
 
           <div className="flex items-center justify-center gap-5 py-3 text-sm">
-            <Pagination page={safePage} totalPages={totalPages} onPageChange={setPage} />
+            <Pagination pageNum={safePage} totalPages={totalPages} onPageChange={setPage} />
           </div>
         </>
       )}

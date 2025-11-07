@@ -1,4 +1,5 @@
 import { fastApi } from '@/shared/lib/apiInstance';
+import type { ApiEnvelope } from '@/shared/lib/api.types';
 import type {
   UploadFilesParams,
   UploadFilesResult,
@@ -25,22 +26,23 @@ export function uploadFiles({
 
 // 카테고리
 export function getCategories() {
-  return fastApi.get<GetCategoriesResult>('/api/v1/files/categories');
+  return fastApi.get<ApiEnvelope<GetCategoriesResult>>('/api/v1/files/categories');
 }
 
 // 내 문서 목록(정규화)
 export async function fetchMyDocumentsNormalized(params?: {
-  page?: number;
-  size?: number;
+  pageNum?: number;
+  pageSize?: number;
   categoryNo?: string;
   bucket?: string;
   q?: string;
 }): Promise<FetchMyDocsNormalized> {
-  const page = params?.page ?? 1;
-  const size = params?.size ?? 20;
-
   const { data } = await fastApi.get<FilesResponse<RawMyDoc>>('/api/v1/files', {
-    params: { ...params, page, size },
+    params: {
+      pageNum: params?.pageNum ?? 1,
+      pageSize: params?.pageSize ?? 20,
+      ...(params ?? {}),
+    },
   });
 
   const payload = data.result.data;

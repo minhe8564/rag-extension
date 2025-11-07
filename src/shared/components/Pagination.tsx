@@ -1,9 +1,9 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 type Props = {
-  page: number;
+  pageNum: number;
   totalPages: number;
-  onPageChange: (page: number) => void;
+  onPageChange: (pageNum: number) => void;
   className?: string;
   hasPrev?: boolean;
   hasNext?: boolean;
@@ -11,7 +11,7 @@ type Props = {
 };
 
 export default function Pagination({
-  page,
+  pageNum,
   totalPages,
   onPageChange,
   className = '',
@@ -19,8 +19,8 @@ export default function Pagination({
   hasNext,
   isLoading = false,
 }: Props) {
-  const canPrev = hasPrev ?? page > 1;
-  const canNext = hasNext ?? page < totalPages;
+  const canPrev = hasPrev ?? pageNum > 1;
+  const canNext = hasNext ?? pageNum < totalPages;
 
   const goPage = (p: number) => {
     if (isLoading) return;
@@ -29,12 +29,12 @@ export default function Pagination({
 
   const prev = () => {
     if (!canPrev || isLoading) return;
-    goPage(page - 1);
+    goPage(pageNum - 1);
   };
 
   const next = () => {
     if (!canNext || isLoading) return;
-    const target = hasNext !== undefined ? page + 1 : Math.min(totalPages, page + 1);
+    const target = hasNext !== undefined ? pageNum + 1 : Math.min(totalPages, pageNum + 1);
     goPage(target);
   };
 
@@ -52,20 +52,20 @@ export default function Pagination({
 
       <div className="flex items-center gap-2 font-medium">
         {Array.from({ length: Math.max(1, totalPages) }).map((_, i) => {
-          const pageNum = i + 1;
+          const n = i + 1;
           return (
             <button
               type="button"
-              key={pageNum}
-              onClick={() => goPage(pageNum)}
+              key={n}
+              onClick={() => goPage(n)}
               disabled={isLoading}
               className={
-                page === pageNum
+                pageNum === n
                   ? 'font-semibold text-black'
                   : 'text-gray-500 hover:text-black disabled:text-gray-300'
               }
             >
-              {pageNum}
+              {n}
             </button>
           );
         })}
