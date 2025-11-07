@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import clsx from 'clsx';
 import type { Collection } from '@/domains/admin/components/rag-test/types';
 import { Upload, Download, Trash2, FileText, Folder, RefreshCw } from 'lucide-react';
 import Checkbox from '@/shared/components/Checkbox';
@@ -88,10 +89,14 @@ export default function CollectionDocuments({
           <button
             type="button"
             onClick={onRefresh}
-            className="inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm hover:bg-gray-50"
+            className={clsx(
+              'flex items-center gap-1.5 text-sm rounded-md px-3 py-1',
+              'border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-black transition-colors',
+              'disabled:opacity-50 disabled:cursor-not-allowed'
+            )}
           >
             <RefreshCw size={16} />
-            새로고침
+            {onRefresh ? '불러오는 중...' : '새로고침'}
           </button>
         </div>
       </header>

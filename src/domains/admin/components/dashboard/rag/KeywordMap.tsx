@@ -3,7 +3,7 @@ import Highcharts from 'highcharts';
 import _wordcloudInit from 'highcharts/modules/wordcloud';
 import Card from '@/shared/components/Card';
 import type { frequentKeywords, keywordItem } from '@/domains/admin/types/rag.dashboard.types';
-import { getKeywords } from '@/domains/admin/api/dashboard.api';
+import { getKeywords } from '@/domains/admin/api/rag.dashboard.api';
 
 export default function KeywordMap() {
   const chartRef = useRef<Highcharts.Chart | null>(null);

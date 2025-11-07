@@ -10,7 +10,7 @@ import {
   getDocumentChangeTrend,
   getTotalErrorCount,
   getErrorChangeTrend,
-} from '@/domains/admin/api/dashboard.api';
+} from '@/domains/admin/api/rag.dashboard.api';
 import type {
   TrendGroup,
   TotalGroup,

@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import Highcharts from 'highcharts';
 import _Heatmap from 'highcharts/modules/heatmap';
 import Card from '@/shared/components/Card';
-import { getChatbotUsageHeatmap } from '@/domains/admin/api/dashboard.api';
+import { getChatbotUsageHeatmap } from '@/domains/admin/api/rag.dashboard.api';
 import type {
   chatbotHeatmapTimeframe,
   chatbotHeatmapLabels,

@@ -3,7 +3,7 @@ import { AlertTriangle, GaugeCircle, Cpu } from 'lucide-react';
 import Card from '@/shared/components/Card';
 import Pagination from '@/shared/components/Pagination';
 import type { errorList, errorItem } from '@/domains/admin/types/rag.dashboard.types';
-import { getErrorLogs } from '@/domains/admin/api/dashboard.api';
+import { getErrorLogs } from '@/domains/admin/api/rag.dashboard.api';
 
 // 시간 경과 계산 함수
 function timeAgo(date: Date) {

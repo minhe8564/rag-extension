@@ -126,7 +126,7 @@ export default function MyDocsTab() {
             )}
           >
             <RefreshCw size={16} className={clsx(loading && 'animate-spin text-gray-400')} />
-            새로고침
+            {loading ? '불러오는 중...' : '새로고침'}
           </button>
         </div>
 

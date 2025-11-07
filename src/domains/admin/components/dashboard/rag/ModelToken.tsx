@@ -3,7 +3,7 @@ import Highcharts from 'highcharts';
 import Card from '@/shared/components/Card';
 import Select from '@/shared/components/Select';
 import type { modelTokenTime, modelData } from '@/domains/admin/types/rag.dashboard.types';
-import { getModelTokenUsageTimeSeries } from '@/domains/admin/api/dashboard.api';
+import { getModelTokenUsageTimeSeries } from '@/domains/admin/api/rag.dashboard.api';
 
 export default function ModelUsageChart() {
   const chartRef = useRef<Highcharts.Chart | null>(null);
