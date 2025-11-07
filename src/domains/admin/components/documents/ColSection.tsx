@@ -1,107 +1,77 @@
-import { useState } from 'react';
 import { FolderOpen, FileText, ChevronDown, ChevronRight, ChevronLeft } from 'lucide-react';
-import type { ColSectionProps } from '@/domains/admin/types/documents.types';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import type { RawMyDoc } from '@/shared/types/file.types';
+import type { documentDatatype } from '@/domains/admin/types/documents.types';
+import { getDocInCollections } from '@/domains/admin/api/documents.api';
+
+type ColSectionProps = {
+  selectedCollection: 'public' | 'hebees' | null;
+  onCollectionSelect: (name: 'public' | 'hebees' | null) => void;
+  // 실제 업로드된 문서 (UploadTab에서 내려줌)
+  uploadedFiles?: RawMyDoc[];
+};
 
 export default function ColSection({ selectedCollection, onCollectionSelect }: ColSectionProps) {
-  const dummyFiles = [
-    {
-      id: 1,
-      name: 'hebees_플랫폼_기획서.pdf',
-      size: '2.4MB',
-      category: '문서',
-      storage: 'public',
-      currentProgress: '데이터 정제 43%',
-      totalProgress: 6,
-    },
-    {
-      id: 2,
-      name: 'hebees_AI_모델_실험결과.csv',
-      size: '1.1MB',
-      category: '데이터',
-      storage: 'public',
-      currentProgress: '임베딩 생성',
-      totalProgress: 33,
-    },
-    {
-      id: 3,
-      name: 'hebees_RAG_API_설계서.docx',
-      size: '3.8MB',
-      category: '문서',
-      storage: 'public',
-      currentProgress: '임베딩 생성',
-      totalProgress: 56,
-    },
-    {
-      id: 4,
-      name: 'hebees_챗봇_테스트_로그.json',
-      size: '4.2MB',
-      category: '로그',
-      storage: 'hebees',
-      currentProgress: '시작 전',
-      totalProgress: 0,
-    },
-    {
-      id: 5,
-      name: 'hebees_UI_디자인_리뷰.png',
-      size: '950KB',
-      category: '이미지',
-      storage: 'hebees',
-      currentProgress: '완료',
-      totalProgress: 100,
-    },
-    {
-      id: 6,
-      name: 'hebees_챗봇 리뷰.png',
-      size: '440KB',
-      category: '로그',
-      storage: 'hebees',
-      currentProgress: '시작 전',
-      totalProgress: 0,
-    },
-  ];
-
-  const collections = [
-    {
-      id: 1,
-      name: 'public',
-      files: dummyFiles.filter((f) => f.storage === 'public'),
-    },
-    {
-      id: 2,
-      name: 'hebees',
-      files: dummyFiles.filter((f) => f.storage === 'hebees'),
-    },
-  ];
-
-  const [openCollections, setOpenCollections] = useState<Record<string, boolean>>({
-    public: true,
-    hebees: true,
+  const [openCollection, setOpenCollection] = useState<Record<string, boolean>>({
+    public: false,
+    hebees: false,
   });
+
+  // 훅
+  const publicQuery = useQuery({
+    queryKey: ['collectionDocs', 'public'],
+    queryFn: () => getDocInCollections('public'),
+    enabled: openCollection.public,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const hebeesQuery = useQuery({
+    queryKey: ['collectionDocs', 'hebees'],
+    queryFn: () => getDocInCollections('hebees'),
+    enabled: openCollection.hebees,
+    staleTime: 1000 * 60 * 5,
+  });
+
   const [page, setPage] = useState<Record<string, number>>({ public: 1, hebees: 1 });
   const FILES_PER_PAGE = 5;
+  const collections = [
+    { id: 1, name: 'public', query: publicQuery },
+    { id: 2, name: 'hebees', query: hebeesQuery },
+  ];
+
+  // const useCollectionDocs = (collectionNo: string, enabled: boolean) =>
+  //   useQuery({
+  //     queryKey: ['collectionDocs', collectionNo],
+  //     queryFn: () => getDocInCollections(collectionNo),
+
+  //     enabled, //  open 상태일 때만 API 실행
+  //     staleTime: 1000 * 60 * 5, // 5분 캐시
+  //   });
 
   const toggleOpen = (name: string) => {
-    setOpenCollections((prev) => ({ ...prev, [name]: !prev[name] }));
+    setOpenCollection((prev) => ({ ...prev, [name]: !prev[name] }));
   };
 
   const handleSelectCollection = (name: 'public' | 'hebees') => {
-    // 이미 선택된 컬렉션이면 해제
     const newSelection = selectedCollection === name ? null : name;
     onCollectionSelect(newSelection);
   };
 
   return (
-    <section className="flex flex-col w-1/2 p-4 border border-gray-200 rounded-xl bg-white">
+    <section className="flex flex-col w-full h-full p-4 border border-gray-200 rounded-xl bg-white">
       <h3 className="text-xl mb-1 font-bold bg-[linear-gradient(90deg,#BE7DB1_10%,#81BAFF_100%)] bg-clip-text text-transparent w-fit">
         저장 위치
       </h3>
 
       <div className="space-y-4">
         {collections.map((col) => {
-          const totalPages = Math.ceil(col.files.length / FILES_PER_PAGE);
+          const { data, refetch } = col.query;
+          const docs = data?.data as documentDatatype[] | undefined;
+          const totalPages = Math.ceil((docs?.length ?? 0) / FILES_PER_PAGE);
           const currentPage = page[col.name] || 1;
           const startIndex = (currentPage - 1) * FILES_PER_PAGE;
-          const visibleFiles = col.files.slice(startIndex, startIndex + FILES_PER_PAGE);
+          const visibleFiles = docs?.slice(startIndex, startIndex + FILES_PER_PAGE);
 
           return (
             <div
@@ -133,10 +103,11 @@ export default function ColSection({ selectedCollection, onCollectionSelect }: C
                     onClick={(e) => {
                       e.stopPropagation();
                       toggleOpen(col.name);
+                      if (!openCollection[col.name]) refetch();
                     }}
                     className="flex items-center text-sm text-gray-500 hover:text-[var(--color-hebees)] transition"
                   >
-                    {openCollections[col.name] ? (
+                    {openCollection[col.name] ? (
                       <>
                         <ChevronDown size={15} />
                         접기
@@ -152,28 +123,32 @@ export default function ColSection({ selectedCollection, onCollectionSelect }: C
               </div>
 
               {/* 파일 목록 */}
-              {openCollections[col.name] && (
+              {openCollection[col.name] && (
                 <>
                   <ul className="pl-4 text-sm text-gray-700 space-y-1 mt-2">
-                    {visibleFiles.map((file) => (
-                      <li
-                        key={file.id}
-                        className="flex items-center justify-between border-b border-gray-100 pb-1 last:border-none"
-                      >
-                        <div className="flex items-center gap-2">
-                          <div className="w-5 h-5 bg-[var(--color-hebees)] rounded-md flex items-center justify-center">
-                            <FileText size={14} className="text-[var(--color-white)]" />
+                    {visibleFiles?.length === 0 ? (
+                      <li className="text-gray-400 text-xs">등록된 문서가 없습니다.</li>
+                    ) : (
+                      visibleFiles?.map((file) => (
+                        <li
+                          key={file.fileNo}
+                          className="flex items-center justify-between border-b border-gray-100 pb-1 last:border-none"
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className="w-5 h-5 bg-[var(--color-hebees)] rounded-md flex items-center justify-center">
+                              <FileText size={14} className="text-[var(--color-white)]" />
+                            </div>
+                            <span className="truncate max-w-[220px] text-center text-xs font-regular">
+                              {file.name}
+                            </span>
                           </div>
-                          <span className="truncate max-w-[220px] text-center text-xs font-regular">
-                            {file.name}
-                          </span>
-                        </div>
-                      </li>
-                    ))}
+                        </li>
+                      ))
+                    )}
                   </ul>
 
                   {/* 페이지네이션 */}
-                  {totalPages >= 1 && (
+                  {totalPages > 1 && (
                     <div className="flex justify-center gap-2 items-center mt-2">
                       <button
                         onClick={(e) => {

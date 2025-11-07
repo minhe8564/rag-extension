@@ -1,14 +1,14 @@
 import { FileText, CloudUpload, Zap, Database, CircleCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import Pagination from '@/shared/components/Pagination';
-import type { FileType } from '@/domains/admin/types/documents.types';
+import type { RawMyDoc } from '@/shared/types/file.types';
 
 export default function VecProcess({
   selectedFiles,
   initialFileName,
   initialCollection,
 }: {
-  selectedFiles: FileType[];
+  selectedFiles: RawMyDoc[];
   initialFileName?: string;
   initialCollection?: string;
 }) {

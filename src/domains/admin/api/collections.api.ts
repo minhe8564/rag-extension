@@ -5,7 +5,7 @@ import type {
   getDocumentsInCollection,
 } from '@/domains/admin/types/documents.types';
 
-// 컬렉션 목록 조회(일반,관리자)
+// 컬렉션 목록 조회
 export const getCollections = async () => {
   const { data } =
     await fastApi.get<ApiEnvelope<{ data: { data: collectionType[] } }>>('/api/v1/collections');
