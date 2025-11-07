@@ -61,7 +61,7 @@ function ServerCard({
   );
 }
 
-export default function InstanceMonitoring({ className = '' }: { className?: string }) {
+export default function Servers({ className = '' }: { className?: string }) {
   const servers = [
     { name: 'Web-01', load: 1.2, cpu: 19, memory: 77, status: 'healthy' as Status },
     { name: 'Web-02', load: 1.5, cpu: 47, memory: 69, status: 'healthy' as Status },

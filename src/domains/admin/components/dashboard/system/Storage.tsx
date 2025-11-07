@@ -44,7 +44,7 @@ function ProgressBar({ value, color }: { value: number; color: string }) {
   );
 }
 
-export default function ServiceAndStorage({ className = '' }: { className?: string }) {
+export default function Storage({ className = '' }: { className?: string }) {
   const services = [
     { name: 'Web Server', status: 'healthy' as Status, uptime: '15d 4h' },
     { name: 'Database', status: 'healthy' as Status, uptime: '30d 12h' },

@@ -3,7 +3,10 @@ import { MessageSquare, Clock } from 'lucide-react';
 import Card from '@/shared/components/Card';
 import Pagination from '@/shared/components/Pagination';
 import { getChatRooms } from '@/domains/admin/api/dashboard.api';
-import type { createdChatrooms, chatroomTimeframe } from '@/domains/admin/types/dashboard.types';
+import type {
+  createdChatrooms,
+  chatroomTimeframe,
+} from '@/domains/admin/types/rag.dashboard.types';
 
 // 시간 경과 계산 함수
 function timeAgo(date: Date) {

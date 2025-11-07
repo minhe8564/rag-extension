@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import OverviewStats from '@/domains/admin/components/dashboard/system/OverviewStats';
-import InstanceMonitoring from '@/domains/admin/components/dashboard/system/InstanceMonitoring';
-import ServiceAndStorage from '@/domains/admin/components/dashboard/system/ServiceAndStorage';
+import Overview from '@/domains/admin/components/dashboard/system/Overview';
+import Servers from '@/domains/admin/components/dashboard/system/Servers';
+import Storage from '@/domains/admin/components/dashboard/system/Storage';
 
 export default function SystemTab() {
   const [now, setNow] = useState(() => new Date().toLocaleTimeString());
@@ -22,11 +22,11 @@ export default function SystemTab() {
         </p>
       </div>
 
-      <OverviewStats />
+      <Overview />
 
-      <InstanceMonitoring />
+      <Servers />
 
-      <ServiceAndStorage />
+      <Storage />
     </div>
   );
 }

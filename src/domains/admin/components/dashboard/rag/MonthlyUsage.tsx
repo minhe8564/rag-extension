@@ -6,7 +6,7 @@ import { getChatbotUsageHeatmap } from '@/domains/admin/api/dashboard.api';
 import type {
   chatbotHeatmapTimeframe,
   chatbotHeatmapLabels,
-} from '@/domains/admin/types/dashboard.types';
+} from '@/domains/admin/types/rag.dashboard.types';
 
 // 숫자 자리수 함수
 function niceRound(num: number) {

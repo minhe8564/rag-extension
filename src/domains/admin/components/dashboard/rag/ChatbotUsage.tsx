@@ -3,7 +3,7 @@ import Highcharts from 'highcharts';
 import Card from '@/shared/components/Card';
 import Select from '@/shared/components/Select';
 import { getChatbotUsageTimeSeries } from '@/domains/admin/api/dashboard.api';
-import type { chatbotUsageTime } from '@/domains/admin/types/dashboard.types';
+import type { chatbotUsageTime } from '@/domains/admin/types/rag.dashboard.types';
 
 export default function ChatbotUsage() {
   const chartRef = useRef<Highcharts.Chart | null>(null);
