@@ -17,7 +17,7 @@ class BaseResponse(BaseModel, Generic[T]):
     code: str
     message: str
     isSuccess: bool
-    result: Result[T] | Dict[str, Any]
+    result: Result[T] | Dict[str, Any] | T
 
 
 class Pagination(BaseModel):

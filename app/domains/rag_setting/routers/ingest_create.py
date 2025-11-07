@@ -32,7 +32,7 @@ async def create_ingest_template_endpoint(
 
     현재 데이터베이스 스키마 제약으로 인해:
     - extractions 리스트에서 첫 번째 항목만 사용됩니다
-    - denseEmbeddings 리스트에서 첫 번째 항목만 사용됩니다
+    - denseEmbeddings 리스트는 보조용으로만 받고, 저장 시 사용하지 않습니다
     - spareEmbedding이 메인 임베딩 전략으로 사용됩니다
 
     Args:
@@ -49,7 +49,6 @@ async def create_ingest_template_endpoint(
     """
     # 현재 스키마 제약: 첫 번째 항목만 사용
     first_extraction = request.extractions[0]
-    first_dense_embedding = request.denseEmbeddings[0]
 
     # 템플릿 생성 (spareEmbedding을 메인 임베딩으로 사용)
     try:

@@ -4,12 +4,12 @@ from typing import List, Optional, Tuple, Dict, Any
 import uuid
 
 from fastapi import HTTPException, status
-from sqlalchemy import select, func, over, or_
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from ..models.strategy import Strategy, StrategyType
-from ..models.ingest_template import IngestGroup
+from ..models.ingest_template import IngestGroup, ExtractionGroup, EmbeddingGroup
 
 
 async def list_strategies(
@@ -17,7 +17,6 @@ async def list_strategies(
     type_filter: Optional[str] = None,
     page_num: int = 1,
     page_size: int = 20,
-    sort_by: str = "name",
 ) -> Tuple[List[Strategy], int]:
     """
     전략 목록 조회 (윈도우 함수를 사용한 최적화 버전)
@@ -30,7 +29,6 @@ async def list_strategies(
         type_filter: 전략 유형 필터
         page_num: 페이지 번호
         page_size: 페이지 크기
-        sort_by: 정렬 기준
 
     Returns:
         (전략 목록, 전체 항목 수)
@@ -53,11 +51,8 @@ async def list_strategies(
     if type_filter:
         subquery = subquery.join(Strategy.strategy_type).where(StrategyType.name == type_filter)
 
-    # 정렬 (기본: 이름 오름차순)
-    if sort_by == "name":
-        subquery = subquery.order_by(Strategy.name.asc())
-    else:
-        subquery = subquery.order_by(Strategy.name.asc())
+    # 정렬: 이름 오름차순 고정
+    subquery = subquery.order_by(Strategy.name.asc())
 
     # 페이지네이션 적용
     offset = (page_num - 1) * page_size
@@ -184,36 +179,6 @@ async def delete_strategy_type(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="전략 유형을 찾을 수 없습니다.",
         )
-
-    usage_stmt = select(Strategy.strategy_no).where(Strategy.strategy_type_no == strategy_type_no_bytes).limit(1)
-    usage_result = await session.execute(usage_stmt)
-    if usage_result.first():
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="해당 전략 유형을 사용하는 전략이 존재합니다.",
-        )
-
-    await session.delete(strategy_type)
-    await session.commit()
-
-
-async def delete_strategy_type_by_name(
-    session: AsyncSession,
-    name: str,
-) -> None:
-    """전략 유형을 이름으로 삭제"""
-
-    stmt = select(StrategyType).where(StrategyType.name == name)
-    result = await session.execute(stmt)
-    strategy_type = result.scalar_one_or_none()
-
-    if not strategy_type:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="전략 유형을 찾을 수 없습니다.",
-        )
-
-    strategy_type_no_bytes = strategy_type.strategy_type_no
 
     usage_stmt = select(Strategy.strategy_no).where(Strategy.strategy_type_no == strategy_type_no_bytes).limit(1)
     usage_result = await session.execute(usage_stmt)
@@ -423,16 +388,25 @@ async def delete_strategy(
             detail="전략을 찾을 수 없습니다.",
         )
 
-    usage_query = select(IngestGroup.ingest_group_no).where(
-        or_(
-            IngestGroup.extraction_strategy_no == strategy_no_bytes,
-            IngestGroup.chunking_strategy_no == strategy_no_bytes,
-            IngestGroup.embedding_strategy_no == strategy_no_bytes,
-        )
-    ).limit(1)
+    chunking_usage = await session.execute(
+        select(IngestGroup.ingest_group_no)
+        .where(IngestGroup.chunking_strategy_no == strategy_no_bytes)
+        .limit(1)
+    )
 
-    usage_result = await session.execute(usage_query)
-    if usage_result.first():
+    extraction_usage = await session.execute(
+        select(ExtractionGroup.extraction_group_no)
+        .where(ExtractionGroup.extraction_strategy_no == strategy_no_bytes)
+        .limit(1)
+    )
+
+    embedding_usage = await session.execute(
+        select(EmbeddingGroup.embedding_group_no)
+        .where(EmbeddingGroup.embedding_strategy_no == strategy_no_bytes)
+        .limit(1)
+    )
+
+    if chunking_usage.first() or extraction_usage.first() or embedding_usage.first():
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="해당 전략을 사용하는 템플릿이 존재합니다.",

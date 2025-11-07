@@ -33,7 +33,6 @@ from ..services.strategy import (
     create_strategy_type as create_strategy_type_service,
     update_strategy_type as update_strategy_type_service,
     delete_strategy_type as delete_strategy_type_service,
-    delete_strategy_type_by_name as delete_strategy_type_by_name_service,
 )
 
 
@@ -48,6 +47,167 @@ def _bytes_to_uuid_str(b: bytes) -> str:
         return str(uuid.UUID(bytes=b))
     except Exception:
         return b.hex()
+
+
+@router.get(
+    "/strategies/types",
+    response_model=BaseResponse[StrategyTypeListResponse],
+    summary="전략 유형 목록 조회 (관리자)",
+    description="전략 유형 목록을 조회합니다.",
+    responses={
+        200: {
+            "description": "전략 유형 목록 조회에 성공하였습니다.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": 200,
+                        "code": "OK",
+                        "message": "전략 유형 목록 조회에 성공하였습니다.",
+                        "isSuccess": True,
+                        "result": {
+                            "data": [
+                                {
+                                    "strategyTypeNo": "7ab054c9-8b1a-4ff3-8ff7-c64a48fc6141",
+                                    "name": "chunking"
+                                },
+                                {
+                                    "strategyTypeNo": "e7a2e663-bd65-4fc6-ad85-c9413a7f4380",
+                                    "name": "embedding-dense"
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    }
+)
+async def get_strategy_types(
+    session: AsyncSession = Depends(get_db),
+):
+    """전략 유형 목록 조회"""
+
+    strategy_types = await list_strategy_types_service(session=session)
+
+    items = [
+        StrategyTypeListItem(
+            strategyTypeNo=_bytes_to_uuid_str(strategy_type.strategy_type_no),
+            name=strategy_type.name,
+        )
+        for strategy_type in strategy_types
+    ]
+
+    return BaseResponse[StrategyTypeListResponse](
+        status=200,
+        code="OK",
+        message="전략 유형 목록 조회에 성공하였습니다.",
+        isSuccess=True,
+        result=StrategyTypeListResponse(data=items),
+    )
+
+
+@router.post(
+    "/strategies/types",
+    response_model=BaseResponse[StrategyTypeCreateResponse],
+    status_code=status.HTTP_201_CREATED,
+    summary="전략 유형 생성 (관리자)",
+    description="새로운 전략 유형을 생성합니다.",
+    responses={
+        201: {
+            "description": "전략 유형 생성에 성공하였습니다.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": 201,
+                        "code": "CREATED",
+                        "message": "전략 유형 생성에 성공하였습니다.",
+                        "isSuccess": True,
+                        "result": {
+                            "strategyTypeNo": "7ab054c9-8b1a-4ff3-8ff7-c64a48fc6141"
+                        }
+                    }
+                }
+            }
+        }
+    }
+)
+async def create_strategy_type(
+    request: StrategyTypeCreateRequest,
+    session: AsyncSession = Depends(get_db),
+):
+    """전략 유형 생성"""
+
+    strategy_type = await create_strategy_type_service(session=session, name=request.name)
+
+    return BaseResponse[StrategyTypeCreateResponse](
+        status=201,
+        code="CREATED",
+        message="전략 유형 생성에 성공하였습니다.",
+        isSuccess=True,
+        result=StrategyTypeCreateResponse(strategyTypeNo=_bytes_to_uuid_str(strategy_type.strategy_type_no)
+        ),
+    )
+
+
+@router.put(
+    "/strategies/types/{typeNo}",
+    response_model=BaseResponse[StrategyTypeUpdateResponse],
+    summary="전략 유형 이름 수정 (관리자)",
+    description="전략 유형 이름을 수정합니다.",
+    responses={
+        200: {
+            "description": "전략 유형 이름 수정에 성공하였습니다.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": 200,
+                        "code": "OK",
+                        "message": "전략 유형 이름 수정에 성공하였습니다.",
+                        "isSuccess": True,
+                        "result": { }
+                    }
+                }
+            }
+        }
+    }
+)
+async def update_strategy_type(
+    typeNo: str,
+    request: StrategyTypeUpdateRequest,
+    session: AsyncSession = Depends(get_db),
+):
+    """전략 유형 이름 수정"""
+
+    await update_strategy_type_service(
+        session=session,
+        strategy_type_no_str=typeNo,
+        name=request.name,
+    )
+
+    return BaseResponse[StrategyTypeUpdateResponse](
+        status=200,
+        code="OK",
+        message="전략 유형 수정에 성공하였습니다.",
+        isSuccess=True,
+        result={},
+    )
+
+
+@router.delete(
+    "/strategies/types/{typeNo}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="전략 유형 삭제 (관리자)",
+    description="특정 전략 유형을 삭제합니다.",
+)
+async def delete_strategy_type(
+    typeNo: str,
+    session: AsyncSession = Depends(get_db),
+):
+    """전략 유형 삭제"""
+
+    await delete_strategy_type_service(session=session, strategy_type_no_str=typeNo)
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post(
@@ -76,7 +236,7 @@ async def create_strategy(
         name=request.name,
         description=request.description,
         parameter=request.parameter,
-        strategy_type_name=request.strategy_type,
+        strategy_type_name=request.strategyType,
     )
 
     return BaseResponse[StrategyCreateResponse](
@@ -84,11 +244,7 @@ async def create_strategy(
         code="CREATED",
         message="전략 생성에 성공하였습니다.",
         isSuccess=True,
-        result=Result(
-            data=StrategyCreateResponse(
-                strategyNo=_bytes_to_uuid_str(strategy.strategy_no)
-            )
-        ),
+        result=StrategyCreateResponse(strategyNo=_bytes_to_uuid_str(strategy.strategy_no)),
     )
 
 
@@ -97,6 +253,22 @@ async def create_strategy(
     response_model=BaseResponse[StrategyUpdateResponse],
     summary="전략 수정 (관리자)",
     description="전략 정보를 수정합니다.",
+    responses={
+        200: {
+            "description": "전략 수정에 성공하였습니다.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": 200,
+                        "code": "OK",
+                        "message": "전략 수정에 성공하였습니다.",
+                        "isSuccess": True,
+                        "result": { }
+                    }
+                }
+            }
+        }
+    }
 )
 async def update_strategy(
     strategyNo: str,
@@ -105,13 +277,13 @@ async def update_strategy(
 ):
     """전략 수정"""
 
-    strategy = await update_strategy_service(
+    await update_strategy_service(
         session=session,
         strategy_no_str=strategyNo,
         name=request.name,
         description=request.description,
         parameter=request.parameter,
-        strategy_type_name=request.strategy_type,
+        strategy_type_name=request.strategyType,
     )
 
     return BaseResponse[StrategyUpdateResponse](
@@ -119,15 +291,7 @@ async def update_strategy(
         code="OK",
         message="전략 수정에 성공하였습니다.",
         isSuccess=True,
-        result=Result(
-            data=StrategyUpdateResponse(
-                strategyNo=_bytes_to_uuid_str(strategy.strategy_no),
-                name=strategy.name,
-                description=strategy.description,
-                type=strategy.strategy_type.name if strategy.strategy_type else "",
-                parameter=strategy.parameter,
-            )
-        ),
+        result= {},
     )
 
 
@@ -149,141 +313,61 @@ async def delete_strategy(
 
 
 @router.get(
-    "/strategies/types",
-    response_model=BaseResponse[StrategyTypeListResponse],
-    summary="전략 유형 목록 조회 (관리자)",
-    description="전략 유형 목록을 조회합니다.",
-)
-async def get_strategy_types(
-    session: AsyncSession = Depends(get_db),
-):
-    """전략 유형 목록 조회"""
-
-    strategy_types = await list_strategy_types_service(session=session)
-
-    items = [
-        StrategyTypeListItem(
-            strategyTypeNo=_bytes_to_uuid_str(strategy_type.strategy_type_no),
-            name=strategy_type.name,
-        )
-        for strategy_type in strategy_types
-    ]
-
-    return BaseResponse[StrategyTypeListResponse](
-        status=200,
-        code="OK",
-        message="전략 유형 목록 조회에 성공하였습니다.",
-        isSuccess=True,
-        result=Result(data=StrategyTypeListResponse(data=items)),
-    )
-
-
-@router.post(
-    "/strategies/types",
-    response_model=BaseResponse[StrategyTypeCreateResponse],
-    status_code=status.HTTP_201_CREATED,
-    summary="전략 유형 생성 (관리자)",
-    description="새로운 전략 유형을 생성합니다.",
-)
-async def create_strategy_type(
-    request: StrategyTypeCreateRequest,
-    session: AsyncSession = Depends(get_db),
-):
-    """전략 유형 생성"""
-
-    strategy_type = await create_strategy_type_service(session=session, name=request.name)
-
-    return BaseResponse[StrategyTypeCreateResponse](
-        status=201,
-        code="CREATED",
-        message="전략 유형 생성에 성공하였습니다.",
-        isSuccess=True,
-        result=Result(
-            data=StrategyTypeCreateResponse(
-                strategyTypeNo=_bytes_to_uuid_str(strategy_type.strategy_type_no)
-            )
-        ),
-    )
-
-
-@router.put(
-    "/strategies/types/{typeNo}",
-    response_model=BaseResponse[StrategyTypeUpdateResponse],
-    summary="전략 유형 이름 수정 (관리자)",
-    description="전략 유형 이름을 수정합니다.",
-)
-async def update_strategy_type(
-    typeNo: str,
-    request: StrategyTypeUpdateRequest,
-    session: AsyncSession = Depends(get_db),
-):
-    """전략 유형 이름 수정"""
-
-    strategy_type = await update_strategy_type_service(
-        session=session,
-        strategy_type_no_str=typeNo,
-        name=request.name,
-    )
-
-    return BaseResponse[StrategyTypeUpdateResponse](
-        status=200,
-        code="OK",
-        message="전략 유형 수정에 성공하였습니다.",
-        isSuccess=True,
-        result=Result(
-            data=StrategyTypeUpdateResponse(
-                strategyTypeNo=_bytes_to_uuid_str(strategy_type.strategy_type_no),
-                name=strategy_type.name,
-            )
-        ),
-    )
-
-
-@router.delete(
-    "/strategies/types/{typeNo}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    summary="전략 유형 삭제 (관리자)",
-    description="특정 전략 유형을 삭제합니다.",
-)
-async def delete_strategy_type(
-    typeNo: str,
-    session: AsyncSession = Depends(get_db),
-):
-    """전략 유형 삭제"""
-
-    await delete_strategy_type_service(session=session, strategy_type_no_str=typeNo)
-
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
-
-
-@router.delete(
-    "/strategies/types",
-    status_code=status.HTTP_204_NO_CONTENT,
-    summary="이름으로 전략 유형 삭제 (관리자)",
-    description="전략 유형 이름으로 전략 유형을 삭제합니다.",
-)
-async def delete_strategy_type_by_name(
-    name: str = Query(..., description="삭제할 전략 유형 이름"),
-    session: AsyncSession = Depends(get_db),
-):
-    """전략 유형을 이름으로 삭제"""
-
-    await delete_strategy_type_by_name_service(session=session, name=name)
-
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
-
-
-@router.get(
     "/strategies",
     response_model=BaseResponse[Dict[str, Any]],
     summary="전략 목록 조회 (관리자)",
     description="RAG 전략 목록을 조회합니다.",
+    responses={
+        200: {
+            "description": "전략 목록 조회에 성공하였습니다.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": 200,
+                        "code": "OK",
+                        "message": "전략 목록 조회에 성공하였습니다.",
+                        "isSuccess": True,
+                        "result": {
+                            "data": [
+                                {
+                                    "strategyNo": "7ab054c9-8b1a-4ff3-8ff7-c64a48fc6141",
+                                    "name": "chunking",
+                                    "description": "chunking 전략",
+                                    "type": "chunking",
+                                    "parameter": {
+                                        "size": 512,
+                                        "overlap": 40
+                                    }
+                                },
+                                {
+                                    "strategyNo": "e7a2e663-bd65-4fc6-ad85-c9413a7f4380",
+                                    "name": "embedding-dense",
+                                    "description": "embedding-dense 전략",
+                                    "type": "embedding-dense",
+                                    "parameter": {
+                                        "model": "text-embedding-3-small",
+                                        "dimension": 1536
+                                    }
+                                }
+                            ],
+                            "pagination": {
+                                "pageNum": 1,
+                                "pageSize": 20,
+                                "totalItems": 2,
+                                "totalPages": 1,
+                                "hasNext": False
+                            }
+                        }
+                    }   
+                }
+            }
+        }
+    }
 )
 async def get_strategies(
     type: Optional[str] = Query(None, description="전략 유형 필터"),
     pageNum: int = Query(1, ge=1, description="페이지 번호"),
     pageSize: int = Query(20, ge=1, le=100, description="페이지 크기"),
-    sort: str = Query("name", description="정렬 기준"),
     session: AsyncSession = Depends(get_db),
 ):
     """
@@ -300,7 +384,6 @@ async def get_strategies(
         type_filter=type,
         page_num=pageNum,
         page_size=pageSize,
-        sort_by=sort,
     )
 
     # 응답 데이터 변환
@@ -332,7 +415,7 @@ async def get_strategies(
         code="OK",
         message="전략 목록 조회에 성공하였습니다.",
         isSuccess=True,
-        result=Result(data={"data": items, "pagination": pagination}),
+        result={"data": items, "pagination": pagination},
     )
 
 
@@ -341,6 +424,31 @@ async def get_strategies(
     response_model=BaseResponse[StrategyDetailResponse],
     summary="전략 상세 조회 (관리자)",
     description="특정 전략의 상세 정보를 조회합니다.",
+    responses={
+        200: {
+            "description": "전략 상세 조회에 성공하였습니다.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": 200,
+                        "code": "OK",
+                        "message": "전략 상세 조회에 성공하였습니다.",
+                        "isSuccess": True,
+                        "result": {
+                            "strategyNo": "7ab054c9-8b1a-4ff3-8ff7-c64a48fc6141",
+                            "name": "chunking",
+                            "description": "chunking 전략",
+                            "type": "chunking",
+                            "parameter": {
+                                "size": 512,
+                                "overlap": 40
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 )
 async def get_strategy_detail(
     strategyNo: str,
@@ -379,5 +487,5 @@ async def get_strategy_detail(
         code="OK",
         message="성공",
         isSuccess=True,
-        result=Result(data=detail),
+        result=detail,
     )
