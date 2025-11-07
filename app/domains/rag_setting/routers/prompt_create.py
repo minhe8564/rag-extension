@@ -74,7 +74,7 @@ async def create_prompt_endpoint(
     return BaseResponse[PromptCreateResponse](
         status=201,
         code="CREATED",
-        message="성공",
+        message="프롬프트 생성에 성공하였습니다.",
         isSuccess=True,
         result=Result(data=PromptCreateResponse(promptNo=prompt_no))
     )

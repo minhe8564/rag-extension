@@ -88,7 +88,7 @@ async def create_ingest_template_endpoint(
     return BaseResponse[IngestTemplateCreateResponse](
         status=201,
         code="CREATED",
-        message="성공",
+        message="Ingest 템플릿 생성에 성공하였습니다.",
         isSuccess=True,
         result=Result(data=IngestTemplateCreateResponse(ingestNo=ingest_no)),
     )

@@ -71,7 +71,7 @@ async def update_prompt_endpoint(
     return BaseResponse[PromptDetailResponse](
         status=200,
         code="OK",
-        message="성공",
+        message="프롬프트 수정에 성공하였습니다.",
         isSuccess=True,
         result=Result(data=PromptDetailResponse(
             promptNo=str(uuid.UUID(bytes=updated_prompt.strategy_no)),

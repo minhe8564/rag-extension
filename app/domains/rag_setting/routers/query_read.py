@@ -22,6 +22,10 @@ from ..models.query_template import binary_to_uuid
 
 router = APIRouter(prefix="/rag", tags=["RAG - Query Template Management"])
 
+# 페이지네이션 설정
+DEFAULT_PAGE_SIZE = 20
+MAX_PAGE_SIZE = 100
+
 
 @router.get(
     "/query-templates",
@@ -65,7 +69,7 @@ router = APIRouter(prefix="/rag", tags=["RAG - Query Template Management"])
 )
 async def list_query_templates_endpoint(
     pageNum: int = Query(1, ge=1, description="페이지 번호"),
-    pageSize: int = Query(20, ge=1, le=100, description="페이지 크기"),
+    pageSize: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE, description="페이지 크기 (최대 100)"),
     sort: str = Query("name", description="정렬 기준 (name, created_at)"),
     x_user_role: str = Depends(check_role("ADMIN")),
     session: AsyncSession = Depends(get_db),
@@ -130,7 +134,7 @@ async def list_query_templates_endpoint(
     response = BaseResponse[Dict[str, Any]](
         status=200,
         code="SUCCESS",
-        message="성공",
+        message="Query 템플릿 목록 조회에 성공하였습니다.",
         isSuccess=True,
         result=Result(
             data={
@@ -326,7 +330,7 @@ async def get_query_template_endpoint(
     response = BaseResponse[QueryTemplateDetailResponse](
         status=200,
         code="OK",
-        message="성공",
+        message="Query 템플릿 상세 조회에 성공하였습니다.",
         isSuccess=True,
         result=Result(data=detail)
     )

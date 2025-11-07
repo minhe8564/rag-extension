@@ -233,7 +233,7 @@ async def update_query_template_endpoint(
         response = BaseResponse[QueryTemplateDetailResponse](
             status=200,
             code="OK",
-            message="성공",
+            message="Query 템플릿 수정에 성공하였습니다.",
             isSuccess=True,
             result=Result(data=detail)
         )

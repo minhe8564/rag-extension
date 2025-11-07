@@ -132,7 +132,7 @@ async def update_ingest_template_endpoint(
     return BaseResponse[IngestTemplateDetailResponse](
         status=200,
         code="OK",
-        message="성공",
+        message="Ingest 템플릿 수정에 성공하였습니다.",
         isSuccess=True,
         result=Result(data=response_data),
     )

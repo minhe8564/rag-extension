@@ -27,6 +27,10 @@ from ..services.ingest import list_ingest_groups, get_ingest_template_detail
 
 router = APIRouter(prefix="/rag", tags=["RAG - Ingest Template Management"])
 
+# 페이지네이션 설정
+DEFAULT_PAGE_SIZE = 20
+MAX_PAGE_SIZE = 100
+
 
 def _bytes_to_uuid_str(b: bytes) -> str:
     """UUID 바이너리를 문자열로 변환"""
@@ -45,7 +49,7 @@ def _bytes_to_uuid_str(b: bytes) -> str:
 )
 async def get_ingest_templates(
     pageNum: int = Query(1, ge=1, description="페이지 번호"),
-    pageSize: int = Query(20, ge=1, le=100, description="페이지 크기"),
+    pageSize: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE, description="페이지 크기 (최대 100)"),
     sort: str = Query("created_at", description="정렬 기준"),
     x_user_role: str = Depends(check_role("ADMIN")),
     session: AsyncSession = Depends(get_db),
@@ -95,7 +99,7 @@ async def get_ingest_templates(
     return BaseResponse[IngestGroupListResponse](
         status=200,
         code="OK",
-        message="성공",
+        message="Ingest 템플릿 목록 조회에 성공하였습니다.",
         isSuccess=True,
         result=Result(data=IngestGroupListResponse(data=items, pagination=pagination)),
     )
@@ -184,7 +188,7 @@ async def get_ingest_template(
     return BaseResponse[IngestTemplateDetailResponse](
         status=200,
         code="OK",
-        message="성공",
+        message="Ingest 템플릿 상세 조회에 성공하였습니다.",
         isSuccess=True,
         result=Result(data=response_data),
     )

@@ -87,7 +87,7 @@ async def create_query_template_endpoint(
         response = BaseResponse[QueryTemplateCreateResponse](
             status=201,
             code="CREATED",
-            message="성공",
+            message="Query 템플릿 생성에 성공하였습니다.",
             isSuccess=True,
             result=Result(data=QueryTemplateCreateResponse(queryNo=query_no))
         )

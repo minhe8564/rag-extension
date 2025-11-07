@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import List, Tuple, Optional
 import uuid
 
-from sqlalchemy import select, func
+from sqlalchemy import select, func, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from fastapi import HTTPException, status
@@ -113,6 +113,67 @@ async def verify_strategy_exists(
     return result.scalar_one_or_none()
 
 
+async def verify_strategy_with_type(
+    session: AsyncSession,
+    strategy_no: str,
+    expected_type: str,
+) -> Strategy:
+    """
+    전략 존재 여부 및 전략 유형 검증
+
+    세분화된 전략 유형을 지원합니다:
+    - extraction: extraction-pdf, extraction-docx, extraction-txt, extraction-xlsx
+    - embedding: embedding-dense, embedding-spare
+
+    Args:
+        session: 데이터베이스 세션
+        strategy_no: 전략 ID (UUID 문자열)
+        expected_type: 기대되는 전략 유형 이름 (extraction, chunking, embedding 등)
+
+    Returns:
+        Strategy 객체
+
+    Raises:
+        HTTPException: 전략이 존재하지 않거나 유형이 일치하지 않는 경우
+    """
+    try:
+        strategy_binary = uuid_to_binary(strategy_no)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"유효하지 않은 {expected_type} 전략 ID입니다."
+        )
+
+    # Strategy와 StrategyType을 함께 조회
+    query = (
+        select(Strategy)
+        .options(selectinload(Strategy.strategy_type))
+        .where(Strategy.strategy_no == strategy_binary)
+    )
+    result = await session.execute(query)
+    strategy = result.scalar_one_or_none()
+
+    if not strategy:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"{expected_type} 전략을 찾을 수 없습니다: {strategy_no}"
+        )
+
+    # 전략 유형 검증 (세분화된 타입 지원)
+    # extraction -> extraction-pdf, extraction-docx 등을 허용
+    # embedding -> embedding-dense, embedding-spare 등을 허용
+    if strategy.strategy_type:
+        actual_type = strategy.strategy_type.name
+        # prefix 매칭: extraction-pdf는 extraction으로 시작하므로 통과
+        if not actual_type.startswith(expected_type):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"전략 유형이 일치하지 않습니다. 기대: {expected_type}, 실제: {actual_type}"
+            )
+
+    return strategy
+
+
 async def create_ingest_template(
     session: AsyncSession,
     name: str,
@@ -142,37 +203,20 @@ async def create_ingest_template(
         생성된 Ingest 템플릿 ID (UUID 문자열)
 
     Raises:
-        HTTPException: 전략을 찾을 수 없는 경우
+        HTTPException: 전략을 찾을 수 없거나 유형이 일치하지 않는 경우
     """
-    # 전략 존재 여부 확인
-    extraction_strategy = await verify_strategy_exists(session, extraction_no)
-    if not extraction_strategy:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"추출 전략을 찾을 수 없습니다: {extraction_no}"
-        )
+    # 전략 존재 여부 및 유형 검증
+    extraction_strategy = await verify_strategy_with_type(session, extraction_no, "extraction")
+    chunking_strategy = await verify_strategy_with_type(session, chunking_no, "chunking")
+    embedding_strategy = await verify_strategy_with_type(session, embedding_no, "embedding")
 
-    chunking_strategy = await verify_strategy_exists(session, chunking_no)
-    if not chunking_strategy:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"청킹 전략을 찾을 수 없습니다: {chunking_no}"
-        )
-
-    embedding_strategy = await verify_strategy_exists(session, embedding_no)
-    if not embedding_strategy:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"임베딩 전략을 찾을 수 없습니다: {embedding_no}"
-        )
-
-    # 기본 템플릿 설정 시 기존 기본 템플릿 해제
+    # 기본 템플릿 설정 시 기존 기본 템플릿 해제 (벌크 업데이트)
     if is_default:
-        query = select(IngestGroup).where(IngestGroup.is_default == True)
-        result = await session.execute(query)
-        existing_defaults = result.scalars().all()
-        for existing in existing_defaults:
-            existing.is_default = False
+        await session.execute(
+            update(IngestGroup)
+            .where(IngestGroup.is_default == True)
+            .values(is_default=False)
+        )
 
     # Ingest 그룹 생성
     ingest_group = IngestGroup(
@@ -270,7 +314,7 @@ async def update_ingest_template(
         수정된 IngestGroup 객체
 
     Raises:
-        HTTPException: 템플릿을 찾을 수 없거나 전략을 찾을 수 없는 경우
+        HTTPException: 템플릿을 찾을 수 없거나 전략을 찾을 수 없거나 유형이 일치하지 않는 경우
     """
     # 기존 템플릿 조회
     try:
@@ -291,27 +335,10 @@ async def update_ingest_template(
             detail="대상을 찾을 수 없습니다."
         )
 
-    # 전략 존재 여부 확인
-    extraction_strategy = await verify_strategy_exists(session, extraction_no)
-    if not extraction_strategy:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"추출 전략을 찾을 수 없습니다: {extraction_no}"
-        )
-
-    chunking_strategy = await verify_strategy_exists(session, chunking_no)
-    if not chunking_strategy:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"청킹 전략을 찾을 수 없습니다: {chunking_no}"
-        )
-
-    embedding_strategy = await verify_strategy_exists(session, embedding_no)
-    if not embedding_strategy:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"임베딩 전략을 찾을 수 없습니다: {embedding_no}"
-        )
+    # 전략 존재 여부 및 유형 검증
+    extraction_strategy = await verify_strategy_with_type(session, extraction_no, "extraction")
+    chunking_strategy = await verify_strategy_with_type(session, chunking_no, "chunking")
+    embedding_strategy = await verify_strategy_with_type(session, embedding_no, "embedding")
 
     # 템플릿 업데이트
     ingest_group.name = name

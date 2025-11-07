@@ -22,7 +22,7 @@ async def list_prompts(
     """
     프롬프트 목록 조회 (페이지네이션 포함)
 
-    strategy_type='prompting'인 전략들을 조회합니다.
+    strategy_type='prompting-system' 또는 'prompting-user'인 전략들을 조회합니다.
 
     Args:
         session: 데이터베이스 세션
@@ -37,6 +37,7 @@ async def list_prompts(
     total_count_window = func.count().over().label('total_count')
 
     # 서브쿼리: 필터링과 정렬을 적용한 기본 쿼리
+    # prompting-system과 prompting-user 모두 조회
     subquery = select(
         Strategy.strategy_no,
         Strategy.name,
@@ -45,7 +46,7 @@ async def list_prompts(
         Strategy.strategy_type_no,
         total_count_window
     ).join(Strategy.strategy_type).where(
-        StrategyType.name == "prompting"
+        StrategyType.name.in_(["prompting-system", "prompting-user"])
     )
 
     # 정렬 (기본: 이름 오름차순)
@@ -89,7 +90,7 @@ async def get_prompt_by_no(
     """
     프롬프트 상세 정보 조회
 
-    strategy_type='prompting'인 전략만 조회합니다.
+    strategy_type='prompting-system' 또는 'prompting-user'인 전략만 조회합니다.
 
     Args:
         session: 데이터베이스 세션
@@ -104,14 +105,14 @@ async def get_prompt_by_no(
     except (ValueError, AttributeError):
         return None
 
-    # 프롬프트 조회 (strategy_type='prompting'만 필터링)
+    # 프롬프트 조회 (strategy_type='prompting-system' 또는 'prompting-user'만 필터링)
     query = (
         select(Strategy)
         .join(Strategy.strategy_type)
         .options(selectinload(Strategy.strategy_type))
         .where(
             Strategy.strategy_no == prompt_no_bytes,
-            StrategyType.name == "prompting"
+            StrategyType.name.in_(["prompting-system", "prompting-user"])
         )
     )
 

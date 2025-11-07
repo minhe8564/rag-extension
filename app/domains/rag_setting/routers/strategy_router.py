@@ -47,6 +47,10 @@ router = APIRouter(
     tags=["RAG - Strategy Management"],
 )
 
+# 페이지네이션 설정
+DEFAULT_PAGE_SIZE = 20
+MAX_PAGE_SIZE = 100
+
 
 def _bytes_to_uuid_str(b: bytes) -> str:
     """UUID 바이너리를 문자열로 변환"""
@@ -340,7 +344,7 @@ async def delete_strategy_type_by_name(
 async def get_strategies(
     type: Optional[str] = Query(None, description="전략 유형 필터"),
     pageNum: int = Query(1, ge=1, description="페이지 번호"),
-    pageSize: int = Query(20, ge=1, le=100, description="페이지 크기"),
+    pageSize: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE, description="페이지 크기 (최대 100)"),
     sort: str = Query("name", description="정렬 기준"),
     session: AsyncSession = Depends(get_db),
 ):
@@ -439,7 +443,7 @@ async def get_strategy_detail(
     return BaseResponse[StrategyDetailResponse](
         status=200,
         code="OK",
-        message="성공",
+        message="전략 상세 조회에 성공하였습니다.",
         isSuccess=True,
         result=Result(data=detail),
     )

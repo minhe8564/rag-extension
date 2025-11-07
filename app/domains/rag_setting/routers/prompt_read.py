@@ -18,6 +18,10 @@ from ..services.prompt_read import list_prompts, get_prompt_by_no
 
 router = APIRouter(prefix="/rag", tags=["RAG - Prompt Management"])
 
+# 페이지네이션 설정
+DEFAULT_PAGE_SIZE = 20
+MAX_PAGE_SIZE = 100
+
 
 def _bytes_to_uuid_str(b: bytes) -> str:
     """UUID 바이너리를 문자열로 변환"""
@@ -36,7 +40,7 @@ def _bytes_to_uuid_str(b: bytes) -> str:
 )
 async def get_prompts(
     pageNum: int = Query(1, ge=1, description="페이지 번호"),
-    pageSize: int = Query(20, ge=1, le=100, description="페이지 크기"),
+    pageSize: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE, description="페이지 크기 (최대 100)"),
     sort: str = Query("name", description="정렬 기준"),
     x_user_role: str = Depends(check_role("ADMIN")),
     session: AsyncSession = Depends(get_db)
@@ -89,7 +93,7 @@ async def get_prompts(
     return BaseResponse[Dict[str, Any]](
         status=200,
         code="OK",
-        message="성공",
+        message="프롬프트 목록 조회에 성공하였습니다.",
         isSuccess=True,
         result=Result(data={"data": items, "pagination": pagination})
     )
@@ -145,7 +149,7 @@ async def get_prompt_detail(
     return BaseResponse[PromptDetailResponse](
         status=200,
         code="OK",
-        message="성공",
+        message="프롬프트 상세 조회에 성공하였습니다.",
         isSuccess=True,
         result=Result(data=detail)
     )
