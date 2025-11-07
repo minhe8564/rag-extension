@@ -8,7 +8,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from fastapi import HTTPException, status
 
-from ..models.ingest_template import IngestGroup, uuid_to_binary, binary_to_uuid
+from ..models.ingest_template import (
+    IngestGroup,
+    ExtractionGroup,
+    EmbeddingGroup,
+    uuid_to_binary,
+    binary_to_uuid,
+)
 from ..models.strategy import Strategy
 
 
@@ -16,7 +22,6 @@ async def list_ingest_groups(
     session: AsyncSession,
     page_num: int = 1,
     page_size: int = 20,
-    sort_by: str = "created_at",
 ) -> Tuple[List[IngestGroup], int]:
     """
     Ingest 그룹 목록 조회 (윈도우 함수를 사용한 최적화 버전)
@@ -28,7 +33,6 @@ async def list_ingest_groups(
         session: 데이터베이스 세션
         page_num: 페이지 번호
         page_size: 페이지 크기
-        sort_by: 정렬 기준
 
     Returns:
         (Ingest 그룹 목록, 전체 항목 수)
@@ -42,20 +46,10 @@ async def list_ingest_groups(
         IngestGroup.ingest_group_no,
         IngestGroup.name,
         IngestGroup.is_default,
-        IngestGroup.extraction_strategy_no,
         IngestGroup.chunking_strategy_no,
-        IngestGroup.embedding_strategy_no,
-        IngestGroup.extraction_parameter,
         IngestGroup.chunking_parameter,
-        IngestGroup.embedding_parameter,
         total_count_window
-    )
-
-    # 정렬 (기본: 생성일자 내림차순)
-    if sort_by == "created_at":
-        subquery = subquery.order_by(IngestGroup.created_at.desc())
-    else:
-        subquery = subquery.order_by(IngestGroup.created_at.desc())
+    ).order_by(IngestGroup.name.asc())
 
     # 페이지네이션 적용
     offset = (page_num - 1) * page_size
@@ -69,9 +63,9 @@ async def list_ingest_groups(
         select(IngestGroup, subquery.c.total_count)
         .join(subquery, IngestGroup.ingest_group_no == subquery.c.ingest_group_no)
         .options(
-            selectinload(IngestGroup.extraction_strategy),
             selectinload(IngestGroup.chunking_strategy),
-            selectinload(IngestGroup.embedding_strategy)
+            selectinload(IngestGroup.extraction_groups).selectinload(ExtractionGroup.extraction_strategy),
+            selectinload(IngestGroup.embedding_groups).selectinload(EmbeddingGroup.embedding_strategy),
         )
     )
 
@@ -178,15 +172,27 @@ async def create_ingest_template(
     ingest_group = IngestGroup(
         name=name,
         is_default=is_default,
-        extraction_strategy_no=uuid_to_binary(extraction_no),
-        chunking_strategy_no=uuid_to_binary(chunking_no),
-        embedding_strategy_no=uuid_to_binary(embedding_no),
-        extraction_parameter=extraction_parameters or {},
+        chunking_strategy_no=chunking_strategy.strategy_no,
         chunking_parameter=chunking_parameters or {},
-        embedding_parameter=embedding_parameters or {},
     )
 
     session.add(ingest_group)
+
+    extraction_group = ExtractionGroup(
+        name=extraction_strategy.name,
+        extraction_strategy_no=extraction_strategy.strategy_no,
+        extraction_parameter=extraction_parameters or {},
+    )
+    extraction_group.ingest_group = ingest_group
+
+    embedding_group = EmbeddingGroup(
+        name=embedding_strategy.name,
+        embedding_strategy_no=embedding_strategy.strategy_no,
+        embedding_parameter=embedding_parameters or {},
+    )
+    embedding_group.ingest_group = ingest_group
+
+    session.add_all([extraction_group, embedding_group])
     await session.commit()
     await session.refresh(ingest_group)
 
@@ -223,9 +229,9 @@ async def get_ingest_template_detail(
         select(IngestGroup)
         .where(IngestGroup.ingest_group_no == ingest_binary)
         .options(
-            selectinload(IngestGroup.extraction_strategy),
             selectinload(IngestGroup.chunking_strategy),
-            selectinload(IngestGroup.embedding_strategy)
+            selectinload(IngestGroup.extraction_groups).selectinload(ExtractionGroup.extraction_strategy),
+            selectinload(IngestGroup.embedding_groups).selectinload(EmbeddingGroup.embedding_strategy),
         )
     )
 
@@ -282,7 +288,15 @@ async def update_ingest_template(
             detail="유효하지 않은 Ingest 템플릿 ID입니다."
         )
 
-    query = select(IngestGroup).where(IngestGroup.ingest_group_no == ingest_binary)
+    query = (
+        select(IngestGroup)
+        .where(IngestGroup.ingest_group_no == ingest_binary)
+        .options(
+            selectinload(IngestGroup.chunking_strategy),
+            selectinload(IngestGroup.extraction_groups).selectinload(ExtractionGroup.extraction_strategy),
+            selectinload(IngestGroup.embedding_groups).selectinload(EmbeddingGroup.embedding_strategy),
+        )
+    )
     result = await session.execute(query)
     ingest_group = result.scalar_one_or_none()
 
@@ -316,12 +330,36 @@ async def update_ingest_template(
 
     # 템플릿 업데이트
     ingest_group.name = name
-    ingest_group.extraction_strategy_no = uuid_to_binary(extraction_no)
-    ingest_group.chunking_strategy_no = uuid_to_binary(chunking_no)
-    ingest_group.embedding_strategy_no = uuid_to_binary(embedding_no)
-    ingest_group.extraction_parameter = extraction_parameters or {}
+    ingest_group.chunking_strategy_no = chunking_strategy.strategy_no
     ingest_group.chunking_parameter = chunking_parameters or {}
-    ingest_group.embedding_parameter = embedding_parameters or {}
+
+    if ingest_group.extraction_groups:
+        extraction_group = ingest_group.extraction_groups[0]
+        extraction_group.name = extraction_strategy.name
+        extraction_group.extraction_strategy_no = extraction_strategy.strategy_no
+        extraction_group.extraction_parameter = extraction_parameters or {}
+    else:
+        extraction_group = ExtractionGroup(
+            name=extraction_strategy.name,
+            extraction_strategy_no=extraction_strategy.strategy_no,
+            extraction_parameter=extraction_parameters or {},
+        )
+        extraction_group.ingest_group = ingest_group
+        session.add(extraction_group)
+
+    if ingest_group.embedding_groups:
+        embedding_group = ingest_group.embedding_groups[0]
+        embedding_group.name = embedding_strategy.name
+        embedding_group.embedding_strategy_no = embedding_strategy.strategy_no
+        embedding_group.embedding_parameter = embedding_parameters or {}
+    else:
+        embedding_group = EmbeddingGroup(
+            name=embedding_strategy.name,
+            embedding_strategy_no=embedding_strategy.strategy_no,
+            embedding_parameter=embedding_parameters or {},
+        )
+        embedding_group.ingest_group = ingest_group
+        session.add(embedding_group)
 
     if is_default:
         await session.execute(
@@ -343,9 +381,9 @@ async def update_ingest_template(
         select(IngestGroup)
         .where(IngestGroup.ingest_group_no == ingest_binary)
         .options(
-            selectinload(IngestGroup.extraction_strategy),
             selectinload(IngestGroup.chunking_strategy),
-            selectinload(IngestGroup.embedding_strategy)
+            selectinload(IngestGroup.extraction_groups).selectinload(ExtractionGroup.extraction_strategy),
+            selectinload(IngestGroup.embedding_groups).selectinload(EmbeddingGroup.embedding_strategy),
         )
     )
     result = await session.execute(query)

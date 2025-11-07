@@ -42,7 +42,7 @@ class StrategyCreateRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=50, description="전략명")
     description: str = Field(..., min_length=1, max_length=255, description="전략 설명")
     parameter: Optional[Dict[str, Any]] = Field(None, description="전략 파라미터")
-    strategy_type: str = Field(..., min_length=1, max_length=255, description="전략 유형 이름")
+    strategyType: str = Field(..., min_length=1, max_length=255, description="전략 유형 이름")
 
 
 class StrategyCreateResponse(BaseModel):
@@ -55,7 +55,7 @@ class StrategyUpdateRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=50, description="전략명")
     description: str = Field(..., min_length=1, max_length=255, description="전략 설명")
     parameter: Optional[Dict[str, Any]] = Field(None, description="전략 파라미터")
-    strategy_type: Optional[str] = Field(None, min_length=1, max_length=255, description="전략 유형 이름")
+    strategyType: Optional[str] = Field(None, min_length=1, max_length=255, description="전략 유형 이름")
 
 
 class StrategyUpdateResponse(BaseModel):
