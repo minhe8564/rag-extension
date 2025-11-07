@@ -80,50 +80,32 @@ export default function MyDocsTab() {
     const fallbackName = doc?.name || `${fileNo}.bin`;
 
     try {
-      const url = await getPresignedUrl(fileNo, { inline: false });
+      const signedUrl = await getPresignedUrl(fileNo, { inline: false });
 
-      const res = await fetch(url);
+      const res = await fetch(signedUrl);
+      if (!res.ok) throw new Error('Failed to fetch file');
+
       const blob = await res.blob();
-
-      const q = new URL(url).searchParams;
-      const fromQuery = extractFileName(q.get('response-content-disposition'));
-      const fromHeader = extractFileName(res.headers.get('content-disposition'));
-      const fileName = fromQuery || fromHeader || fallbackName;
-
       const blobUrl = URL.createObjectURL(blob);
-      triggerDownload(blobUrl, fileName);
+
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = fallbackName;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
       URL.revokeObjectURL(blobUrl);
-    } catch {
-      const url = await getPresignedUrl(fileNo, { inline: false });
-      triggerDownload(url, fallbackName);
+    } catch (error) {
+      console.error('File download failed:', error);
+
+      const signedUrl = await getPresignedUrl(fileNo, { inline: false });
+      window.open(signedUrl, '_blank');
     } finally {
       setDownloadingId(null);
     }
   };
-
-  function triggerDownload(href: string, name: string) {
-    const a = document.createElement('a');
-    a.href = href;
-    a.download = name;
-    a.rel = 'noopener';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-  }
-
-  function extractFileName(dispo: string | null): string {
-    if (!dispo) return '';
-    const m = /filename\*?=(?:utf-8''|")?([^";]+)/i.exec(decodeSafe(dispo));
-    return m?.[1] ? decodeSafe(m[1]) : '';
-  }
-
-  function decodeSafe(str: string) {
-    try {
-      return decodeURIComponent(str);
-    } catch {
-      return str;
-    }
-  }
 
   return (
     <div className="mt-2">

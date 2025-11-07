@@ -80,18 +80,19 @@ export async function getPresignedUrl(
     versionId?: string;
   }
 ): Promise<string> {
-  const { data } = await fastApi.get<ApiEnvelope<{ url: string }>>(
-    `/api/v1/files/${fileNo}/presigned`,
-    {
-      params: {
-        ...(opts?.days !== undefined ? { days: opts.days } : {}),
-        ...(opts?.inline !== undefined ? { inline: opts.inline } : {}),
-        ...(opts?.contentType ? { contentType: opts.contentType } : {}),
-        ...(opts?.versionId ? { versionId: opts.versionId } : {}),
-      },
-    }
-  );
+  type PresignedUrlResponse = ApiEnvelope<{
+    data: { url: string };
+  }>;
 
-  // BaseResponse<PresignedUrl> 규격에 맞춰 url만 반환
-  return data.result.url;
+  const res = await fastApi.get<PresignedUrlResponse>(`/api/v1/files/${fileNo}/presigned`, {
+    params: {
+      ...(opts?.days !== undefined ? { days: opts.days } : {}),
+      ...(opts?.inline !== undefined ? { inline: opts.inline } : {}),
+      ...(opts?.contentType ? { contentType: opts.contentType } : {}),
+      ...(opts?.versionId ? { versionId: opts.versionId } : {}),
+    },
+  });
+
+  const url = res.data?.result?.data?.url;
+  return url;
 }
