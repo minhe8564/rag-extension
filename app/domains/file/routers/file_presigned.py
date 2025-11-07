@@ -4,7 +4,7 @@ from fastapi import APIRouter, Request, HTTPException, status, Query
 
 from app.core.schemas import BaseResponse
 from ..schemas.response.presigned_url import PresignedUrl
-from ..services import files as files_service
+from ..services.presign import get_presigned_url
 
 
 router = APIRouter(prefix="/files", tags=["File"])
@@ -25,7 +25,7 @@ async def generate_presigned_url(
     if not x_user_role or not x_user_uuid:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="x-user-role/x-user-uuid headers required")
 
-    url = await files_service.get_presigned_url(
+    url = await get_presigned_url(
         bucket=bucket,
         object_name=path,
         content_type=contentType,

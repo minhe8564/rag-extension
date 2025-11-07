@@ -62,6 +62,14 @@ class Settings(BaseSettings):
 
     # External APIs
     ingest_process_url: str = "https://gateway.ragextension.shop/rag/ingest/process"
+    ingest_delete_url: str = ""  # optional: vector cleanup endpoint
+
+    # Milvus settings (direct access)
+    milvus_host: str = ""
+    milvus_port: int
+    milvus_collection: str = ""  # e.g., "documents" or "chunks"
+    milvus_pk_field: str = "file_no"  # field name storing file UUID as string
+    milvus_path_field: str = "path"  # optional secondary field to match by path
 
     # Logging
     logging_level: str = "INFO"

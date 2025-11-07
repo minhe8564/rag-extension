@@ -22,7 +22,8 @@ from ..schemas.image_regenerate_request import ImageRegenerateRequest
 from ..schemas.image_response import ImageResponse
 from .minio_service import MinIOService
 from .gemini_client import GeminiClient
-from app.domains.file.services.files import _build_presigned_key, get_presigned_url
+from app.domains.file.services.common import _build_presigned_key
+from app.domains.file.services.presign import get_presigned_url
 
 logger = logging.getLogger(__name__)
 
