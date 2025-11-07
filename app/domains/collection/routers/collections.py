@@ -67,7 +67,7 @@ async def list_collection_files(
     )
 
 
-@router.get("", response_model=BaseResponse[Dict[str, Any]])
+@router.get("", response_model=BaseResponse[List[CollectionListItem]])
 async def list_collections(
     pageNum: int = Query(1, ge=1, description="페이지 번호"),
     pageSize: int = Query(5, ge=1, le=100, description="페이지 크기"),

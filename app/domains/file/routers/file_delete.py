@@ -54,6 +54,11 @@ async def delete_file(
         code="OK",
         message="파일 삭제 완료",
         isSuccess=True,
-        result={"data": {"fileNo": fileNo, "deleted": True}},
+        result={"data": {
+            "fileNo": fileNo, 
+            "name" : file_rec.name,
+            "deleted": True
+            }
+        },
     )
 
