@@ -150,7 +150,7 @@ async def create_ingest_template(
     extractions: List[Dict[str, Any]],
     chunking: Dict[str, Any],
     dense_embeddings: Optional[List[Dict[str, Any]]] = None,
-    spare_embedding: Optional[Dict[str, Any]] = None,
+    sparse_embedding: Optional[Dict[str, Any]] = None,
 ) -> str:
     """
     Ingest 템플릿 생성
@@ -162,7 +162,7 @@ async def create_ingest_template(
         extractions: 추출 전략 목록
         chunking: 청킹 전략 정보
         dense_embeddings: 밀집 임베딩 전략 목록
-        spare_embedding: 희소(대표) 임베딩 전략 정보
+        sparse_embedding: 희소(대표) 임베딩 전략 정보
 
     Returns:
         생성된 Ingest 템플릿 ID (UUID 문자열)
@@ -176,10 +176,10 @@ async def create_ingest_template(
             detail="추출 전략은 최소 1개 이상이어야 합니다."
         )
 
-    if spare_embedding is None:
+    if sparse_embedding is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="spareEmbedding 전략 정보가 필요합니다."
+            detail="sparseEmbedding 전략 정보가 필요합니다."
         )
 
     if not chunking:
@@ -250,8 +250,8 @@ async def create_ingest_template(
         extraction_group.ingest_group = ingest_group
         session.add(extraction_group)
 
-    # 임베딩 전략 그룹 생성 (spare + dense)
-    embedding_payloads = [spare_embedding, *dense_embeddings]
+    # 임베딩 전략 그룹 생성 (sparse + dense)
+    embedding_payloads = [sparse_embedding, *dense_embeddings]
 
     for embedding in embedding_payloads:
         embedding_no = embedding.get("no")
@@ -339,7 +339,7 @@ async def update_ingest_template(
     extractions: List[Dict[str, Any]],
     chunking: Dict[str, Any],
     dense_embeddings: Optional[List[Dict[str, Any]]] = None,
-    spare_embedding: Optional[Dict[str, Any]] = None,
+    sparse_embedding: Optional[Dict[str, Any]] = None,
     is_default: bool = False,
 ) -> IngestGroup:
     """
@@ -352,7 +352,7 @@ async def update_ingest_template(
         extractions: 추출 전략 목록
         chunking: 청킹 전략 정보
         dense_embeddings: 밀집 임베딩 전략 목록
-        spare_embedding: 희소(대표) 임베딩 전략 정보
+        sparse_embedding: 희소(대표) 임베딩 전략 정보
 
     Returns:
         수정된 IngestGroup 객체
@@ -393,10 +393,10 @@ async def update_ingest_template(
             detail="추출 전략은 최소 1개 이상이어야 합니다."
         )
 
-    if spare_embedding is None:
+    if sparse_embedding is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="spareEmbedding 전략 정보가 필요합니다."
+            detail="sparseEmbedding 전략 정보가 필요합니다."
         )
 
     if not chunking:
@@ -469,8 +469,8 @@ async def update_ingest_template(
     for group in existing_extraction_groups[len(extractions):]:
         await session.delete(group)
 
-    # 임베딩 전략 동기화 (spare + dense)
-    embedding_payloads = [spare_embedding, *dense_embeddings]
+    # 임베딩 전략 동기화 (sparse + dense)
+    embedding_payloads = [sparse_embedding, *dense_embeddings]
     existing_embedding_groups = list(ingest_group.embedding_groups)
 
     for idx, embedding in enumerate(embedding_payloads):
@@ -547,7 +547,7 @@ async def partial_update_ingest_template(
     extractions: Optional[List[Dict[str, Any]]] = None,
     chunking: Optional[Dict[str, Any]] = None,
     dense_embeddings: Optional[List[Dict[str, Any]]] = None,
-    spare_embedding: Optional[Dict[str, Any]] = None,
+    sparse_embedding: Optional[Dict[str, Any]] = None,
     is_default: Optional[bool] = None,
 ) -> IngestGroup:
     """
@@ -643,10 +643,10 @@ async def partial_update_ingest_template(
         for group in existing_extraction_groups[len(extractions):]:
             await session.delete(group)
 
-    if spare_embedding is not None or dense_embeddings is not None:
+    if sparse_embedding is not None or dense_embeddings is not None:
         embedding_payloads = []
-        if spare_embedding is not None:
-            embedding_payloads.append(spare_embedding)
+        if sparse_embedding is not None:
+            embedding_payloads.append(sparse_embedding)
         else:
             if ingest_group.embedding_groups:
                 first_group = ingest_group.embedding_groups[0]

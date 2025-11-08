@@ -171,16 +171,16 @@ async def get_ingest_templates(
                             "denseEmbeddings": [
                                 {
                                     "no": "b278151f-3439-45fa-abc9-d6173cb659c8",
-                                    "code": "EMB_SPARE",
+                                    "code": "EMB_SPARSE",
                                     "name": "Splade",
                                     "description": "Splade 희소 벡터 임베딩 모델",
                                     "parameters": {
-                                        "type": "spare",
+                                        "type": "sparse",
                                         "model": "naver/splade-v3"
                                     }
                                 }
                             ],
-                            "spareEmbedding": {
+                            "sparseEmbedding": {
                                 "no": "adb8865e-fc06-4256-8a56-7cdcfea32651",
                                 "code": "EMB_DENSE",
                                 "name": "E5",
@@ -195,8 +195,7 @@ async def get_ingest_templates(
                 }       
             }
         }
-    }
-)
+    )
 async def get_ingest_template(
     ingestNo: str,
     x_user_role: str = Depends(check_role("ADMIN")),
@@ -264,7 +263,7 @@ async def get_ingest_template(
             detail="데이터 정합성 오류: 필수 전략이 누락되었습니다. 관리자에게 문의하세요."
         )
 
-    spare_item = None
+    sparse_item = None
     dense_embedding_items = []
 
     for item in embedding_items:
@@ -272,9 +271,9 @@ async def get_ingest_template(
         embedding_type = params.get("type")
         code = (item.code or "").upper()
 
-        if embedding_type == "spare" or code == "EMB_SPARE":
-            if spare_item is None:
-                spare_item = item
+        if embedding_type == "sparse" or code == "EMB_SPARSE":
+            if sparse_item is None:
+                sparse_item = item
             else:
                 dense_embedding_items.append(item)
         elif embedding_type == "dense" or code == "EMB_DENSE":
@@ -282,10 +281,10 @@ async def get_ingest_template(
         else:
             dense_embedding_items.append(item)
 
-    if spare_item is None and embedding_items:
-        spare_item = embedding_items[0]
+    if sparse_item is None and embedding_items:
+        sparse_item = embedding_items[0]
         dense_embedding_items = [
-            item for item in embedding_items if item is not spare_item
+            item for item in embedding_items if item is not sparse_item
         ]
 
     response_data = IngestTemplateDetailResponse(
@@ -295,7 +294,7 @@ async def get_ingest_template(
         extractions=extraction_items,
         chunking=strategy_to_item(ingest_group.chunking_strategy, ingest_group.chunking_parameter),
         denseEmbeddings=dense_embedding_items,
-        spareEmbedding=spare_item,
+        sparseEmbedding=sparse_item,
     )
 
     return BaseResponse[IngestTemplateDetailResponse](

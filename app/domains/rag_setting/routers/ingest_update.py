@@ -63,7 +63,7 @@ async def update_ingest_template_endpoint(
     dense_embeddings_payload = [
         item.model_dump(exclude_none=True) for item in request.denseEmbeddings
     ]
-    spare_embedding_payload = request.spareEmbedding.model_dump(exclude_none=True)
+    sparse_embedding_payload = request.sparseEmbedding.model_dump(exclude_none=True)
 
     try:
         updated_ingest_group = await update_ingest_template(
@@ -73,7 +73,7 @@ async def update_ingest_template_endpoint(
             extractions=extractions_payload,
             chunking=chunking_payload,
             dense_embeddings=dense_embeddings_payload,
-            spare_embedding=spare_embedding_payload,
+            sparse_embedding=sparse_embedding_payload,
             is_default=request.isDefault,
         )
     except HTTPException:
@@ -135,7 +135,7 @@ async def update_ingest_template_endpoint(
             detail="데이터 정합성 오류: 필수 전략이 누락되었습니다. 관리자에게 문의하세요."
         )
 
-    spare_item = None
+    sparse_item = None
     dense_embedding_items = []
 
     for item in embedding_items:
@@ -143,9 +143,9 @@ async def update_ingest_template_endpoint(
         embedding_type = params.get("type")
         code = (item.code or "").upper()
 
-        if embedding_type == "spare" or code == "EMB_SPARE":
-            if spare_item is None:
-                spare_item = item
+        if embedding_type == "sparse" or code == "EMB_SPARSE":
+            if sparse_item is None:
+                sparse_item = item
             else:
                 dense_embedding_items.append(item)
         elif embedding_type == "dense" or code == "EMB_DENSE":
@@ -153,10 +153,10 @@ async def update_ingest_template_endpoint(
         else:
             dense_embedding_items.append(item)
 
-    if spare_item is None and embedding_items:
-        spare_item = embedding_items[0]
+    if sparse_item is None and embedding_items:
+        sparse_item = embedding_items[0]
         dense_embedding_items = [
-            item for item in embedding_items if item is not spare_item
+            item for item in embedding_items if item is not sparse_item
         ]
 
     response_data = IngestTemplateDetailResponse(
@@ -166,7 +166,7 @@ async def update_ingest_template_endpoint(
         extractions=extraction_items,
         chunking=strategy_to_item(updated_ingest_group.chunking_strategy, updated_ingest_group.chunking_parameter),
         denseEmbeddings=dense_embedding_items,
-        spareEmbedding=spare_item,
+        sparseEmbedding=sparse_item,
     )
 
     return BaseResponse[IngestTemplateDetailResponse](
@@ -222,9 +222,9 @@ async def partial_update_ingest_template_endpoint(
         if request.denseEmbeddings is not None
         else None
     )
-    spare_embedding_payload = (
-        request.spareEmbedding.model_dump(exclude_none=True)
-        if request.spareEmbedding is not None
+    sparse_embedding_payload = (
+        request.sparseEmbedding.model_dump(exclude_none=True)
+        if request.sparseEmbedding is not None
         else None
     )
 
@@ -236,7 +236,7 @@ async def partial_update_ingest_template_endpoint(
             extractions=extractions_payload,
             chunking=chunking_payload,
             dense_embeddings=dense_embeddings_payload,
-            spare_embedding=spare_embedding_payload,
+            sparse_embedding=sparse_embedding_payload,
             is_default=request.isDefault,
         )
     except HTTPException:
@@ -295,7 +295,7 @@ async def partial_update_ingest_template_endpoint(
             detail="데이터 정합성 오류: 필수 전략이 누락되었습니다. 관리자에게 문의하세요."
         )
 
-    spare_item = None
+    sparse_item = None
     dense_embedding_items = []
 
     for item in embedding_items:
@@ -303,9 +303,9 @@ async def partial_update_ingest_template_endpoint(
         embedding_type = params.get("type")
         code = (item.code or "").upper()
 
-        if embedding_type == "spare" or code == "EMB_SPARE":
-            if spare_item is None:
-                spare_item = item
+        if embedding_type == "sparse" or code == "EMB_SPARSE":
+            if sparse_item is None:
+                sparse_item = item
             else:
                 dense_embedding_items.append(item)
         elif embedding_type == "dense" or code == "EMB_DENSE":
@@ -313,10 +313,10 @@ async def partial_update_ingest_template_endpoint(
         else:
             dense_embedding_items.append(item)
 
-    if spare_item is None and embedding_items:
-        spare_item = embedding_items[0]
+    if sparse_item is None and embedding_items:
+        sparse_item = embedding_items[0]
         dense_embedding_items = [
-            item for item in embedding_items if item is not spare_item
+            item for item in embedding_items if item is not sparse_item
         ]
 
     response_data = IngestTemplateDetailResponse(
@@ -326,7 +326,7 @@ async def partial_update_ingest_template_endpoint(
         extractions=extraction_items,
         chunking=strategy_to_item(updated_ingest_group.chunking_strategy, updated_ingest_group.chunking_parameter),
         denseEmbeddings=dense_embedding_items,
-        spareEmbedding=spare_item,
+        sparseEmbedding=sparse_item,
     )
 
     return BaseResponse[IngestTemplateDetailResponse](

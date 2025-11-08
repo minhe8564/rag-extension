@@ -50,7 +50,7 @@ class IngestTemplateCreateRequest(BaseModel):
     extractions: List[StrategyWithParameter] = Field(..., description="추출 전략 목록")
     chunking: StrategyWithParameter = Field(..., description="청킹 전략")
     denseEmbeddings: List[StrategyWithParameter] = Field(..., description="밀집 임베딩 전략 목록")
-    spareEmbedding: StrategyWithParameter = Field(..., description="희소 임베딩 전략")
+    sparseEmbedding: StrategyWithParameter = Field(..., description="희소 임베딩 전략")
 
     class Config:
         json_schema_extra = {
@@ -76,7 +76,7 @@ class IngestTemplateCreateRequest(BaseModel):
                         "parameters": {}
                     }
                 ],
-                "spareEmbedding": {
+                "sparseEmbedding": {
                     "no": "b278151f-3439-45fa-abc9-d6173cb659c8",
                     "parameters": {}
                 }
@@ -91,7 +91,7 @@ class IngestTemplatePartialUpdateRequest(BaseModel):
     extractions: Optional[List[StrategyWithParameter]] = Field(None, description="추출 전략 목록")
     chunking: Optional[StrategyWithParameter] = Field(None, description="청킹 전략")
     denseEmbeddings: Optional[List[StrategyWithParameter]] = Field(None, description="밀집 임베딩 전략 목록")
-    spareEmbedding: Optional[StrategyWithParameter] = Field(None, description="희소 임베딩 전략")
+    sparseEmbedding: Optional[StrategyWithParameter] = Field(None, description="희소 임베딩 전략")
 
     class Config:
         json_schema_extra = {
@@ -105,7 +105,7 @@ class IngestTemplatePartialUpdateRequest(BaseModel):
                         "overlap": 80
                     }
                 },
-                "spareEmbedding": {
+                "sparseEmbedding": {
                     "no": "adb8865e-fc06-4256-8a56-7cdcfea32651"
                 }
             }
@@ -129,7 +129,7 @@ class IngestTemplateDetailResponse(BaseModel):
     extractions: List[StrategyDetail] = Field(..., description="추출 전략 목록")
     chunking: StrategyDetail = Field(..., description="청킹 전략")
     denseEmbeddings: List[StrategyDetail] = Field(..., description="밀집 임베딩 전략 목록")
-    spareEmbedding: StrategyDetail = Field(..., description="희소 임베딩 전략")
+    sparseEmbedding: StrategyDetail = Field(..., description="희소 임베딩 전략")
 
 
 class IngestTemplateUpdateRequest(BaseModel):
@@ -139,7 +139,7 @@ class IngestTemplateUpdateRequest(BaseModel):
     extractions: List[StrategyWithParameter] = Field(..., description="추출 전략 목록")
     chunking: StrategyWithParameter = Field(..., description="청킹 전략")
     denseEmbeddings: List[StrategyWithParameter] = Field(..., description="밀집 임베딩 전략 목록")
-    spareEmbedding: StrategyWithParameter = Field(..., description="희소 임베딩 전략")
+    sparseEmbedding: StrategyWithParameter = Field(..., description="희소 임베딩 전략")
 
     class Config:
         json_schema_extra = {
@@ -165,7 +165,7 @@ class IngestTemplateUpdateRequest(BaseModel):
                     "parameters": {}
                     }
                 ],
-                "spareEmbedding": {
+                "sparseEmbedding": {
                     "no": "b278151f-3439-45fa-abc9-d6173cb659c8",
                     "parameters": {}
                 }
