@@ -62,19 +62,27 @@ async def update_prompt_endpoint(
         HTTPException 409: 동일한 이름의 프롬프트 존재
     """
     # 프롬프트 수정
-    await update_prompt(
+    updated_prompt = await update_prompt(
         session=session,
         prompt_no_str=promptNo,
         name=request.name,
         description=request.description,
-        content=request.content
+        content=request.content,
+        prompt_type=request.type
     )
 
-    # 수정된 프롬프트 정보 반환
+    response_data = PromptDetailResponse(
+        promptNo=str(uuid.UUID(bytes=updated_prompt.strategy_no)),
+        name=updated_prompt.name,
+        type=updated_prompt.parameter.get("type", "system") if updated_prompt.parameter else "system",
+        description=updated_prompt.description,
+        content=updated_prompt.parameter.get("content", "") if updated_prompt.parameter else ""
+    )
+
     return BaseResponse[PromptDetailResponse](
         status=200,
         code="OK",
         message="프롬프트 수정에 성공하였습니다.",
         isSuccess=True,
-        result={}
+        result=Result(data=response_data)
     )
