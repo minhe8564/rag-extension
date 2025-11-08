@@ -1,5 +1,4 @@
 from typing import Optional, Dict, Any
-import math
 import uuid
 
 from fastapi import APIRouter, Depends, Query, HTTPException, status, Response
@@ -10,7 +9,6 @@ from ....core.schemas import BaseResponse, Result
 from ....core.auth.check_role import check_role
 from ..schemas.strategy import (
     StrategyListItem,
-    PaginationInfo,
     StrategyDetailResponse,
     StrategyCreateRequest,
     StrategyCreateResponse,
@@ -386,13 +384,6 @@ async def delete_strategy(
                                     }
                                 }
                             ],
-                            "pagination": {
-                                "pageNum": 1,
-                                "pageSize": 20,
-                                "totalItems": 3,
-                                "totalPages": 1,
-                                "hasNext": False
-                            }
                         }
                     }   
                 }
@@ -402,24 +393,14 @@ async def delete_strategy(
 )
 async def get_strategies(
     type: Optional[str] = Query(None, description="전략 유형 필터"),
-    pageNum: int = Query(1, ge=1, description="페이지 번호"),
-    pageSize: int = Query(20, ge=1, le=100, description="페이지 크기"),
     session: AsyncSession = Depends(get_db),
 ):
     """
     전략 목록 조회
-
-    Args:
-        session: 데이터베이스 세션
-
-    Returns:
-        BaseResponse: 전략 목록과 페이지네이션 정보
     """
-    strategies, total_items = await list_strategies_service(
+    strategies = await list_strategies_service(
         session=session,
         type_filter=type,
-        page_num=pageNum,
-        page_size=pageSize,
     )
 
     # 응답 데이터 변환
@@ -435,24 +416,12 @@ async def get_strategies(
         for strategy in strategies
     ]
 
-    # 페이지네이션 정보
-    total_pages = math.ceil(total_items / pageSize) if total_items > 0 else 0
-    has_next = pageNum < total_pages
-
-    pagination = PaginationInfo(
-        pageNum=pageNum,
-        pageSize=pageSize,
-        totalItems=total_items,
-        totalPages=total_pages,
-        hasNext=has_next,
-    )
-
     return BaseResponse[Dict[str, Any]](
         status=200,
         code="OK",
         message="전략 목록 조회에 성공하였습니다.",
         isSuccess=True,
-        result={"data": items, "pagination": pagination},
+        result={"data": items},
     )
 
 
