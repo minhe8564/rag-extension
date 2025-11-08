@@ -10,8 +10,12 @@ import {
   getDocumentChangeTrend,
   getTotalErrorCount,
   getErrorChangeTrend,
-} from '@/domains/admin/api/dashboard.api';
-import type { TrendGroup, TotalGroup, CurrentGroup } from '@/domains/admin/types/dashboard.types';
+} from '@/domains/admin/api/rag.dashboard.api';
+import type {
+  TrendGroup,
+  TotalGroup,
+  CurrentGroup,
+} from '@/domains/admin/types/rag.dashboard.types';
 
 export default function NumberBoard() {
   // 실시간 데이터

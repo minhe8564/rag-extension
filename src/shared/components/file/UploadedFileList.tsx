@@ -196,7 +196,7 @@ export default function UploadedFileList({
 
                     <td className="px-2 py-2">
                       <div className="flex items-center justify-end gap-1.5">
-                        <Tooltip content="다운로드" side="top" offset={1}>
+                        <Tooltip content="다운로드" side="bottom" offset={1}>
                           <button
                             className="rounded-md p-2 hover:bg-gray-50"
                             onClick={() => onDownload?.(doc.id)}
@@ -204,7 +204,7 @@ export default function UploadedFileList({
                             <Download size={16} />
                           </button>
                         </Tooltip>
-                        <Tooltip content="삭제" side="top" offset={1}>
+                        <Tooltip content="삭제" side="bottom" offset={1}>
                           <button
                             className="rounded-md p-2 text-red-600 hover:bg-red-50"
                             onClick={() => onDelete?.([doc.id])}

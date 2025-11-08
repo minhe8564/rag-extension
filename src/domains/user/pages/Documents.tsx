@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { FileText, List as ListIcon, Upload as UploadIcon } from 'lucide-react';
-import SegmentedTabs from '@/shared/components/DivideTab';
+import SegmentedTabs from '@/shared/components/SegmentedTabs';
 import UploadTab from '@/domains/user/components/document/UploadTab';
 import MyDocsTab from '@/domains/user/components/document/MyDocsTab';
 

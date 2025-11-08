@@ -9,7 +9,7 @@ import type {
   frequentKeywords,
   errorList,
   createdChatrooms,
-} from '@/domains/admin/types/dashboard.types';
+} from '@/domains/admin/types/rag.dashboard.types';
 
 // 사용자 수 조회
 export const getUserCount = async () => {

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type DragEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import { UploadCloud } from 'lucide-react';
 import { getCategories } from '@/shared/api/file.api';
 import { useCategoryStore } from '@/shared/store/categoryMap';
@@ -15,6 +15,27 @@ type Props = {
   className?: string;
   brand?: Brand;
   defaultCategory?: string;
+};
+
+type ServerCategory = { categoryNo: string; name: string };
+
+const parseAccept = (accept: string) => {
+  const tokens = accept
+    .split(',')
+    .map((t) => t.trim())
+    .filter(Boolean);
+  const exts = tokens.filter((t) => t.startsWith('.')).map((t) => t.toLowerCase());
+  const mimes = tokens.filter((t) => t.includes('/')).map((t) => t.toLowerCase());
+  return { exts, mimes };
+};
+
+const matchMime = (fileType: string, mimes: string[]) => {
+  if (!fileType) return false;
+  const [ft, fs] = fileType.toLowerCase().split('/');
+  return mimes.some((m) => {
+    const [mt, ms] = m.split('/');
+    return (mt === '*' || mt === ft) && (ms === '*' || ms === fs);
+  });
 };
 
 export default function FileDropzone({
@@ -38,20 +59,21 @@ export default function FileDropzone({
   const [isOver, setIsOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const acceptRule = useMemo(() => parseAccept(accept), [accept]);
+  const allowLabel = useMemo(() => {
+    const rule = [...acceptRule.exts, ...acceptRule.mimes].join(', ');
+    return rule || accept;
+  }, [acceptRule, accept]);
+
   useEffect(() => {
     let active = true;
     if (categoryList.length > 0) return;
-
     (async () => {
       const res = await getCategories();
-      const list = (res.data?.result?.data ?? res.data?.result ?? []) as Array<{
-        categoryNo: string;
-        name: string;
-      }>;
+      const list = (res.data?.result?.data ?? res.data?.result ?? []) as ServerCategory[];
       if (!active) return;
       setCategories(list);
     })();
-
     return () => {
       active = false;
     };
@@ -63,7 +85,6 @@ export default function FileDropzone({
     if (!categoryList.length) return;
     const exists = categoryList.some((c) => c.id === categoryId);
     if (exists && categoryId) return;
-
     const byName = categoryList.find((c) => c.name === defaultCategory)?.id;
     const fallback = byName ?? categoryList[0]?.id ?? '';
     if (fallback) setCategoryId(fallback);
@@ -73,9 +94,21 @@ export default function FileDropzone({
     if (!disabled) inputRef.current?.click();
   };
 
+  const isAllowedFile = (file: File) => {
+    const name = file.name || '';
+    const ext = '.' + (name.split('.').pop() || '').toLowerCase();
+    const hasExtRule = acceptRule.exts.length > 0;
+    const hasMimeRule = acceptRule.mimes.length > 0;
+    const extOk = !hasExtRule || acceptRule.exts.includes(ext);
+    const mimeOk = !hasMimeRule || matchMime(file.type, acceptRule.mimes);
+    if (!hasExtRule && !hasMimeRule) return true;
+    return (hasExtRule && extOk) || (hasMimeRule && mimeOk);
+  };
+
   const handleFiles = (files: FileList | File[]) => {
-    const arr = Array.from(files);
+    let arr = Array.from(files);
     if (!arr.length) return;
+    if (!multiple && arr.length > 1) arr = [arr[0]];
 
     const overs = arr.filter((f) => f.size > maxSizeMB * 1024 * 1024);
     if (overs.length) {
@@ -83,10 +116,19 @@ export default function FileDropzone({
       return;
     }
 
+    const invalid = arr.filter((f) => !isAllowedFile(f));
+    if (invalid.length) {
+      setError(
+        `허용되지 않는 파일 형식이에요: ${invalid.map((f) => f.name).join(', ')}\n가능한 형식: ${allowLabel}`
+      );
+      return;
+    }
+
     if (!categoryId) {
       setError('카테고리를 먼저 선택해주세요.');
       return;
     }
+
     setError(null);
     onUpload({ files: arr, category: categoryId });
   };
@@ -100,8 +142,7 @@ export default function FileDropzone({
 
   const onDragOver = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    if (disabled) return;
-    e.dataTransfer.dropEffect = 'copy';
+    if (!disabled) e.dataTransfer.dropEffect = 'copy';
   };
 
   const onDragLeave = (e: DragEvent<HTMLDivElement>) => {
@@ -114,10 +155,8 @@ export default function FileDropzone({
     e.preventDefault();
     e.stopPropagation();
     if (disabled) return;
-
     dragCounterRef.current = 0;
     setIsOver(false);
-
     const dt = e.dataTransfer;
     if (dt?.files && dt.files.length > 0) handleFiles(dt.files);
   };
@@ -201,17 +240,14 @@ export default function FileDropzone({
           >
             <UploadCloud className="size-7 text-white" />
           </div>
-
           <p className="text-sm font-semibold text-gray-800">파일 업로드 후, RAG 챗봇 학습 시작</p>
           <p className="mt-1 text-xs text-gray-500">
             PDF, Markdown, Word, Excel 파일을 드래그하거나 클릭하여 업로드 하세요.
           </p>
-
           <p className="mt-2 text-xs">
             <span className="text-gray-500">선택된 카테고리:</span>{' '}
             <span className="font-medium text-gray-800">{nameById(categoryId) || '없음'}</span>
           </p>
-
           <div className="mt-4">
             <button
               type="button"
@@ -222,8 +258,7 @@ export default function FileDropzone({
               파일 선택
             </button>
           </div>
-
-          {error && <p className="mt-3 text-xs text-red-600">{error}</p>}
+          {error && <p className="mt-3 whitespace-pre-line text-xs text-red-600">{error}</p>}
         </div>
 
         <input

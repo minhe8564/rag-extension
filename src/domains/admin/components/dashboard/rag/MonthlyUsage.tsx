@@ -2,11 +2,11 @@ import { useEffect, useState, useRef } from 'react';
 import Highcharts from 'highcharts';
 import _Heatmap from 'highcharts/modules/heatmap';
 import Card from '@/shared/components/Card';
-import { getChatbotUsageHeatmap } from '@/domains/admin/api/dashboard.api';
+import { getChatbotUsageHeatmap } from '@/domains/admin/api/rag.dashboard.api';
 import type {
   chatbotHeatmapTimeframe,
   chatbotHeatmapLabels,
-} from '@/domains/admin/types/dashboard.types';
+} from '@/domains/admin/types/rag.dashboard.types';
 
 // 숫자 자리수 함수
 function niceRound(num: number) {

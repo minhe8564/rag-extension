@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import Highcharts from 'highcharts';
 import Card from '@/shared/components/Card';
 import Select from '@/shared/components/Select';
-import type { modelData, modelTokenTime } from '@/domains/admin/types/dashboard.types';
-import { getModelTokenUsageTimeSeries } from '@/domains/admin/api/dashboard.api';
+import type { modelData, modelTokenTime } from '@/domains/admin/types/rag.dashboard.types';
+import { getModelTokenUsageTimeSeries } from '@/domains/admin/api/rag.dashboard.api';
 
 export default function ModelResponseTimeChart() {
   const chartRef = useRef<Highcharts.Chart | null>(null);

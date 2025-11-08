@@ -87,7 +87,7 @@ export default function RoleAsideSection() {
         {loading ? (
           <div className="p-4 text-center text-sm text-gray-500">불러오는 중…</div>
         ) : (
-          roles.map(r => (
+          roles.map((r) => (
             <div
               key={r.uuid}
               className={`group flex justify-between items-center px-3 py-2 rounded-lg cursor-pointer hover:bg-[var(--color-hebees-bg)] ${
@@ -126,7 +126,7 @@ export default function RoleAsideSection() {
               <label className="text-xs text-gray-500">역할명(name)</label>
               <input
                 value={form.name || ''}
-                onChange={e => setForm(v => ({ ...v, name: e.target.value }))}
+                onChange={(e) => setForm((v) => ({ ...v, name: e.target.value }))}
                 className="w-full border rounded-md px-3 py-2 text-sm"
               />
             </div>
@@ -135,7 +135,7 @@ export default function RoleAsideSection() {
               <input
                 type="number"
                 value={form.mode ?? 0}
-                onChange={e => setForm(v => ({ ...v, mode: Number(e.target.value) }))}
+                onChange={(e) => setForm((v) => ({ ...v, mode: Number(e.target.value) }))}
                 className="w-full border rounded-md px-3 py-2 text-sm"
               />
             </div>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import clsx from 'clsx';
-import { fetchMyDocumentsNormalized } from '@/shared/api/file.api';
+import { fetchMyDocumentsNormalized, getPresignedUrl } from '@/shared/api/file.api';
 import type { MyDoc } from '@/shared/types/file.types';
 import UploadedFileList, { type UploadedDoc } from '@/shared/components/file/UploadedFileList';
 import Pagination from '@/shared/components/Pagination';
@@ -20,6 +20,7 @@ export default function MyDocsTab() {
   const [hasNext, setHasNext] = useState(false);
   const [loading, setLoading] = useState(false);
   const [refreshTick, setRefreshTick] = useState(0);
+  // const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const reqSeq = useRef(0);
 
@@ -73,6 +74,39 @@ export default function MyDocsTab() {
     [myDocs]
   );
 
+  const handleDownload = async (fileNo: string) => {
+    // setDownloadingId(fileNo);
+    const doc = myDocs.find((m) => m.fileNo === fileNo);
+    const fallbackName = doc?.name || `${fileNo}.bin`;
+
+    try {
+      const signedUrl = await getPresignedUrl(fileNo, { inline: false });
+
+      const res = await fetch(signedUrl);
+      if (!res.ok) throw new Error('Failed to fetch file');
+
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = fallbackName;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error('File download failed:', error);
+
+      const signedUrl = await getPresignedUrl(fileNo, { inline: false });
+      window.open(signedUrl, '_blank');
+    } finally {
+      // setDownloadingId(null);
+    }
+  };
+
   return (
     <div className="mt-2">
       <div className="rounded-xl bg-white/95 p-4">
@@ -92,7 +126,7 @@ export default function MyDocsTab() {
             )}
           >
             <RefreshCw size={16} className={clsx(loading && 'animate-spin text-gray-400')} />
-            새로고침
+            {loading ? '불러오는 중...' : '새로고침'}
           </button>
         </div>
 
@@ -104,6 +138,7 @@ export default function MyDocsTab() {
             pageSize={Math.max(1, uploadedDocs.length || 1)}
             brand="retina"
             hideFooter
+            onDownload={handleDownload}
           />
         )}
 

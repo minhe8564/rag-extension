@@ -68,3 +68,30 @@ export async function fetchMyDocumentsNormalized(params?: {
     pageSize: pg.pageSize,
   };
 }
+
+// 파일 Presigned URL 발급
+export async function getPresignedUrl(
+  fileNo: string,
+  opts?: {
+    days?: number;
+    inline?: boolean;
+    contentType?: string;
+    versionId?: string;
+  }
+): Promise<string> {
+  type PresignedUrlResponse = ApiEnvelope<{
+    data: { url: string };
+  }>;
+
+  const res = await fastApi.get<PresignedUrlResponse>(`/api/v1/files/${fileNo}/presigned`, {
+    params: {
+      ...(opts?.days !== undefined ? { days: opts.days } : {}),
+      ...(opts?.inline !== undefined ? { inline: opts.inline } : {}),
+      ...(opts?.contentType ? { contentType: opts.contentType } : {}),
+      ...(opts?.versionId ? { versionId: opts.versionId } : {}),
+    },
+  });
+
+  const url = res.data?.result?.data?.url;
+  return url;
+}

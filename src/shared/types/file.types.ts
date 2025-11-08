@@ -74,3 +74,5 @@ export interface FetchMyDocsNormalized {
   pageNum: number;
   pageSize: number;
 }
+
+export type PresignedUrl = { url: string };

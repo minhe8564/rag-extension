@@ -68,7 +68,7 @@ export default function UsersListSection() {
             strokeWidth={2}
             className={loading ? 'animate-spin text-gray-400' : 'text-gray-600'}
           />
-          새로고침
+          {loading ? '불러오는 중...' : '새로고침'}
         </button>
       </div>
 
