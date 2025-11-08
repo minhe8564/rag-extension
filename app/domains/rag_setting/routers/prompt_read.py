@@ -31,11 +31,50 @@ def _bytes_to_uuid_str(b: bytes) -> str:
     response_model=BaseResponse[Dict[str, Any]],
     summary="프롬프트 목록 조회",
     description="프롬프트 목록을 조회합니다. 관리자만 접근 가능합니다.",
+    responses={
+        200: {
+            "description": "프롬프트 목록 조회에 성공하였습니다.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": 200,
+                        "code": "OK",
+                        "message": "성공",
+                        "isSuccess": True,
+                        "result": {
+                            "data": [
+                                {
+                                    "promptNo": "9c6a37bc-ef9b-4776-928c-f45c9eb65934",
+                                    "name": "샘플 사용자 프롬프트",
+                                    "type": "user",
+                                    "description": "샘플 사용자 프롬프트",
+                                    "content": "다음 지침을 따라 한국어로 간결하게 답하세요: (1) 아래 참고문서에서 근거를 먼저 찾고, (2) 문서 내용에 한해 답변하세요.\n질문: {{query}}\n참고문서: {{docs}}"
+                                },
+                                {
+                                    "promptNo": "6bff6262-90a6-4eb1-bfc1-78bdd342c317",
+                                    "name": "샘플 시스템 프롬프트",
+                                    "type": "system",
+                                    "description": "샘플 시스템 프롬프트",
+                                    "content": "당신은 유용한 RAG 어시스턴트입니다. 사용자의 언어(기본: 한국어)로 간결하게 답하고, 정확성을 최우선으로 하며, 모든 주장은 검색·조회된 출처에 근거해 제시하세요."
+                                }
+                            ],
+                            "pagination": {
+                                "pageNum": 1,
+                                "pageSize": 20,
+                                "totalItems": 2,
+                                "totalPages": 1,
+                                "hasNext": False
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 )
 async def get_prompts(
     pageNum: int = Query(1, ge=1, description="페이지 번호"),
     pageSize: int = Query(20, ge=1, le=100, description="페이지 크기"),
-    sort: str = Query("name", description="정렬 기준"),
     x_user_role: str = Depends(check_role("ADMIN")),
     session: AsyncSession = Depends(get_db)
 ):
@@ -45,7 +84,6 @@ async def get_prompts(
     Args:
         pageNum: 페이지 번호 (1부터 시작)
         pageSize: 페이지 크기 (1-100)
-        sort: 정렬 기준 (기본: name)
         x_user_role: 사용자 역할 (헤더, 전역 security에서 자동 주입)
         session: 데이터베이스 세션
 
@@ -56,8 +94,7 @@ async def get_prompts(
     prompts, total_items = await list_prompts(
         session=session,
         page_num=pageNum,
-        page_size=pageSize,
-        sort_by=sort
+        page_size=pageSize
     )
 
     # 응답 데이터 변환
@@ -89,7 +126,7 @@ async def get_prompts(
         code="OK",
         message="성공",
         isSuccess=True,
-        result=Result(data={"data": items, "pagination": pagination})
+        result={"data": items, "pagination": pagination}
     )
 
 
@@ -98,6 +135,28 @@ async def get_prompts(
     response_model=BaseResponse[PromptDetailResponse],
     summary="프롬프트 상세 조회",
     description="특정 프롬프트의 상세 정보를 조회합니다. 관리자만 접근 가능합니다.",
+    responses={
+        200: {
+            "description": "프롬프트 상세 조회에 성공하였습니다.",
+            "content": {
+                "application/json": {
+                    "example": {
+                    "status": 200,
+                    "code": "OK",
+                    "message": "성공",
+                    "isSuccess": True,
+                    "result": {
+                            "promptNo": "6bff6262-90a6-4eb1-bfc1-78bdd342c317",
+                            "name": "샘플 시스템 프롬프트",
+                            "type": "system",
+                            "description": "샘플 시스템 프롬프트",
+                            "content": "당신은 유용한 RAG 어시스턴트입니다. 사용자의 언어(기본: 한국어)로 간결하게 답하고, 정확성을 최우선으로 하며, 모든 주장은 검색·조회된 출처에 근거해 제시하세요."
+                        }
+                    }
+                }
+            }
+        }
+    }
 )
 async def get_prompt_detail(
     promptNo: str,
@@ -141,5 +200,5 @@ async def get_prompt_detail(
         code="OK",
         message="성공",
         isSuccess=True,
-        result=Result(data=detail)
+        result=detail
     )

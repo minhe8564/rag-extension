@@ -19,7 +19,7 @@ async def delete_prompt(
     """
     프롬프트 삭제
 
-    strategy_type='prompting'인 전략만 삭제합니다.
+    strategy_type이 'prompting-system' 또는 'prompting-user'인 전략만 삭제합니다.
 
     Args:
         session: 데이터베이스 세션
@@ -46,7 +46,7 @@ async def delete_prompt(
         .join(Strategy.strategy_type)
         .where(
             Strategy.strategy_no == prompt_no_bytes,
-            StrategyType.name == "prompting"
+            StrategyType.name.in_(["prompting-system", "prompting-user"])
         )
     )
 
