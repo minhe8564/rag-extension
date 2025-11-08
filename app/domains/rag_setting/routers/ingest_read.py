@@ -14,7 +14,7 @@ from ..schemas.ingest import (
     IngestGroupListItem,
     IngestGroupListResponse,
     IngestTemplateDetailResponse,
-    StrategyItem,
+    StrategyDetail,
 )
 from ..schemas.strategy import PaginationInfo
 from ..services.ingest import list_ingest_groups, get_ingest_template_detail
@@ -41,27 +41,27 @@ def _bytes_to_uuid_str(b: bytes) -> str:
                 "application/json": {
                     "example": {
                         "status": 200,
-                        "code": "SUCCESS",
-                        "message": "성공",
+                        "code": "OK",
+                        "message": "Query 템플릿 목록 조회 성공",
                         "isSuccess": True,
                         "result": {
                             "data": [
                                 {
-                                    "queryNo": "56511d54-b561-4a7c-9e0c-4bd1d0961ac8",
-                                    "name": "기본 Ingest 템플릿",
+                                    "ingestNo": "b78f7641-59d9-46b8-908f-c20ca7fbed79",
+                                    "name": "기본 RAG 템플릿",
                                     "isDefault": True
                                 },
                                 {
-                                    "queryNo": "56511d54-b561-4a7c-9e0c-4bd1d0961ac8",
-                                    "name": "확장된 Ingest 템플릿",
+                                    "ingestNo": "62abf1f6-50b6-4c9b-8de7-75519615bd82",
+                                    "name": "듀얼 임베딩",
                                     "isDefault": False
                                 }
                             ],
                             "pagination": {
+                                "pageNum": 1,
+                                "pageSize": 20,
                                 "totalItems": 2,
                                 "totalPages": 1,
-                                "currentPage": 1,
-                                "pageSize": 20,
                                 "hasNext": False
                             }
                         }
@@ -120,7 +120,7 @@ async def get_ingest_templates(
     return BaseResponse[IngestGroupListResponse](
         status=200,
         code="OK",
-        message="성공",
+        message="Ingest 템플릿 목록 조회 성공",
         isSuccess=True,
         result={ "data": items, "pagination": pagination }
     )
@@ -131,32 +131,78 @@ async def get_ingest_templates(
     response_model=BaseResponse[IngestTemplateDetailResponse],
     summary="Ingest 템플릿 상세 조회 (관리자)",
     description="Ingest 템플릿 상세 정보를 조회합니다. 관리자만 접근 가능합니다.",
+    responses={
+        200: {
+            "description": "Ingest 템플릿 상세 조회 성공",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": 200,
+                        "code": "OK",
+                        "message": "Ingest 템플릿 상세 조회 성공",
+                        "isSuccess": True,
+                        "result": {
+                            "ingestNo": "b78f7641-59d9-46b8-908f-c20ca7fbed79",
+                            "name": "기본 RAG 템플릿",
+                            "isDefault": True,
+                            "extractions": [
+                                {
+                                    "no": "0dd1cd24-3459-4080-9c0a-6a7bba85a3e4",
+                                    "code": "EXT_PYMUPDF",
+                                    "name": "pyMuPDF",
+                                    "description": "pyMuPDF기반 PDF 추출",
+                                    "parameters": {
+                                        "type": "pyMuPDF",
+                                        "fileType": "pdf"
+                                    }
+                                }
+                            ],
+                            "chunking": {
+                                "no": "2014c312-1284-4e06-bec5-327c42f6bc3b",
+                                "code": "CHK_FIXED",
+                                "name": "고정 길이 청킹",
+                                "description": "고정된 길이로 청크 분할",
+                                "parameters": {
+                                    "type": "fixed",
+                                    "token": 512,
+                                    "overlap": 40
+                                }
+                            },
+                            "denseEmbeddings": [
+                                {
+                                    "no": "b278151f-3439-45fa-abc9-d6173cb659c8",
+                                    "code": "EMB_SPARE",
+                                    "name": "Splade",
+                                    "description": "Splade 희소 벡터 임베딩 모델",
+                                    "parameters": {
+                                        "type": "spare",
+                                        "model": "naver/splade-v3"
+                                    }
+                                }
+                            ],
+                            "spareEmbedding": {
+                                "no": "adb8865e-fc06-4256-8a56-7cdcfea32651",
+                                "code": "EMB_DENSE",
+                                "name": "E5",
+                                "description": "다국어 임베딩 모델",
+                                "parameters": {
+                                    "type": "dense",
+                                    "model": "intflat/multilingual-e5-large"
+                                }
+                            }
+                        }
+                    }
+                }       
+            }
+        }
+    }
 )
 async def get_ingest_template(
     ingestNo: str,
     x_user_role: str = Depends(check_role("ADMIN")),
     session: AsyncSession = Depends(get_db),
 ):
-    """
-    Ingest 템플릿 상세 조회
-
-    현재 데이터베이스 스키마 제약으로 인해:
-    - extractions는 단일 전략을 리스트로 반환합니다
-    - denseEmbeddings는 단일 전략을 리스트로 반환합니다
-    - spareEmbedding이 실제 저장된 메인 임베딩 전략입니다
-
-    Args:
-        ingestNo: Ingest 템플릿 ID (UUID)
-        x_user_role: 사용자 역할 (헤더, 전역 security에서 자동 주입)
-        session: 데이터베이스 세션
-
-    Returns:
-        BaseResponse[IngestTemplateDetailResponse]: 템플릿 상세 정보
-
-    Raises:
-        HTTPException 400: UUID 형식 오류
-        HTTPException 404: Ingest 템플릿 또는 관련 전략을 찾을 수 없음
-    """
+    """Ingest 템플릿 상세 조회"""
     # 템플릿 조회
     ingest_group = await get_ingest_template_detail(
         session=session,
@@ -180,9 +226,9 @@ async def get_ingest_template(
             detail="데이터 정합성 오류: 임베딩 전략 그룹이 누락되었습니다. 관리자에게 문의하세요."
         )
 
-    # Strategy 객체를 StrategyItem으로 변환하는 헬퍼 함수
-    def strategy_to_item(strategy, parameters) -> StrategyItem:
-        return StrategyItem(
+    # Strategy 객체를 StrategyDetail로 변환하는 헬퍼 함수
+    def strategy_to_item(strategy, parameters) -> StrategyDetail:
+        return StrategyDetail(
             no=_bytes_to_uuid_str(strategy.strategy_no),
             code=strategy.code,
             name=strategy.name,
@@ -218,20 +264,44 @@ async def get_ingest_template(
             detail="데이터 정합성 오류: 필수 전략이 누락되었습니다. 관리자에게 문의하세요."
         )
 
+    spare_item = None
+    dense_embedding_items = []
+
+    for item in embedding_items:
+        params = item.parameters or {}
+        embedding_type = params.get("type")
+        code = (item.code or "").upper()
+
+        if embedding_type == "spare" or code == "EMB_SPARE":
+            if spare_item is None:
+                spare_item = item
+            else:
+                dense_embedding_items.append(item)
+        elif embedding_type == "dense" or code == "EMB_DENSE":
+            dense_embedding_items.append(item)
+        else:
+            dense_embedding_items.append(item)
+
+    if spare_item is None and embedding_items:
+        spare_item = embedding_items[0]
+        dense_embedding_items = [
+            item for item in embedding_items if item is not spare_item
+        ]
+
     response_data = IngestTemplateDetailResponse(
         ingestNo=_bytes_to_uuid_str(ingest_group.ingest_group_no),
         name=ingest_group.name,
         isDefault=ingest_group.is_default,
         extractions=extraction_items,
         chunking=strategy_to_item(ingest_group.chunking_strategy, ingest_group.chunking_parameter),
-        denseEmbeddings=embedding_items,
-        spareEmbedding=embedding_items[0],
+        denseEmbeddings=dense_embedding_items,
+        spareEmbedding=spare_item,
     )
 
     return BaseResponse[IngestTemplateDetailResponse](
         status=200,
         code="OK",
-        message="성공",
+        message="Ingest 템플릿 상세 조회 성공",
         isSuccess=True,
         result=response_data,
     )
