@@ -540,6 +540,202 @@ async def update_ingest_template(
     return updated_ingest_group
 
 
+async def partial_update_ingest_template(
+    session: AsyncSession,
+    ingest_no: str,
+    name: Optional[str] = None,
+    extractions: Optional[List[Dict[str, Any]]] = None,
+    chunking: Optional[Dict[str, Any]] = None,
+    dense_embeddings: Optional[List[Dict[str, Any]]] = None,
+    spare_embedding: Optional[Dict[str, Any]] = None,
+    is_default: Optional[bool] = None,
+) -> IngestGroup:
+    """
+    Ingest 템플릿 부분 수정
+    전달된 필드만 업데이트합니다.
+    """
+    try:
+        ingest_binary = uuid_to_binary(ingest_no)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="유효하지 않은 Ingest 템플릿 ID입니다."
+        )
+
+    query = (
+        select(IngestGroup)
+        .where(IngestGroup.ingest_group_no == ingest_binary)
+        .options(
+            selectinload(IngestGroup.chunking_strategy),
+            selectinload(IngestGroup.extraction_groups).selectinload(ExtractionGroup.extraction_strategy),
+            selectinload(IngestGroup.embedding_groups).selectinload(EmbeddingGroup.embedding_strategy),
+        )
+    )
+    result = await session.execute(query)
+    ingest_group = result.scalar_one_or_none()
+
+    if not ingest_group:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="대상을 찾을 수 없습니다."
+        )
+
+    if name is not None:
+        ingest_group.name = name
+
+    if chunking is not None:
+        chunking_no = chunking.get("no")
+        if not chunking_no:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="chunking 전략 ID가 누락되었습니다."
+            )
+        chunking_strategy = await verify_strategy_exists(session, chunking_no)
+        if not chunking_strategy:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"청킹 전략을 찾을 수 없습니다: {chunking_no}"
+            )
+        ingest_group.chunking_strategy_no = chunking_strategy.strategy_no
+        ingest_group.chunking_parameter = build_strategy_parameters(
+            chunking_strategy,
+            chunking.get("parameters"),
+            existing=ingest_group.chunking_parameter,
+        )
+
+    if extractions is not None:
+        existing_extraction_groups = list(ingest_group.extraction_groups)
+
+        for idx, extraction in enumerate(extractions):
+            extraction_no = extraction.get("no")
+            if not extraction_no:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="추출 전략 ID가 누락되었습니다."
+                )
+            extraction_strategy = await verify_strategy_exists(session, extraction_no)
+            if not extraction_strategy:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"추출 전략을 찾을 수 없습니다: {extraction_no}"
+                )
+
+            parameters = build_strategy_parameters(
+                extraction_strategy,
+                extraction.get("parameters"),
+                existing=existing_extraction_groups[idx].extraction_parameter if idx < len(existing_extraction_groups) else None,
+            )
+
+            if idx < len(existing_extraction_groups):
+                extraction_group = existing_extraction_groups[idx]
+                extraction_group.name = extraction_strategy.name
+                extraction_group.extraction_strategy_no = extraction_strategy.strategy_no
+                extraction_group.extraction_parameter = parameters
+            else:
+                extraction_group = ExtractionGroup(
+                    name=extraction_strategy.name,
+                    extraction_strategy_no=extraction_strategy.strategy_no,
+                    extraction_parameter=parameters,
+                )
+                extraction_group.ingest_group = ingest_group
+                session.add(extraction_group)
+
+        for group in existing_extraction_groups[len(extractions):]:
+            await session.delete(group)
+
+    if spare_embedding is not None or dense_embeddings is not None:
+        embedding_payloads = []
+        if spare_embedding is not None:
+            embedding_payloads.append(spare_embedding)
+        else:
+            if ingest_group.embedding_groups:
+                first_group = ingest_group.embedding_groups[0]
+                embedding_payloads.append(
+                    {
+                        "no": binary_to_uuid(first_group.embedding_strategy_no),
+                        "parameters": first_group.embedding_parameter,
+                    }
+                )
+
+        dense_embeddings = dense_embeddings or []
+        embedding_payloads.extend(dense_embeddings)
+
+        existing_embedding_groups = list(ingest_group.embedding_groups)
+
+        for idx, embedding in enumerate(embedding_payloads):
+            embedding_no = embedding.get("no")
+            if not embedding_no:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="임베딩 전략 ID가 누락되었습니다."
+                )
+            embedding_strategy = await verify_strategy_exists(session, embedding_no)
+            if not embedding_strategy:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"임베딩 전략을 찾을 수 없습니다: {embedding_no}"
+                )
+
+            existing_params = (
+                existing_embedding_groups[idx].embedding_parameter
+                if idx < len(existing_embedding_groups)
+                else None
+            )
+
+            parameters = build_strategy_parameters(
+                embedding_strategy,
+                embedding.get("parameters"),
+                existing=existing_params,
+            )
+
+            if idx < len(existing_embedding_groups):
+                embedding_group = existing_embedding_groups[idx]
+                embedding_group.name = embedding_strategy.name
+                embedding_group.embedding_strategy_no = embedding_strategy.strategy_no
+                embedding_group.embedding_parameter = parameters
+            else:
+                embedding_group = EmbeddingGroup(
+                    name=embedding_strategy.name,
+                    embedding_strategy_no=embedding_strategy.strategy_no,
+                    embedding_parameter=parameters,
+                )
+                embedding_group.ingest_group = ingest_group
+                session.add(embedding_group)
+
+        for group in existing_embedding_groups[len(embedding_payloads):]:
+            await session.delete(group)
+
+    if is_default is True:
+        await session.execute(
+            update(IngestGroup)
+            .where(
+                IngestGroup.is_default.is_(True),
+                IngestGroup.ingest_group_no != ingest_binary,
+            )
+            .values(is_default=False)
+        )
+        ingest_group.is_default = True
+    elif is_default is False:
+        ingest_group.is_default = False
+
+    await session.commit()
+    await session.refresh(ingest_group)
+
+    query = (
+        select(IngestGroup)
+        .where(IngestGroup.ingest_group_no == ingest_binary)
+        .options(
+            selectinload(IngestGroup.chunking_strategy),
+            selectinload(IngestGroup.extraction_groups).selectinload(ExtractionGroup.extraction_strategy),
+            selectinload(IngestGroup.embedding_groups).selectinload(EmbeddingGroup.embedding_strategy),
+        )
+    )
+    result = await session.execute(query)
+    updated_ingest_group = result.scalar_one()
+
+    return updated_ingest_group
+
+
 async def delete_ingest_template(
     session: AsyncSession,
     ingest_no: str,

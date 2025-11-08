@@ -84,6 +84,33 @@ class IngestTemplateCreateRequest(BaseModel):
         }
 
 
+class IngestTemplatePartialUpdateRequest(BaseModel):
+    """Ingest 템플릿 부분 수정 요청"""
+    name: Optional[str] = Field(None, description="템플릿 이름", max_length=100)
+    isDefault: Optional[bool] = Field(None, description="기본 템플릿 여부")
+    extractions: Optional[List[StrategyWithParameter]] = Field(None, description="추출 전략 목록")
+    chunking: Optional[StrategyWithParameter] = Field(None, description="청킹 전략")
+    denseEmbeddings: Optional[List[StrategyWithParameter]] = Field(None, description="밀집 임베딩 전략 목록")
+    spareEmbedding: Optional[StrategyWithParameter] = Field(None, description="희소 임베딩 전략")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "name": "듀얼 임베딩 템플릿",
+                "isDefault": True,
+                "chunking": {
+                    "no": "2014c312-1284-4e06-bec5-327c42f6bc3b",
+                    "parameters": {
+                        "token": 1024,
+                        "overlap": 80
+                    }
+                },
+                "spareEmbedding": {
+                    "no": "adb8865e-fc06-4256-8a56-7cdcfea32651"
+                }
+            }
+        }
+
 class IngestTemplateCreateResponse(BaseModel):
     """Ingest 템플릿 생성 응답"""
     ingestNo: str = Field(..., description="생성된 Ingest 템플릿 ID (UUID)")
