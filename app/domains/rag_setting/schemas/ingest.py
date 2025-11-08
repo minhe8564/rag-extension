@@ -24,6 +24,7 @@ class IngestGroupListResponse(BaseModel):
 class StrategyItem(BaseModel):
     """전략 아이템"""
     no: str = Field(..., description="전략 ID (UUID)")
+    code: str = Field(..., description="전략 코드")
     name: str = Field(..., description="전략 이름")
     description: str = Field(..., description="전략 설명")
     parameters: Optional[Dict[str, Any]] = Field(
@@ -50,6 +51,7 @@ class IngestTemplateCreateRequest(BaseModel):
                 "extractions": [
                     {
                         "no": "string",
+                        "code": "strategy-code",
                         "name": "string",
                         "description": "string",
                         "parameters": {}
@@ -57,6 +59,7 @@ class IngestTemplateCreateRequest(BaseModel):
                 ],
                 "chunking": {
                     "no": "string",
+                    "code": "chunking-code",
                     "name": "string",
                     "description": "string",
                     "parameters": {}
@@ -64,6 +67,7 @@ class IngestTemplateCreateRequest(BaseModel):
                 "denseEmbeddings": [
                     {
                         "no": "string",
+                        "code": "strategy-code",
                         "name": "string",
                         "description": "string",
                         "parameters": {}
@@ -71,6 +75,7 @@ class IngestTemplateCreateRequest(BaseModel):
                 ],
                 "spareEmbedding": {
                     "no": "string",
+                    "code": "embedding-code",
                     "name": "string",
                     "description": "string",
                     "parameters": {}

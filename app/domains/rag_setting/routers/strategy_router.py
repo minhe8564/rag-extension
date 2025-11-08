@@ -234,6 +234,7 @@ async def create_strategy(
     strategy = await create_strategy_service(
         session=session,
         name=request.name,
+        code=request.code,
         description=request.description,
         parameter=request.parameter,
         strategy_type_name=request.strategyType,
@@ -277,10 +278,11 @@ async def update_strategy(
 ):
     """전략 수정"""
 
-    await update_strategy_service(
+    updated_strategy = await update_strategy_service(
         session=session,
         strategy_no_str=strategyNo,
         name=request.name,
+        code=request.code,
         description=request.description,
         parameter=request.parameter,
         strategy_type_name=request.strategyType,
@@ -291,7 +293,7 @@ async def update_strategy(
         code="OK",
         message="전략 수정에 성공하였습니다.",
         isSuccess=True,
-        result= {},
+        result={}
     )
 
 
@@ -330,30 +332,46 @@ async def delete_strategy(
                         "result": {
                             "data": [
                                 {
-                                    "strategyNo": "7ab054c9-8b1a-4ff3-8ff7-c64a48fc6141",
-                                    "name": "chunking",
-                                    "description": "chunking 전략",
+                                    "strategyNo": "c4be4990-da6d-4f0b-92c8-04f430b0fd7f",
+                                    "code": "CHK_MD",
+                                    "name": "MD 기반 청킹",
+                                    "description": "MD 포맷을 분석해 청킹",
                                     "type": "chunking",
                                     "parameter": {
-                                        "size": 512,
+                                        "type": "md",
+                                        "token": 512,
                                         "overlap": 40
                                     }
                                 },
                                 {
-                                    "strategyNo": "e7a2e663-bd65-4fc6-ad85-c9413a7f4380",
-                                    "name": "embedding-dense",
-                                    "description": "embedding-dense 전략",
-                                    "type": "embedding-dense",
+                                    "strategyNo": "2014c312-1284-4e06-bec5-327c42f6bc3b",
+                                    "code": "CHK_FIXED",
+                                    "name": "고정 길이 청킹",
+                                    "description": "고정된 길이로 청크 분할",
+                                    "type": "chunking",
                                     "parameter": {
-                                        "model": "text-embedding-3-small",
-                                        "dimension": 1536
+                                        "type": "fixed",
+                                        "token": 512,
+                                        "overlap": 40
+                                    }
+                                },
+                                {
+                                    "strategyNo": "4ff1a9ba-0609-4adc-b0d8-f44d8741e242",
+                                    "code": "CHK_SEMANTIC",
+                                    "name": "의미 기반 청킹",
+                                    "description": "유사한 문장을 묶어 청킹",
+                                    "type": "chunking",
+                                    "parameter": {
+                                        "type": "semantic",
+                                        "token": 512,
+                                        "overlap": 40
                                     }
                                 }
                             ],
                             "pagination": {
                                 "pageNum": 1,
                                 "pageSize": 20,
-                                "totalItems": 2,
+                                "totalItems": 3,
                                 "totalPages": 1,
                                 "hasNext": False
                             }
@@ -390,6 +408,7 @@ async def get_strategies(
     items = [
         StrategyListItem(
             strategyNo=_bytes_to_uuid_str(strategy.strategy_no),
+            code=strategy.code,
             name=strategy.name,
             description=strategy.description,
             type=strategy.strategy_type.name if strategy.strategy_type else "",
@@ -435,13 +454,15 @@ async def get_strategies(
                         "message": "전략 상세 조회에 성공하였습니다.",
                         "isSuccess": True,
                         "result": {
-                            "strategyNo": "7ab054c9-8b1a-4ff3-8ff7-c64a48fc6141",
-                            "name": "chunking",
-                            "description": "chunking 전략",
+                            "strategyNo": "c4be4990-da6d-4f0b-92c8-04f430b0fd7f",
+                            "code": "CHK_MD",
+                            "name": "MD 기반 청킹",
+                            "description": "MD 포맷을 분석해 청킹",
                             "type": "chunking",
-                            "parameter": {
-                                "size": 512,
-                                "overlap": 40
+                            "parameters": {
+                            "type": "md",
+                            "token": 512,
+                            "overlap": 40
                             }
                         }
                     }
@@ -476,6 +497,7 @@ async def get_strategy_detail(
     # 응답 데이터 변환
     detail = StrategyDetailResponse(
         strategyNo=_bytes_to_uuid_str(strategy.strategy_no),
+        code=strategy.code,
         name=strategy.name,
         description=strategy.description,
         type=strategy.strategy_type.name if strategy.strategy_type else "",
@@ -485,7 +507,7 @@ async def get_strategy_detail(
     return BaseResponse[StrategyDetailResponse](
         status=200,
         code="OK",
-        message="성공",
+        message="전략 상세 조회에 성공하였습니다.",
         isSuccess=True,
         result=detail,
     )

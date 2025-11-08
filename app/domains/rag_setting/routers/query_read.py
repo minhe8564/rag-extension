@@ -152,12 +152,14 @@ async def list_query_templates_endpoint(
                             "isDefault": True,
                             "transformation": {
                                 "no": "1a7c2b6e-4d3f-45b1-98c0-6e2c4f9a7b32",
+                                "code": "hyde",
                                 "name": "HyDE",
                                 "description": "질문을 가상의 이상적 문서로 확장하여 검색 적합도를 높임",
                                 "parameters": { "code": "HyDE" }
                             },
                             "retrieval": {
                                 "no": "7e3b9d12-8a41-4a1a-9c45-2f9d3a6b1c54",
+                                "code": "hybrid",
                                 "name": "Hybrid",
                                 "description": "시맨틱 검색 + 키워드 검색 후 리랭킹",
                                 "parameters": {
@@ -169,6 +171,7 @@ async def list_query_templates_endpoint(
                             },
                             "reranking": {
                                 "no": "0c4d2e7a-1f9b-4e22-9b77-6a9c1d3f5e88",
+                                "code": "minilm",
                                 "name": "MiniLM",
                                 "description": "MiniLM 크로스 인코더(pointwise 방식)로 취합",
                                 "parameters": {
@@ -178,6 +181,7 @@ async def list_query_templates_endpoint(
                             },
                             "systemPrompt": {
                                 "no": "b2e7c1a9-5d2f-4b3c-8a11-7f9e2c3d4a66",
+                                "code": "prompt-system-default",
                                 "name": "기본 시스템 프롬프트",
                                 "description": "기본 시스템 프롬프트",
                                 "parameters": {
@@ -186,6 +190,7 @@ async def list_query_templates_endpoint(
                             },
                             "userPrompt": {
                                 "no": "4f1a2c3b-9d7e-4e55-8a66-1b2c3d4e5f70",
+                                "code": "prompt-user-default",
                                 "name": "기본 사용자 프롬프트",
                                 "description": "기본 사용자 프롬프트",
                                 "parameters": {
@@ -194,6 +199,7 @@ async def list_query_templates_endpoint(
                             },
                             "generation": {
                                 "no": "d8b7c6a5-3e2d-4c1b-9a8f-7e6d5c4b3a21",
+                                "code": "qwen3-vl-8b",
                                 "name": "qwen3-vl:8b",
                                 "description": "알리바바 최신 텍스트 생성 모델",
                                 "parameters": {
@@ -242,36 +248,42 @@ async def get_query_template_endpoint(
         isDefault=query_group.is_default,
         transformation=StrategyDetail(
             no=binary_to_uuid(query_group.transformation_strategy.strategy_no),
+            code=query_group.transformation_strategy.code,
             name=query_group.transformation_strategy.name,
             description=query_group.transformation_strategy.description or "",
             parameters=query_group.transformation_parameter or {},
         ),
         retrieval=StrategyDetail(
             no=binary_to_uuid(query_group.retrieval_strategy.strategy_no),
+            code=query_group.retrieval_strategy.code,
             name=query_group.retrieval_strategy.name,
             description=query_group.retrieval_strategy.description or "",
             parameters=query_group.retrieval_parameter or {},
         ),
         reranking=StrategyDetail(
             no=binary_to_uuid(query_group.reranking_strategy.strategy_no),
+            code=query_group.reranking_strategy.code,
             name=query_group.reranking_strategy.name,
             description=query_group.reranking_strategy.description or "",
             parameters=query_group.reranking_parameter or {},
         ),
         systemPrompt=StrategyDetail(
             no=binary_to_uuid(query_group.system_prompting_strategy.strategy_no),
+            code=query_group.system_prompting_strategy.code,
             name=query_group.system_prompting_strategy.name,
             description=query_group.system_prompting_strategy.description or "",
             parameters=query_group.system_prompting_parameter or {},
         ),
         userPrompt=StrategyDetail(
             no=binary_to_uuid(query_group.user_prompting_strategy.strategy_no),
+            code=query_group.user_prompting_strategy.code,
             name=query_group.user_prompting_strategy.name,
             description=query_group.user_prompting_strategy.description or "",
             parameters=query_group.user_prompting_parameter or {},
         ),
         generation=StrategyDetail(
             no=binary_to_uuid(query_group.generation_strategy.strategy_no),
+            code=query_group.generation_strategy.code,
             name=query_group.generation_strategy.name,
             description=query_group.generation_strategy.description or "",
             parameters=query_group.generation_parameter or {},

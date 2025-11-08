@@ -228,6 +228,7 @@ async def get_strategy_by_no(
 async def create_strategy(
     session: AsyncSession,
     name: str,
+    code: str,
     description: str,
     parameter: Optional[Dict[str, Any]],
     strategy_type_name: str,
@@ -238,6 +239,7 @@ async def create_strategy(
     Args:
         session: 데이터베이스 세션
         name: 전략명
+        code: 전략 코드
         description: 전략 설명
         parameter: 전략 파라미터
         strategy_type_name: 전략 유형 이름
@@ -248,6 +250,13 @@ async def create_strategy(
     Raises:
         HTTPException: 전략 유형을 찾을 수 없거나 동일 이름의 전략이 존재하는 경우
     """
+
+    code_value = (code or '').strip()
+    if not code_value:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="전략 코드는 필수 값입니다.",
+        )
 
     # 전략 유형 조회
     stmt = select(StrategyType).where(StrategyType.name == strategy_type_name)
@@ -266,9 +275,7 @@ async def create_strategy(
         Strategy.strategy_type_no == strategy_type.strategy_type_no,
     )
     duplicate_result = await session.execute(duplicate_stmt)
-    duplicate = duplicate_result.scalar_one_or_none()
-
-    if duplicate:
+    if duplicate_result.scalar_one_or_none():
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="동일한 이름의 전략이 이미 존재합니다.",
@@ -276,6 +283,7 @@ async def create_strategy(
 
     strategy = Strategy(
         name=name,
+        code=code_value,
         description=description,
         parameter=parameter or {},
         strategy_type_no=strategy_type.strategy_type_no,
@@ -287,11 +295,11 @@ async def create_strategy(
 
     return strategy
 
-
 async def update_strategy(
     session: AsyncSession,
     strategy_no_str: str,
     name: str,
+    code: Optional[str],
     description: str,
     parameter: Optional[Dict[str, Any]],
     strategy_type_name: Optional[str] = None,
@@ -345,15 +353,25 @@ async def update_strategy(
             detail="동일한 이름의 전략이 이미 존재합니다.",
         )
 
+    code_value: Optional[str] = None
+    if code is not None:
+        code_value = code.strip()
+        if not code_value:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="전략 코드는 비워둘 수 없습니다.",
+            )
+
     strategy.name = name
     strategy.description = description
     strategy.parameter = parameter or {}
+    if code_value is not None:
+        strategy.code = code_value
 
     await session.commit()
     await session.refresh(strategy)
 
     return strategy
-
 
 async def delete_strategy(
     session: AsyncSession,

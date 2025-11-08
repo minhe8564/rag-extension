@@ -184,6 +184,7 @@ async def get_ingest_template(
     def strategy_to_item(strategy, parameters) -> StrategyItem:
         return StrategyItem(
             no=_bytes_to_uuid_str(strategy.strategy_no),
+            code=strategy.code,
             name=strategy.name,
             description=strategy.description or "",
             parameters=parameters or {}

@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 class StrategyListItem(BaseModel):
     """전략 목록 아이템"""
     strategyNo: str = Field(..., description="전략 ID (UUID)")
+    code: str = Field(..., description="전략 코드")
     name: str = Field(..., description="전략명")
     description: str = Field(..., description="전략 설명")
     type: str = Field(..., description="전략 유형 이름")
@@ -19,6 +20,7 @@ class StrategyListItem(BaseModel):
 class StrategyDetailResponse(BaseModel):
     """전략 상세 정보"""
     strategyNo: str = Field(..., description="전략 ID (UUID)")
+    code: str = Field(..., description="전략 코드")
     name: str = Field(..., description="전략명")
     description: str = Field(..., description="전략 설명")
     type: str = Field(..., description="전략 유형 이름")
@@ -40,6 +42,7 @@ class PaginationInfo(BaseModel):
 class StrategyCreateRequest(BaseModel):
     """전략 생성 요청 본문"""
     name: str = Field(..., min_length=1, max_length=50, description="전략명")
+    code: str = Field(..., min_length=1, max_length=255, description="전략 코드")
     description: str = Field(..., min_length=1, max_length=255, description="전략 설명")
     parameter: Optional[Dict[str, Any]] = Field(None, description="전략 파라미터")
     strategyType: str = Field(..., min_length=1, max_length=255, description="전략 유형 이름")
@@ -53,6 +56,7 @@ class StrategyCreateResponse(BaseModel):
 class StrategyUpdateRequest(BaseModel):
     """전략 수정 요청"""
     name: str = Field(..., min_length=1, max_length=50, description="전략명")
+    code: Optional[str] = Field(None, min_length=1, max_length=255, description="전략 코드")
     description: str = Field(..., min_length=1, max_length=255, description="전략 설명")
     parameter: Optional[Dict[str, Any]] = Field(None, description="전략 파라미터")
     strategyType: Optional[str] = Field(None, min_length=1, max_length=255, description="전략 유형 이름")
@@ -61,6 +65,7 @@ class StrategyUpdateRequest(BaseModel):
 class StrategyUpdateResponse(BaseModel):
     """전략 수정 응답"""
     strategyNo: str = Field(..., description="전략 ID (UUID)")
+    code: str = Field(..., description="전략 코드")
     name: str = Field(..., description="전략명")
     description: str = Field(..., description="전략 설명")
     type: str = Field(..., description="전략 유형 이름")
