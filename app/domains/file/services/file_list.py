@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.file import File
 from ..schemas.response.files import FileListItem
-from .common import _uuid_str_to_bytes, _bytes_to_uuid_str, _get_offer_no_by_user
+from ....core.utils.uuid_utils import _uuid_str_to_bytes, _bytes_to_uuid_str, _get_offer_no_by_user
 
 
 async def list_files_by_offer(

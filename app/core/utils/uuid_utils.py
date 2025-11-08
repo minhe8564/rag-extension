@@ -9,11 +9,11 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.settings import settings
-from app.core.minio_client import remove_object
+from app.core.config.settings import settings
+from app.core.clients.minio_client import remove_object
 
-from ..models.file import File
-from ..models.file_category import FileCategory
+from ...domains.file.models.file import File
+from ...domains.file.models.file_category import FileCategory
 from app.domains.user.models.user import User
 
 
@@ -124,7 +124,7 @@ async def _handle_name_conflict(
     existing_rows = list(res.scalars().all())
     if existing_rows:
         # Reuse central deletion logic (includes vector cleanup if configured)
-        from .delete import delete_file_entity
+        from ...domains.file.services.delete import delete_file_entity
         for row in existing_rows:
             try:
                 await delete_file_entity(session, file_row=row, user_role=user_role)

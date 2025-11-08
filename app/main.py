@@ -2,9 +2,9 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from . import __version__, __title__, __description__
-from .core.settings import settings
-from .core.utils import custom_openapi
-from .core.exception_handlers import register_exception_handlers
+from .core.config.settings import settings
+from .core.utils.utils import custom_openapi
+from .core.exceptions.exception_handlers import register_exception_handlers
 
 from .domains.file.routers.file_category import router as file_router
 from .domains.file.routers.file_upload import router as files_router

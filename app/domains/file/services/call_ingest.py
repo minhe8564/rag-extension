@@ -5,7 +5,7 @@ from typing import Any
 
 import httpx
 
-from app.core.settings import settings
+from app.core.config.settings import settings
 from app.domains.file.schemas.response.upload_files import UploadBatchMeta
 
 

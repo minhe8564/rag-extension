@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from minio import Minio
 from minio.error import S3Error
 
-from app.core.settings import settings
+from app.core.config.settings import settings
 from urllib.parse import urlparse
 
 

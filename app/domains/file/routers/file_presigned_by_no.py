@@ -7,7 +7,7 @@ import uuid
 from app.core.schemas import BaseResponse
 from app.core.database import get_db
 from ..schemas.response.presigned_url import PresignedUrl
-from ..services.common import _get_offer_no_by_user
+from ....core.utils.uuid_utils import _get_offer_no_by_user
 from ..services.presign import get_presigned_url
 from ..repositories.file_repository import FileRepository
 

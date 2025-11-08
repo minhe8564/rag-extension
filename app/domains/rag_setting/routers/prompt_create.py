@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....core.database import get_db
 from ....core.schemas import BaseResponse, Result
-from ....core.check_role import check_role
+from ....core.auth.check_role import check_role
 from ..schemas.prompt import PromptCreateRequest, PromptCreateResponse
 from ..services.prompt_create import create_prompt
 

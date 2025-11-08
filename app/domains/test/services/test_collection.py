@@ -1,4 +1,3 @@
-import uuid
 from typing import List, Optional
 from sqlalchemy import select, func, or_, and_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,17 +5,7 @@ from datetime import datetime
 
 from ..models.test_collection import TestCollection
 from ..schemas.response.test_collection import TestCollectionListItem
-
-
-def _bytes_to_uuid_str(b: bytes) -> str:
-    try:
-        return str(uuid.UUID(bytes=b))
-    except Exception:
-        return b.hex()
-
-
-def _uuid_str_to_bytes(u: str) -> bytes:
-    return uuid.UUID(u).bytes
+from ....core.utils.uuid_utils import _bytes_to_uuid_str, _uuid_str_to_bytes
 
 async def count_test_collections(session: AsyncSession) -> int:
     stmt = select(func.count()).select_from(TestCollection)
@@ -59,15 +48,4 @@ async def list_test_collections(
     res = await session.execute(stmt)
     rows = list(res.scalars().all())
     
-        # ── DTO(TestCollectionListItem)로 변환 ──
-    items = [
-        TestCollectionListItem(
-            testCollectionNo=_bytes_to_uuid_str(row.test_collection_no),
-            name=row.name,
-            ingestNo=_bytes_to_uuid_str(row.ingest_group_no),
-            createdAt=row.created_at,
-        )
-        for row in rows
-    ]
-    
-    return items
+    return rows

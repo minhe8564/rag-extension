@@ -1,6 +1,6 @@
 from sqlalchemy import Column, DateTime, ForeignKey, LargeBinary, String
 from datetime import datetime
-from app.core.base import Base
+from app.core.database.base import Base
 
 
 class TestCollection(Base):

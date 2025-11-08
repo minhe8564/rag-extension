@@ -7,8 +7,8 @@ from fastapi.responses import StreamingResponse
 from typing import Optional, AsyncIterator, Callable
 import logging
 
-from app.core.check_role import check_role
-from app.core.settings import settings
+from app.core.auth.check_role import check_role
+from app.core.config.settings import settings
 from ..services.monitoring_service import MonitoringService
 
 logger = logging.getLogger(__name__)

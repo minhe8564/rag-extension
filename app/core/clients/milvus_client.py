@@ -5,7 +5,7 @@ import logging
 
 from pymilvus import connections, Collection
 
-from app.core.settings import settings
+from app.core.config.settings import settings
 
 
 logger = logging.getLogger(__name__)

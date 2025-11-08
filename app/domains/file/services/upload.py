@@ -10,12 +10,12 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.minio_client import ensure_bucket, object_exists, put_object
+from app.core.clients.minio_client import ensure_bucket, object_exists, put_object
 
 from app.domains.collection.models.collection import Collection
 from ..models.file import File
 from ..schemas.response.upload_files import IngestFileMeta, UploadBatchMeta
-from .common import (
+from app.core.utils.uuid_utils import (
     _uuid_str_to_bytes,
     _bytes_to_uuid_str,
     _get_offer_no_by_user,

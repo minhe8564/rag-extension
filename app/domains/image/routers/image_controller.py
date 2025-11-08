@@ -9,7 +9,7 @@ import logging
 from datetime import datetime
 
 from app.core.database import get_db
-from app.core.check_role import check_role
+from app.core.auth.check_role import check_role
 from app.core.schemas import BaseResponse
 from ..schemas.image_request import ImageGenerateRequest
 from ..schemas.image_regenerate_request import ImageRegenerateRequest

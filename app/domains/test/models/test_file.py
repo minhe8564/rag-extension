@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from sqlalchemy import Column, DateTime, LargeBinary, String, Integer, Text, ForeignKey
-from app.core.base import Base
+from app.core.database.base import Base
 
 
 class TestFile(Base):

@@ -1,6 +1,4 @@
 from __future__ import annotations
-
-import uuid
 from typing import Dict, Any, List
 from math import ceil
 from datetime import datetime
@@ -9,14 +7,15 @@ from fastapi import APIRouter, Request, HTTPException, status, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....core.database import get_db
-from ....core.check_role import check_role
+from ....core.auth.check_role import check_role
 from ....core.schemas import BaseResponse, Pagination
 from ..schemas.response.test_collection import TestCollectionListItem
 from ..schemas.response.test_file import TestFileListItem
 from ..services.test_collection import list_test_collections, count_test_collections
 from ...collection.services.collections import list_files_in_collection as list_files_in_collection_service
 from ..services.test_file import list_test_files, count_test_files
-from ....core.cursor import CursorParams, get_cursor_params
+from ....core.database.cursor import CursorParams, get_cursor_params
+from ....core.utils.uuid_utils import _bytes_to_uuid_str
 
 
 router = APIRouter(prefix="/test", tags=["Test"])
@@ -46,23 +45,35 @@ async def get_test_collections(
     limit = pageSize
 
     # limit+1로 조회해서 hasNext 판단
-    items = await list_test_collections(
+    rows = await list_test_collections(
         session=session,
         limit=limit + 1,
         cursor_created_at=cursor.cursorCreatedAt,
         cursor_id=cursor.cursorId,
     )
 
-    has_next = len(items) > limit
+    has_next = len(rows) > limit
     if has_next:
-        next_candidate = items[limit - 1]
+        next_candidate = rows[limit - 1]
         next_cursor = {
             "cursorCreatedAt": next_candidate.createdAt,
             "cursorId": next_candidate.testCollectionNo,
         }
-        items = items[:limit]
+        rows = rows[:limit]
     else:
         next_cursor = None
+        
+        
+    # ── DTO(TestCollectionListItem)로 변환 ──
+    items = [
+        TestCollectionListItem(
+            testCollectionNo=_bytes_to_uuid_str(row.test_collection_no),
+            name=row.name,
+            ingestNo=_bytes_to_uuid_str(row.ingest_group_no),
+            createdAt=row.created_at,
+        )
+        for row in rows
+    ]
 
     return BaseResponse[List[TestCollectionListItem]](
         status=200,

@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....core.database import get_db
 from ....core.schemas import BaseResponse, Result
-from ....core.check_role import check_role
+from ....core.auth.check_role import check_role
 from ..schemas.prompt import PromptListItem, PaginationInfo, PromptDetailResponse
 from ..services.prompt_read import list_prompts, get_prompt_by_no
 
