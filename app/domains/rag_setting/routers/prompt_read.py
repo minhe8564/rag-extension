@@ -47,6 +47,7 @@ def _bytes_to_uuid_str(b: bytes) -> str:
                                     "promptNo": "9c6a37bc-ef9b-4776-928c-f45c9eb65934",
                                     "name": "샘플 사용자 프롬프트",
                                     "type": "user",
+                                    "code": "PMT_USER",
                                     "description": "샘플 사용자 프롬프트",
                                     "content": "다음 지침을 따라 한국어로 간결하게 답하세요: (1) 아래 참고문서에서 근거를 먼저 찾고, (2) 문서 내용에 한해 답변하세요.\n질문: {{query}}\n참고문서: {{docs}}"
                                 },
@@ -54,6 +55,7 @@ def _bytes_to_uuid_str(b: bytes) -> str:
                                     "promptNo": "6bff6262-90a6-4eb1-bfc1-78bdd342c317",
                                     "name": "샘플 시스템 프롬프트",
                                     "type": "system",
+                                    "code": "PMT_SYSTEM",
                                     "description": "샘플 시스템 프롬프트",
                                     "content": "당신은 유용한 RAG 어시스턴트입니다. 사용자의 언어(기본: 한국어)로 간결하게 답하고, 정확성을 최우선으로 하며, 모든 주장은 검색·조회된 출처에 근거해 제시하세요."
                                 }
@@ -103,6 +105,7 @@ async def get_prompts(
             promptNo=_bytes_to_uuid_str(prompt.strategy_no),
             name=prompt.name,
             type=prompt.parameter.get("type", "system") if prompt.parameter else "system",
+                code=prompt.code,
             description=prompt.description,
             content=prompt.parameter.get("content", "") if prompt.parameter else ""
         )
@@ -149,6 +152,7 @@ async def get_prompts(
                             "promptNo": "6bff6262-90a6-4eb1-bfc1-78bdd342c317",
                             "name": "샘플 시스템 프롬프트",
                             "type": "system",
+                            "code": "PMT_SYSTEM",
                             "description": "샘플 시스템 프롬프트",
                             "content": "당신은 유용한 RAG 어시스턴트입니다. 사용자의 언어(기본: 한국어)로 간결하게 답하고, 정확성을 최우선으로 하며, 모든 주장은 검색·조회된 출처에 근거해 제시하세요."
                         }
@@ -191,6 +195,7 @@ async def get_prompt_detail(
         promptNo=_bytes_to_uuid_str(prompt.strategy_no),
         name=prompt.name,
         type=prompt.parameter.get("type", "system") if prompt.parameter else "system",
+        code=prompt.code,
         description=prompt.description,
         content=prompt.parameter.get("content", "") if prompt.parameter else ""
     )

@@ -3,7 +3,6 @@
 """
 from __future__ import annotations
 
-from typing import Optional
 import uuid
 
 from sqlalchemy import select
@@ -11,6 +10,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
 
 from ..models.strategy import Strategy, StrategyType, generate_uuid_binary
+
+PROMPT_TYPE_CODE_MAP = {
+    "system": "PMT_SYSTEM",
+    "user": "PMT_USER",
+}
 
 
 async def get_prompting_strategy_type(
@@ -129,7 +133,7 @@ async def create_prompt(
     strategy_type = await get_prompting_strategy_type(session, prompt_type)
 
     # 3. 프롬프트(전략) 생성
-    code_value = f"prompt-{prompt_type}-{uuid.uuid4().hex[:8]}"
+    code_value = PROMPT_TYPE_CODE_MAP[prompt_type]
 
     new_strategy = Strategy(
         strategy_no=generate_uuid_binary(),

@@ -40,26 +40,26 @@ router = APIRouter(prefix="/rag", tags=["RAG - Query Template Management"])
                         "isSuccess": True,
                         "result": {
                             "data": [
-                                {
-                                    "queryNo": "56511d54-b561-4a7c-9e0c-4bd1d0961ac8",
-                                    "name": "기본 Query 템플릿",
-                                    "isDefault": True
-                                },
-                                {
-                                    "queryNo": "56511d54-b561-4a7c-9e0c-4bd1d0961ac8",
-                                    "name": "확장된 Query 템플릿",
-                                    "isDefault": False
-                                }
+                            {
+                                "queryNo": "2043a2c8-bc99-11f0-a5ea-0e6c5c03bab1",
+                                "name": "하이브리드 검색",
+                                "isDefault": False
+                            },
+                            {
+                                "queryNo": "f1b951b3-67b3-4021-a01c-6e2e05e78823",
+                                "name": "기본 Query 템플릿",
+                                "isDefault": True
+                            },
                             ],
                             "pagination": {
-                                "totalItems": 2,
-                                "totalPages": 1,
-                                "currentPage": 1,
-                                "pageSize": 20,
-                                "hasNext": False
+                            "pageNum": 1,
+                            "pageSize": 20,
+                            "totalItems": 2,
+                            "totalPages": 1,
+                            "hasNext": False
                             }
                         }
-                    }
+                        }
                 }
             }
         },
@@ -147,69 +147,74 @@ async def list_query_templates_endpoint(
                         "message": "Query 템플릿 상세 조회 성공",
                         "isSuccess": True,
                         "result": {
-                            "queryNo": "f9f6b1a3-3c2e-4e2f-9b1a-9c7f3b8d2a11",
-                            "name": "기본 QUERY 템플릿",
-                            "isDefault": True,
+                            "queryNo": "466cf479-bc99-11f0-a5ea-0e6c5c03bab1",
+                            "name": "ChatGPT",
+                            "isDefault": False,
                             "transformation": {
-                                "no": "1a7c2b6e-4d3f-45b1-98c0-6e2c4f9a7b32",
-                                "code": "hyde",
-                                "name": "HyDE",
-                                "description": "질문을 가상의 이상적 문서로 확장하여 검색 적합도를 높임",
-                                "parameters": { "code": "HyDE" }
+                                "no": "4b7c93a9-ca03-4caf-94e1-2ad5a4a64be1",
+                                "code": "TRF_BUFFER",
+                                "name": "Buffer",
+                                "description": "변환없이 다음 단계로 전달",
+                                "parameters": {
+                                    "type": "buffer"
+                                }
                             },
                             "retrieval": {
-                                "no": "7e3b9d12-8a41-4a1a-9c45-2f9d3a6b1c54",
-                                "code": "hybrid",
-                                "name": "Hybrid",
-                                "description": "시맨틱 검색 + 키워드 검색 후 리랭킹",
-                                "parameters": {
-                                    "code": "Hybrid",
-                                    "semantic": {"top_k": 20, "threshold": 0.6},
-                                    "keyword": {"top_k": 20},
-                                    "reranker": {"type": "weighted", "weight": 0.4, "top_k": 10}
+                            "no": "e9d321a3-98f2-4917-879b-d5407f14c44d",
+                            "code": "RET_SEMANTIC",
+                            "name": "시맨틱 검색",
+                            "description": "시맨틱 검색",
+                            "parameters": {
+                                "type": "semantic",
+                                "sematic": {
+                                    "topK": 30,
+                                    "threshold": 0.4
                                 }
+                            }
                             },
                             "reranking": {
-                                "no": "0c4d2e7a-1f9b-4e22-9b77-6a9c1d3f5e88",
-                                "code": "minilm",
-                                "name": "MiniLM",
-                                "description": "MiniLM 크로스 인코더(pointwise 방식)로 취합",
-                                "parameters": {
-                                    "model": "cross-encoder/ms-marco-MiniLM-L6-v2",
-                                    "top_k": 5
-                                }
+                            "no": "ab4754a9-36b7-42b5-a0fe-64bc3de94596",
+                            "code": "RER",
+                            "name": "MiniLM",
+                            "description": "MiniLM 크로스 재정렬기",
+                            "parameters": {
+                                "topK": 5,
+                                "model": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
+                            }
                             },
                             "systemPrompt": {
-                                "no": "b2e7c1a9-5d2f-4b3c-8a11-7f9e2c3d4a66",
-                                "code": "prompt-system-default",
-                                "name": "기본 시스템 프롬프트",
-                                "description": "기본 시스템 프롬프트",
-                                "parameters": {
-                                    "content": "당신은 유용한 RAG 어시스턴트입니다. 사용자의 언어(기본: 한국어)로 간결하게 답하고, 정확성을 최우선으로 하며, 모든 주장은 검색·조회된 출처에 근거해 제시하세요."
-                                }
+                            "no": "6bff6262-90a6-4eb1-bfc1-78bdd342c317",
+                            "code": "PMT_SYSTEM",
+                            "name": "샘플 시스템 프롬프트",
+                            "description": "샘플 시스템 프롬프트",
+                            "parameters": {
+                                "type": "system",
+                                "content": "당신은 유용한 RAG 어시스턴트입니다. 사용자의 언어(기본: 한국어)로 간결하게 답하고, 정확성을 최우선으로 하며, 모든 주장은 검색·조회된 출처에 근거해 제시하세요."
+                            }
                             },
                             "userPrompt": {
-                                "no": "4f1a2c3b-9d7e-4e55-8a66-1b2c3d4e5f70",
-                                "code": "prompt-user-default",
-                                "name": "기본 사용자 프롬프트",
-                                "description": "기본 사용자 프롬프트",
-                                "parameters": {
-                                    "content": "다음 지침을 따라 한국어로 간결하게 답하세요: (1) 아래 참고문서에서 근거를 먼저 찾고, (2) 문서 내용에 한해 답변하세요.\n질문: {{user_query}}\n참고문서: {{docs}}"
-                                }
+                            "no": "9c6a37bc-ef9b-4776-928c-f45c9eb65934",
+                            "code": "PMT_USER",
+                            "name": "샘플 사용자 프롬프트",
+                            "description": "샘플 사용자 프롬프트",
+                            "parameters": {
+                                "type": "user",
+                                "content": "다음 지침을 따라 한국어로 간결하게 답하세요: (1) 아래 참고문서에서 근거를 먼저 찾고, (2) 문서 내용에 한해 답변하세요.\n질문: {{query}}\n참고문서: {{docs}}"
+                            }
                             },
                             "generation": {
-                                "no": "d8b7c6a5-3e2d-4c1b-9a8f-7e6d5c4b3a21",
-                                "code": "qwen3-vl-8b",
-                                "name": "qwen3-vl:8b",
-                                "description": "알리바바 최신 텍스트 생성 모델",
-                                "parameters": {
-                                    "model": "qwen3-vl:8b",
-                                    "provider": "ollama",
-                                    "temperature": 0.3,
-                                    "timeout": 100,
-                                    "maxRetries": 5,
-                                    "max_tokens": 768,
-                                }
+                            "no": "b3f8bd78-520b-4e2e-b516-786f45fbe83a",
+                            "code": "GEN_OPENAI",
+                            "name": "gpt-4o",
+                            "description": "OpenAI의 텍스트 생성 모델",
+                            "parameters": {
+                                "model": "gpt-4o",
+                                "timeout": 30,
+                                "provider": "openai",
+                                "max_tokens": 512,
+                                "max_retries": 2,
+                                "temperature": 0.2
+                            }
                             }
                         }
                     }
@@ -291,7 +296,7 @@ async def get_query_template_endpoint(
     )
 
     # 응답 생성
-    response = BaseResponse[Dict[str, Any]](
+    response = BaseResponse[QueryTemplateDetailResponse](
         status=200,
         code="OK",
         message="Query 템플릿 상세 조회 성공",
