@@ -2,6 +2,7 @@ package com.ssafy.hebees.dashboard.service;
 
 import com.ssafy.hebees.dashboard.dto.response.AccessUserEvent;
 import com.ssafy.hebees.dashboard.dto.response.ErrorEvent;
+import com.ssafy.hebees.dashboard.dto.response.TrendDirection;
 import com.ssafy.hebees.dashboard.dto.response.UploadDocumentEvent;
 import com.ssafy.hebees.dashboard.entity.DocumentAggregateHourly;
 import com.ssafy.hebees.dashboard.entity.ErrorAggregateHourly;
@@ -31,6 +32,7 @@ public class DashboardMetricStreamServiceImpl implements DashboardMetricStreamSe
     private final UserAggregateHourlyRepository userAggregateHourlyRepository;
     private final DocumentAggregateHourlyRepository documentAggregateHourlyRepository;
     private final ErrorAggregateHourlyRepository errorAggregateHourlyRepository;
+    private final DashboardService dashboardService;
 
     private final Map<MetricType, Set<SseEmitter>> emitters =
         new EnumMap<>(MetricType.class);
@@ -114,7 +116,8 @@ public class DashboardMetricStreamServiceImpl implements DashboardMetricStreamSe
         emitter.onError(throwable -> removeEmitter(type, emitter));
 
         long currentValue = fetchMetricValue(type);
-        sendDataEvent(emitter, type, "init", currentValue);
+        Object payload = buildPayload(type, currentValue);
+        sendDataEvent(emitter, type, "init", currentValue, payload);
 
         log.debug("Subscribed to {} metrics stream (lastEventId={})", type, lastEventId);
         return emitter;
@@ -138,18 +141,22 @@ public class DashboardMetricStreamServiceImpl implements DashboardMetricStreamSe
         if (subscribers == null || subscribers.isEmpty()) {
             return;
         }
+        Object payload = buildPayload(type, value);
         for (SseEmitter emitter : subscribers) {
-            sendDataEvent(emitter, type, eventName, value);
+            sendDataEvent(emitter, type, eventName, value, payload);
         }
     }
 
-    private void sendDataEvent(SseEmitter emitter, MetricType type, String eventName, long value) {
-        Object payload = switch (type) {
-            case ACCESS_USERS -> new AccessUserEvent(toInt(value));
-            case UPLOAD_DOCUMENTS -> new UploadDocumentEvent(toInt(value));
-            case ERRORS -> new ErrorEvent(toInt(value));
+    private Object buildPayload(MetricType type, long value) {
+        return switch (type) {
+            case ACCESS_USERS -> buildAccessUserEvent(value);
+            case UPLOAD_DOCUMENTS -> buildUploadDocumentEvent(value);
+            case ERRORS -> buildErrorEvent(value);
         };
+    }
 
+    private void sendDataEvent(SseEmitter emitter, MetricType type, String eventName, long value,
+        Object payload) {
         try {
             emitter.send(SseEmitter.event()
                 .id(Long.toString(value))
@@ -160,6 +167,57 @@ public class DashboardMetricStreamServiceImpl implements DashboardMetricStreamSe
             removeEmitter(type, emitter);
             emitter.completeWithError(e);
         }
+    }
+
+    private AccessUserEvent buildAccessUserEvent(long todayTotal) {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime startOfDay = now.toLocalDate().atStartOfDay();
+        LocalDateTime startOfYesterday = startOfDay.minusDays(1);
+
+        long yesterdayTotal = userAggregateHourlyRepository
+            .sumAccessUserCountBetween(startOfYesterday, startOfDay);
+        long totalAccessUsers = userAggregateHourlyRepository.sumAccessUserCount();
+
+        double deltaPct = yesterdayTotal != 0
+            ? (double) (todayTotal - yesterdayTotal) / yesterdayTotal
+            : Double.POSITIVE_INFINITY;
+
+        TrendDirection direction = TrendDirection.of(deltaPct);
+        return AccessUserEvent.of(todayTotal, totalAccessUsers, deltaPct, direction);
+    }
+
+    private UploadDocumentEvent buildUploadDocumentEvent(long todayTotal) {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime startOfDay = now.toLocalDate().atStartOfDay();
+        LocalDateTime startOfYesterday = startOfDay.minusDays(1);
+
+        long yesterdayTotal = documentAggregateHourlyRepository
+            .sumUploadCountBetween(startOfYesterday, startOfDay);
+        long totalUploadedDocs = documentAggregateHourlyRepository.sumUploadCount();
+
+        double deltaPct = yesterdayTotal != 0
+            ? (double) (todayTotal - yesterdayTotal) / yesterdayTotal
+            : Double.POSITIVE_INFINITY;
+
+        TrendDirection direction = TrendDirection.of(deltaPct);
+        return UploadDocumentEvent.of(todayTotal, totalUploadedDocs, deltaPct, direction);
+    }
+
+    private ErrorEvent buildErrorEvent(long todayTotal) {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime startOfDay = now.toLocalDate().atStartOfDay();
+        LocalDateTime startOfYesterday = startOfDay.minusDays(1);
+
+        long yesterdayTotal = errorAggregateHourlyRepository
+            .sumTotalErrorCountBetween(startOfYesterday, startOfDay);
+        long totalError = errorAggregateHourlyRepository.sumTotalErrorCount();
+
+        double deltaPct = yesterdayTotal != 0
+            ? (double) (todayTotal - yesterdayTotal) / yesterdayTotal
+            : Double.POSITIVE_INFINITY;
+
+        TrendDirection direction = TrendDirection.of(deltaPct);
+        return ErrorEvent.of(todayTotal, totalError, deltaPct, direction);
     }
 
     private void removeEmitter(MetricType type, SseEmitter emitter) {
