@@ -195,7 +195,8 @@ async def get_ingest_templates(
                 }       
             }
         }
-    )
+    },
+)
 async def get_ingest_template(
     ingestNo: str,
     x_user_role: str = Depends(check_role("ADMIN")),
