@@ -216,6 +216,24 @@ async def delete_strategy_type(
     status_code=status.HTTP_201_CREATED,
     summary="전략 생성 (관리자)",
     description="새로운 RAG 전략을 생성합니다.",
+    responses={
+        200: {
+            "description": "전략 생성에 성공하였습니다.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": 200,
+                        "code": "OK",
+                        "message": "전략 생성에 성공하였습니다.",
+                        "isSuccess": True,
+                        "result": {
+                            "strategyNo": "c4be4990-da6d-4f0b-92c8-04f430b0fd7f"
+                        }
+                    }   
+                }
+            }
+        }
+    }
 )
 async def create_strategy(
     request: StrategyCreateRequest,
