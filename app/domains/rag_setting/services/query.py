@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Dict, Any
 import uuid
+from copy import deepcopy
 
 from sqlalchemy import select, func, update
 from sqlalchemy.orm import noload, selectinload
@@ -34,6 +35,44 @@ async def verify_strategy_exists(
     query = select(Strategy).where(Strategy.strategy_no == strategy_binary)
     result = await session.execute(query)
     return result.scalar_one_or_none()
+
+
+def _apply_allowed_overrides(
+    allowed: Dict[str, Any],
+    target: Dict[str, Any],
+    overrides: Dict[str, Any],
+) -> None:
+    for key, value in overrides.items():
+        if key not in allowed:
+            continue
+        allowed_value = allowed[key]
+        if isinstance(allowed_value, dict) and isinstance(value, dict):
+            target_value = target.get(key)
+            if not isinstance(target_value, dict):
+                target_value = deepcopy(allowed_value)
+            else:
+                target_value = deepcopy(target_value)
+            _apply_allowed_overrides(allowed_value, target_value, value)
+            target[key] = target_value
+        else:
+            target[key] = value
+
+
+def build_strategy_parameters(
+    strategy: Strategy,
+    overrides: Optional[Dict[str, Any]] = None,
+    existing: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    allowed = strategy.parameter or {}
+    base = deepcopy(allowed)
+
+    if existing:
+        _apply_allowed_overrides(allowed, base, existing)
+
+    if overrides:
+        _apply_allowed_overrides(allowed, base, overrides)
+
+    return base
 
 
 async def create_query_template(
@@ -139,12 +178,24 @@ async def create_query_template(
         system_prompting_strategy_no=uuid_to_binary(system_prompt_no),
         user_prompting_strategy_no=uuid_to_binary(user_prompt_no),
         generation_strategy_no=uuid_to_binary(generation_no),
-        transformation_parameter=transformation_parameters or {},
-        retrieval_parameter=retrieval_parameters or {},
-        reranking_parameter=reranking_parameters or {},
-        system_prompting_parameter=system_prompt_parameters or {},
-        user_prompting_parameter=user_prompt_parameters or {},
-        generation_parameter=generation_parameters or {},
+        transformation_parameter=build_strategy_parameters(
+            transformation_strategy, transformation_parameters
+        ),
+        retrieval_parameter=build_strategy_parameters(
+            retrieval_strategy, retrieval_parameters
+        ),
+        reranking_parameter=build_strategy_parameters(
+            reranking_strategy, reranking_parameters
+        ),
+        system_prompting_parameter=build_strategy_parameters(
+            system_prompt_strategy, system_prompt_parameters
+        ),
+        user_prompting_parameter=build_strategy_parameters(
+            user_prompt_strategy, user_prompt_parameters
+        ),
+        generation_parameter=build_strategy_parameters(
+            generation_strategy, generation_parameters
+        ),
     )
 
     session.add(query_group)
@@ -407,12 +458,24 @@ async def update_query_template(
     query_group.system_prompting_strategy_no = uuid_to_binary(system_prompt_no)
     query_group.user_prompting_strategy_no = uuid_to_binary(user_prompt_no)
     query_group.generation_strategy_no = uuid_to_binary(generation_no)
-    query_group.transformation_parameter = transformation_parameters or {}
-    query_group.retrieval_parameter = retrieval_parameters or {}
-    query_group.reranking_parameter = reranking_parameters or {}
-    query_group.system_prompting_parameter = system_prompt_parameters or {}
-    query_group.user_prompting_parameter = user_prompt_parameters or {}
-    query_group.generation_parameter = generation_parameters or {}
+    query_group.transformation_parameter = build_strategy_parameters(
+        transformation_strategy, transformation_parameters
+    )
+    query_group.retrieval_parameter = build_strategy_parameters(
+        retrieval_strategy, retrieval_parameters
+    )
+    query_group.reranking_parameter = build_strategy_parameters(
+        reranking_strategy, reranking_parameters
+    )
+    query_group.system_prompting_parameter = build_strategy_parameters(
+        system_prompt_strategy, system_prompt_parameters
+    )
+    query_group.user_prompting_parameter = build_strategy_parameters(
+        user_prompt_strategy, user_prompt_parameters
+    )
+    query_group.generation_parameter = build_strategy_parameters(
+        generation_strategy, generation_parameters
+    )
 
     await session.commit()
     await session.refresh(query_group)
@@ -435,6 +498,191 @@ async def update_query_template(
 
     return updated_query_group
 
+
+async def partial_update_query_template(
+    session: AsyncSession,
+    query_no: str,
+    name: Optional[str] = None,
+    transformation_no: Optional[str] = None,
+    transformation_parameters: Optional[dict] = None,
+    retrieval_no: Optional[str] = None,
+    retrieval_parameters: Optional[dict] = None,
+    reranking_no: Optional[str] = None,
+    reranking_parameters: Optional[dict] = None,
+    system_prompt_no: Optional[str] = None,
+    system_prompt_parameters: Optional[dict] = None,
+    user_prompt_no: Optional[str] = None,
+    user_prompt_parameters: Optional[dict] = None,
+    generation_no: Optional[str] = None,
+    generation_parameters: Optional[dict] = None,
+    is_default: Optional[bool] = None,
+) -> QueryGroup:
+    """
+    Query 템플릿 부분 수정
+
+    전달된 필드만 업데이트합니다.
+    """
+    try:
+        query_binary = uuid_to_binary(query_no)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="올바르지 않은 Query 템플릿 ID 형식입니다."
+        )
+
+    query = select(QueryGroup).where(QueryGroup.query_group_no == query_binary)
+    result = await session.execute(query)
+    query_group = result.scalar_one_or_none()
+
+    if not query_group:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="대상을 찾을 수 없습니다."
+        )
+
+    if name is not None:
+        query_group.name = name
+
+    if transformation_no is not None:
+        transformation_strategy = await verify_strategy_exists(session, transformation_no)
+        if not transformation_strategy:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"변환 전략을 찾을 수 없습니다: {transformation_no}"
+            )
+        transformation_binary = uuid_to_binary(transformation_no)
+        same_strategy = query_group.transformation_strategy_no == transformation_binary
+        existing_params = (
+            query_group.transformation_parameter if same_strategy else None
+        )
+        query_group.transformation_strategy_no = transformation_binary
+        query_group.transformation_parameter = build_strategy_parameters(
+            transformation_strategy,
+            transformation_parameters,
+            existing=existing_params,
+        )
+
+    if retrieval_no is not None:
+        retrieval_strategy = await verify_strategy_exists(session, retrieval_no)
+        if not retrieval_strategy:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"검색 전략을 찾을 수 없습니다: {retrieval_no}"
+            )
+        retrieval_binary = uuid_to_binary(retrieval_no)
+        same_strategy = query_group.retrieval_strategy_no == retrieval_binary
+        existing_params = query_group.retrieval_parameter if same_strategy else None
+        query_group.retrieval_strategy_no = retrieval_binary
+        query_group.retrieval_parameter = build_strategy_parameters(
+            retrieval_strategy,
+            retrieval_parameters,
+            existing=existing_params,
+        )
+
+    if reranking_no is not None:
+        reranking_strategy = await verify_strategy_exists(session, reranking_no)
+        if not reranking_strategy:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"재순위화 전략을 찾을 수 없습니다: {reranking_no}"
+            )
+        reranking_binary = uuid_to_binary(reranking_no)
+        same_strategy = query_group.reranking_strategy_no == reranking_binary
+        existing_params = query_group.reranking_parameter if same_strategy else None
+        query_group.reranking_strategy_no = reranking_binary
+        query_group.reranking_parameter = build_strategy_parameters(
+            reranking_strategy,
+            reranking_parameters,
+            existing=existing_params,
+        )
+
+    if system_prompt_no is not None:
+        system_prompt_strategy = await verify_strategy_exists(session, system_prompt_no)
+        if not system_prompt_strategy:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"시스템 프롬프트 전략을 찾을 수 없습니다: {system_prompt_no}"
+            )
+        system_prompt_binary = uuid_to_binary(system_prompt_no)
+        same_strategy = query_group.system_prompting_strategy_no == system_prompt_binary
+        existing_params = (
+            query_group.system_prompting_parameter if same_strategy else None
+        )
+        query_group.system_prompting_strategy_no = system_prompt_binary
+        query_group.system_prompting_parameter = build_strategy_parameters(
+            system_prompt_strategy,
+            system_prompt_parameters,
+            existing=existing_params,
+        )
+
+    if user_prompt_no is not None:
+        user_prompt_strategy = await verify_strategy_exists(session, user_prompt_no)
+        if not user_prompt_strategy:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"사용자 프롬프트 전략을 찾을 수 없습니다: {user_prompt_no}"
+            )
+        user_prompt_binary = uuid_to_binary(user_prompt_no)
+        same_strategy = query_group.user_prompting_strategy_no == user_prompt_binary
+        existing_params = (
+            query_group.user_prompting_parameter if same_strategy else None
+        )
+        query_group.user_prompting_strategy_no = user_prompt_binary
+        query_group.user_prompting_parameter = build_strategy_parameters(
+            user_prompt_strategy,
+            user_prompt_parameters,
+            existing=existing_params,
+        )
+
+    if generation_no is not None:
+        generation_strategy = await verify_strategy_exists(session, generation_no)
+        if not generation_strategy:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"생성 전략을 찾을 수 없습니다: {generation_no}"
+            )
+        generation_binary = uuid_to_binary(generation_no)
+        same_strategy = query_group.generation_strategy_no == generation_binary
+        existing_params = query_group.generation_parameter if same_strategy else None
+        query_group.generation_strategy_no = generation_binary
+        query_group.generation_parameter = build_strategy_parameters(
+            generation_strategy,
+            generation_parameters,
+            existing=existing_params,
+        )
+
+    if is_default is True:
+        await session.execute(
+            update(QueryGroup)
+            .where(
+                QueryGroup.is_default.is_(True),
+                QueryGroup.query_group_no != query_binary,
+            )
+            .values(is_default=False)
+        )
+        query_group.is_default = True
+    elif is_default is False:
+        query_group.is_default = False
+
+    await session.commit()
+    await session.refresh(query_group)
+
+    query = (
+        select(QueryGroup)
+        .where(QueryGroup.query_group_no == query_binary)
+        .options(
+            selectinload(QueryGroup.transformation_strategy),
+            selectinload(QueryGroup.retrieval_strategy),
+            selectinload(QueryGroup.reranking_strategy),
+            selectinload(QueryGroup.system_prompting_strategy),
+            selectinload(QueryGroup.user_prompting_strategy),
+            selectinload(QueryGroup.generation_strategy),
+        )
+    )
+    result = await session.execute(query)
+    updated_query_group = result.scalar_one()
+
+    return updated_query_group
 
 async def delete_query_template(
     session: AsyncSession,

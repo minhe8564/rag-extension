@@ -53,6 +53,7 @@ class PromptListItem(BaseModel):
     promptNo: str = Field(..., description="프롬프트 ID (UUID)")
     name: str = Field(..., description="프롬프트명")
     type: Literal["system", "user"] = Field(..., description="프롬프트 유형")
+    code: str = Field(..., description="프롬프트 코드")
     description: str = Field(..., description="프롬프트 요약 설명")
     content: str = Field(..., description="프롬프트 실제 내용")
 
@@ -74,6 +75,7 @@ class PromptDetailResponse(BaseModel):
     promptNo: str = Field(..., description="프롬프트 ID (UUID)")
     name: str = Field(..., description="프롬프트명")
     type: Literal["system", "user"] = Field(..., description="프롬프트 유형")
+    code: str = Field(..., description="프롬프트 코드")
     description: str = Field(..., description="프롬프트 요약 설명")
     content: str = Field(..., description="프롬프트 실제 내용")
 
