@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import uuid
 from typing import List, Optional
 
 from sqlalchemy import select, func
@@ -8,23 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.test_file import TestFile
 from ..schemas.response.test_file import TestFileListItem
-
-
-def _bytes_to_uuid_str(b: bytes) -> str:
-    try:
-        return str(uuid.UUID(bytes=b))
-    except Exception:
-        return b.hex()
-
-def _uuid_str_to_bytes(s: str) -> bytes:
-    try:
-        return uuid.UUID(s).bytes
-    except Exception:
-        # Accept hex without dashes
-        try:
-            return uuid.UUID(hex=s).bytes
-        except Exception:
-            raise ValueError("Invalid UUID format")
+from ....core.utils.uuid_utils import _bytes_to_uuid_str, _uuid_str_to_bytes
 
 async def count_test_files(
     session: AsyncSession,

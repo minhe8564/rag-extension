@@ -7,7 +7,7 @@ from sqlalchemy import Column, String, Integer, Text, DateTime, ForeignKey, CHAR
 from sqlalchemy.dialects.mysql import BINARY as MySQL_BINARY, CHAR as MySQL_CHAR
 from datetime import datetime
 import uuid
-from app.core.base import Base
+from app.core.database.base import Base
 
 class File(Base):
     """

@@ -7,9 +7,9 @@ from typing import Optional
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.minio_client import remove_object
-from app.core.settings import settings
-from app.core.milvus_client import delete_by_expr
+from app.core.clients.minio_client import remove_object
+from app.core.config.settings import settings
+from app.core.clients.milvus_client import delete_by_expr
 from app.domains.file.models.file import File
 
 

@@ -7,7 +7,7 @@ import uuid
 from app.core.database import get_db
 from app.core.schemas import BaseResponse
 from ..repositories.file_repository import FileRepository
-from ..services.common import _get_offer_no_by_user
+from ....core.utils.uuid_utils import _get_offer_no_by_user
 from ..services.delete import delete_file_entity
 
 

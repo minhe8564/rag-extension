@@ -7,7 +7,7 @@ from sqlalchemy import Column, String, DateTime
 from sqlalchemy.dialects.mysql import BINARY as MySQL_BINARY
 from datetime import datetime
 import uuid
-from app.core.base import Base
+from app.core.database.base import Base
 
 
 class Runpod(Base):

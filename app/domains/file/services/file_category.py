@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.file_category import FileCategory
 from ..schemas.response.file_category import FileCategoryListItem
-from .common import _bytes_to_uuid_str
+from ....core.utils.uuid_utils import _bytes_to_uuid_str
 
 
 async def list_file_categories(session: AsyncSession) -> List[FileCategoryListItem]:

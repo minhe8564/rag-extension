@@ -10,7 +10,7 @@ from PIL import Image
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 from datetime import datetime
 import logging
-from app.core.settings import settings
+from app.core.config.settings import settings
 
 logger = logging.getLogger(__name__)
 

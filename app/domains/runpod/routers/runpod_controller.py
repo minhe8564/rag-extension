@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.schemas import BaseResponse, Result
-from app.core.check_role import check_role
+from app.core.auth.check_role import check_role
 from ..services.runpod_service import (
     create_runpod as create_runpod_service,
     get_all_runpods,

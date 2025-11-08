@@ -12,7 +12,7 @@ from io import BytesIO
 from google import genai
 from google.genai import types
 
-from app.core.settings import settings
+from app.core.config.settings import settings
 
 logger = logging.getLogger(__name__)
 

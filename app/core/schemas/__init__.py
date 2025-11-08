@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Generic, TypeVar, Dict, Any, Optional
 from pydantic import BaseModel, ConfigDict
-from app.core.cursor import CursorParams
+from app.core.database.cursor import CursorParams
 
 T = TypeVar("T")
 
