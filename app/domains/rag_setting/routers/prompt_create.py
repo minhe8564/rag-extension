@@ -20,6 +20,24 @@ router = APIRouter(prefix="/rag", tags=["RAG - Prompt Management"])
     status_code=status.HTTP_201_CREATED,
     summary="프롬프트 생성",
     description="프롬프트를 생성합니다. 관리자만 접근 가능합니다.",
+    responses={
+        "201": {
+            "description": "프롬프트 생성에 성공하였습니다.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": 201,
+                        "code": "CREATED",
+                        "message": "프롬프트 생성에 성공하였습니다.",
+                        "isSuccess": True,
+                        "result": {
+                            "promptNo": "c4be4990-da6d-4f0b-92c8-04f430b0fd7f"
+                        }
+                    }
+                }
+            }
+        }
+    }
 )
 async def create_prompt_endpoint(
     request: PromptCreateRequest,
@@ -59,7 +77,7 @@ async def create_prompt_endpoint(
     return BaseResponse[PromptCreateResponse](
         status=201,
         code="CREATED",
-        message="성공",
+        message="프롬프트 생성에 성공하였습니다.",
         isSuccess=True,
-        result=Result(data=PromptCreateResponse(promptNo=prompt_no))
+        result=PromptCreateResponse(promptNo=prompt_no)
     )

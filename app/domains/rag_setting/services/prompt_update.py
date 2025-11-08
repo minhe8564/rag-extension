@@ -34,7 +34,7 @@ async def check_prompt_name_conflict(
         .where(
             Strategy.name == name,
             Strategy.strategy_no != exclude_prompt_no,
-            StrategyType.name == "prompting"
+            StrategyType.name.in_(["prompting-system", "prompting-user"])
         )
     )
 
@@ -83,7 +83,7 @@ async def update_prompt(
         .join(Strategy.strategy_type)
         .where(
             Strategy.strategy_no == prompt_no_bytes,
-            StrategyType.name == "prompting"
+            StrategyType.name.in_(["prompting-system", "prompting-user"])
         )
     )
 

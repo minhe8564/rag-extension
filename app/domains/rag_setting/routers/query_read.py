@@ -36,7 +36,7 @@ router = APIRouter(prefix="/rag", tags=["RAG - Query Template Management"])
                     "example": {
                         "status": 200,
                         "code": "SUCCESS",
-                        "message": "성공",
+                        "message": "Query 템플릿 목록 조회 성공",
                         "isSuccess": True,
                         "result": {
                             "data": [
@@ -118,7 +118,7 @@ async def list_query_templates_endpoint(
     response = BaseResponse[Dict[str, Any]](
         status=200,
         code="SUCCESS",
-        message="성공",
+        message="Query 템플릿 목록 조회 성공",
         isSuccess=True,
         result={
                 "data": [item.model_dump() for item in data],
@@ -144,7 +144,7 @@ async def list_query_templates_endpoint(
                     "example": {
                         "status": 200,
                         "code": "OK",
-                        "message": "성공",
+                        "message": "Query 템플릿 상세 조회 성공",
                         "isSuccess": True,
                         "result": {
                             "queryNo": "f9f6b1a3-3c2e-4e2f-9b1a-9c7f3b8d2a11",
@@ -294,7 +294,7 @@ async def get_query_template_endpoint(
     response = BaseResponse[Dict[str, Any]](
         status=200,
         code="OK",
-        message="성공",
+        message="Query 템플릿 상세 조회 성공",
         isSuccess=True,
         result=detail
     )

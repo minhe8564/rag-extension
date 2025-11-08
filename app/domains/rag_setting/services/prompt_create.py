@@ -8,39 +8,48 @@ import uuid
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 from fastapi import HTTPException, status
 
 from ..models.strategy import Strategy, StrategyType, generate_uuid_binary
 
 
 async def get_prompting_strategy_type(
-    session: AsyncSession
+    session: AsyncSession,
+    prompt_type: str,
 ) -> StrategyType:
     """
-    'prompting' 전략 유형 조회
+    Prompt 전략 유형 조회
 
-    프롬프트는 모두 strategy_type = 'prompting'으로 저장됩니다.
-    system/user 구분은 QUERY_GROUP 테이블에서 어느 필드에 저장되는지로 결정됩니다.
+    요청된 프롬프트 유형(system/user)에 따라
+    strategy_type = 'prompting-system' 또는 'prompting-user'를 반환합니다.
 
     Args:
         session: 데이터베이스 세션
+        prompt_type: 프롬프트 유형 (system 또는 user)
 
     Returns:
         StrategyType 객체
 
     Raises:
+        HTTPException: 400 - 지원하지 않는 프롬프트 유형
         HTTPException: 500 - 전략 유형을 찾을 수 없음
     """
-    # 'prompting' 전략 유형 조회
-    query = select(StrategyType).where(StrategyType.name == "prompting")
+    type_mapping = {"system": "prompting-system", "user": "prompting-user"}
+    target_type = type_mapping.get(prompt_type)
+    if not target_type:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="지원하지 않는 프롬프트 유형입니다. (system, user만 허용)",
+        )
+
+    query = select(StrategyType).where(StrategyType.name == target_type)
     result = await session.execute(query)
     strategy_type = result.scalar_one_or_none()
 
     if not strategy_type:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="전략 유형 'prompting'을 찾을 수 없습니다. 데이터베이스 초기화를 확인해주세요."
+            detail=f"전략 유형 '{target_type}'을 찾을 수 없습니다. 데이터베이스 초기화를 확인해주세요."
         )
 
     return strategy_type
@@ -68,7 +77,7 @@ async def check_prompt_name_exists(
         .join(Strategy.strategy_type)
         .where(
             Strategy.name == name,
-            StrategyType.name == "prompting"
+            StrategyType.name.in_(["prompting-system", "prompting-user"])
         )
     )
 
@@ -88,7 +97,7 @@ async def create_prompt(
     """
     프롬프트 생성
 
-    프롬프트는 Strategy 테이블에 strategy_type='prompting'으로 저장됩니다.
+    프롬프트는 프롬프트 유형에 따라 strategy_type='prompting-system' 또는 'prompting-user'로 저장됩니다.
     - description: 요약 설명 (Strategy.description, 최대 255자)
     - content: 실제 프롬프트 내용 (parameter JSON, 제한 없음)
     - type: 프롬프트 유형 (parameter JSON 메타데이터)
@@ -117,10 +126,11 @@ async def create_prompt(
         )
 
     # 2. prompting 전략 유형 조회
-    strategy_type = await get_prompting_strategy_type(session)
+    strategy_type = await get_prompting_strategy_type(session, prompt_type)
 
     # 3. 프롬프트(전략) 생성
     code_value = f"prompt-{prompt_type}-{uuid.uuid4().hex[:8]}"
+
     new_strategy = Strategy(
         strategy_no=generate_uuid_binary(),
         strategy_type_no=strategy_type.strategy_type_no,
