@@ -100,6 +100,10 @@ class PromptUpdateRequest(BaseModel):
         min_length=1,
         description="프롬프트 실제 내용 (제한 없음)"
     )
+    type: Optional[Literal["system", "user"]] = Field(
+        None,
+        description="변경할 프롬프트 유형 (system 또는 user)"
+    )
 
     @field_validator('name', 'description', 'content')
     @classmethod
