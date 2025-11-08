@@ -55,7 +55,7 @@ async def create_ingest_template_endpoint(
     dense_embeddings_payload = [
         item.model_dump(exclude_none=True) for item in request.denseEmbeddings
     ]
-    spare_embedding_payload = request.spareEmbedding.model_dump(exclude_none=True)
+    sparse_embedding_payload = request.sparseEmbedding.model_dump(exclude_none=True)
 
     try:
         ingest_no = await create_ingest_template(
@@ -65,7 +65,7 @@ async def create_ingest_template_endpoint(
             extractions=extractions_payload,
             chunking=chunking_payload,
             dense_embeddings=dense_embeddings_payload,
-            spare_embedding=spare_embedding_payload,
+            sparse_embedding=sparse_embedding_payload,
         )
     except HTTPException:
         # 전역 예외 핸들러가 처리하도록 그대로 전파
