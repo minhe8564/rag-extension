@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import RagPipeline from '@/domains/admin/components/rag-settings/RagPipeline';
+import type { TabKey } from '@/domains/admin/components/rag-settings/RagPipeline';
 import { IngestSettingsForm } from '@/domains/admin/components/rag-settings/IngestSettingsForm';
 import { QuerySettingsForm } from '@/domains/admin/components/rag-settings/QuerySettingsForm';
 import { TemplateList } from '@/domains/admin/components/rag-settings/TemplateList';
 import SegmentedTabs from '@/shared/components/SegmentedTabs';
 import { Settings, UploadCloud, Search } from 'lucide-react';
 
-type TabKey = 'ingest' | 'query';
 const TAB_KEY_STORAGE = 'rag.settings.activeTab';
 
 const getInitialTab = (): TabKey => {
@@ -21,6 +22,17 @@ export default function RagSettings() {
   const [ingestTemplate, setIngestTemplate] = useState('ingest-1');
   const [queryTemplate, setQueryTemplate] = useState('query-1');
 
+  const anchors = {
+    extract: useRef<HTMLDivElement | null>(null),
+    chunking: useRef<HTMLDivElement | null>(null),
+    embedding: useRef<HTMLDivElement | null>(null),
+    'query-embed': useRef<HTMLDivElement | null>(null),
+    searching: useRef<HTMLDivElement | null>(null),
+    reranker: useRef<HTMLDivElement | null>(null),
+    prompting: useRef<HTMLDivElement | null>(null),
+    generation: useRef<HTMLDivElement | null>(null),
+  };
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
     localStorage.setItem(TAB_KEY_STORAGE, activeTab);
@@ -31,7 +43,6 @@ export default function RagSettings() {
 
   const onSave = async (payload: unknown) => {
     console.log('save settings', payload);
-    // await apiInstance.post('/rag/settings', payload)
   };
 
   return (
@@ -53,6 +64,13 @@ export default function RagSettings() {
         </div>
       </div>
 
+      <RagPipeline
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        anchors={anchors}
+        className="mt-2"
+      />
+
       <SegmentedTabs
         value={activeTab}
         onChange={(k) => setActiveTab(k as TabKey)}
@@ -67,6 +85,9 @@ export default function RagSettings() {
       {activeTab === 'ingest' && (
         <section className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
           <div className="space-y-6">
+            <div ref={anchors.extract} />
+            <div ref={anchors.chunking} />
+            <div ref={anchors.embedding} />
             <IngestSettingsForm
               template={ingestTemplate}
               onTemplateChange={setIngestTemplate}
@@ -74,13 +95,7 @@ export default function RagSettings() {
             />
           </div>
           <aside className="space-y-4">
-            <TemplateList
-              kind="ingest"
-              active={ingestTemplate}
-              onSelect={setIngestTemplate}
-              onEdit={(v) => console.log('[ingest] edit', v)}
-              onDelete={(v) => console.log('[ingest] delete', v)}
-            />
+            <TemplateList kind="ingest" active={ingestTemplate} onSelect={setIngestTemplate} />
           </aside>
         </section>
       )}
@@ -88,6 +103,11 @@ export default function RagSettings() {
       {activeTab === 'query' && (
         <section className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
           <div className="space-y-6">
+            <div ref={anchors['query-embed']} />
+            <div ref={anchors.searching} />
+            <div ref={anchors.reranker} />
+            <div ref={anchors.prompting} />
+            <div ref={anchors.generation} />
             <QuerySettingsForm
               template={queryTemplate}
               onTemplateChange={setQueryTemplate}
@@ -95,13 +115,7 @@ export default function RagSettings() {
             />
           </div>
           <aside className="space-y-4">
-            <TemplateList
-              kind="query"
-              active={queryTemplate}
-              onSelect={setQueryTemplate}
-              onEdit={(v) => console.log('[query] edit', v)}
-              onDelete={(v) => console.log('[query] delete', v)}
-            />
+            <TemplateList kind="query" active={queryTemplate} onSelect={setQueryTemplate} />
           </aside>
         </section>
       )}

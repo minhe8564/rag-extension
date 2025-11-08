@@ -38,7 +38,7 @@ export default function Dashboard() {
             { key: 'ops', label: '운영 효율성 대시보드', icon: <Gauge size={16} /> },
           ]}
           className="mt-2"
-          brand="retina"
+          brand="hebees"
         />
 
         {activeTab === 'realtime' ? <RagTab /> : <SystemTab />}

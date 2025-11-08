@@ -86,7 +86,7 @@ export default function Storage({ className = '' }: { className?: string }) {
   useEffect(() => {
     abortRef.current = new AbortController();
     fetchAll();
-    const timer = setInterval(fetchAll, 60_000); // 1분 폴링
+    const timer = setInterval(fetchAll, 60_000);
     return () => {
       abortRef.current?.abort();
       clearInterval(timer);
@@ -94,7 +94,6 @@ export default function Storage({ className = '' }: { className?: string }) {
   }, []);
 
   const lastTime = useMemo(() => {
-    // 두 데이터 중 더 최신 기준시간 표기
     const ts = [svcData?.timestamp, fsData?.timestamp]
       .filter(Boolean)
       .map((t) => new Date(String(t)).getTime());
