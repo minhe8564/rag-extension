@@ -102,6 +102,7 @@ class QueryTemplateListResponse(BaseModel):
 class StrategyDetail(BaseModel):
     """전략 상세 정보"""
     no: str = Field(..., description="전략 ID (UUID)")
+    code: str = Field(..., description="전략 코드")
     name: str = Field(..., description="전략명")
     description: str = Field(..., description="전략 설명")
     parameters: Optional[Dict[str, Any]] = Field(None, description="전략 파라미터")

@@ -120,10 +120,12 @@ async def create_prompt(
     strategy_type = await get_prompting_strategy_type(session)
 
     # 3. 프롬프트(전략) 생성
+    code_value = f"prompt-{prompt_type}-{uuid.uuid4().hex[:8]}"
     new_strategy = Strategy(
         strategy_no=generate_uuid_binary(),
         strategy_type_no=strategy_type.strategy_type_no,
         name=name,
+        code=code_value,
         description=description,  # 요약 설명 (최대 255자)
         parameter={
             "content": content,  # 실제 프롬프트 내용 (제한 없음)

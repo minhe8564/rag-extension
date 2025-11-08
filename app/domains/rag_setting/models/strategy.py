@@ -118,6 +118,13 @@ class Strategy(Base):
         index=True
     )
 
+    code = Column(
+        "CODE",
+        String(255),
+        nullable=False,
+        index=True,
+    )
+
     description = Column(
         "DESCRIPTION",
         String(255),
