@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Dict, Any, List, Optional
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field
 from .strategy import PaginationInfo
 
 
@@ -21,12 +21,9 @@ class IngestGroupListResponse(BaseModel):
     pagination: PaginationInfo = Field(..., description="페이지네이션 정보")
 
 
-class StrategyItem(BaseModel):
-    """전략 아이템"""
+class StrategyWithParameter(BaseModel):
+    """전략 + 파라미터 아이템"""
     no: str = Field(..., description="전략 ID (UUID)")
-    code: str = Field(..., description="전략 코드")
-    name: str = Field(..., description="전략 이름")
-    description: str = Field(..., description="전략 설명")
     parameters: Optional[Dict[str, Any]] = Field(
         None,
         description="전략별 파라미터",
@@ -34,50 +31,53 @@ class StrategyItem(BaseModel):
     )
 
 
+class StrategyDetail(BaseModel):
+    """전략 상세 정보"""
+    no: str = Field(..., description="전략 ID (UUID)")
+    code: str = Field(..., description="전략 코드")
+    name: str = Field(..., description="전략 이름")
+    description: str = Field(..., description="전략 설명")
+    parameters: Optional[Dict[str, Any]] = Field(
+        None,
+        description="전략별 파라미터",
+    )
+
+
 class IngestTemplateCreateRequest(BaseModel):
     """Ingest 템플릿 생성 요청"""
     name: str = Field(..., description="템플릿 이름", max_length=100)
     isDefault: bool = Field(False, description="기본 템플릿 여부")
-    extractions: List[StrategyItem] = Field(..., description="추출 전략 목록")
-    chunking: StrategyItem = Field(..., description="청킹 전략")
-    denseEmbeddings: List[StrategyItem] = Field(..., description="밀집 임베딩 전략 목록")
-    spareEmbedding: StrategyItem = Field(..., description="희소 임베딩 전략")
+    extractions: List[StrategyWithParameter] = Field(..., description="추출 전략 목록")
+    chunking: StrategyWithParameter = Field(..., description="청킹 전략")
+    denseEmbeddings: List[StrategyWithParameter] = Field(..., description="밀집 임베딩 전략 목록")
+    spareEmbedding: StrategyWithParameter = Field(..., description="희소 임베딩 전략")
 
     class Config:
         json_schema_extra = {
             "example": {
-                "name": "기본 RAG 템플릿",
                 "isDefault": False,
+                "name": "기본 RAG 템플릿",
                 "extractions": [
                     {
-                        "no": "string",
-                        "code": "strategy-code",
-                        "name": "string",
-                        "description": "string",
+                        "no": "0dd1cd24-3459-4080-9c0a-6a7bba85a3e4",
                         "parameters": {}
                     }
                 ],
                 "chunking": {
-                    "no": "string",
-                    "code": "chunking-code",
-                    "name": "string",
-                    "description": "string",
-                    "parameters": {}
+                    "no": "2014c312-1284-4e06-bec5-327c42f6bc3b",
+                    "parameters": {
+                        "overlap": 40,
+                        "token": 512
+                    }
                 },
                 "denseEmbeddings": [
                     {
-                        "no": "string",
-                        "code": "strategy-code",
-                        "name": "string",
-                        "description": "string",
+                        "no": "adb8865e-fc06-4256-8a56-7cdcfea32651",
                         "parameters": {}
                     }
                 ],
                 "spareEmbedding": {
-                    "no": "string",
-                    "code": "embedding-code",
-                    "name": "string",
-                    "description": "string",
+                    "no": "b278151f-3439-45fa-abc9-d6173cb659c8",
                     "parameters": {}
                 }
             }
@@ -99,47 +99,47 @@ class IngestTemplateDetailResponse(BaseModel):
     ingestNo: str = Field(..., description="Ingest 템플릿 ID (UUID)")
     name: str = Field(..., description="템플릿 이름")
     isDefault: bool = Field(..., description="기본 템플릿 여부")
-    extractions: List[StrategyItem] = Field(..., description="추출 전략 목록")
-    chunking: StrategyItem = Field(..., description="청킹 전략")
-    denseEmbeddings: List[StrategyItem] = Field(..., description="밀집 임베딩 전략 목록")
-    spareEmbedding: StrategyItem = Field(..., description="희소 임베딩 전략")
-
-
-class StrategyUpdateItem(BaseModel):
-    """전략 수정 아이템 (간소화 버전)"""
-    no: str = Field(..., description="전략 ID (UUID)")
-    parameters: Optional[Dict[str, Any]] = Field(
-        None,
-        description="전략별 파라미터",
-        json_schema_extra={"example": {}}
-    )
+    extractions: List[StrategyDetail] = Field(..., description="추출 전략 목록")
+    chunking: StrategyDetail = Field(..., description="청킹 전략")
+    denseEmbeddings: List[StrategyDetail] = Field(..., description="밀집 임베딩 전략 목록")
+    spareEmbedding: StrategyDetail = Field(..., description="희소 임베딩 전략")
 
 
 class IngestTemplateUpdateRequest(BaseModel):
     """Ingest 템플릿 수정 요청"""
     name: str = Field(..., description="템플릿 이름", max_length=100)
     isDefault: bool = Field(False, description="기본 템플릿 여부")
-    extractions: List[StrategyUpdateItem] = Field(..., description="추출 전략 목록")
-    chunking: StrategyUpdateItem = Field(..., description="청킹 전략")
-    denseEmbeddings: List[StrategyUpdateItem] = Field(..., description="밀집 임베딩 전략 목록")
-    spareEmbedding: StrategyUpdateItem = Field(..., description="희소 임베딩 전략")
+    extractions: List[StrategyWithParameter] = Field(..., description="추출 전략 목록")
+    chunking: StrategyWithParameter = Field(..., description="청킹 전략")
+    denseEmbeddings: List[StrategyWithParameter] = Field(..., description="밀집 임베딩 전략 목록")
+    spareEmbedding: StrategyWithParameter = Field(..., description="희소 임베딩 전략")
 
     class Config:
         json_schema_extra = {
             "example": {
-                "name": "기본 Ingest 템플릿",
+                "isDefault": True,
+                "name": "기본 RAG 템플릿",
                 "extractions": [
-                    {"no": "string", "parameters": {}}
+                    {
+                    "no": "0dd1cd24-3459-4080-9c0a-6a7bba85a3e4",
+                    "parameters": {}
+                    }
                 ],
                 "chunking": {
-                    "no": "string",
-                    "parameters": {}
+                    "no": "2014c312-1284-4e06-bec5-327c42f6bc3b",
+                    "parameters": {
+                    "overlap": 40,
+                    "token": 512
+                    }
                 },
                 "denseEmbeddings": [
-                    {"no": "string", "parameters": {}}
+                    {
+                    "no": "adb8865e-fc06-4256-8a56-7cdcfea32651",
+                    "parameters": {}
+                    }
                 ],
                 "spareEmbedding": {
-                    "no": "string",
+                    "no": "b278151f-3439-45fa-abc9-d6173cb659c8",
                     "parameters": {}
                 }
             }
