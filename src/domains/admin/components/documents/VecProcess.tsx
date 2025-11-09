@@ -7,20 +7,22 @@ export default function VecProcess({
   selectedFiles,
   initialFileName,
   initialCollection,
+  isVectorizingDone,
 }: {
   selectedFiles: RawMyDoc[];
   initialFileName?: string;
   initialCollection?: string;
+  isVectorizingDone?: boolean;
 }) {
   // 외부에서 특정 파일로 진입 시 초기 인덱스 동기화
   useEffect(() => {
     if (!initialFileName) return;
     let idx = -1;
-    if (initialCollection) {
-      idx = selectedFiles.findIndex(
-        (f) => f.name === initialFileName && (f.collection as string) === initialCollection
-      );
-    }
+    // if (initialCollection) {
+    //   idx = selectedFiles.findIndex(
+    //     (f) => f.name === initialFileName && (f.collection as string) === initialCollection
+    //   );
+    // }
     if (idx < 0) {
       idx = selectedFiles.findIndex((f) => f.name === initialFileName);
     }
@@ -75,7 +77,7 @@ export default function VecProcess({
           <div className="flex flex-col items-center">
             <CircleCheck className="w-12 h-12 text-[var(--color-hebees-blue)]" />
             <span className="text-sm font-medium text-gray-700 mt-1">Vector DB 저장</span>
-            <span className="text-xs text-gray-500">{currentFile.currentProgress ?? 0}%</span>
+            {/* <span className="text-xs text-gray-500">{currentFile.currentProgress ?? 0}%</span> */}
           </div>
         </div>
 
@@ -103,7 +105,7 @@ export default function VecProcess({
             <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
               <div
                 className="h-full bg-[var(--color-retina)] transition-all duration-700"
-                style={{ width: `${currentFile.totalProgress ?? 0}%` }}
+                // style={{ width: `${currentFile.totalProgress ?? 0}%` }}
               />
             </div>
           </div>

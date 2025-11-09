@@ -2,59 +2,46 @@ import { FolderOpen, FileText, ChevronDown, ChevronRight, ChevronLeft } from 'lu
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { RawMyDoc } from '@/shared/types/file.types';
-import type { documentDatatype } from '@/domains/admin/types/documents.types';
-import { getDocInCollections } from '@/domains/admin/api/documents.api';
+import type { documentDatatype, collectionType } from '@/domains/admin/types/documents.types';
+import { getDocInCollections, getCollections } from '@/domains/admin/api/documents.api';
 
 type ColSectionProps = {
-  selectedCollection: 'public' | 'hebees' | null;
-  onCollectionSelect: (name: 'public' | 'hebees' | null) => void;
-  // 실제 업로드된 문서 (UploadTab에서 내려줌)
+  selectedCollection: string | null;
+  onCollectionSelect: (name: string | null) => void;
   uploadedFiles?: RawMyDoc[];
 };
 
 export default function ColSection({ selectedCollection, onCollectionSelect }: ColSectionProps) {
-  const [openCollection, setOpenCollection] = useState<Record<string, boolean>>({
-    public: false,
-    hebees: false,
-  });
-
-  // 훅
-  const publicQuery = useQuery({
-    queryKey: ['collectionDocs', 'public'],
-    queryFn: () => getDocInCollections('public'),
-    enabled: openCollection.public,
-    staleTime: 1000 * 60 * 5,
-  });
-
-  const hebeesQuery = useQuery({
-    queryKey: ['collectionDocs', 'hebees'],
-    queryFn: () => getDocInCollections('hebees'),
-    enabled: openCollection.hebees,
-    staleTime: 1000 * 60 * 5,
-  });
-
-  const [page, setPage] = useState<Record<string, number>>({ public: 1, hebees: 1 });
+  const [openCollection, setOpenCollection] = useState<Record<string, boolean>>({});
+  const [page, setPage] = useState<Record<string, number>>({});
+  const [docsByCollection, setDocsByCollection] = useState<Record<string, documentDatatype[]>>({});
   const FILES_PER_PAGE = 5;
-  const collections = [
-    { id: 1, name: 'public', query: publicQuery },
-    { id: 2, name: 'hebees', query: hebeesQuery },
-  ];
 
-  // const useCollectionDocs = (collectionNo: string, enabled: boolean) =>
-  //   useQuery({
-  //     queryKey: ['collectionDocs', collectionNo],
-  //     queryFn: () => getDocInCollections(collectionNo),
+  // 컬렉션 목록 조회 (useQuery는 여기 1개만)
+  const { data: collectionsResult } = useQuery({
+    queryKey: ['collections', { filter: true }],
+    queryFn: () => getCollections({ filter: true }),
+    staleTime: 1000 * 60 * 5,
+  });
 
-  //     enabled, //  open 상태일 때만 API 실행
-  //     staleTime: 1000 * 60 * 5, // 5분 캐시
-  //   });
+  const collections = collectionsResult?.data ?? [];
 
-  const toggleOpen = (name: string) => {
-    setOpenCollection((prev) => ({ ...prev, [name]: !prev[name] }));
+  // 컬렉션 클릭 시 문서 가져오기
+  const handleToggleOpen = async (collectionNo: string) => {
+    setOpenCollection((prev) => ({ ...prev, [collectionNo]: !prev[collectionNo] }));
+    console.log(collectionNo);
+    // 처음 열 때만 문서 불러오기
+    if (!openCollection[collectionNo]) {
+      const res = await getDocInCollections(collectionNo);
+      setDocsByCollection((prev) => ({
+        ...prev,
+        [collectionNo]: res.data ?? [],
+      }));
+    }
   };
 
-  const handleSelectCollection = (name: 'public' | 'hebees') => {
-    const newSelection = selectedCollection === name ? null : name;
+  const handleSelectCollection = (collectionNo: string) => {
+    const newSelection = selectedCollection === collectionNo ? null : collectionNo;
     onCollectionSelect(newSelection);
   };
 
@@ -66,22 +53,21 @@ export default function ColSection({ selectedCollection, onCollectionSelect }: C
 
       <div className="space-y-4">
         {collections.map((col) => {
-          const { data, refetch } = col.query;
-          const docs = data?.data as documentDatatype[] | undefined;
-          const totalPages = Math.ceil((docs?.length ?? 0) / FILES_PER_PAGE);
-          const currentPage = page[col.name] || 1;
+          const docs = docsByCollection[col.collectionNo] ?? [];
+          const totalPages = Math.ceil(docs.length / FILES_PER_PAGE);
+          const currentPage = page[col.collectionNo] || 1;
           const startIndex = (currentPage - 1) * FILES_PER_PAGE;
-          const visibleFiles = docs?.slice(startIndex, startIndex + FILES_PER_PAGE);
+          const visibleFiles = docs.slice(startIndex, startIndex + FILES_PER_PAGE);
 
           return (
             <div
-              key={col.id}
+              key={col.collectionNo}
               className={`border rounded-lg p-3 transition cursor-pointer ${
-                selectedCollection === col.name
+                selectedCollection === col.collectionNo
                   ? 'bg-[var(--color-hebees-bg)]/40 ring-1 ring-[var(--color-hebees)]'
                   : 'hover:bg-[var(--color-hebees-bg)]/40 hover:ring-1 hover:ring-[var(--color-hebees)]'
               }`}
-              onClick={() => handleSelectCollection(col.name as 'public' | 'hebees')}
+              onClick={() => handleSelectCollection(col.collectionNo)}
             >
               {/* 헤더 */}
               <div className="flex items-center justify-between">
@@ -91,23 +77,24 @@ export default function ColSection({ selectedCollection, onCollectionSelect }: C
                   </div>
                   {col.name}
                 </div>
+
                 <div className="flex items-center gap-3">
                   <input
                     type="checkbox"
                     className="accent-[var(--color-hebees)] cursor-pointer"
-                    checked={selectedCollection === col.name}
+                    checked={selectedCollection === col.collectionNo}
                     onClick={(e) => e.stopPropagation()}
-                    onChange={() => handleSelectCollection(col.name as 'public' | 'hebees')}
+                    onChange={() => handleSelectCollection(col.collectionNo)}
                   />
+
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      toggleOpen(col.name);
-                      if (!openCollection[col.name]) refetch();
+                      handleToggleOpen(col.collectionNo);
                     }}
                     className="flex items-center text-sm text-gray-500 hover:text-[var(--color-hebees)] transition"
                   >
-                    {openCollection[col.name] ? (
+                    {openCollection[col.collectionNo] ? (
                       <>
                         <ChevronDown size={15} />
                         접기
@@ -123,13 +110,13 @@ export default function ColSection({ selectedCollection, onCollectionSelect }: C
               </div>
 
               {/* 파일 목록 */}
-              {openCollection[col.name] && (
+              {openCollection[col.collectionNo] && (
                 <>
                   <ul className="pl-4 text-sm text-gray-700 space-y-1 mt-2">
-                    {visibleFiles?.length === 0 ? (
+                    {visibleFiles.length === 0 ? (
                       <li className="text-gray-400 text-xs">등록된 문서가 없습니다.</li>
                     ) : (
-                      visibleFiles?.map((file) => (
+                      visibleFiles.map((file) => (
                         <li
                           key={file.fileNo}
                           className="flex items-center justify-between border-b border-gray-100 pb-1 last:border-none"
@@ -155,7 +142,7 @@ export default function ColSection({ selectedCollection, onCollectionSelect }: C
                           e.stopPropagation();
                           setPage((prev) => ({
                             ...prev,
-                            [col.name]: Math.max((prev[col.name] || 1) - 1, 1),
+                            [col.collectionNo]: Math.max((prev[col.collectionNo] || 1) - 1, 1),
                           }));
                         }}
                         disabled={currentPage === 1}
@@ -174,7 +161,10 @@ export default function ColSection({ selectedCollection, onCollectionSelect }: C
                           e.stopPropagation();
                           setPage((prev) => ({
                             ...prev,
-                            [col.name]: Math.min((prev[col.name] || 1) + 1, totalPages),
+                            [col.collectionNo]: Math.min(
+                              (prev[col.collectionNo] || 1) + 1,
+                              totalPages
+                            ),
                           }));
                         }}
                         disabled={currentPage === totalPages}

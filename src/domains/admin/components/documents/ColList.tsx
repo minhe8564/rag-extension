@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { FolderOpen, FileText, ChevronLeft, ChevronRight, ChevronDown, Trash2 } from 'lucide-react';
 import { getCollections, getDocInCollections } from '@/domains/admin/api/documents.api';
 import type { collectionType, documentDatatype } from '@/domains/admin/types/documents.types';
+import { deleteDocument } from '@/shared/api/file.api';
+import { toast } from 'react-toastify';
 
 export default function ColList() {
   const [collections, setCollections] = useState<collectionType[]>([]);
@@ -63,7 +65,7 @@ export default function ColList() {
   };
 
   //  파일 선택
-  const toggleSelectFile = (colNo: string, fileNo: number) => {
+  const toggleSelectFile = (colNo: string, fileNo: string) => {
     const key = `${colNo}::${fileNo}`;
     setSelectedFiles((prev) => {
       const next = new Set(prev);
@@ -73,20 +75,26 @@ export default function ColList() {
     });
   };
 
-  //  전체 삭제
-  const handleBulkDelete = () => {
-    if (selectedFiles.size === 0) return;
-    setCollections((prev) =>
-      prev.map((c) => ({
-        ...c,
-        files: (c as any).files
-          ? (c as any).files.filter(
-              (f: documentDatatype) => !selectedFiles.has(`${c.collectionNo}::${f.fileNo}`)
-            )
-          : [],
-      }))
-    );
-    setSelectedFiles(new Set());
+  // 단일 문서 삭제
+  const handleDeleteDoc = async (fileNo: string) => {
+    console.log('Deleting fileNo:', fileNo);
+    try {
+      await deleteDocument(fileNo);
+
+      // 삭제 후 UI 상태 갱신
+      setCollections((prev) =>
+        prev.map((c) => {
+          if (!(c as any).files) return c;
+          // 해당 컬렉션 내에서 fileNo 일치하지 않는 것만 남김
+          const newFiles = (c as any).files.filter((f: documentDatatype) => f.fileNo !== fileNo);
+          return { ...c, files: newFiles };
+        })
+      );
+
+      toast.success('문서가 삭제되었습니다 ✅');
+    } catch (error) {
+      toast.error('문서 삭제 중 오류가 발생했습니다.');
+    }
   };
 
   return (
@@ -94,11 +102,10 @@ export default function ColList() {
       {/* 선택 삭제 버튼 */}
       <div className="flex justify-end p-2">
         <button
-          onClick={handleBulkDelete}
           disabled={selectedFiles.size === 0}
           className="flex items-center gap-1 px-3 py-1.5 text-white text-xs font-semibold rounded-md bg-[linear-gradient(90deg,#BE7DB1_10%,#81BAFF_100%)] disabled:opacity-40 hover:opacity-90 transition"
         >
-          <Trash2 size={14} />
+          <Trash2 size={14} onClick={() => {}} />
           선택 삭제
         </button>
       </div>
@@ -197,10 +204,13 @@ export default function ColList() {
                           <span className="truncate max-w-[200px] font-medium">{file.name}</span>
                         </div>
 
-                        {/* ➕ 추가 정보 (파일 용량, 저장 위치, 저장 일시) */}
+                        {/* 추가 정보 (파일 용량, `저장` 위치, 저장 일시) */}
                         <div className="flex flex-wrap sm:flex-nowrap items-center gap-x-4 gap-y-1 text-gray-500">
                           <span className="whitespace-nowrap"> {file.size} KB</span>
-                          <span className="whitespace-nowrap"> {file.bucket}</span>
+                          <span className="whitespace-nowrap">
+                            {collections.find((c) => c.collectionNo === file.collectionNo)?.name ||
+                              '알 수 없음'}
+                          </span>
                           <span className="whitespace-nowrap">
                             {new Date(file.createdAt).toLocaleString()}
                           </span>
@@ -223,7 +233,7 @@ export default function ColList() {
                           }}
                           className="text-[var(--color-hebees)] hover:opacity-80 transition"
                         >
-                          <Trash2 size={16} />
+                          <Trash2 size={16} onClick={() => handleDeleteDoc(file.fileNo)} />
                         </button>
                       </div>
                     </li>

@@ -68,3 +68,9 @@ export async function fetchMyDocumentsNormalized(params?: {
     pageSize: pg.pageSize,
   };
 }
+
+// 문서 삭제
+export const deleteDocument = async (fileNo: string) => {
+  const { data } = await fastApi.delete(`/api/v1/files/${fileNo}`);
+  return data.result;
+};

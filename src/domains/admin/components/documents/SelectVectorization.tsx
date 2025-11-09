@@ -1,10 +1,12 @@
 import { FileText, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import VecProcess from './VecProcess';
 import type { RawMyDoc } from '@/shared/types/file.types';
 import { useCategoryStore } from '@/shared/store/categoryMap';
 import type { UploadBucket } from '@/shared/types/file.types';
 import { uploadFiles } from '@/shared/api/file.api';
+import { toast } from 'react-toastify';
 // import {uploadFiles} from '@/shared/api/file.api';
 // import UploadedFileList from '@/shared/components/file/UploadedFileList';
 
@@ -25,50 +27,49 @@ export default function SelectVectorization({
   const currentFiles = localFiles.slice(startIndex, startIndex + itemsPerPage);
   const totalPages = Math.ceil(localFiles.length / itemsPerPage);
 
+  const [isVectorizingDone, setIsVectorizingDone] = useState(false);
+
+  const [isUploading, setIsUploading] = useState(false);
+
+  //  업로드
   async function handleUpload(finalSelectedFiles: RawMyDoc[]) {
-    //  categoryNo로 그룹화
-    const groupedByCategory = finalSelectedFiles.reduce<Record<string, RawMyDoc[]>>((acc, file) => {
-      if (!acc[file.categoryNo]) acc[file.categoryNo] = [];
-      acc[file.categoryNo].push(file);
-      return acc;
-    }, {});
+    try {
+      const groupedByCategory = finalSelectedFiles.reduce<Record<string, RawMyDoc[]>>(
+        (acc, file) => {
+          if (!acc[file.categoryNo]) acc[file.categoryNo] = [];
+          acc[file.categoryNo].push(file);
+          return acc;
+        },
+        {}
+      );
 
-    //  각 카테고리별 업로드 진행
-    for (const [categoryNo, files] of Object.entries(groupedByCategory)) {
-      const form = new FormData();
-
-      files.forEach((file) => {
-        if (file.originalFile) {
-          form.append('files', file.originalFile); // 실제 파일 객체
-        } else {
-          console.warn(`파일 ${file.name}에 originalFile이 없습니다.`);
-        }
-      });
-
-      // 카테고리 ID는 필수
-      form.append('category', categoryNo);
-
-      // bucket은 선택값 (있을 때만 추가)
-      const bucket = files.find((f) => f.bucket)?.bucket as UploadBucket | undefined;
-      if (bucket) {
-        form.append('bucket', bucket);
-      }
-
-      try {
-        //  업로드 요청
-        const bucket = files[0].bucket as UploadBucket; // undefined/null 가능
-
-        const res = await uploadFiles({
+      const uploadPromises = Object.entries(groupedByCategory).map(([categoryNo, files]) => {
+        const bucket = files[0].bucket as UploadBucket;
+        return uploadFiles({
           files: files.map((f) => f.originalFile as File),
           categoryNo,
-          bucket, // 없으면 undefined/null 그대로 전달
+          bucket,
         });
-        console.log(`✅ [${categoryNo}] 업로드 성공`, res);
-      } catch (err) {
-        console.error(`❌ [${categoryNo}] 업로드 실패`, err);
-      }
+      });
+
+      await Promise.all(uploadPromises);
+      console.log('🎉 전체 업로드 완료');
+      setIsUploading(true);
+      toast.success('파일 업로드가 완료되었습니다!');
+      setIsVectorizingDone(true); //
+    } catch (err) {
+      console.error('❌ 업로드 실패', err);
+      toast.error('파일 업로드에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setIsUploading(false);
     }
   }
+
+  //   useEffect(() => {
+  //   if (isVectorizingDone) {
+  //     refetch(); // ✅ React Query로 전체 벡터화 진행률 재요청
+  //   }
+  // }, [isVectorizingDone, refetch]);
 
   const categoryMap = useCategoryStore((s) => s.categoryMap);
   const handleRemove = (fileToRemove: RawMyDoc) => {
@@ -131,22 +132,28 @@ export default function SelectVectorization({
             return (
               <div
                 key={`${file.name}::${file.collectionNo}`}
-                onClick={() => setSelectedFile(file)}
-                className={`grid grid-cols-8 items-center text-sm p-2 border-b last:border-none hover:bg-gray-100 cursor-pointer ${
-                  selectedFile &&
-                  selectedFile.name === file.name &&
-                  selectedFile.collectionNo === file.collectionNo
-                    ? 'bg-gray-200 ring-1 ring-[var(--color-hebees)]'
-                    : ''
-                }`}
+                onClick={() => {
+                  if (!isUploading) return; // 업로드 전에는 클릭 불가 (선택만 제한)
+                  setSelectedFile(file);
+                }}
+                className={`grid grid-cols-8 items-center text-sm p-2 border-b last:border-none
+    ${isUploading ? 'hover:bg-[var(--color-hebees-bg)]/50 cursor-pointer' : 'cursor-default'}
+    ${
+      selectedFile &&
+      selectedFile.name === file.name &&
+      selectedFile.collectionNo === file.collectionNo
+        ? 'bg-gray-200 ring-1 ring-[var(--color-hebees)]'
+        : ''
+    }`}
               >
                 {/* 파일명 */}
                 <div className="col-span-3 flex items-center gap-2 text-xs pl-2">
                   <button
                     onClick={(e) => {
-                      e.stopPropagation();
-                      handleRemove(file);
+                      e.stopPropagation(); // 선택 클릭과 무관하게 동작
+                      handleRemove(file); // 업로드 중이든 아니든 삭제 가능
                     }}
+                    className="hover:opacity-80 transition"
                   >
                     <X size={17} className="text-[var(--color-hebees)]" />
                   </button>
@@ -227,6 +234,7 @@ export default function SelectVectorization({
           selectedFiles={localFiles}
           initialFileName={selectedFile.name}
           initialCollection={selectedFile.collectionNo || ''}
+          isVectorizingDone={isVectorizingDone}
         />
       )}
     </section>

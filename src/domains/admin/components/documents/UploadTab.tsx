@@ -14,7 +14,7 @@ export default function UploadTab() {
   const [selectedFiles, setSelectedFiles] = useState<RawMyDoc[]>([]);
 
   //  선택된 컬렉션 (public / hebees)
-  const [selectedCollection, setSelectedCollection] = useState<'public' | 'hebees' | null>(null);
+  const [selectedCollection, setSelectedCollection] = useState<string | null>(null);
 
   //  컬렉션 지정까지 완료된 최종 선택 목록
   const [finalSelectedFiles, setFinalSelectedFiles] = useState<RawMyDoc[]>([]);
@@ -46,7 +46,7 @@ export default function UploadTab() {
   // };
 
   // 컬렉션 선택 시
-  const handleCollectionSelect = (name: 'public' | 'hebees' | null) => {
+  const handleCollectionSelect = (name: string | null) => {
     setSelectedCollection(name);
   };
 
