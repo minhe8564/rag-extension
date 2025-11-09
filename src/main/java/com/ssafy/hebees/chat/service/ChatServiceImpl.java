@@ -15,10 +15,18 @@ import com.ssafy.hebees.common.dto.PageRequest;
 import com.ssafy.hebees.common.dto.PageResponse;
 import com.ssafy.hebees.common.exception.BusinessException;
 import com.ssafy.hebees.common.exception.ErrorCode;
+import com.ssafy.hebees.ragsetting.entity.Strategy;
+import com.ssafy.hebees.ragsetting.repository.StrategyRepository;
+import com.ssafy.hebees.user.entity.User;
+import com.ssafy.hebees.user.repository.UserRepository;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -36,6 +44,8 @@ public class ChatServiceImpl implements ChatService {
     private final SessionRepository sessionRepository;
     private final MessageService messageService;
     private final RunpodClient runpodClient;
+    private final UserRepository userRepository;
+    private final StrategyRepository strategyRepository;
 
     @Override
     public PageResponse<SessionResponse> getSessions(UUID userNo, PageRequest pageRequest,
@@ -51,8 +61,10 @@ public class ChatServiceImpl implements ChatService {
         Page<Session> sessionPage = sessionRepository.searchSessionsByUser(owner, keyword,
             pageable);
 
-        List<SessionResponse> responses = sessionPage.stream()
-            .map(ChatServiceImpl::toSessionResponse)
+        List<Session> sessions = sessionPage.getContent();
+
+        List<SessionResponse> responses = sessions.stream()
+            .map(session -> toSessionResponse(session, null, null))
             .toList();
 
         return PageResponse.of(
@@ -74,8 +86,11 @@ public class ChatServiceImpl implements ChatService {
 
         Page<Session> sessionPage = sessionRepository.searchAllSessions(keyword, pageable);
 
-        List<SessionResponse> responses = sessionPage.stream()
-            .map(ChatServiceImpl::toSessionResponse)
+        List<Session> sessions = sessionPage.getContent();
+        Map<UUID, String> userNames = resolveUserNames(sessions);
+
+        List<SessionResponse> responses = sessions.stream()
+            .map(session -> toSessionResponse(session, null, null))
             .toList();
 
         return PageResponse.of(
@@ -100,9 +115,11 @@ public class ChatServiceImpl implements ChatService {
         Page<Session> sessionPage = sessionRepository.searchSessionsByUser(owner, keyword,
             pageable);
 
-        List<SessionHistoryResponse> responses = sessionPage.stream()
+        List<Session> sessions = sessionPage.getContent();
+
+        List<SessionHistoryResponse> responses = sessions.stream()
             .map(session -> new SessionHistoryResponse(
-                toSessionResponse(session),
+                toSessionResponse(session, null, null),
                 messageService.getAllMessages(owner, session.getSessionNo())
             ))
             .toList();
@@ -118,7 +135,10 @@ public class ChatServiceImpl implements ChatService {
     @Override
     public SessionResponse getSession(UUID userNo, UUID sessionNo) {
         Session session = getOwnedSession(userNo, sessionNo);
-        return toSessionResponse(session);
+        Map<UUID, String> userNames = resolveUserNames(List.of(session));
+        Strategy llm = strategyRepository.findByStrategyNo(session.getLlmNo()).orElse(null);
+        String llmName = llm != null ? llm.getName() : "확인되지 않은 LLM";
+        return toSessionResponse(session, llmName, userNames.get(session.getUserNo()));
     }
 
     @Override
@@ -250,12 +270,34 @@ public class ChatServiceImpl implements ChatService {
         return sessionNo;
     }
 
-    private static SessionResponse toSessionResponse(Session session) {
+    private Map<UUID, String> resolveUserNames(List<Session> sessions) {
+        if (sessions == null || sessions.isEmpty()) {
+            return Map.of();
+        }
+
+        Set<UUID> userIds = sessions.stream()
+            .map(Session::getUserNo)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+
+        if (userIds.isEmpty()) {
+            return Map.of();
+        }
+
+        return userRepository.findAllById(userIds).stream()
+            .filter(user -> user.getName() != null)
+            .collect(Collectors.toMap(User::getUuid, User::getName, (first, second) -> first));
+    }
+
+    private SessionResponse toSessionResponse(Session session, String llmName, String userName) {
         return new SessionResponse(
             session.getSessionNo(),
             session.getTitle(),
             session.getUpdatedAt(),
-            session.getUserNo()
+            session.getLlmNo(),
+            llmName,
+            session.getUserNo(),
+            userName
         );
     }
 }
