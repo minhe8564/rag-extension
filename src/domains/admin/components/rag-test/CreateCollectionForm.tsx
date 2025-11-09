@@ -1,26 +1,43 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import Card from '@/shared/components/Card';
 import Select from '@/shared/components/Select';
-import { ingestTemplateOptions } from '@/domains/admin/components/rag-settings/options';
 import FileDropzone from '@/shared/components/file/FileUploader';
 import UploadedFileList from '@/shared/components/file/UploadedFileList';
 import type { UploadedDoc as UDoc } from '@/shared/components/file/UploadedFileList';
 import type { Collection } from '@/domains/admin/components/rag-test/types';
+import type { RagOptions } from '@/domains/admin/components/rag-settings/options';
 
 type Props = {
   onCancel: () => void;
   onCreate: (c: Collection) => void;
+  options?: RagOptions | null;
+  loadingOptions?: boolean;
+  optionsError?: boolean;
 };
 
-export function CreateCollectionForm(_: Props) {
+export function CreateCollectionForm({
+  onCancel,
+  onCreate,
+  options,
+  loadingOptions,
+  optionsError,
+}: Props) {
   const navigate = useNavigate();
 
-  const defaultTemplate = ingestTemplateOptions?.[0]?.value ?? '';
+  const defaultTemplate = useMemo(
+    () => options?.ingestTemplate?.[0]?.value ?? '',
+    [options?.ingestTemplate]
+  );
+
   const [name, setName] = useState('');
   const [template, setTemplate] = useState<string>(defaultTemplate);
   const [uploadedDocs, setUploadedDocs] = useState<UDoc[]>([]);
+
+  useEffect(() => {
+    if (!template && defaultTemplate) setTemplate(defaultTemplate);
+  }, [defaultTemplate, template]);
 
   const detectType = (f: File): UDoc['type'] => {
     const name = f.name.toLowerCase();
@@ -45,14 +62,6 @@ export function CreateCollectionForm(_: Props) {
     }));
 
     setUploadedDocs((prev) => [...mapped, ...prev]);
-
-    // 필요 시 내부에서 비동기 업로드 수행 (onUpload는 void 유지)
-    // void (async () => {
-    //   const form = new FormData();
-    //   files.forEach((f) => form.append('files', f));
-    //   form.append('category', category);
-    //   await fastApi.post('/api/v1/files/upload', form, { headers: { 'Content-Type': 'multipart/form-data' } });
-    // })();
   };
 
   const handleDownload = (id: string) => {
@@ -82,22 +91,28 @@ export function CreateCollectionForm(_: Props) {
               <Select
                 value={template}
                 onChange={setTemplate}
-                options={ingestTemplateOptions}
-                placeholder="선택하세요"
+                options={options?.ingestTemplate ?? []}
+                placeholder={loadingOptions ? '불러오는 중…' : '선택하세요'}
                 aria-label="Ingest 템플릿 선택"
+                disabled={loadingOptions || !!optionsError}
               />
             </div>
 
             <button
               type="button"
               onClick={() => navigate('/admin/rag/settings')}
-              className="inline-flex items-center gap-2 rounded-lg border bg-white px-3 py-2 text-sm font-medium
-                         text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-lg border bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Plus className="size-4" />
               <span className="hidden sm:inline">템플릿 추가하기</span>
             </button>
           </div>
+
+          {optionsError && (
+            <p className="mt-2 text-sm text-red-500">
+              옵션을 불러오지 못했습니다. 설정 화면에서 확인하세요.
+            </p>
+          )}
         </Card>
 
         <Card title="Collection 이름 지정" tip="새 컬렉션 이름을 입력해 등록하세요.">
@@ -107,8 +122,7 @@ export function CreateCollectionForm(_: Props) {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="예: HEBEES Test"
-              className="w-full rounded-md border border-gray-200 px-3 py-2 text-base
-                         focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-transparent"
+              className="w-full rounded-md border border-gray-200 px-3 py-2 text-base focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-transparent"
             />
           </div>
         </Card>

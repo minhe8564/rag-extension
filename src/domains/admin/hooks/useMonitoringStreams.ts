@@ -1,4 +1,3 @@
-// src/shared/hooks/useMonitoringStreams.ts
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { EventSourcePolyfill } from 'event-source-polyfill';
 import { useAuthStore } from '@/domains/auth/store/auth.store';

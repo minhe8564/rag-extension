@@ -1,4 +1,3 @@
-// ConfirmModal.tsx
 import { useEffect, useId } from 'react';
 import { createPortal } from 'react-dom';
 

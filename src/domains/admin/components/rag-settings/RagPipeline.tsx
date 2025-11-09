@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
-import PipelineFlow from '@/shared/components/rag/PipelineFlow';
-import type { FlowStep, FlowStepId } from '@/shared/components/rag/PipelineFlow';
-import { PipelineIcons } from '@/shared/components/rag/PipelineIcons';
+import PipelineFlow from '@/shared/components/rag-pipeline/PipelineFlow';
+import type { FlowStep, FlowStepId } from '@/shared/components/rag-pipeline/PipelineFlow';
+import { PipelineIcons } from '@/shared/components/rag-pipeline/PipelineIcons';
 import { Zap } from 'lucide-react';
 
 export type TabKey = 'ingest' | 'query';

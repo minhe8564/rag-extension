@@ -22,6 +22,7 @@ export function uploadFiles({
   if (bucket !== undefined && bucket !== null) form.append('bucket', bucket);
 
   return fastApi.post<UploadFilesResult>('/api/v1/files', form, { params: { onNameConflict } });
+  // return fastApi.post<UploadFilesResult>('/api/v1/files', form);
 }
 
 // 카테고리

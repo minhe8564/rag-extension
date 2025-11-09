@@ -26,14 +26,20 @@ function ProgressBar({ value, color }: { value: number; color: string }) {
 }
 
 function ServiceCard({ service }: { service: ServicePerformance }) {
-  const t = tone[service.status];
+  // 안전한 상태 보정: 없거나 스펙 밖이면 NORMAL
+  const safeStatus: PerfLevel =
+    service?.status === 'NORMAL' || service?.status === 'WARNING' || service?.status === 'CRITICAL'
+      ? service.status
+      : 'NORMAL';
+
+  // 항상 fallback 보장
+  const t = tone[safeStatus] ?? tone.NORMAL;
+
+  // 화면 표시는 퍼센트 문자열, 게이지는 0~100 값 사용
+  // 지금은 백엔드가 0~10 스케일을 주는 전제라 *10로 표기 중 (필요하면 *100로 바꾸세요)
   const pct = (n: unknown, digits = 1) =>
-    // typeof n === 'number' && Number.isFinite(n) ? `${(n * 100).toFixed(digits)}%` : 'N/A';
     typeof n === 'number' && Number.isFinite(n) ? `${(n * 10).toFixed(digits)}%` : 'N/A';
 
-  // const cpuPct = (service.cpuUsagePercent ?? 0) * 100;
-  // const memPct = (service.memoryUsagePercent ?? 0) * 100;
-  // const score = (service.compositeScore ?? 0) * 100;
   const cpuPct = (service.cpuUsagePercent ?? 0) * 10;
   const memPct = (service.memoryUsagePercent ?? 0) * 10;
   const score = (service.compositeScore ?? 0) * 10;
@@ -43,8 +49,11 @@ function ServiceCard({ service }: { service: ServicePerformance }) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className={`h-2.5 w-2.5 rounded-full ${t.dot}`} />
-          <div className="font-medium text-gray-800">{service.serviceName}</div>
+          <div className="font-medium text-gray-800">
+            {service.serviceName ?? 'Unknown Service'}
+          </div>
         </div>
+        <span className="text-xs text-gray-500">{safeStatus}</span>
       </div>
 
       <div className="mt-3 space-y-2">
@@ -58,7 +67,7 @@ function ServiceCard({ service }: { service: ServicePerformance }) {
 
         <div className="mt-2 text-xs text-gray-500">
           통합점수 <span className="font-medium text-gray-800">{score.toFixed(1)}</span> · 상태{' '}
-          <span className="font-medium text-gray-800">{service.status ?? '-'}</span>
+          <span className="font-medium text-gray-800">{safeStatus}</span>
         </div>
       </div>
     </div>

@@ -1,6 +1,6 @@
 import React from 'react';
 import clsx from 'clsx';
-import { PipelineTooltip } from '@/shared/components/rag/PipelineTooltip';
+import { PipelineTooltip } from '@/shared/components/rag-pipeline/PipelineTooltip';
 
 export type FlowStepId =
   | 'extract'
@@ -36,14 +36,14 @@ export default function PipelineFlow({ steps, activeId, onStepClick, className }
 
   return (
     <div className={clsx('relative w-full select-none', className)}>
-      <div className="absolute top-12 h-[6px] rounded-full bg-gray-100" />
+      <div className="absolute top-12 left-8 right-8 h-[6px] rounded-full bg-gray-200" />
 
       <div
-        className={clsx('absolute top-12 h-[6px] rounded-full animate-gradientMove')}
+        className="absolute top-12 h-[6px] rounded-full transition-all duration-500"
         style={{
           width: `calc(${percent}% )`,
           background:
-            'var(--color-hebees-gradient, linear-gradient(90deg, #BE7DB1 10%, #81BAFF 100%))',
+            'var(--color-hebees-gradient, linear-gradient(90deg,#BE7DB1 10%,#81BAFF 100%))',
           boxShadow: '0 0 0 1px rgba(0,0,0,0.02)',
         }}
       />
@@ -71,7 +71,7 @@ export default function PipelineFlow({ steps, activeId, onStepClick, className }
                 'rounded-xl px-[2px] py-[2px] transition-all duration-200',
                 isActive
                   ? 'bg-[linear-gradient(90deg,#BE7DB1_0%,#81BAFF_100%)] shadow-[0_0_8px_rgba(190,125,177,0.25)]'
-                  : 'bg-transparent hover:shadow-md hover:scale-[1.02]'
+                  : 'bg-transparent hover:scale-[1.02]'
               )}
             >
               <div
