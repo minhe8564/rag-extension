@@ -13,6 +13,7 @@ from ..services.collections import list_collections as list_collections_service
 from ..services.collections import list_files_in_collection as list_files_in_collection_service
 from app.domains.file.schemas.response.files import FileListItem
 from ..services.collections import list_filtered_collections
+from app.core.auth.check_role import check_role
 
 
 router = APIRouter(prefix="/collections", tags=["Collection"])
@@ -25,6 +26,7 @@ async def list_collection_files(
     pageSize: int = Query(5, ge=1, le=100, description="페이지 크기"),
     session: AsyncSession = Depends(get_db),
     http_request: Request = None,
+    x_user_role: str = Depends(check_role("ADMIN")),
 ):
     if http_request is None:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Request context unavailable")
@@ -74,6 +76,7 @@ async def list_collections(
     filter : bool = Query(False, description="public, hebees만 조회 여부"),
     session: AsyncSession = Depends(get_db),
     http_request: Request = None,
+    x_user_role: str = Depends(check_role("ADMIN")),
 ):
     if http_request is None:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Request context unavailable")
