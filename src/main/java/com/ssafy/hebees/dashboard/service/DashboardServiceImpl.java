@@ -1,11 +1,19 @@
 package com.ssafy.hebees.dashboard.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ssafy.hebees.chat.client.RunpodClient;
+import com.ssafy.hebees.chat.client.dto.RunpodChatMessage;
+import com.ssafy.hebees.chat.client.dto.RunpodChatResult;
 import com.ssafy.hebees.chat.entity.MessageError;
 import com.ssafy.hebees.chat.entity.Session;
 import com.ssafy.hebees.chat.repository.MessageErrorRepository;
 import com.ssafy.hebees.chat.repository.SessionRepository;
+import com.ssafy.hebees.common.util.MonitoringUtils;
 import com.ssafy.hebees.dashboard.dto.Granularity;
 import com.ssafy.hebees.dashboard.dto.request.TimeSeriesRequest;
+import com.ssafy.hebees.dashboard.dto.request.TrendKeywordCreateRequest;
+import com.ssafy.hebees.dashboard.dto.request.TrendKeywordRequest;
 import com.ssafy.hebees.dashboard.dto.response.Change24hResponse;
 import com.ssafy.hebees.dashboard.dto.response.ChatbotTimeSeriesResponse;
 import com.ssafy.hebees.dashboard.dto.response.ChatroomsTodayResponse;
@@ -22,9 +30,11 @@ import com.ssafy.hebees.dashboard.dto.response.TotalErrorsResponse;
 import com.ssafy.hebees.dashboard.dto.response.TotalUsersResponse;
 import com.ssafy.hebees.dashboard.dto.response.TrendDirection;
 import com.ssafy.hebees.dashboard.dto.response.TrendKeyword;
+import com.ssafy.hebees.dashboard.dto.response.TrendKeywordCreateResponse;
 import com.ssafy.hebees.dashboard.dto.response.TrendKeywordsResponse;
-import com.ssafy.hebees.dashboard.entity.ModelAggregateHourly;
 import com.ssafy.hebees.dashboard.entity.ChatbotAggregateHourly;
+import com.ssafy.hebees.dashboard.entity.KeywordAggregateDaily;
+import com.ssafy.hebees.dashboard.entity.ModelAggregateHourly;
 import com.ssafy.hebees.dashboard.repository.DocumentAggregateHourlyRepository;
 import com.ssafy.hebees.dashboard.repository.ErrorAggregateHourlyRepository;
 import com.ssafy.hebees.dashboard.repository.KeywordAggregateDailyRepository;
@@ -40,8 +50,10 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -54,6 +66,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 @Slf4j
 @Service
@@ -75,6 +88,8 @@ public class DashboardServiceImpl implements DashboardService {
     private final SessionRepository sessionRepository;
     private final UserRepository userRepository;
     private final MessageErrorRepository messageErrorRepository;
+    private final RunpodClient runpodClient;
+    private final ObjectMapper objectMapper;
 
     @Override
     public Change24hResponse getAccessUsersChange24h() {
@@ -188,7 +203,7 @@ public class DashboardServiceImpl implements DashboardService {
 
     @Override
     public HeatmapResponse getChatbotHeatmap() {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(MonitoringUtils.KST);
         LocalDate weekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
         LocalDate weekEnd = weekStart.plusDays(7);
 
@@ -230,12 +245,12 @@ public class DashboardServiceImpl implements DashboardService {
     }
 
     @Override
-    public TrendKeywordsResponse getTrendKeywords(int scale) {
-        LocalDate end = LocalDate.now();
-        LocalDate start = end.minusDays(scale - 1);
+    public TrendKeywordsResponse getTrendKeywords(TrendKeywordRequest request) {
+        LocalDate end = LocalDate.now(MonitoringUtils.KST);
+        LocalDate start = end.minusDays(request.scale() - 1);
 
         List<TrendKeyword> topKeywords = keywordAggregateDailyRepository.sumTopKeywords(start, end,
-            50);
+            request.topK());
 
         if (topKeywords.isEmpty()) {
             return new TrendKeywordsResponse(new Timeframe(start, end), List.of());
@@ -255,7 +270,7 @@ public class DashboardServiceImpl implements DashboardService {
 
     @Override
     public ChatroomsTodayResponse getChatroomsToday() {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(MonitoringUtils.KST);
         LocalDateTime startInclusive = today.atStartOfDay();
         LocalDateTime endExclusive = startInclusive.plusDays(1);
 
@@ -294,7 +309,7 @@ public class DashboardServiceImpl implements DashboardService {
 
     @Override
     public ErrorsTodayResponse getErrorsToday() {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(MonitoringUtils.KST);
         LocalDateTime startInclusive = today.atStartOfDay();
         LocalDateTime endExclusive = startInclusive.plusDays(1);
 
@@ -345,6 +360,111 @@ public class DashboardServiceImpl implements DashboardService {
             .toList();
 
         return new ErrorsTodayResponse(new Timeframe(today, today), errorItems);
+    }
+
+    @Override
+    @Transactional
+    public TrendKeywordCreateResponse recordTrendKeyword(TrendKeywordCreateRequest request) {
+        String query = request.query();
+        if (!StringUtils.hasText(query)) {
+            return TrendKeywordCreateResponse.of(List.of());
+        }
+
+        LocalDate today = LocalDate.now(MonitoringUtils.KST);
+        Set<String> extracted = extractKeywords(query);
+        Set<String> normalizedKeywords = new LinkedHashSet<>();
+
+        if (extracted.isEmpty()) {
+            String fallback = normalizeKeyword(query);
+            if (StringUtils.hasText(fallback)) {
+                normalizedKeywords.add(fallback);
+            }
+        } else {
+            for (String raw : extracted) {
+                String keyword = normalizeKeyword(raw);
+                if (StringUtils.hasText(keyword)) {
+                    normalizedKeywords.add(keyword);
+                }
+            }
+        }
+
+        for (String keyword : normalizedKeywords) {
+            keywordAggregateDailyRepository.findByAggregateDateAndKeyword(today, keyword)
+                .ifPresentOrElse(
+                    aggregate -> aggregate.increaseFrequency(1L),
+                    () -> {
+                        KeywordAggregateDaily created = KeywordAggregateDaily.builder()
+                            .aggregateNo(UUID.randomUUID())
+                            .aggregateDate(today)
+                            .keyword(keyword)
+                            .frequency(1L)
+                            .build();
+                        keywordAggregateDailyRepository.save(created);
+                    }
+                );
+        }
+
+        return TrendKeywordCreateResponse.of(List.copyOf(normalizedKeywords));
+    }
+
+    private Set<String> extractKeywords(String query) {
+        try {
+            RunpodChatResult result = runpodClient.chat(List.of(
+                RunpodChatMessage.of("system",
+                    "당신은 한국어 키워드 추출기입니다. 사용자의 문장을 읽고 핵심 키워드만 1~7개 사이로 JSON 배열 형식으로 반환하세요. 예: [\"키워드1\", \"키워드2\"]. 불필요한 설명은 넣지 마세요."),
+                RunpodChatMessage.of("user", query)
+            ));
+
+            String content = result != null ? result.content() : null;
+            return parseKeywordContent(content);
+        } catch (Exception e) {
+            log.warn("Runpod 키워드 추출 실패: {}", e.getMessage());
+            return Set.of();
+        }
+    }
+
+    private Set<String> parseKeywordContent(String content) {
+        if (!StringUtils.hasText(content)) {
+            return Set.of();
+        }
+
+        String trimmed = content.trim();
+        try {
+            JsonNode node = objectMapper.readTree(trimmed);
+            if (node.isArray()) {
+                Set<String> keywords = new LinkedHashSet<>();
+                for (JsonNode element : node) {
+                    if (element.isTextual()) {
+                        String value = normalizeKeyword(element.asText());
+                        if (StringUtils.hasText(value)) {
+                            keywords.add(value);
+                        }
+                    }
+                }
+                return keywords;
+            }
+        } catch (Exception ignored) {
+            // fall through to heuristic parsing
+        }
+
+        String normalized = trimmed.replaceAll("[\\[\\]\"']", "");
+        Set<String> keywords = Arrays.stream(normalized.split("[\\n,]"))
+            .map(this::normalizeKeyword)
+            .filter(StringUtils::hasText)
+            .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        return keywords;
+    }
+
+    private String normalizeKeyword(String keyword) {
+        if (keyword == null) {
+            return "";
+        }
+        String trimmed = keyword.trim().replaceAll("\\s{2,}", " ");
+        if (trimmed.length() > 255) {
+            return trimmed.substring(0, 255);
+        }
+        return trimmed;
     }
 
     private Change24hResponse buildChange24hResponse(

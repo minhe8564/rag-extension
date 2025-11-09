@@ -10,6 +10,7 @@ import com.ssafy.hebees.dashboard.entity.UserAggregateHourly;
 import com.ssafy.hebees.dashboard.repository.DocumentAggregateHourlyRepository;
 import com.ssafy.hebees.dashboard.repository.ErrorAggregateHourlyRepository;
 import com.ssafy.hebees.dashboard.repository.UserAggregateHourlyRepository;
+import com.ssafy.hebees.common.util.MonitoringUtils;
 import jakarta.annotation.PostConstruct;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -124,7 +125,7 @@ public class DashboardMetricStreamServiceImpl implements DashboardMetricStreamSe
     }
 
     private long fetchMetricValue(MetricType type) {
-        LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
+        LocalDateTime startOfDay = LocalDate.now(MonitoringUtils.KST).atStartOfDay();
         LocalDateTime now = LocalDateTime.now();
         return switch (type) {
             case ACCESS_USERS -> userAggregateHourlyRepository.sumAccessUserCountBetween(startOfDay,

@@ -4,6 +4,8 @@ import com.ssafy.hebees.common.response.BaseResponse;
 import com.ssafy.hebees.dashboard.dto.request.ErrorMetricIncrementRequest;
 import com.ssafy.hebees.dashboard.dto.request.MetricIncrementRequest;
 import com.ssafy.hebees.dashboard.dto.request.TimeSeriesRequest;
+import com.ssafy.hebees.dashboard.dto.request.TrendKeywordCreateRequest;
+import com.ssafy.hebees.dashboard.dto.request.TrendKeywordRequest;
 import com.ssafy.hebees.dashboard.dto.response.Change24hResponse;
 import com.ssafy.hebees.dashboard.dto.response.ChatbotTimeSeriesResponse;
 import com.ssafy.hebees.dashboard.dto.response.ChatroomsTodayResponse;
@@ -13,6 +15,7 @@ import com.ssafy.hebees.dashboard.dto.response.ModelTimeSeriesResponse;
 import com.ssafy.hebees.dashboard.dto.response.TotalDocumentsResponse;
 import com.ssafy.hebees.dashboard.dto.response.TotalErrorsResponse;
 import com.ssafy.hebees.dashboard.dto.response.TotalUsersResponse;
+import com.ssafy.hebees.dashboard.dto.response.TrendKeywordCreateResponse;
 import com.ssafy.hebees.dashboard.dto.response.TrendKeywordsResponse;
 import com.ssafy.hebees.dashboard.service.DashboardMetricStreamService;
 import com.ssafy.hebees.dashboard.service.DashboardService;
@@ -21,8 +24,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -35,7 +36,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -243,10 +243,24 @@ public class DashboardController {
         @ApiResponse(responseCode = "200", description = "조회 성공")
     })
     public ResponseEntity<BaseResponse<TrendKeywordsResponse>> getTrendKeywords(
-        @Min(1) @Max(30) @RequestParam(defaultValue = "7") Integer scale) {
-        TrendKeywordsResponse response = dashboardService.getTrendKeywords(scale);
+        @Valid TrendKeywordRequest request) {
+        TrendKeywordsResponse response = dashboardService.getTrendKeywords(request);
         return ResponseEntity.ok(BaseResponse.of(HttpStatus.OK, response,
-            "키워드 트렌드 데이터 조회에 성공하였습니다."));
+            String.format("최근 %d일 자주 물어보는 키워드를 조회하였습니다.", request.scale())
+        ));
+    }
+
+    @PostMapping(value = "/trends/keyword")
+    @Operation(summary = "대화 키워드 트렌드 등록", description = "사용자 질의를 트렌드 키워드 집계에 반영합니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "키워드 집계 성공")
+    })
+    public ResponseEntity<BaseResponse<TrendKeywordCreateResponse>> recordTrendKeyword(
+        @Valid @RequestBody TrendKeywordCreateRequest request
+    ) {
+        TrendKeywordCreateResponse response = dashboardService.recordTrendKeyword(request);
+        return ResponseEntity.ok(
+            BaseResponse.of(HttpStatus.OK, response, "키워드를 등록하였습니다."));
     }
 
     @GetMapping("/chatrooms/today")
