@@ -18,8 +18,8 @@ type Props = {
 };
 
 export function CreateCollectionForm({
-  onCancel,
-  onCreate,
+  // onCancel,
+  // onCreate,
   options,
   loadingOptions,
   optionsError,
