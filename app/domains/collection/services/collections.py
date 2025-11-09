@@ -120,20 +120,16 @@ async def list_files_in_collection(
     *,
     user_no: str,
     collection_no: str,
-    limit: int = 20,
+    limit: int = 5,
     offset: int = 0,
 ) -> tuple[List[FileListItem], int]:
     user_no_bytes = _uuid_str_to_bytes(user_no)
     collection_no_bytes = _uuid_str_to_bytes(collection_no)
 
-    offer_no = await _get_offer_no_by_user(session, user_no_bytes)
-
-    # Ensure the collection exists and belongs to the user's offer
     stmt_check = (
         select(Collection.collection_no)
         .where(
             Collection.collection_no == collection_no_bytes,
-            Collection.offer_no == offer_no,
         )
     )
     res_check = await session.execute(stmt_check)
