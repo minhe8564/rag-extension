@@ -4,9 +4,9 @@ import FileUploader from '@/shared/components/file/FileUploader';
 import UploadList from '@/domains/admin/components/documents/UploadList';
 import ColSection from '@/domains/admin/components/documents/ColSection';
 import SelectVectorization from '@/domains/admin/components/documents/SelectVectorization';
-// import VecProcess from '@/domains/admin/components/documents/VecProcess';
 import type { RawMyDoc } from '@/shared/types/file.types';
 import { toast } from 'react-toastify';
+import VecProcess from '@/domains/admin/components/documents/VecProcess';
 
 export default function UploadTab() {
   //  업로드된 전체 파일
@@ -20,6 +20,9 @@ export default function UploadTab() {
 
   //  컬렉션 지정까지 완료된 최종 선택 목록
   const [finalSelectedFiles, setFinalSelectedFiles] = useState<RawMyDoc[]>([]);
+
+  const [isVectorizingDone, setIsVectorizingDone] = useState(false);
+  const [runningFiles, setRunningFiles] = useState<RawMyDoc[]>([]);
 
   //  FileUploader → RawMyDoc 변환
   const handleUpload = ({ files, category }: { files: File[]; category: string }) => {
@@ -86,6 +89,17 @@ export default function UploadTab() {
     );
   };
 
+  const handleUploadComplete = (files: RawMyDoc[]) => {
+    console.log('✅ 업로드 완료 파일:', files);
+    setRunningFiles((prev) => [...prev, ...files]); // 벡터화 진행 리스트 등록
+    setIsVectorizingDone(true); // VecProcess 렌더 트리거
+  };
+
+  // 벡터화 완료 시 상태 초기화
+  const handleVectorizationComplete = () => {
+    setRunningFiles([]);
+    setIsVectorizingDone(false);
+  };
   return (
     <section className="flex flex-col gap-6 my-4">
       {/* 파일 업로더 */}
@@ -123,11 +137,19 @@ export default function UploadTab() {
           <SelectVectorization
             finalSelectedFiles={finalSelectedFiles}
             onRemove={handleRemoveFromFinal}
+            onUploadComplete={handleUploadComplete}
+            isVectorizing={runningFiles.length > 0}
           />
         </div>
-        {/* <div>
-          <VecProcess />
-        </div> */}
+      </div>
+      <div>
+        {runningFiles.length > 0 && (
+          <VecProcess
+            selectedFiles={runningFiles}
+            isVectorizingDone={isVectorizingDone}
+            onVectorizationComplete={handleVectorizationComplete}
+          />
+        )}
       </div>
     </section>
   );

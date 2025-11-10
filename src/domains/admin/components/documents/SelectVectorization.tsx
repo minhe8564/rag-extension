@@ -1,7 +1,6 @@
 import { FileText, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import VecProcess from './VecProcess';
 import type { RawMyDoc } from '@/shared/types/file.types';
 import { useCategoryStore } from '@/shared/store/categoryMap';
 import type { UploadBucket } from '@/shared/types/file.types';
@@ -14,9 +13,13 @@ import { toast } from 'react-toastify';
 export default function SelectVectorization({
   finalSelectedFiles,
   onRemove,
+  onUploadComplete,
+  isVectorizing,
 }: {
   finalSelectedFiles: RawMyDoc[];
   onRemove?: (file: RawMyDoc) => void;
+  onUploadComplete?: (files: RawMyDoc[]) => void;
+  isVectorizing: boolean;
 }) {
   const [localFiles, setLocalFiles] = useState<RawMyDoc[]>(finalSelectedFiles);
   const [selectedFile, setSelectedFile] = useState<RawMyDoc | null>(null);
@@ -28,12 +31,12 @@ export default function SelectVectorization({
   const currentFiles = localFiles.slice(startIndex, startIndex + itemsPerPage);
   const totalPages = Math.ceil(localFiles.length / itemsPerPage);
 
-  const [isVectorizingDone, setIsVectorizingDone] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
   //  업로드
   async function handleUpload(finalSelectedFiles: RawMyDoc[]) {
     try {
+      setIsUploading(true);
       const groupedByCategory = finalSelectedFiles.reduce<Record<string, RawMyDoc[]>>(
         (acc, file) => {
           if (!acc[file.categoryNo]) acc[file.categoryNo] = [];
@@ -54,12 +57,13 @@ export default function SelectVectorization({
 
       await Promise.all(uploadPromises);
       console.log('🎉 전체 업로드 완료');
-      setIsUploading(true);
       toast.success('파일 업로드가 완료되었습니다!');
-      setIsVectorizingDone(true); //
+      onUploadComplete?.(finalSelectedFiles);
     } catch (err) {
       console.error('❌ 업로드 실패', err);
       toast.error('파일 업로드에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setIsUploading(false);
     }
   }
 
@@ -219,25 +223,16 @@ export default function SelectVectorization({
       <div className="flex justify-center mt-6 mb-4">
         <button
           onClick={() => handleUpload(localFiles)}
-          className="px-10 py-2 text-white font-semibold rounded-md
-                   bg-[linear-gradient(90deg,#BE7DB1_10%,#81BAFF_100%)]
-                   hover:opacity-90 transition shadow-md"
+          disabled={isUploading || localFiles.length === 0 || isVectorizing} // ✅ 추가
+          className={`px-10 py-2 text-white font-semibold rounded-md transition shadow-md ${
+            isUploading || isVectorizing
+              ? 'bg-gray-300 cursor-not-allowed'
+              : 'bg-[linear-gradient(90deg,#BE7DB1_10%,#81BAFF_100%)] hover:opacity-90'
+          }`}
         >
-          벡터화 실행
+          {isUploading ? '업로드 중...' : isVectorizing ? '벡터화 진행 중...' : '벡터화 실행'}
         </button>
       </div>
-
-      {/* VecProcess (고정된 높이 아래쪽에 추가로 띄움) */}
-      {selectedFile && (
-        <div className="mt-4">
-          <VecProcess
-            selectedFiles={localFiles}
-            initialFileName={selectedFile.name}
-            initialCollection={selectedFile.collectionNo || ''}
-            isVectorizingDone={isVectorizingDone}
-          />
-        </div>
-      )}
     </section>
   );
 }
