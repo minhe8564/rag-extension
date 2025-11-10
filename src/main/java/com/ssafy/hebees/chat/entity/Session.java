@@ -44,8 +44,12 @@ public class Session extends BaseSoftDeleteEntity {
     @Column(name = "LLM_NO", columnDefinition = "BINARY(16)", nullable = false)
     private UUID llmNo; // 사용할 LLM ID
 
-    @Column(name = "LAST_REQUESTED_AT", nullable = false)
+    @Column(name = "LAST_REQUESTED_AT")
     private LocalDateTime lastRequestedAt; // 마지막 질문 시작
+
+    public void updateTitle(String title) {
+        this.title = title;
+    }
 
     public void updateSettings(String title, UUID llmNo) {
         this.title = title;

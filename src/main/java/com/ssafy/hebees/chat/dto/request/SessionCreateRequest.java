@@ -10,7 +10,7 @@ public record SessionCreateRequest(
     @Schema(description = "세션 제목", example = "래그프레스 루틴", minLength = 1, maxLength = 50, nullable = true, defaultValue = "새 채팅")
     String title,
 
-    @Schema(description = "사용할 LLM 식별자", format = "uuid", example = "123e4567-e89b-12d3-a456-426614174000", nullable = true)
+    @Schema(description = "사용할 LLM 식별자", format = "uuid", example = "bc4b6766-b861-4ad0-959b-f170767875da", nullable = true)
     UUID llm,
 
     @Schema(description = "초기 질문(세션명 힌트)", example = "2주뒤에 삼성전자에 가려면 오늘부터 래그프레스를 하루에 몇번씩 해야해?", nullable = true)
@@ -18,12 +18,6 @@ public record SessionCreateRequest(
 ) {
 
     public static final String DEFAULT_TITLE = "새 채팅";
-
-    public SessionCreateRequest {
-        if (llm == null) {
-            llm = UUID.fromString("123e4567-e89b-12d3-a456-426614174000");
-        }
-    }
 }
 
 
