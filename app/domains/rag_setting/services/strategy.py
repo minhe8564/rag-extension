@@ -372,7 +372,18 @@ async def delete_strategy(
         .limit(1)
     )
 
-    if chunking_usage.first() or extraction_usage.first() or embedding_usage.first():
+    sparse_embedding_usage = await session.execute(
+        select(IngestGroup.ingest_group_no)
+        .where(IngestGroup.sparse_embedding_strategy_no == strategy_no_bytes)
+        .limit(1)
+    )
+
+    if (
+        chunking_usage.first()
+        or extraction_usage.first()
+        or embedding_usage.first()
+        or sparse_embedding_usage.first()
+    ):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="해당 전략을 사용하는 템플릿이 존재합니다.",

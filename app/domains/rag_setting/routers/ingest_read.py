@@ -220,10 +220,10 @@ async def get_ingest_template(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="데이터 정합성 오류: 추출 전략 그룹이 누락되었습니다. 관리자에게 문의하세요."
         )
-    if not ingest_group.embedding_groups:
+    if not ingest_group.sparse_embedding_strategy:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="데이터 정합성 오류: 임베딩 전략 그룹이 누락되었습니다. 관리자에게 문의하세요."
+            detail="데이터 정합성 오류: 희소 임베딩 전략이 누락되었습니다. 관리자에게 문의하세요."
         )
 
     # Strategy 객체를 StrategyDetail로 변환하는 헬퍼 함수
@@ -247,46 +247,27 @@ async def get_ingest_template(
             strategy_to_item(group.extraction_strategy, group.extraction_parameter)
         )
 
-    embedding_items = []
+    dense_embedding_items = []
     for group in ingest_group.embedding_groups:
         if not group.embedding_strategy:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="데이터 정합성 오류: 임베딩 전략이 누락되었습니다. 관리자에게 문의하세요."
             )
-        embedding_items.append(
+        dense_embedding_items.append(
             strategy_to_item(group.embedding_strategy, group.embedding_parameter)
         )
 
-    if not extraction_items or not embedding_items:
+    if not extraction_items:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="데이터 정합성 오류: 필수 전략이 누락되었습니다. 관리자에게 문의하세요."
         )
 
-    sparse_item = None
-    dense_embedding_items = []
-
-    for item in embedding_items:
-        params = item.parameters or {}
-        embedding_type = params.get("type")
-        code = (item.code or "").upper()
-
-        if embedding_type == "sparse" or code == "EMB_SPARSE":
-            if sparse_item is None:
-                sparse_item = item
-            else:
-                dense_embedding_items.append(item)
-        elif embedding_type == "dense" or code == "EMB_DENSE":
-            dense_embedding_items.append(item)
-        else:
-            dense_embedding_items.append(item)
-
-    if sparse_item is None and embedding_items:
-        sparse_item = embedding_items[0]
-        dense_embedding_items = [
-            item for item in embedding_items if item is not sparse_item
-        ]
+    sparse_item = strategy_to_item(
+        ingest_group.sparse_embedding_strategy,
+        ingest_group.sparse_embedding_parameter,
+    )
 
     response_data = IngestTemplateDetailResponse(
         ingestNo=_bytes_to_uuid_str(ingest_group.ingest_group_no),
