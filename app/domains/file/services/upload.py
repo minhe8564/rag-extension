@@ -109,6 +109,7 @@ async def upload_file(
         description="",
         bucket=bucket_name,
         path=object_key,
+        status="INGESTING",
         file_category_no=category_no_bytes,
         offer_no=offer_no,
         source_no=_uuid_str_to_bytes(source_no, field_name="sourceNo") if source_no else None,
