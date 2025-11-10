@@ -5,7 +5,7 @@ Ingest Group 모델
 from sqlalchemy import Column, DateTime, Boolean, LargeBinary, JSON, ForeignKey, String
 from sqlalchemy.orm import relationship
 from datetime import datetime
-from app.core.base import Base
+from app.core.database.base import Base
 import uuid
 
 
@@ -179,10 +179,8 @@ class EmbeddingGroup(Base):
 # ============================================
 
 class IngestGroup(Base):
-    """
-    Ingest 템플릿 그룹 테이블 (INGEST_GROUP)
-    청킹 전략을 직접 포함하고, 추출/임베딩 전략은 별도 테이블과 1:N 관계
-    """
+    """Ingest 템플릿 그룹 테이블 (INGEST_GROUP)"""
+
     __tablename__ = "INGEST_GROUP"
 
     ingest_group_no = Column(
@@ -190,42 +188,41 @@ class IngestGroup(Base):
         LargeBinary(16),
         primary_key=True,
         default=generate_uuid_binary,
-        nullable=False
+        nullable=False,
     )
 
     name = Column(
         "NAME",
         String(100),
-        nullable=False
+        nullable=False,
     )
 
     is_default = Column(
         "IS_DEFAULT",
         Boolean,
         default=False,
-        nullable=False
+        nullable=False,
     )
 
-    # 외래 키: Chunking 전략 (유일한 직접 전략)
     chunking_strategy_no = Column(
         "CHUNKING_STRATEGY_NO",
         LargeBinary(16),
         ForeignKey("STRATEGY.STRATEGY_NO", ondelete="CASCADE"),
         nullable=False,
-        index=True
+        index=True,
     )
 
     chunking_parameter = Column(
         "CHUNKING_PARAMETER",
         JSON,
-        nullable=False
+        nullable=False,
     )
 
     created_at = Column(
         "CREATED_AT",
         DateTime,
         default=datetime.utcnow,
-        nullable=False
+        nullable=False,
     )
 
     updated_at = Column(
@@ -233,43 +230,172 @@ class IngestGroup(Base):
         DateTime,
         default=datetime.utcnow,
         onupdate=datetime.utcnow,
-        nullable=False
+        nullable=False,
     )
 
-    # 관계 정의: IngestGroup → Strategy (N:1)
     chunking_strategy = relationship(
         "Strategy",
         foreign_keys=[chunking_strategy_no],
-        lazy="selectin"
+        lazy="selectin",
     )
 
-    # 관계 정의: IngestGroup → ExtractionGroup (1:N)
     extraction_groups = relationship(
         "ExtractionGroup",
         back_populates="ingest_group",
         cascade="all, delete-orphan",
-        lazy="selectin"
+        lazy="selectin",
     )
 
-    # 관계 정의: IngestGroup → EmbeddingGroup (1:N)
     embedding_groups = relationship(
         "EmbeddingGroup",
         back_populates="ingest_group",
         cascade="all, delete-orphan",
-        lazy="selectin"
+        lazy="selectin",
     )
 
     def __repr__(self):
         return f"<IngestGroup(name={self.name}, is_default={self.is_default})>"
 
 
-# ExtractionGroup과 EmbeddingGroup에 back_populates 추가
-ExtractionGroup.ingest_group = relationship(
-    "IngestGroup",
-    back_populates="extraction_groups"
-)
+class ExtractionGroup(Base):
+    """Extraction 템플릿 그룹 테이블 (EXTRACTION_GROUP)"""
 
-EmbeddingGroup.ingest_group = relationship(
-    "IngestGroup",
-    back_populates="embedding_groups"
-)
+    __tablename__ = "EXTRACTION_GROUP"
+
+    extraction_group_no = Column(
+        "EXTRACTION_GROUP_NO",
+        LargeBinary(16),
+        primary_key=True,
+        default=generate_uuid_binary,
+        nullable=False,
+    )
+
+    ingest_group_no = Column(
+        "INGEST_GROUP_NO",
+        LargeBinary(16),
+        ForeignKey("INGEST_GROUP.INGEST_GROUP_NO", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    name = Column(
+        "NAME",
+        String(100),
+        nullable=False,
+    )
+
+    extraction_strategy_no = Column(
+        "EXTRACTION_STRATEGY_NO",
+        LargeBinary(16),
+        ForeignKey("STRATEGY.STRATEGY_NO", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    extraction_parameter = Column(
+        "EXTRACTION_PARAMETER",
+        JSON,
+        nullable=False,
+    )
+
+    created_at = Column(
+        "CREATED_AT",
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False,
+    )
+
+    updated_at = Column(
+        "UPDATED_AT",
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False,
+    )
+
+    ingest_group = relationship(
+        "IngestGroup",
+        back_populates="extraction_groups",
+        lazy="selectin",
+    )
+
+    extraction_strategy = relationship(
+        "Strategy",
+        foreign_keys=[extraction_strategy_no],
+        lazy="selectin",
+    )
+
+    def __repr__(self):
+        return f"<ExtractionGroup(name={self.name})>"
+
+
+class EmbeddingGroup(Base):
+    """Embedding 템플릿 그룹 테이블 (EMBEDDING_GROUP)"""
+
+    __tablename__ = "EMBEDDING_GROUP"
+
+    embedding_group_no = Column(
+        "EMBEDDING_GROUP_NO",
+        LargeBinary(16),
+        primary_key=True,
+        default=generate_uuid_binary,
+        nullable=False,
+    )
+
+    ingest_group_no = Column(
+        "INGEST_GROUP_NO",
+        LargeBinary(16),
+        ForeignKey("INGEST_GROUP.INGEST_GROUP_NO", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    name = Column(
+        "NAME",
+        String(100),
+        nullable=False,
+    )
+
+    embedding_strategy_no = Column(
+        "EMBEDDING_STRATEGY_NO",
+        LargeBinary(16),
+        ForeignKey("STRATEGY.STRATEGY_NO", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    embedding_parameter = Column(
+        "EMBEDDING_PARAMETER",
+        JSON,
+        nullable=False,
+    )
+
+    created_at = Column(
+        "CREATED_AT",
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False,
+    )
+
+    updated_at = Column(
+        "UPDATED_AT",
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False,
+    )
+
+    ingest_group = relationship(
+        "IngestGroup",
+        back_populates="embedding_groups",
+        lazy="selectin",
+    )
+
+    embedding_strategy = relationship(
+        "Strategy",
+        foreign_keys=[embedding_strategy_no],
+        lazy="selectin",
+    )
+
+    def __repr__(self):
+        return f"<EmbeddingGroup(name={self.name})>"

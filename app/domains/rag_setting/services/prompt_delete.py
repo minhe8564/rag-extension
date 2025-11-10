@@ -19,7 +19,7 @@ async def delete_prompt(
     """
     프롬프트 삭제
 
-    strategy_type='prompting-system' 또는 'prompting-user'인 전략만 삭제합니다.
+    strategy_type이 'prompting-system' 또는 'prompting-user'인 전략만 삭제합니다.
 
     Args:
         session: 데이터베이스 세션

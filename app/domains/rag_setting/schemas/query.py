@@ -40,51 +40,42 @@ class QueryTemplateCreateRequest(BaseModel):
     class Config:
         json_schema_extra = {
             "example": {
+                "isDefault": False,
                 "name": "기본 Query 템플릿",
                 "transformation": {
-                    "no": "16a2ca46-4701-4fa7-98a4-17397c20a0ae"
+                    "no": "4b7c93a9-ca03-4caf-94e1-2ad5a4a64be1"
+                },
+                "reranking": {
+                    "no": "ab4754a9-36b7-42b5-a0fe-64bc3de94596",
+                    "parameters": {
+                        "topK": 5, 
+                    }
                 },
                 "retrieval": {
-                    "no": "f315a3d9-70ba-466a-b0a5-bf695a952f5b",
+                    "no": "e9d321a3-98f2-4917-879b-d5407f14c44d",
                     "parameters": {
-                        "semantic": {
-                            "topK": 20,
-                            "threshold": 0.6
-                        },
-                        "keyword": {
-                            "topK": 20
-                        },
-                        "reranker": {
-                            "type": "weighted",
-                            "weight": 0.4,
-                            "topK": 10
+                        "type": "semantic", 
+                        "sematic": {
+                            "topK": 30, 
+                            "threshold": 0.4
                         }
                     }
                 },
-                "reranking": {
-                    "no": "65d58009-d777-4bb9-b2e2-73a548cfdde1",
-                    "parameters": {
-                        "topK": 5
-                    }
-                },
                 "systemPrompt": {
-                    "no": "4e777331-ae8d-4f27-85ae-e905eeb2b6a8"
+                    "no": "6bff6262-90a6-4eb1-bfc1-78bdd342c317"
                 },
                 "userPrompt": {
-                    "no": "e1f2a9fe-0ecc-4098-8c90-bfd3f8accecc"
+                    "no": "9c6a37bc-ef9b-4776-928c-f45c9eb65934"
                 },
                 "generation": {
-                    "no": "6cd296cf-efb5-4037-a932-fd2b78820ea8",
+                    "no": "bd3b754c-fd66-4a79-9cd9-3a13cebb17a1",
                     "parameters": {
-                        "temperature": 0.3,
-                        "timeout": 100,
-                        "maxRetries": 5,
-                        "stop": ["그만"],
-                        "maxTokens": 768,
-                        "topP": 0.95
+                        "timeout": 30, 
+                        "max_tokens": 512, 
+                        "max_retries": 2, 
+                        "temperature": 0.2
                     }
-                },
-                "isDefault": False
+                }
             }
         }
 
@@ -113,6 +104,7 @@ class QueryTemplateListResponse(BaseModel):
 class StrategyDetail(BaseModel):
     """전략 상세 정보"""
     no: str = Field(..., description="전략 ID (UUID)")
+    code: str = Field(..., description="전략 코드")
     name: str = Field(..., description="전략명")
     description: str = Field(..., description="전략 설명")
     parameters: Optional[Dict[str, Any]] = Field(None, description="전략 파라미터")
@@ -209,39 +201,71 @@ class QueryTemplateUpdateRequest(BaseModel):
     class Config:
         json_schema_extra = {
             "example": {
-                "name": "수정된 Query 템플릿",
+                "isDefault": False,
+                "name": "기본 Query 템플릿",
                 "transformation": {
-                    "no": "21d396bd-8f78-4f86-8211-c0c030f9ed60"
+                    "no": "4b7c93a9-ca03-4caf-94e1-2ad5a4a64be1"
                 },
                 "retrieval": {
-                    "no": "d8139f0e-8ca2-4746-af19-7f5bab30ec2f",
+                    "no": "e9d321a3-98f2-4917-879b-d5407f14c44d",
+                    "type": "semantic",
                     "parameters": {
-                        "semantic": {"topK": 20, "threshold": 0.6},
-                        "keyword": {"topK": 20},
-                        "reranker": {"type": "weighted", "weight": 0.4, "top_k": 10}
+                        "sematic": {
+                            "threshold": 0.4,
+                            "topK": 30
+                        }
                     }
                 },
                 "reranking": {
-                    "no": "e9f83976-e8ad-4aa6-b6cc-2fd530f4478c",
-                    "parameters": {"topK": 5}
-                },
-                "systemPrompt": {
-                    "no": "9b9f5730-f70f-41b2-b6d5-f8c71a1fb4a6"
-                },
-                "userPrompt": {
-                    "no": "d8139f0e-8ca2-4746-af19-7f5bab30ec2f"
-                },
-                "generation": {
-                    "no": "5ead8b24-c974-466c-ac42-42325ff26f2d",
+                    "no": "ab4754a9-36b7-42b5-a0fe-64bc3de94596",
                     "parameters": {
-                        "temperature": 0.3,
-                        "timeout": 100,
-                        "maxRetries": 5,
-                        "stop": ["그만"],
-                        "max_tokens": 768,
-                        "topP": 0.95
+                        "topK": 5
                     }
                 },
-                "isDefault": True
+                "systemPrompt": {
+                    "no": "6bff6262-90a6-4eb1-bfc1-78bdd342c317"
+                },
+                "userPrompt": {
+                    "no": "9c6a37bc-ef9b-4776-928c-f45c9eb65934"
+                },
+                "generation": {
+                    "no": "bd3b754c-fd66-4a79-9cd9-3a13cebb17a1",
+                    "parameters": {
+                        "max_retries": 2,
+                        "max_tokens": 512,
+                        "temperature": 0.2,
+                        "timeout": 30
+                    }
+                }
+            }
+        }
+        
+
+class QueryTemplatePartialUpdateRequest(BaseModel):
+    """Query 템플릿 부분 수정 요청"""
+    name: Optional[str] = Field(None, description="템플릿 이름", min_length=1, max_length=50)
+    transformation: Optional[StrategyWithParameter] = Field(None, description="변환 전략")
+    retrieval: Optional[StrategyWithParameter] = Field(None, description="검색 전략")
+    reranking: Optional[StrategyWithParameter] = Field(None, description="재순위화 전략")
+    systemPrompt: Optional[StrategyWithParameter] = Field(None, description="시스템 프롬프트 전략")
+    userPrompt: Optional[StrategyWithParameter] = Field(None, description="사용자 프롬프트 전략")
+    generation: Optional[StrategyWithParameter] = Field(None, description="생성 전략")
+    isDefault: Optional[bool] = Field(None, description="기본 템플릿 여부")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "name": "하이브리드 검색",
+                "isDefault": True,
+                "retrieval": {
+                    "no": "e9d321a3-98f2-4917-879b-d5407f14c44d",
+                    "parameters": {
+                        "type": "semantic",
+                        "semantic": {
+                            "topK": 30,
+                            "threshold": 0.4
+                        }
+                    }
+                }
             }
         }

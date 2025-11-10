@@ -1,20 +1,13 @@
 from __future__ import annotations
 
 from typing import List
-import uuid
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.file_category import FileCategory
 from ..schemas.response.file_category import FileCategoryListItem
-
-
-def _bytes_to_uuid_str(b: bytes) -> str:
-    try:
-        return str(uuid.UUID(bytes=b))
-    except Exception:
-        return b.hex()
+from ....core.utils.uuid_utils import _bytes_to_uuid_str
 
 
 async def list_file_categories(session: AsyncSession) -> List[FileCategoryListItem]:

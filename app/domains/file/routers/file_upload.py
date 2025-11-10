@@ -7,9 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.schemas import BaseResponse
 from ..schemas.response.upload_files import FileUploadBatchResult
-from ..services.ingest import call_ingest
+from ..services.call_ingest import call_ingest
 from ..schemas.request.upload_files import FileUploadRequest
-from ..services.files import upload_files as upload_files_service
+from ..services.upload import upload_files as upload_files_service
 
 
 router = APIRouter(prefix="/files", tags=["File"])
@@ -53,6 +53,7 @@ async def upload_file(
         on_name_conflict=request.onNameConflict,
         bucket=effective_bucket,
         collection_no=effective_collection,
+        user_role=role_upper,
     )
 
     if background_tasks is not None:

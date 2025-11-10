@@ -5,7 +5,7 @@ RAG Strategy 모델
 from sqlalchemy import Column, String, DateTime, ForeignKey, JSON, LargeBinary
 from sqlalchemy.orm import relationship
 from datetime import datetime
-from app.core.base import Base
+from app.core.database.base import Base
 import uuid
 
 
@@ -116,6 +116,13 @@ class Strategy(Base):
         String(50),
         nullable=False,
         index=True
+    )
+
+    code = Column(
+        "CODE",
+        String(255),
+        nullable=False,
+        index=True,
     )
 
     description = Column(

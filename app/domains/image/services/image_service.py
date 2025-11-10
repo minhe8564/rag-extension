@@ -10,7 +10,7 @@ from typing import List, Optional
 from PIL import Image
 from io import BytesIO
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.settings import settings
+from app.core.config.settings import settings
 from app.domains.file.models.file import File
 from app.domains.user.models.user import User
 from app.domains.file.repositories.file_repository import FileRepository
@@ -22,7 +22,8 @@ from ..schemas.image_regenerate_request import ImageRegenerateRequest
 from ..schemas.image_response import ImageResponse
 from .minio_service import MinIOService
 from .gemini_client import GeminiClient
-from app.domains.file.services.files import _build_presigned_key, get_presigned_url
+from app.core.utils.uuid_utils import _build_presigned_key
+from app.domains.file.services.presign import get_presigned_url
 
 logger = logging.getLogger(__name__)
 

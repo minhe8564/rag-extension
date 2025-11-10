@@ -50,5 +50,17 @@ def custom_openapi(app: FastAPI):
         {"UserUUID": []}
     ]
 
+    # Remove default FastAPI validation error response (422) from all operations
+    paths = openapi_schema.get("paths", {})
+    for path_item in paths.values():
+        if not isinstance(path_item, dict):
+            continue
+        for operation_obj in path_item.values():
+            if not isinstance(operation_obj, dict):
+                continue
+            responses = operation_obj.get("responses")
+            if isinstance(responses, dict) and "422" in responses:
+                responses.pop("422")
+
     app.openapi_schema = openapi_schema
     return app.openapi_schema

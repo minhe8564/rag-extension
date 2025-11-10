@@ -34,25 +34,21 @@ async def _get_offer_no_by_user(session: AsyncSession, user_no_bytes: bytes) -> 
     return offer_no
 
 
-async def list_collections_by_offer(
+async def list_collections(
     session: AsyncSession,
     *,
-    user_no: str,
     limit: int = 20,
     offset: int = 0,
 ) -> tuple[List[CollectionListItem], int]:
-    user_no_bytes = _uuid_str_to_bytes(user_no)
-    offer_no = await _get_offer_no_by_user(session, user_no_bytes)
 
     # Total count for pagination
-    count_stmt = select(func.count()).select_from(Collection).where(Collection.offer_no == offer_no)
+    count_stmt = select(func.count()).select_from(Collection)
     res_total = await session.execute(count_stmt)
     total_items = int(res_total.scalar() or 0)
 
     # Paged items
     stmt = (
         select(Collection)
-        .where(Collection.offer_no == offer_no)
         .order_by(Collection.created_at.desc())
         .limit(limit)
         .offset(offset)
@@ -73,26 +69,67 @@ async def list_collections_by_offer(
     ]
     return items, total_items
 
+async def list_filtered_collections(
+    session: AsyncSession,
+    *,
+    limit: int = 5,
+    offset: int = 0,
+) -> tuple[List[CollectionListItem], int]:
+    count_stmt = (
+        select(func.count(func.distinct(Collection.collection_no)))
+        .select_from(Collection)
+        .join(File, File.collection_no == Collection.collection_no)
+        .where(File.bucket.in_(["public", "hebees"]))
+    )
+    res_total = await session.execute(count_stmt)
+    total_items = int(res_total.scalar() or 0)
+    stmt = (
+        select(Collection)
+        .join(File, File.collection_no == Collection.collection_no)
+        .where(File.bucket.in_(["public", "hebees"]))
+        .group_by(
+            Collection.collection_no,
+            Collection.offer_no,
+            Collection.name,
+            Collection.version,
+            Collection.ingest_group_no,
+            Collection.created_at,
+            Collection.updated_at,
+        )
+        .order_by(Collection.created_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    res = await session.execute(stmt)
+    rows = list(res.scalars().all())
+    items = [
+        CollectionListItem(
+            collectionNo=_bytes_to_uuid_str(row.collection_no),
+            name=row.name,
+            version=row.version,
+            ingestGroupNo=_bytes_to_uuid_str(row.ingest_group_no),
+            createdAt=row.created_at,
+        )
+        for row in rows
+    ]
+    return items, total_items
+
 
 async def list_files_in_collection(
     session: AsyncSession,
     *,
     user_no: str,
     collection_no: str,
-    limit: int = 20,
+    limit: int = 5,
     offset: int = 0,
 ) -> tuple[List[FileListItem], int]:
     user_no_bytes = _uuid_str_to_bytes(user_no)
     collection_no_bytes = _uuid_str_to_bytes(collection_no)
 
-    offer_no = await _get_offer_no_by_user(session, user_no_bytes)
-
-    # Ensure the collection exists and belongs to the user's offer
     stmt_check = (
         select(Collection.collection_no)
         .where(
             Collection.collection_no == collection_no_bytes,
-            Collection.offer_no == offer_no,
         )
     )
     res_check = await session.execute(stmt_check)

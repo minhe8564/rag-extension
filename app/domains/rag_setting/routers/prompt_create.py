@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....core.database import get_db
 from ....core.schemas import BaseResponse, Result
-from ....core.check_role import check_role
+from ....core.auth.check_role import check_role
 from ..schemas.prompt import PromptCreateRequest, PromptCreateResponse
 from ..services.prompt_create import create_prompt
 
@@ -20,6 +20,24 @@ router = APIRouter(prefix="/rag", tags=["RAG - Prompt Management"])
     status_code=status.HTTP_201_CREATED,
     summary="프롬프트 생성",
     description="프롬프트를 생성합니다. 관리자만 접근 가능합니다.",
+    responses={
+        "201": {
+            "description": "프롬프트 생성에 성공하였습니다.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": 201,
+                        "code": "CREATED",
+                        "message": "프롬프트 생성에 성공하였습니다.",
+                        "isSuccess": True,
+                        "result": {
+                            "promptNo": "c4be4990-da6d-4f0b-92c8-04f430b0fd7f"
+                        }
+                    }
+                }
+            }
+        }
+    }
 )
 async def create_prompt_endpoint(
     request: PromptCreateRequest,
@@ -61,5 +79,5 @@ async def create_prompt_endpoint(
         code="CREATED",
         message="프롬프트 생성에 성공하였습니다.",
         isSuccess=True,
-        result=Result(data=PromptCreateResponse(promptNo=prompt_no))
+        result=PromptCreateResponse(promptNo=prompt_no)
     )

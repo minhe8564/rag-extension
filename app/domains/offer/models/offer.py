@@ -4,7 +4,7 @@ OFFER 테이블 모델
 from sqlalchemy import Column, Integer, DateTime, CHAR
 from sqlalchemy.dialects.mysql import CHAR as MySQL_CHAR
 from datetime import datetime
-from app.core.base import Base
+from app.core.database.base import Base
 
 
 class Offer(Base):

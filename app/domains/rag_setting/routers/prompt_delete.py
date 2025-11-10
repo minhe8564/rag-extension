@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Header, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....core.database import get_db
-from ....core.check_role import check_role
+from ....core.auth.check_role import check_role
 from ..services.prompt_delete import delete_prompt
 
 

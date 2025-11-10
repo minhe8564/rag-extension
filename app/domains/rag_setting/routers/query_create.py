@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....core.database import get_db
 from ....core.schemas import BaseResponse
-from ....core.check_role import check_role
+from ....core.auth.check_role import check_role
 from ..schemas.query import QueryTemplateCreateRequest, QueryTemplateCreateResponse
 from ..services.query import create_query_template
 
@@ -31,10 +31,10 @@ router = APIRouter(prefix="/rag", tags=["RAG - Query Template Management"])
                     "example": {
                         "status": 201,
                         "code": "CREATED",
-                        "message": "성공",
+                        "message": "Query 템플릿 생성 성공",
                         "isSuccess": True,
                         "result": {
-                            "queryNo": "92514bae-2bcf-479f-a549-1db3bb68a699"
+                            "queryNo": "f1b951b3-67b3-4021-a01c-6e2e05e78823"
                         }
                     }
                 }

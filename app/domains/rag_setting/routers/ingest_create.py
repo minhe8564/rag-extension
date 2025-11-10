@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....core.database import get_db
 from ....core.schemas import BaseResponse, Result
-from ....core.check_role import check_role
+from ....core.auth.check_role import check_role
 from ..schemas.ingest import IngestTemplateCreateRequest, IngestTemplateCreateResponse
 from ..services.ingest import create_ingest_template
 
@@ -20,6 +20,26 @@ router = APIRouter(prefix="/rag", tags=["RAG - Ingest Template Management"])
     status_code=status.HTTP_201_CREATED,
     summary="Ingest 템플릿 생성 (관리자 전용)",
     description="새로운 Ingest 템플릿을 생성합니다. 관리자만 접근 가능합니다.",
+    responses={
+        "201": {
+            "description": "Ingest 템플릿 생성 성공",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": 201,
+                        "code": "CREATED",
+                        "message": "Ingest 템플릿 생성 성공",
+                        "isSuccess": True,
+                        "result": {
+                            "data": {
+                                "ingestNo": "92514bae-2bcf-479f-a549-1db3bb68a699"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }   
 )
 async def create_ingest_template_endpoint(
     request: IngestTemplateCreateRequest,
@@ -27,59 +47,25 @@ async def create_ingest_template_endpoint(
     x_user_role: str = Depends(check_role("ADMIN")),
     session: AsyncSession = Depends(get_db),
 ):
-    """
-    Ingest 템플릿 생성
-
-    extractions와 denseEmbeddings, spareEmbedding을 모두 별도 그룹 테이블에 저장합니다.
-
-    Args:
-        request: Ingest 템플릿 생성 요청
-        response: FastAPI Response 객체 (Location 헤더 설정용)
-        x_user_role: 사용자 역할 (헤더, 전역 security에서 자동 주입)
-        session: 데이터베이스 세션
-
-    Returns:
-        BaseResponse[IngestTemplateCreateResponse]: 생성된 템플릿 ID
-
-    Raises:
-        HTTPException 400: 전략을 찾을 수 없음
-    """
-    # extractions 리스트를 dict 형태로 변환
-    extractions = [
-        {
-            "no": ext.no,
-            "name": ext.name if hasattr(ext, 'name') else "추출 전략",
-            "parameters": ext.parameters or {}
-        }
-        for ext in request.extractions
+    """Ingest 템플릿 생성"""
+    extractions_payload = [
+        item.model_dump(exclude_none=True) for item in request.extractions
     ]
-
-    # embeddings 리스트 생성 (denseEmbeddings + spareEmbedding)
-    embeddings = [
-        {
-            "no": emb.no,
-            "name": emb.name if hasattr(emb, 'name') else "임베딩 전략",
-            "parameters": emb.parameters or {}
-        }
-        for emb in request.denseEmbeddings
+    chunking_payload = request.chunking.model_dump(exclude_none=True)
+    dense_embeddings_payload = [
+        item.model_dump(exclude_none=True) for item in request.denseEmbeddings
     ]
-    # spareEmbedding 추가
-    embeddings.append({
-        "no": request.spareEmbedding.no,
-        "name": request.spareEmbedding.name if hasattr(request.spareEmbedding, 'name') else "희소 임베딩 전략",
-        "parameters": request.spareEmbedding.parameters or {}
-    })
+    sparse_embedding_payload = request.sparseEmbedding.model_dump(exclude_none=True)
 
-    # 템플릿 생성
     try:
         ingest_no = await create_ingest_template(
             session=session,
             name=request.name,
             is_default=request.isDefault,
-            extractions=extractions,
-            chunking_no=request.chunking.no,
-            chunking_parameters=request.chunking.parameters or {},
-            embeddings=embeddings,
+            extractions=extractions_payload,
+            chunking=chunking_payload,
+            dense_embeddings=dense_embeddings_payload,
+            sparse_embedding=sparse_embedding_payload,
         )
     except HTTPException:
         # 전역 예외 핸들러가 처리하도록 그대로 전파
@@ -91,7 +77,7 @@ async def create_ingest_template_endpoint(
     return BaseResponse[IngestTemplateCreateResponse](
         status=201,
         code="CREATED",
-        message="Ingest 템플릿 생성에 성공하였습니다.",
+        message="Ingest 템플릿 생성 성공",
         isSuccess=True,
-        result=Result(data=IngestTemplateCreateResponse(ingestNo=ingest_no)),
+        result=IngestTemplateCreateResponse(ingestNo=ingest_no),
     )

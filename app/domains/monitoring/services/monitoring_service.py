@@ -154,7 +154,7 @@ class MonitoringService:
         if detected_bandwidth is not None:
             return detected_bandwidth
         else:
-            from app.core.settings import settings
+            from app.core.config.settings import settings
             bandwidth_mbps = settings.network_bandwidth_mbps
             logger.info(f"설정값 사용: {bandwidth_mbps} Mbps")
             return bandwidth_mbps

@@ -17,18 +17,16 @@ async def list_prompts(
     session: AsyncSession,
     page_num: int = 1,
     page_size: int = 20,
-    sort_by: str = "name"
 ) -> Tuple[List[Strategy], int]:
     """
     프롬프트 목록 조회 (페이지네이션 포함)
 
-    strategy_type='prompting-system' 또는 'prompting-user'인 전략들을 조회합니다.
+    strategy_type이 'prompting-system' 또는 'prompting-user'인 전략들을 조회합니다.
 
     Args:
         session: 데이터베이스 세션
         page_num: 페이지 번호 (1부터 시작)
         page_size: 페이지 크기
-        sort_by: 정렬 기준 (기본: name)
 
     Returns:
         (프롬프트 목록, 전체 항목 수)
@@ -46,14 +44,14 @@ async def list_prompts(
         Strategy.strategy_type_no,
         total_count_window
     ).join(Strategy.strategy_type).where(
-        StrategyType.name.in_(["prompting-system", "prompting-user"])
+        StrategyType.name.in_([
+            "prompting-system",
+            "prompting-user"
+        ])
     )
 
     # 정렬 (기본: 이름 오름차순)
-    if sort_by == "name":
-        subquery = subquery.order_by(Strategy.name.asc())
-    else:
-        subquery = subquery.order_by(Strategy.name.asc())
+    subquery = subquery.order_by(Strategy.name.asc())
 
     # 페이지네이션 적용
     offset = (page_num - 1) * page_size
@@ -90,7 +88,7 @@ async def get_prompt_by_no(
     """
     프롬프트 상세 정보 조회
 
-    strategy_type='prompting-system' 또는 'prompting-user'인 전략만 조회합니다.
+    strategy_type이 'prompting-system' 또는 'prompting-user'인 전략만 조회합니다.
 
     Args:
         session: 데이터베이스 세션
@@ -105,14 +103,17 @@ async def get_prompt_by_no(
     except (ValueError, AttributeError):
         return None
 
-    # 프롬프트 조회 (strategy_type='prompting-system' 또는 'prompting-user'만 필터링)
+    # 프롬프트 조회 (system/user 프롬프트만 필터링)
     query = (
         select(Strategy)
         .join(Strategy.strategy_type)
         .options(selectinload(Strategy.strategy_type))
         .where(
             Strategy.strategy_no == prompt_no_bytes,
-            StrategyType.name.in_(["prompting-system", "prompting-user"])
+            StrategyType.name.in_([
+                "prompting-system",
+                "prompting-user"
+            ])
         )
     )
 

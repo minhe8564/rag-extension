@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....core.database import get_db
 from ....core.schemas import BaseResponse, Result
-from ....core.check_role import check_role
+from ....core.auth.check_role import check_role
 from ..schemas.prompt import PromptUpdateRequest, PromptDetailResponse
 from ..services.prompt_update import update_prompt
 
@@ -21,6 +21,22 @@ router = APIRouter(prefix="/rag", tags=["RAG - Prompt Management"])
     response_model=BaseResponse[PromptDetailResponse],
     summary="프롬프트 수정",
     description="프롬프트를 수정합니다. 관리자만 접근 가능합니다.",
+    responses={
+        "200": {
+            "description": "프롬프트 수정에 성공하였습니다.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": 200,
+                        "code": "OK",
+                        "message": "프롬프트 수정에 성공하였습니다.",
+                        "isSuccess": True,
+                        "result": {}
+                    }
+                }
+            }
+        }
+    }
 )
 async def update_prompt_endpoint(
     promptNo: str,
@@ -51,20 +67,22 @@ async def update_prompt_endpoint(
         prompt_no_str=promptNo,
         name=request.name,
         description=request.description,
-        content=request.content
+        content=request.content,
+        prompt_type=request.type
     )
 
-    # 수정된 프롬프트 정보 반환
+    response_data = PromptDetailResponse(
+        promptNo=str(uuid.UUID(bytes=updated_prompt.strategy_no)),
+        name=updated_prompt.name,
+        type=updated_prompt.parameter.get("type", "system") if updated_prompt.parameter else "system",
+        description=updated_prompt.description,
+        content=updated_prompt.parameter.get("content", "") if updated_prompt.parameter else ""
+    )
+
     return BaseResponse[PromptDetailResponse](
         status=200,
         code="OK",
         message="프롬프트 수정에 성공하였습니다.",
         isSuccess=True,
-        result=Result(data=PromptDetailResponse(
-            promptNo=str(uuid.UUID(bytes=updated_prompt.strategy_no)),
-            name=updated_prompt.name,
-            type=updated_prompt.parameter.get("type", "system") if updated_prompt.parameter else "system",
-            description=updated_prompt.description,
-            content=updated_prompt.parameter.get("content", "") if updated_prompt.parameter else ""
-        ))
+        result=Result(data=response_data)
     )

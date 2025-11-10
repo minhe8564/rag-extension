@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
 
 from ..models.strategy import Strategy, StrategyType
+from .prompt_create import PROMPT_TYPE_CODE_MAP, get_prompting_strategy_type
 
 
 async def check_prompt_name_conflict(
@@ -39,7 +40,7 @@ async def check_prompt_name_conflict(
         .where(
             Strategy.name == name,
             Strategy.strategy_no != exclude_prompt_no,
-            StrategyType.name == strategy_type_name
+            StrategyType.name.in_(["prompting-system", "prompting-user"])
         )
     )
 
@@ -54,7 +55,8 @@ async def update_prompt(
     prompt_no_str: str,
     name: str,
     description: str,
-    content: str
+    content: str,
+    prompt_type: str | None = None
 ) -> Strategy:
     """
     프롬프트 수정
@@ -115,11 +117,25 @@ async def update_prompt(
     prompt.name = name
     prompt.description = description  # 요약 설명 (최대 255자)
 
-    # parameter JSON 업데이트 (type은 유지, content 업데이트)
     existing_type = prompt.parameter.get("type", "system") if prompt.parameter else "system"
+    target_type = prompt_type or existing_type
+
+    if target_type not in ("system", "user"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="지원하지 않는 프롬프트 유형입니다. (system, user만 허용)",
+        )
+
+    if prompt_type and target_type != existing_type:
+        strategy_type = await get_prompting_strategy_type(session, target_type)
+        prompt.strategy_type_no = strategy_type.strategy_type_no
+        prompt.strategy_type = strategy_type
+
+    prompt.code = PROMPT_TYPE_CODE_MAP[target_type]
+
     prompt.parameter = {
         "content": content,  # 실제 프롬프트 내용 (제한 없음)
-        "type": existing_type
+        "type": target_type
     }
 
     await session.commit()
