@@ -1,8 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from . import __version__, __title__, __description__
-from .config import settings
+from .core.settings import settings
+from .routers import router
 from datetime import datetime
+from .models.database import Base, engine
+from .core.openapi import custom_openapi
 
 app = FastAPI(
     title=__title__,
@@ -17,6 +20,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.openapi = lambda: custom_openapi(app)
+
+# 데이터베이스 테이블 생성
+Base.metadata.create_all(bind=engine)
+
+# Router 등록
+app.include_router(router)
 
 @app.get("/")
 async def root():
