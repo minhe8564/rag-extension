@@ -21,6 +21,8 @@ public class MonitoringUtils {
     public static final String CPU_STREAM_KEY = "monitoring:cpu:stream";
     public static final String MEMORY_STREAM_KEY = "monitoring:memory:stream";
     public static final String NETWORK_STREAM_KEY = "monitoring:network:stream";
+    public static final String ACTIVE_USER_STREAM_KEY = "active:user:stream";
+
     public static final double SQRT_TWO = Math.sqrt(2.0);
     public static final double BYTES_TO_GB_FACTOR = 1024.0 * 1024.0 * 1024.0;
     public static final double BYTES_TO_MBPS_FACTOR = 8.0 / (1024.0 * 1024.0);

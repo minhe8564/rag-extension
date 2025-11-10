@@ -130,9 +130,9 @@ public class GlobalExceptionHandler {
     protected ResponseEntity<BaseResponse<Object>> handleException(Exception e) {
         // 클라이언트 연결 종료 관련 예외는 이미 위에서 처리되었으므로 여기서는 건너뛰기
         if (e.getCause() instanceof ClientAbortException ||
-            e.getCause() instanceof java.io.IOException &&
+            (e.getCause() instanceof java.io.IOException &&
                 e.getCause().getMessage() != null &&
-                e.getCause().getMessage().contains("Connection reset by peer")) {
+                e.getCause().getMessage().contains("Connection reset by peer"))) {
             log.debug("Client disconnection detected in general handler: {}", e.getMessage());
             return null; // 응답을 반환하지 않음
         }

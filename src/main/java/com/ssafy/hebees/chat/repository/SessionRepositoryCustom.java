@@ -18,6 +18,8 @@ public interface SessionRepositoryCustom {
 
     List<Session> findCreatedBetween(LocalDateTime startInclusive, LocalDateTime endExclusive,
         int limit);
+
+    long countDistinctUserNosByLastRequestedAtAfter(LocalDateTime threshold);
 }
 
 
