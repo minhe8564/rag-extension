@@ -12,7 +12,10 @@ public record SessionUpdateRequest(
     String title,
 
     @Schema(description = "사용할 LLM 식별자", format = "uuid", example = "123e4567-e89b-12d3-a456-426614174000", nullable = true)
-    UUID llm
+    UUID llm,
+
+    @Schema(description = "사용할 LLM 이름", example = "GPT-4o", nullable = true)
+    String llmName
 ) {
 
     public SessionUpdateRequest {
