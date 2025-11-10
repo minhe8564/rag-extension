@@ -1,8 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from . import __version__, __title__, __description__
-from .config import settings
+from .core.settings import settings
 from datetime import datetime
+from .routers import ingest_router, query_router
+from .routers import docs_router
+from .core.database import Base, engine
+from .core.openapi import custom_openapi
 
 app = FastAPI(
     title=__title__,
@@ -17,6 +21,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+Base.metadata.create_all(bind=engine)
+
+app.include_router(ingest_router)
+app.include_router(query_router)
+app.include_router(docs_router)
+Base.metadata.create_all(bind=engine)
+
+# Apply custom OpenAPI schema
+app.openapi = lambda: custom_openapi(app)
 
 @app.get("/")
 async def root():
