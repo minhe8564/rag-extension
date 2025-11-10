@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ....core.database import get_db
 from ....core.schemas import BaseResponse, Result
 from ....core.auth.check_role import check_role
+from ....core.config import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from ..schemas.query import (
     QueryTemplateListItem,
     QueryTemplateDetailResponse,
@@ -67,7 +68,8 @@ router = APIRouter(prefix="/rag", tags=["RAG - Query Template Management"])
 )
 async def list_query_templates_endpoint(
     pageNum: int = Query(1, ge=1, description="페이지 번호"),
-    pageSize: int = Query(20, ge=1, le=100, description="페이지 크기"),
+    pageSize: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE, description="페이지 크기 (최대 100)"),
+    sort: str = Query("name", description="정렬 기준 (name, created_at)"),
     x_user_role: str = Depends(check_role("ADMIN")),
     session: AsyncSession = Depends(get_db),
 ):
@@ -301,7 +303,7 @@ async def get_query_template_endpoint(
         code="OK",
         message="Query 템플릿 상세 조회 성공",
         isSuccess=True,
-        result=detail
+        result=Result(data=detail)
     )
 
     return response

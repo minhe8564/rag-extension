@@ -168,7 +168,7 @@ async def create_ingest_template(
         생성된 Ingest 템플릿 ID (UUID 문자열)
 
     Raises:
-        HTTPException: 전략을 찾을 수 없는 경우
+        HTTPException: 전략을 찾을 수 없거나 유형이 일치하지 않는 경우
     """
     if not extractions:
         raise HTTPException(
@@ -327,7 +327,7 @@ async def get_ingest_template_detail(
         ingest_no: Ingest 템플릿 ID (UUID 문자열)
 
     Returns:
-        IngestGroup 객체 또는 None
+        IngestGroup 객체
 
     Raises:
         HTTPException: 템플릿을 찾을 수 없는 경우
@@ -390,7 +390,7 @@ async def update_ingest_template(
         수정된 IngestGroup 객체
 
     Raises:
-        HTTPException: 템플릿을 찾을 수 없거나 전략을 찾을 수 없는 경우
+        HTTPException: 템플릿을 찾을 수 없거나 전략을 찾을 수 없거나 유형이 일치하지 않는 경우
     """
     # 기존 템플릿 조회
     try:
@@ -582,9 +582,46 @@ async def update_ingest_template(
             )
             .values(is_default=False)
         )
-        ingest_group.is_default = True
-    else:
-        ingest_group.is_default = False
+
+    # IngestGroup 기본 정보 업데이트
+    ingest_group.name = name
+    ingest_group.chunking_strategy_no = chunking_strategy.strategy_no
+    ingest_group.chunking_parameter = build_strategy_parameters(
+        chunking_strategy,
+        chunking.get("parameters"),
+    )
+    ingest_group.is_default = is_default
+
+    # 기존 ExtractionGroup 삭제
+    for existing_ext in ingest_group.extraction_groups:
+        await session.delete(existing_ext)
+
+    # 기존 EmbeddingGroup 삭제
+    for existing_emb in ingest_group.embedding_groups:
+        await session.delete(existing_emb)
+
+    await session.flush()
+
+    # 새로운 ExtractionGroup 생성
+    for ext in extractions:
+        extraction_group = ExtractionGroup(
+            ingest_group_no=ingest_group.ingest_group_no,
+            name=ext.get("name", "추출 전략"),
+            extraction_strategy_no=uuid_to_binary(ext["no"]),
+            extraction_parameter=ext.get("parameters", {}),
+        )
+        session.add(extraction_group)
+
+    # 새로운 EmbeddingGroup 생성
+    embedding_payloads = [sparse_embedding, *dense_embeddings]
+    for emb in embedding_payloads:
+        embedding_group = EmbeddingGroup(
+            ingest_group_no=ingest_group.ingest_group_no,
+            name=emb.get("name", "임베딩 전략"),
+            embedding_strategy_no=uuid_to_binary(emb["no"]),
+            embedding_parameter=emb.get("parameters", {}),
+        )
+        session.add(embedding_group)
 
     await session.commit()
 

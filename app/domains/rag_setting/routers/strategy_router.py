@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ....core.database import get_db
 from ....core.schemas import BaseResponse, Result
 from ....core.auth.check_role import check_role
+from ....core.config import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from ..schemas.strategy import (
     StrategyListItem,
     StrategyDetailResponse,
@@ -39,6 +40,8 @@ router = APIRouter(
     tags=["RAG - Strategy Management"],
     dependencies=[Depends(check_role("ADMIN"))],
 )
+
+
 def _bytes_to_uuid_str(b: bytes) -> str:
     """UUID 바이너리를 문자열로 변환"""
     try:

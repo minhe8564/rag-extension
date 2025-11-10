@@ -16,19 +16,24 @@ from .prompt_create import PROMPT_TYPE_CODE_MAP, get_prompting_strategy_type
 async def check_prompt_name_conflict(
     session: AsyncSession,
     name: str,
-    exclude_prompt_no: bytes
+    exclude_prompt_no: bytes,
+    prompt_type: str
 ) -> bool:
     """
-    프롬프트 이름 중복 확인 (자기 자신 제외)
+    프롬프트 이름 중복 확인 (자기 자신 제외, 같은 타입 내에서만)
 
     Args:
         session: 데이터베이스 세션
         name: 프롬프트 이름
         exclude_prompt_no: 제외할 프롬프트 ID (자기 자신)
+        prompt_type: 프롬프트 유형 ('system' 또는 'user')
 
     Returns:
         중복 여부 (True: 중복 존재, False: 중복 없음)
     """
+    # 전략 유형 이름 생성
+    strategy_type_name = f"prompting-{prompt_type}"
+
     query = (
         select(Strategy)
         .join(Strategy.strategy_type)
@@ -98,8 +103,11 @@ async def update_prompt(
             detail="대상을 찾을 수 없습니다."
         )
 
-    # 2. 이름 중복 확인 (자기 자신 제외)
-    if await check_prompt_name_conflict(session, name, prompt_no_bytes):
+    # 현재 프롬프트 타입 확인
+    existing_type = prompt.parameter.get("type", "system") if prompt.parameter else "system"
+
+    # 2. 이름 중복 확인 (자기 자신 제외, 같은 타입 내에서만)
+    if await check_prompt_name_conflict(session, name, prompt_no_bytes, existing_type):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="동일한 이름의 프롬프트가 존재합니다."

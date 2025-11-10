@@ -35,6 +35,7 @@ async def list_prompts(
     total_count_window = func.count().over().label('total_count')
 
     # 서브쿼리: 필터링과 정렬을 적용한 기본 쿼리
+    # prompting-system과 prompting-user 모두 조회
     subquery = select(
         Strategy.strategy_no,
         Strategy.name,

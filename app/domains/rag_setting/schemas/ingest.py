@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from typing import Dict, Any, List, Optional
-from pydantic import BaseModel, Field
+import uuid
+from pydantic import BaseModel, Field, field_validator
 from .strategy import PaginationInfo
 
 
@@ -130,6 +131,16 @@ class IngestTemplateDetailResponse(BaseModel):
     chunking: StrategyDetail = Field(..., description="청킹 전략")
     denseEmbeddings: List[StrategyDetail] = Field(..., description="밀집 임베딩 전략 목록")
     sparseEmbedding: StrategyDetail = Field(..., description="희소 임베딩 전략")
+
+    @field_validator('ingestNo')
+    @classmethod
+    def validate_uuid(cls, v: str) -> str:
+        """UUID 형식 검증"""
+        try:
+            uuid.UUID(v)
+            return v
+        except (ValueError, AttributeError):
+            raise ValueError(f"올바르지 않은 UUID 형식입니다: {v}")
 
 
 class IngestTemplateUpdateRequest(BaseModel):

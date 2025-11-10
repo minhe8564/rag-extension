@@ -85,7 +85,7 @@ async def create_query_template_endpoint(
         response = BaseResponse[Dict[str, Any]](
             status=201,
             code="CREATED",
-            message="Query 템플릿 생성 성공",
+            message="Query 템플릿 생성에 성공하였습니다.",
             isSuccess=True,
             result={"queryNo": query_no}
         )

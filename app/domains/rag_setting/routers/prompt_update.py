@@ -75,6 +75,7 @@ async def update_prompt_endpoint(
         promptNo=str(uuid.UUID(bytes=updated_prompt.strategy_no)),
         name=updated_prompt.name,
         type=updated_prompt.parameter.get("type", "system") if updated_prompt.parameter else "system",
+        code=updated_prompt.code,
         description=updated_prompt.description,
         content=updated_prompt.parameter.get("content", "") if updated_prompt.parameter else ""
     )

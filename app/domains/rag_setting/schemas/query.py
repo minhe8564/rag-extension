@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from typing import Dict, Any, Optional, List
-from pydantic import BaseModel, Field, ConfigDict
+import uuid
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 from .strategy import PaginationInfo
 
 
@@ -13,6 +14,16 @@ class StrategyWithParameter(BaseModel):
         description="전략별 파라미터",
         json_schema_extra={"example": {}}
     )
+
+    @field_validator('no')
+    @classmethod
+    def validate_uuid(cls, v: str) -> str:
+        """UUID 형식 검증"""
+        try:
+            uuid.UUID(v)
+            return v
+        except (ValueError, AttributeError):
+            raise ValueError(f"올바르지 않은 UUID 형식입니다: {v}")
 
 
 class QueryTemplateCreateRequest(BaseModel):
@@ -98,6 +109,28 @@ class StrategyDetail(BaseModel):
     description: str = Field(..., description="전략 설명")
     parameters: Optional[Dict[str, Any]] = Field(None, description="전략 파라미터")
 
+    @classmethod
+    def from_strategy(cls, strategy, parameters: Optional[Dict[str, Any]] = None) -> "StrategyDetail":
+        """
+        Strategy 모델 객체로부터 StrategyDetail 생성
+
+        Args:
+            strategy: Strategy 모델 객체
+            parameters: 전략 파라미터 (없으면 빈 딕셔너리)
+
+        Returns:
+            StrategyDetail 인스턴스
+        """
+        from ..models.query_template import binary_to_uuid
+
+        return cls(
+            no=binary_to_uuid(strategy.strategy_no),
+            code=strategy.code,
+            name=strategy.name,
+            description=strategy.description or "",
+            parameters=parameters or {},
+        )
+
 
 class QueryTemplateDetailResponse(BaseModel):
     """Query 템플릿 상세 응답"""
@@ -110,6 +143,49 @@ class QueryTemplateDetailResponse(BaseModel):
     systemPrompt: StrategyDetail = Field(..., description="시스템 프롬프트 전략")
     userPrompt: StrategyDetail = Field(..., description="사용자 프롬프트 전략")
     generation: StrategyDetail = Field(..., description="생성 전략")
+
+    @classmethod
+    def from_query_group(cls, query_group) -> "QueryTemplateDetailResponse":
+        """
+        QueryGroup 모델 객체로부터 QueryTemplateDetailResponse 생성
+
+        Args:
+            query_group: QueryGroup 모델 객체
+
+        Returns:
+            QueryTemplateDetailResponse 인스턴스
+        """
+        from ..models.query_template import binary_to_uuid
+
+        return cls(
+            queryNo=binary_to_uuid(query_group.query_group_no),
+            name=query_group.name,
+            isDefault=query_group.is_default,
+            transformation=StrategyDetail.from_strategy(
+                query_group.transformation_strategy,
+                query_group.transformation_parameter
+            ),
+            retrieval=StrategyDetail.from_strategy(
+                query_group.retrieval_strategy,
+                query_group.retrieval_parameter
+            ),
+            reranking=StrategyDetail.from_strategy(
+                query_group.reranking_strategy,
+                query_group.reranking_parameter
+            ),
+            systemPrompt=StrategyDetail.from_strategy(
+                query_group.system_prompting_strategy,
+                query_group.system_prompting_parameter
+            ),
+            userPrompt=StrategyDetail.from_strategy(
+                query_group.user_prompting_strategy,
+                query_group.user_prompting_parameter
+            ),
+            generation=StrategyDetail.from_strategy(
+                query_group.generation_strategy,
+                query_group.generation_parameter
+            ),
+        )
 
 
 class QueryTemplateUpdateRequest(BaseModel):

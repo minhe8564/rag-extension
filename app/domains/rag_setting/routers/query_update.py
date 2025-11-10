@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....core.database import get_db
-from ....core.schemas import BaseResponse
+from ....core.schemas import BaseResponse, Result
 from ....core.auth.check_role import check_role
 from ..schemas.query import (
     QueryTemplateUpdateRequest,
@@ -65,7 +65,7 @@ async def update_query_template_endpoint(
     """
     try:
         # Query 템플릿 수정
-        await update_query_template(
+        updated_query_group = await update_query_template(
             session=session,
             query_no=queryNo,
             name=request.name,
@@ -81,16 +81,19 @@ async def update_query_template_endpoint(
             user_prompt_parameters=request.userPrompt.parameters or {},
             generation_no=request.generation.no,
             generation_parameters=request.generation.parameters or {},
-            is_default=request.isDefault,
+            is_default=request.isDefault if hasattr(request, 'isDefault') else None,
         )
+
+        # 수정된 결과를 응답 스키마로 변환 (스키마 메서드 사용)
+        detail = QueryTemplateDetailResponse.from_query_group(updated_query_group)
 
         # 응답 생성
         response = BaseResponse[QueryTemplateDetailResponse](
             status=200,
             code="OK",
-            message="성공",
+            message="Query 템플릿 수정에 성공하였습니다.",
             isSuccess=True,
-            result={}
+            result=Result(data=detail)
         )
 
         return response

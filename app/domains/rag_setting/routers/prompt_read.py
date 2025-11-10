@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ....core.database import get_db
 from ....core.schemas import BaseResponse, Result
 from ....core.auth.check_role import check_role
+from ....core.config import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from ..schemas.prompt import PromptListItem, PaginationInfo, PromptDetailResponse
 from ..services.prompt_read import list_prompts, get_prompt_by_no
 
@@ -127,7 +128,7 @@ async def get_prompts(
     return BaseResponse[Dict[str, Any]](
         status=200,
         code="OK",
-        message="성공",
+        message="프롬프트 목록 조회에 성공하였습니다.",
         isSuccess=True,
         result={"data": items, "pagination": pagination}
     )
@@ -203,7 +204,7 @@ async def get_prompt_detail(
     return BaseResponse[PromptDetailResponse](
         status=200,
         code="OK",
-        message="성공",
+        message="프롬프트 상세 조회에 성공하였습니다.",
         isSuccess=True,
         result=detail
     )
