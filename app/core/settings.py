@@ -16,31 +16,36 @@ class Settings(BaseSettings):
         return [origin.strip() for origin in self.allowed_origins.split(",")]
 
     # Milvus 설정
-    milvus_host: str
+    milvus_host: str = "milvus-standalone"
     milvus_port: int = 19530
 
     # Gateway 설정
-    gateway_url: str
+    # (게이트웨이 컨테이너 서비스명과 포트 기준)
+    # 실제 런타임에서는 환경변수로 재정의 가능
+    # docker-compose: GATEWAY_URL=http://fastapi-gateway:8000
+    # 아래 기본값으로 설정
+    # 중복 정의 방지를 위해 gateway_url은 아래 '서비스 URL' 섹션의 기본값을 사용합니다.
 
     # Database 설정
-    db_host: str
+    db_host: str = "database-mysql"
     db_port: int = 3306
-    db_username: str
-    db_password: str
+    db_username: str = "s407test"
+    db_password: str = "q1w2e3r4"
 
     @property
     def database_url(self) -> str:
         return f"mysql+aiomysql://{self.db_username}:{self.db_password}@{self.db_host}:{self.db_port}/hebees-test"
 
     # Redis 설정
-    redis_host: str
-    redis_port: int = 16379
+    redis_host: str = "database-redis"
+    redis_port: int = 6379
     redis_username: Optional[str] = None
-    redis_password: Optional[str] = None
+    redis_password: Optional[str] = "1q2w3e4r"
     redis_db: int = 1
 
     # Gateway 및 내부 서비스 URL (서비스 간 직접 통신용)
     gateway_url: str = "http://rag-extension-gw:8000"
+
     extract_service_url: str = "http://hebees-extract:8000"
     chunking_service_url: str = "http://hebees-chunking:8000"
     embedding_service_url: str = "http://hebees-embedding:8000"
