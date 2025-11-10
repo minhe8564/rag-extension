@@ -61,7 +61,7 @@ class Settings(BaseSettings):
         return self.minio_endpoint_url
 
     # External APIs
-    ingest_process_url: str = "https://gateway.ragextension.shop/rag/ingest/process"
+    ingest_process_url: str = "http://hebees-ingest:8000/process"
     ingest_delete_url: str = ""  # optional: vector cleanup endpoint
 
     # Milvus settings (direct access)

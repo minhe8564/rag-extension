@@ -12,7 +12,7 @@ from app.domains.file.schemas.response.upload_files import UploadBatchMeta
 logger = logging.getLogger(__name__)
 
 
-async def call_ingest(*, user_role: str, batch_meta: UploadBatchMeta) -> None:
+async def call_ingest(user_role: str, user_uuid: str, batch_meta: UploadBatchMeta) -> None:
     """Call external ingest API with the uploaded files metadata.
 
     Non-blocking usage is recommended via FastAPI BackgroundTasks.
@@ -32,7 +32,8 @@ async def call_ingest(*, user_role: str, batch_meta: UploadBatchMeta) -> None:
         ],
     }
 
-    url = getattr(settings, "ingest_process_url", None) or "https://gateway.ragextension.shop/rag/ingest/process"
+    # 내부 Container 이름으로 호출
+    url = getattr(settings, "ingest_process_url", None) or "http://hebees-ingest:8000/process"
     timeout = httpx.Timeout(20.0, connect=5.0)
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
