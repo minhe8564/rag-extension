@@ -61,13 +61,27 @@ class IngestGroup(Base):
     chunking_strategy_no = Column(
         "CHUNKING_STRATEGY_NO",
         LargeBinary(16),
-        ForeignKey("STRATEGY.STRATEGY_NO", ondelete="CASCADE"),
+        ForeignKey("STRATEGY.STRATEGY_NO", ondelete="RESTRICT"),
         nullable=False,
         index=True,
     )
 
     chunking_parameter = Column(
         "CHUNKING_PARAMETER",
+        JSON,
+        nullable=False,
+    )
+
+    sparse_embedding_strategy_no = Column(
+        "SPARSE_EMBEDDING_STRATEGY_NO",
+        LargeBinary(16),
+        ForeignKey("STRATEGY.STRATEGY_NO", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+
+    sparse_embedding_parameter = Column(
+        "SPARSE_EMBEDDING_PARAMETER",
         JSON,
         nullable=False,
     )
@@ -90,6 +104,12 @@ class IngestGroup(Base):
     chunking_strategy = relationship(
         "Strategy",
         foreign_keys=[chunking_strategy_no],
+        lazy="selectin",
+    )
+
+    sparse_embedding_strategy = relationship(
+        "Strategy",
+        foreign_keys=[sparse_embedding_strategy_no],
         lazy="selectin",
     )
 
@@ -127,7 +147,7 @@ class ExtractionGroup(Base):
     ingest_group_no = Column(
         "INGEST_GROUP_NO",
         LargeBinary(16),
-        ForeignKey("INGEST_GROUP.INGEST_GROUP_NO", ondelete="CASCADE"),
+        ForeignKey("INGEST_GROUP.INGEST_GROUP_NO", ondelete="RESTRICT"),
         nullable=False,
         index=True,
     )
@@ -141,7 +161,7 @@ class ExtractionGroup(Base):
     extraction_strategy_no = Column(
         "EXTRACTION_STRATEGY_NO",
         LargeBinary(16),
-        ForeignKey("STRATEGY.STRATEGY_NO", ondelete="CASCADE"),
+        ForeignKey("STRATEGY.STRATEGY_NO", ondelete="RESTRICT"),
         nullable=False,
         index=True,
     )
@@ -199,7 +219,7 @@ class EmbeddingGroup(Base):
     ingest_group_no = Column(
         "INGEST_GROUP_NO",
         LargeBinary(16),
-        ForeignKey("INGEST_GROUP.INGEST_GROUP_NO", ondelete="CASCADE"),
+        ForeignKey("INGEST_GROUP.INGEST_GROUP_NO", ondelete="RESTRICT"),
         nullable=False,
         index=True,
     )
@@ -213,7 +233,7 @@ class EmbeddingGroup(Base):
     embedding_strategy_no = Column(
         "EMBEDDING_STRATEGY_NO",
         LargeBinary(16),
-        ForeignKey("STRATEGY.STRATEGY_NO", ondelete="CASCADE"),
+        ForeignKey("STRATEGY.STRATEGY_NO", ondelete="RESTRICT"),
         nullable=False,
         index=True,
     )

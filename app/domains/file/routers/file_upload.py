@@ -68,5 +68,9 @@ async def upload_file(
         code="CREATED",
         message="업로드 완료",
         isSuccess=True,
-        result={"data": FileUploadBatchResult(fileNos=file_nos)},
+        result={
+            "data": FileUploadBatchResult(
+                fileNos=file_nos,
+            )
+        },
     )
