@@ -46,6 +46,7 @@ async def list_test_files(
             description=row.description,
             bucket=row.bucket,
             path=row.path,
+            status=row.status,
             createdAt=row.created_at,
         )
         for row in rows

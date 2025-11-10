@@ -35,6 +35,7 @@ class TestFile(Base):
     description = Column("DESCRIPTION", Text, nullable=False)
     bucket = Column("BUCKET", String(255), nullable=False)
     path = Column("PATH", String(255), nullable=False)
+    status = Column("STATUS", String(20), nullable=False, default="PENDING", server_default="PENDING", index=True)
 
     created_at = Column(
         "CREATED_AT",
