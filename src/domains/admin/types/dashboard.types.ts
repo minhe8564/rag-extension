@@ -1,5 +1,15 @@
-export type TotalCount = {
-  total: number;
+export type TotalUserType = {
+  totalUser: number;
+  asOf: string;
+};
+
+export type TotalDocsType = {
+  totalDocs: number;
+  asOf: string;
+};
+
+export type TotalErrorsType = {
+  totalErrors: number;
   asOf: string;
 };
 
@@ -26,9 +36,9 @@ export type TrendGroup = {
 };
 
 export type TotalGroup = {
-  user: TotalCount;
-  document: TotalCount;
-  error: TotalCount;
+  user: TotalUserType;
+  document: TotalDocsType;
+  error: TotalErrorsType;
 };
 
 export type CurrentGroup = {

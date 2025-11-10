@@ -136,11 +136,12 @@ export default function NumberBoard() {
         getTotalDocumentCount(),
         getTotalErrorCount(),
       ]);
+      console.log(totalUserData, totalDocumentData, totalErrorData);
 
       const normalziedTotalUserData = {
-        user: { total: totalUserData.total, asOf: totalUserData.asOf },
-        document: { total: totalDocumentData.total, asOf: totalDocumentData.asOf },
-        error: { total: totalErrorData.total, asOf: totalErrorData.asOf },
+        user: { totalUser: totalUserData.totalUser, asOf: totalUserData.asOf },
+        document: { totalDocs: totalDocumentData.totalDocs, asOf: totalDocumentData.asOf },
+        error: { totalErrors: totalErrorData.totalErrors, asOf: totalErrorData.asOf },
       };
       setTotalData(normalziedTotalUserData);
     };
@@ -193,7 +194,7 @@ export default function NumberBoard() {
 
     // TOTAL 수는 API에서 가져온 데이터 사용
     const totalCount = total?.total ?? 999;
-
+    // console.log(totalData)
     // 하루 전 대비 수는 API에서 가져온 데이터로 계산
     const deltaValue =
       trend?.deltaPct !== undefined ? Number((trend.deltaPct * 100).toFixed(2)) : 999;
