@@ -1,5 +1,6 @@
 package com.ssafy.hebees.dashboard.controller;
 
+import com.ssafy.hebees.dashboard.service.AnalyticsExpenseStreamService;
 import com.ssafy.hebees.common.response.BaseResponse;
 import com.ssafy.hebees.dashboard.dto.request.ErrorMetricIncrementRequest;
 import com.ssafy.hebees.dashboard.dto.request.MetricIncrementRequest;
@@ -49,6 +50,7 @@ public class DashboardController {
 
     private final DashboardService dashboardService;
     private final DashboardMetricStreamService dashboardMetricStreamService;
+    private final AnalyticsExpenseStreamService analyticsExpenseStreamService;
 
     @GetMapping("/metrics/access-users/change-24h")
     @Operation(summary = "접속자 수 24시간 변화 조회",
@@ -155,6 +157,18 @@ public class DashboardController {
         @RequestHeader(name = "Last-Event-ID", required = false) String lastEventId
     ) {
         return dashboardMetricStreamService.subscribeErrors(lastEventId);
+    }
+
+    @GetMapping(value = "/metrics/expense/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @Operation(summary = "모델 비용 SSE 스트림",
+        description = "모델별 토큰 비용 누적 현황을 SSE로 스트리밍합니다. 초기 스냅샷과 이후 변경사항이 전송됩니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "SSE 연결 성공")
+    })
+    public SseEmitter subscribeExpenseStream(
+        @RequestHeader(name = "Last-Event-ID", required = false) String lastEventId
+    ) {
+        return analyticsExpenseStreamService.subscribeExpenseStream(lastEventId);
     }
 
     @PostMapping("/metrics/access-users/increment")

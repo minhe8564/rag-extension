@@ -49,4 +49,3 @@ public class KeywordAggregateDaily extends BaseEntity {
         this.frequency = current + amount;
     }
 }
-

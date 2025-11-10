@@ -12,4 +12,3 @@ public record RunpodChatRequest(
         return new RunpodChatRequest(model, messages, false);
     }
 }
-
