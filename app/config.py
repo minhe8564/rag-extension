@@ -6,7 +6,7 @@ BASE_DIR = Path(__file__).parent.parent
 
 
 class Settings(BaseSettings):
-    app_name: str = "HEBEES Ingest Service"
+    app_name: str = "HEBEES RAG Orchestrator Service"
     host: str = "0.0.0.0"
     port: int = 8000
 
@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     # Logging
     logging_level: str = "INFO"
     log_file_enabled: bool = False
-    log_file_path: str = "/var/log/hebees/ingest.log"
+    log_file_path: str = "/var/log/hebees/RAG_Orchestrator.log"
     log_file_max_bytes: int = 10_485_760  # 10MB
     log_file_backup_count: int = 5
 
