@@ -35,7 +35,7 @@ app.openapi = lambda: custom_openapi(app)
 @app.get("/")
 async def root():
     return {
-        "message": "Hebees Ingest Service is running"
+        "message": "Hebees RAG Orchestrator Service is running"
     }
 
 @app.get("/health")

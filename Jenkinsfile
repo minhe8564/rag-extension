@@ -6,15 +6,15 @@ pipeline {
     }
 
     parameters {
-        booleanParam(name: 'BUILD_INGEST', defaultValue: true, description: 'Ingest Service를 수동으로 빌드하고 배포하려면 체크하세요.')
+        booleanParam(name: 'BUILD_RAG_ORCHESTRATOR', defaultValue: true, description: 'RAG Orchestrator Service를 수동으로 빌드하고 배포하려면 체크하세요.')
         string(name: 'BRANCH_TO_BUILD', defaultValue: 'develop', description: '수동 빌드 시 기준 브랜치를 선택하세요 (develop 또는 main).')
         booleanParam(name: 'CLEANUP_ONLY', defaultValue: false, description: '오래된 컨테이너/이미지 정리만 수행')
     }
 
     environment {
         // Image & Container
-        INGEST_IMAGE_NAME = "hebees/ingest"
-        INGEST_CONTAINER  = "hebees-ingest"
+        RAG_ORCHESTRATOR_IMAGE_NAME = "hebees/rag-orchestrator"
+        RAG_ORCHESTRATOR_CONTAINER  = "hebees-rag-orchestrator"
 
         // Networks
         APP_NETWORK_TEST = "app-network-test"
@@ -34,7 +34,7 @@ pipeline {
             when {
                 anyOf {
                     expression { env.GITLAB_OBJECT_KIND == 'push' }
-                    expression { params.BUILD_INGEST == true }
+                    expression { params.BUILD_RAG_ORCHESTRATOR == true }
                 }
             }
             steps {
@@ -56,7 +56,7 @@ pipeline {
             when {
                 anyOf {
                     expression { env.GITLAB_OBJECT_KIND == 'push' }
-                    expression { params.BUILD_INGEST == true }
+                    expression { params.BUILD_RAG_ORCHESTRATOR == true }
                 }
             }
             steps {
@@ -70,7 +70,7 @@ pipeline {
             when {
                 anyOf {
                     expression { env.GITLAB_OBJECT_KIND == 'push' }
-                    expression { params.BUILD_INGEST == true }
+                    expression { params.BUILD_RAG_ORCHESTRATOR == true }
                 }
             }
             steps {
@@ -86,12 +86,12 @@ pipeline {
                     if (!branch) { error '[Build Docker Image] 브랜치가 비어 있습니다.' }
                     echo "빌드 대상 브랜치: ${branch}"
 
-                    def tag = "${INGEST_IMAGE_NAME}:${env.BUILD_NUMBER}"
+                    def tag = "${RAG_ORCHESTRATOR_IMAGE_NAME}:${env.BUILD_NUMBER}"
                     sh """
                     set -eux
                     docker build -t ${tag} .
                     """
-                    env.INGEST_BUILD_TAG = tag
+                    env.RAG_ORCHESTRATOR_BUILD_TAG = tag
                 }
             }
         }
@@ -100,26 +100,26 @@ pipeline {
             when {
                 anyOf {
                     expression { env.GITLAB_OBJECT_KIND == 'push' }
-                    expression { params.BUILD_INGEST == true }
+                    expression { params.BUILD_RAG_ORCHESTRATOR == true }
                 }
             }
             steps {
-                withCredentials([file(credentialsId: 'ingest-repo.env', variable: 'INGEST_ENV_FILE')]) {
+                withCredentials([file(credentialsId: 'RAG_Orchestrator-repo.env', variable: 'RAG_ORCHESTRATOR_ENV_FILE')]) {
                     sh '''
                     set -eux
                     # 기존 컨테이너 종료/삭제
-                    docker stop "$INGEST_CONTAINER" || true
-                    docker rm "$INGEST_CONTAINER" || true
+                    docker stop "$RAG_ORCHESTRATOR_CONTAINER" || true
+                    docker rm "$RAG_ORCHESTRATOR_CONTAINER" || true
 
                     # 컨테이너 실행: --env-file로 환경 변수 주입
                     docker run -d \
-                        --name "$INGEST_CONTAINER" \
+                        --name "$RAG_ORCHESTRATOR_CONTAINER" \
                         --restart unless-stopped \
                         --network "$APP_NETWORK_TEST" \
                         --network "$APP_NETWORK_PROD" \
                         --network "$DB_NETWORK" \
-                        --env-file "$INGEST_ENV_FILE" \
-                        "$INGEST_BUILD_TAG"
+                        --env-file "$RAG_ORCHESTRATOR_ENV_FILE" \
+                        "$RAG_ORCHESTRATOR_BUILD_TAG"
                     '''
                 }
             }
@@ -129,7 +129,7 @@ pipeline {
             when {
                 anyOf {
                     expression { env.GITLAB_OBJECT_KIND == 'push' }
-                    expression { params.BUILD_INGEST == true }
+                    expression { params.BUILD_RAG_ORCHESTRATOR == true }
                 }
             }
             steps {
@@ -139,12 +139,12 @@ pipeline {
                     for (int i = 0; i < maxRetries; i++) {
                         def status = sh(script: '''
                             docker run --rm --network "$APP_NETWORK_TEST" curlimages/curl:8.8.0 \
-                                -fsS http://$INGEST_CONTAINER:8000/health >/dev/null
+                                -fsS http://$RAG_ORCHESTRATOR_CONTAINER:8000/health >/dev/null
                         ''', returnStatus: true)
                         if (status == 0) { ok = true; break }
                         sleep 2
                     }
-                    if (!ok) { error "Health check failed for ${INGEST_CONTAINER}" }
+                    if (!ok) { error "Health check failed for ${RAG_ORCHESTRATOR_CONTAINER}" }
                 }
             }
         }
@@ -230,6 +230,9 @@ def sendMMNotify(boolean success, Map info) {
     if (info.commit?.msg) {
         def commitLine = info.commit?.url ? "[${info.commit.msg}](${info.commit.url})" : info.commit.msg
         lines << "**커밋**: ${commitLine}"
+    }
+    if (info.buildUrl) {
+        lines << "**빌드 상세**: [Details](${info.buildUrl})"
     }
     if (!success && info.details) {
         lines << "**에러 로그**:\n${info.details}"
