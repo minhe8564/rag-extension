@@ -53,6 +53,7 @@ async def list_files_by_offer(
                 type=row.type,
                 bucket=row.bucket,
                 path=row.path,
+                status=row.status,
                 categoryNo=_bytes_to_uuid_str(row.file_category_no),
                 collectionNo=_bytes_to_uuid_str(row.collection_no) if row.collection_no else None,
                 createdAt=row.created_at,

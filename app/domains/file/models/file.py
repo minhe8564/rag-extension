@@ -42,6 +42,7 @@ class File(Base):
     # Storage Information
     bucket = Column("BUCKET", String(255), nullable=False)
     path = Column("PATH", String(500), nullable=False)
+    status = Column("STATUS", String(20), nullable=False, default="PENDING", server_default="PENDING", index=True)
     
     # Foreign Keys
     file_category_no = Column(

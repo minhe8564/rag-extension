@@ -13,7 +13,7 @@ class FileListItem(BaseModel):
     type: str
     bucket: str
     path: str
+    status: str
     categoryNo: str
     collectionNo: Optional[str] = None
     createdAt: datetime
-
