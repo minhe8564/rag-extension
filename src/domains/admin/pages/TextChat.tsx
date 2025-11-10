@@ -31,8 +31,11 @@ const deriveSessionNo = (
   return legacy?.[1] ?? null;
 };
 
+const DEFAULT_MODEL = 'qwen3-v1:8b';
+
 const setGlobalModel = (model: string) => {
-  localStorage.setItem('global-chat-model', model);
+  const value = model?.trim() || DEFAULT_MODEL;
+  localStorage.setItem('global-chat-model', value);
 };
 
 export default function TextChat() {
