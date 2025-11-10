@@ -83,7 +83,8 @@ export default function UploadedFileList({
     const byRecent = (a: UploadedDoc, b: UploadedDoc) =>
       (new Date(b.uploadedAt || 0).getTime() || 0) - (new Date(a.uploadedAt || 0).getTime() || 0);
 
-    for (const [k, arr] of map) arr.sort(byRecent);
+    map.forEach((arr) => arr.sort(byRecent));
+
     return map;
   }, [filtered]);
 
