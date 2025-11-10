@@ -1,14 +1,17 @@
 package com.ssafy.hebees.user.service;
 
+import com.ssafy.hebees.common.response.BaseResponse;
 import com.ssafy.hebees.common.util.MonitoringUtils;
 import com.ssafy.hebees.common.util.RedisStreamUtils;
 import com.ssafy.hebees.monitoring.service.ActiveUserService;
+import com.ssafy.hebees.user.dto.response.ActiveUserCountResponse;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.connection.stream.MapRecord;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -104,10 +107,16 @@ public class ActiveUserStreamServiceImpl implements ActiveUserStreamService {
 
     private void sendDataEvent(SseEmitter emitter, String eventName, long count) {
         try {
+            // DTO 생성
+            ActiveUserCountResponse response = ActiveUserCountResponse.of(count);
+
+            // BaseResponse로 감싸서 전송
+            BaseResponse<ActiveUserCountResponse> baseResponse = BaseResponse.success(response);
+
             emitter.send(SseEmitter.event()
                 .id(Long.toString(count))
                 .name(eventName)
-                .data(count));
+                .data(baseResponse));  // BaseResponse 객체 → JSON으로 직렬화됨
         } catch (Exception e) {
             log.debug("SSE send failed: {}", e.getMessage());
             removeEmitter(emitter);
