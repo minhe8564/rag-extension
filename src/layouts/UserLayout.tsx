@@ -184,7 +184,7 @@ export default function UserLayout() {
           />
         </div>
         <div className="flex flex-col w-full gap-3 px-8">
-          <Outlet />
+          <Outlet key={pathname + location.search} />
         </div>
       </main>
 
