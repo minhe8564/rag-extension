@@ -25,7 +25,3 @@ public record SessionUpdateRequest(
         }
     }
 }
-
-
-
-

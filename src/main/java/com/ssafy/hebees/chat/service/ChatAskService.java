@@ -7,4 +7,3 @@ public interface ChatAskService {
 
     AskResponse ask(UUID userNo, UUID sessionNo, String question);
 }
-

@@ -22,7 +22,3 @@ public record SessionCreateRequest(
 
     public static final String DEFAULT_TITLE = "새 채팅";
 }
-
-
-
-

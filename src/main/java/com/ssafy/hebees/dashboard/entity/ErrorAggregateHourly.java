@@ -71,4 +71,3 @@ public class ErrorAggregateHourly extends BaseEntity {
         return Math.max(total, 0L);
     }
 }
-

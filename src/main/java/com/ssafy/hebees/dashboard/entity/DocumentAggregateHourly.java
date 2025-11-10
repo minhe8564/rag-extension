@@ -45,4 +45,3 @@ public class DocumentAggregateHourly extends BaseEntity {
         return uploadCount;
     }
 }
-

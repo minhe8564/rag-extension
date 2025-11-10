@@ -16,5 +16,3 @@ public interface DashboardMetricStreamService {
 
     long incrementCurrentErrors(long systemDelta, long responseDelta);
 }
-
-
