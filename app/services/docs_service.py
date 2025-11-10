@@ -24,11 +24,7 @@ async def proxy_docs_request(
     
     # OpenAPI JSON 요청
     if is_openapi:
-        # 우선 전달된 경로가 있으면 그것을 사용 (예: /service-docs/{service}/openapi.json → ingest 경유)
-        if decoded_path:
-            target_url = f"{service_url}{decoded_path}"
-        else:
-            target_url = f"{service_url}/openapi.json"
+        target_url = f"{service_url}/openapi.json"
     else:
         target_url = f"{service_url}{decoded_path}"
     
@@ -74,10 +70,42 @@ async def proxy_docs_request(
             response_headers.pop("transfer-encoding", None)
             response_headers.pop("content-length", None)
             
-            # Swagger UI HTML은 원본 그대로 반환 (ingest/백엔드가 완성한 HTML 유지)
+            # Swagger UI HTML인 경우 base URL 수정
             content_type_header = response.headers.get("content-type", "")
             if "text/html" in content_type_header:
-                return HTMLResponse(content=response.text, headers=response_headers)
+                content = response.text
+                
+                # 절대 경로 교체
+                content = content.replace(
+                    f'{service_url}/openapi.json',
+                    f'/service-docs/be/openapi.json'
+                )
+                
+                # 상대 경로 교체 (★ 이게 중요)
+                content = content.replace(
+                    '"/openapi.json"',
+                    f'"/service-docs/be/openapi.json"'
+                )
+                content = content.replace(
+                    "'/openapi.json'",
+                    f"'/service-docs/be/openapi.json'"
+                )
+                content = content.replace(
+                    'url: "/openapi.json"',
+                    f'url: "/service-docs/be/openapi.json"'
+                )
+                content = content.replace(
+                    "url: '/openapi.json'",
+                    f"url: '/service-docs/be/openapi.json'"
+                )
+                
+                # OAuth redirect URL도 안전하게 변경
+                content = content.replace(
+                    "/docs/oauth2-redirect",
+                    f"/service-docs/be/docs/oauth2-redirect"
+                )
+                
+                return HTMLResponse(content=content, headers=response_headers)
             
             # JSON 응답인 경우 OpenAPI 스펙의 servers URL 수정
             content_type = response.headers.get("content-type", "")
@@ -109,6 +137,7 @@ async def proxy_docs_request(
         raise HTTPException(status_code=503, detail="Python Backend is unavailable")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Proxy error: {str(e)}")
+
 
 
 async def proxy_service_docs(
@@ -196,11 +225,11 @@ async def proxy_service_docs(
                     content = content.replace('url: "/service-docs/', 'url: "/rag/service-docs/')
                     content = content.replace("url: '/service-docs/", "url: '/rag/service-docs/")
                 else:
-                    # 절대 ingest URL로 매핑: {ingest_url}/service-docs/{service}/openapi.json
-                    content = content.replace('"/service-docs/', f'"{service_url}/service-docs/')
-                    content = content.replace("'/service-docs/", f"'{service_url}/service-docs/")
-                    content = content.replace('url: "/service-docs/', f'url: "{service_url}/service-docs/')
-                    content = content.replace("url: '/service-docs/", f"url: '{service_url}/service-docs/")
+                    # 절대 ingest URL을 게이트웨이 공개 경로로 축약: {ingest_url}/service-docs/* -> /service-docs/*
+                    content = content.replace(f'"{service_url}/service-docs/', '"/service-docs/')
+                    content = content.replace(f"'{service_url}/service-docs/", "'/service-docs/")
+                    content = content.replace(f'url: "{service_url}/service-docs/', 'url: "/service-docs/')
+                    content = content.replace(f"url: '{service_url}/service-docs/", "url: '/service-docs/")
                 # OAuth redirect URL도 공개 경로 기준으로 변경
                 content = content.replace(
                     "/docs/oauth2-redirect",
