@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends, File as FFile, UploadFile, Request, HTTPException, status, BackgroundTasks
 from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
+import logging
 
 from app.core.database import get_db
 from app.core.schemas import BaseResponse
@@ -13,6 +14,8 @@ from ..services.upload import upload_files as upload_files_service
 
 
 router = APIRouter(prefix="/files", tags=["File"])
+
+logger = logging.getLogger(__name__)
 
 
 @router.post("", response_model=BaseResponse[FileUploadBatchResult], status_code=201)
@@ -45,23 +48,35 @@ async def upload_file(
         content = await f.read()
         files_payload.append((content, f.filename or "uploaded", f.content_type))
 
-    batch_meta, file_nos = await upload_files_service(
-        session,
-        files=files_payload,
-        user_no=x_user_uuid,
-        category_no=request.category,
-        on_name_conflict=request.onNameConflict,
-        bucket=effective_bucket,
-        collection_no=effective_collection,
-        user_role=role_upper,
-    )
-
-    if background_tasks is not None:
-        background_tasks.add_task(
-            call_ingest,
+    # Persist and upload files; errors here should fail the request
+    try:
+        batch_meta, file_nos = await upload_files_service(
+            session,
+            files=files_payload,
+            user_no=x_user_uuid,
+            category_no=request.category,
+            on_name_conflict=request.onNameConflict,
+            bucket=effective_bucket,
+            collection_no=effective_collection,
             user_role=role_upper,
-            batch_meta=batch_meta,
         )
+    except HTTPException:
+        logger.exception("Upload failed with HTTPException")
+        raise
+    except Exception:
+        logger.exception("Unexpected error during file upload")
+        raise
+
+    # Best-effort: background ingest task registration should not fail the request
+    if background_tasks is not None:
+        try:
+            background_tasks.add_task(
+                call_ingest,
+                user_role=role_upper,
+                batch_meta=batch_meta,
+            )
+        except Exception:
+            logger.exception("Failed to register background ingest task")
 
     return BaseResponse[FileUploadBatchResult](
         status=201,
