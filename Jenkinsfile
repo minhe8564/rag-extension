@@ -61,6 +61,7 @@ def deployToInactiveEnvironment(environment, credentials, inactiveContainer, net
             --env JWT_SECRET=\$JWT_SECRET \\
             --env JWT_ACCESS_TOKEN_EXPIRATION=\$JWT_ACCESS_EXPIRATION \\
             --env JWT_REFRESH_TOKEN_EXPIRATION=\$JWT_REFRESH_EXPIRATION \\
+            --env RUNPOD_API_KEY=\$RUNPOD_API_KEY \\
             ${tag}
         """
     }
@@ -309,7 +310,8 @@ pipeline {
                             string(credentialsId: 'backend.mongodb.password', variable: 'MONGODB_PASSWORD'),
                             string(credentialsId: 'backend.jwt.secret.test', variable: 'JWT_SECRET'),
                             string(credentialsId: 'backend.jwt.access.expiration', variable: 'JWT_ACCESS_EXPIRATION'),
-                            string(credentialsId: 'backend.jwt.refresh.expiration', variable: 'JWT_REFRESH_EXPIRATION')
+                            string(credentialsId: 'backend.jwt.refresh.expiration', variable: 'JWT_REFRESH_EXPIRATION'),
+                            string(credentialsId: 'RUNPOD_API_KEY', variable: 'RUNPOD_API_KEY')
                         ]
                         
                         // 현재 활성 컨테이너 확인
@@ -338,7 +340,8 @@ pipeline {
                             string(credentialsId: 'backend.mongodb.password', variable: 'MONGODB_PASSWORD'),
                             string(credentialsId: 'backend.jwt.secret.prod', variable: 'JWT_SECRET'),
                             string(credentialsId: 'backend.jwt.access.expiration', variable: 'JWT_ACCESS_EXPIRATION'),
-                            string(credentialsId: 'backend.jwt.refresh.expiration', variable: 'JWT_REFRESH_EXPIRATION')
+                            string(credentialsId: 'backend.jwt.refresh.expiration', variable: 'JWT_REFRESH_EXPIRATION'),
+                            string(credentialsId: 'RUNPOD_API_KEY', variable: 'RUNPOD_API_KEY')
                         ]
                         
                         // 현재 활성 컨테이너 확인
