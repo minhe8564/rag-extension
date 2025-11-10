@@ -8,7 +8,6 @@ import com.ssafy.hebees.chat.dto.response.SessionHistoryResponse;
 import com.ssafy.hebees.chat.dto.response.SessionResponse;
 import com.ssafy.hebees.common.dto.PageRequest;
 import com.ssafy.hebees.common.dto.PageResponse;
-
 import java.util.UUID;
 
 public interface ChatService {
@@ -25,6 +24,8 @@ public interface ChatService {
     SessionResponse getSession(UUID userNo, UUID sessionNo);
 
     SessionCreateResponse createSession(UUID userNo, SessionCreateRequest request);
+
+    String generateSessionTitle(String query);
 
     void updateSession(UUID userNo, UUID sessionNo, SessionUpdateRequest request);
 

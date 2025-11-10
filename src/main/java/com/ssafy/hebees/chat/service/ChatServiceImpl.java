@@ -15,7 +15,9 @@ import com.ssafy.hebees.common.dto.PageRequest;
 import com.ssafy.hebees.common.dto.PageResponse;
 import com.ssafy.hebees.common.exception.BusinessException;
 import com.ssafy.hebees.common.exception.ErrorCode;
+import com.ssafy.hebees.ragsetting.entity.QueryGroup;
 import com.ssafy.hebees.ragsetting.entity.Strategy;
+import com.ssafy.hebees.ragsetting.repository.QueryGroupRepository;
 import com.ssafy.hebees.ragsetting.repository.StrategyRepository;
 import com.ssafy.hebees.user.entity.User;
 import com.ssafy.hebees.user.repository.UserRepository;
@@ -46,6 +48,7 @@ public class ChatServiceImpl implements ChatService {
     private final RunpodClient runpodClient;
     private final UserRepository userRepository;
     private final StrategyRepository strategyRepository;
+    private final QueryGroupRepository queryGroupRepository;
 
     @Override
     public PageResponse<SessionResponse> getSessions(UUID userNo, PageRequest pageRequest,
@@ -64,7 +67,7 @@ public class ChatServiceImpl implements ChatService {
         List<Session> sessions = sessionPage.getContent();
 
         List<SessionResponse> responses = sessions.stream()
-            .map(session -> toSessionResponse(session, null, null))
+            .map(this::toSessionResponse)
             .toList();
 
         return PageResponse.of(
@@ -90,7 +93,7 @@ public class ChatServiceImpl implements ChatService {
         Map<UUID, String> userNames = resolveUserNames(sessions);
 
         List<SessionResponse> responses = sessions.stream()
-            .map(session -> toSessionResponse(session, null, null))
+            .map(this::toSessionResponse)
             .toList();
 
         return PageResponse.of(
@@ -119,7 +122,7 @@ public class ChatServiceImpl implements ChatService {
 
         List<SessionHistoryResponse> responses = sessions.stream()
             .map(session -> new SessionHistoryResponse(
-                toSessionResponse(session, null, null),
+                toSessionResponse(session),
                 messageService.getAllMessages(owner, session.getSessionNo())
             ))
             .toList();
@@ -137,18 +140,23 @@ public class ChatServiceImpl implements ChatService {
         Session session = getOwnedSession(userNo, sessionNo);
         Map<UUID, String> userNames = resolveUserNames(List.of(session));
         Strategy llm = strategyRepository.findByStrategyNo(session.getLlmNo()).orElse(null);
-        String llmName = llm != null ? llm.getName() : "확인되지 않은 LLM";
-        return toSessionResponse(session, llmName, userNames.get(session.getUserNo()));
+        return toSessionResponse(session,
+            llm != null ? llm.getName() : "-",
+            userNames.get(session.getUserNo())
+        );
     }
 
     @Override
     @Transactional
     public SessionCreateResponse createSession(UUID userNo, SessionCreateRequest request) {
+        LocalDateTime lastRequestedAt = null;
+
         String title = request.title();
         if (title == null || title.isBlank()) { // 세션명이 없다면 생성
             String query = request.query();
             if (StringUtils.hasText(query)) { // 사용자 질문으로 세션 제목 생성
                 title = generateSessionTitle(query);
+                lastRequestedAt = LocalDateTime.now();
             } else { // 힌트가 없다면, 기본값 사용
                 title = SessionCreateRequest.DEFAULT_TITLE;
             }
@@ -159,17 +167,20 @@ public class ChatServiceImpl implements ChatService {
         UUID owner = requireUser(userNo);
 
         UUID llmNo = request.llm();
-        if (llmNo == null) {
-            // TODO: LLM 기본값 대체 필요
-            log.warn("세션 생성 실패 - LLM 식별자 누락: userNo={}", owner);
-            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        if (llmNo != null) { // LLM이 유효한지 확인
+            strategyRepository.findByStrategyNo(llmNo)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BAD_REQUEST));
+        } else { // LLM 기본값 사용
+            llmNo = getDefaultLLM().orElseThrow(
+                () -> new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR)
+            ).getStrategyNo();
         }
 
         Session session = Session.builder()
             .title(title)
             .userNo(owner)
             .llmNo(llmNo)
-            .lastRequestedAt(LocalDateTime.now())
+            .lastRequestedAt(lastRequestedAt)
             .build();
 
         Session saved = sessionRepository.save(session);
@@ -178,7 +189,8 @@ public class ChatServiceImpl implements ChatService {
         return new SessionCreateResponse(saved.getSessionNo(), title);
     }
 
-    private String generateSessionTitle(String query) {
+    @Override
+    public String generateSessionTitle(String query) {
         String sanitizedQuery = query.strip();
         if (!StringUtils.hasText(sanitizedQuery)) {
             return SessionCreateRequest.DEFAULT_TITLE;
@@ -223,11 +235,18 @@ public class ChatServiceImpl implements ChatService {
     @Transactional
     public void updateSession(UUID userNo, UUID sessionNo, SessionUpdateRequest request) {
         Session session = getOwnedSession(userNo, sessionNo);
-//        session.getTitle()
-        String newTitle = request.title() != null ? request.title() : "실패!";
-        UUID newLlmNo = request.llm() != null ? request.llm() : session.getLlmNo();
+        String newTitle = request.title() != null ? request.title() : session.getTitle();
 
-        session.updateSettings(newTitle, newLlmNo); // TODO: LLM 유효성 검사 추가 필요
+        UUID newLlmNo;
+        if (request.llm() != null) { // LLM이 유효한지 확인
+            strategyRepository.findByStrategyNo(request.llm())
+                .orElseThrow(() -> new BusinessException(ErrorCode.BAD_REQUEST));
+            newLlmNo = request.llm();
+        } else {
+            newLlmNo = session.getLlmNo();
+        }
+
+        session.updateSettings(newTitle, newLlmNo);
         log.info("세션 수정 요청: title={}, llmNo={}", request.title(), request.llm());
         log.info("세션 수정 성공: userNo={}, sessionNo={}", session.getUserNo(), sessionNo);
     }
@@ -289,6 +308,10 @@ public class ChatServiceImpl implements ChatService {
             .collect(Collectors.toMap(User::getUuid, User::getName, (first, second) -> first));
     }
 
+    private SessionResponse toSessionResponse(Session session) {
+        return toSessionResponse(session, null, null);
+    }
+
     private SessionResponse toSessionResponse(Session session, String llmName, String userName) {
         return new SessionResponse(
             session.getSessionNo(),
@@ -299,6 +322,14 @@ public class ChatServiceImpl implements ChatService {
             session.getUserNo(),
             userName
         );
+    }
+
+    private Optional<Strategy> getDefaultLLM() {
+        List<QueryGroup> llms = queryGroupRepository.findByIsDefault(true);
+        if (llms == null || llms.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(llms.getFirst().getGenerationStrategy());
     }
 }
 
