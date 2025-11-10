@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Download, Trash2, FileText, X } from 'lucide-react';
+import { Download, Trash2, X } from 'lucide-react';
 import Checkbox from '@/shared/components/Checkbox';
 import Tooltip from '@/shared/components/Tooltip';
 import Select from '@/shared/components/Select';
 import Pagination from '@/shared/components/Pagination';
 import { fileTypeOptions } from '@/domains/admin/components/rag-settings/options';
 import { useCategoryStore } from '@/shared/store/categoryMap';
+import ConflictBar from '@/shared/components/file/ConflictBar';
+import FileNameCell from '@/shared/components/file/FileNameCell';
+import { ensureUniqueName } from '@/shared/utils/fileName';
 
 export type UploadedDoc = {
   id: string;
@@ -28,6 +31,8 @@ type Props = {
   brand?: 'hebees' | 'retina';
   onSelectChange?: (ids: string[]) => void;
   hideFooter?: boolean;
+  onRename?: (id: string, nextName: string) => void;
+  autoResolve?: 'none' | 'overwrite' | 'rename';
 };
 
 export default function UploadedFileList({
@@ -38,6 +43,8 @@ export default function UploadedFileList({
   brand = 'hebees',
   onSelectChange,
   hideFooter = false,
+  onRename,
+  autoResolve = 'none',
 }: Props) {
   const [fileType, setFileType] = useState<'all' | UploadedDoc['type']>('all');
   const [page, setPage] = useState(1);
@@ -63,6 +70,48 @@ export default function UploadedFileList({
   );
 
   const selectedIds = useMemo(() => Object.keys(selected).filter((id) => selected[id]), [selected]);
+
+  const nameGroups = useMemo(() => {
+    const map = new Map<string, UploadedDoc[]>();
+    filtered.forEach((d) => {
+      const key = d.name.toLowerCase();
+      const arr = map.get(key) ?? [];
+      arr.push(d);
+      map.set(key, arr);
+    });
+
+    const byRecent = (a: UploadedDoc, b: UploadedDoc) =>
+      (new Date(b.uploadedAt || 0).getTime() || 0) - (new Date(a.uploadedAt || 0).getTime() || 0);
+
+    map.forEach((arr) => arr.sort(byRecent));
+
+    return map;
+  }, [filtered]);
+
+  const conflicts = useMemo(
+    () => Array.from(nameGroups.values()).filter((arr) => arr.length > 1),
+    [nameGroups]
+  );
+
+  // 자동 해결 정책 적용
+  useEffect(() => {
+    if (autoResolve === 'none' || filtered.length === 0 || !conflicts.length) return;
+
+    const existing = new Set(docs.map((d) => d.name));
+    if (autoResolve === 'overwrite') {
+      const toDelete = conflicts.flatMap((group) => group.slice(1).map((d) => d.id));
+      if (toDelete.length) onDelete?.(toDelete);
+    } else if (autoResolve === 'rename') {
+      conflicts.forEach((group) => {
+        group.slice(1).forEach((d) => {
+          if (!onRename) return;
+          const next = ensureUniqueName(d.name, existing);
+          existing.add(next);
+          onRename(d.id, next);
+        });
+      });
+    }
+  }, [autoResolve, conflicts, filtered.length, docs, onDelete, onRename]);
 
   useEffect(() => {
     onSelectChange?.(selectedIds);
@@ -107,8 +156,37 @@ export default function UploadedFileList({
   const brandBorder =
     brand === 'hebees' ? 'border-[var(--color-hebees)]' : 'border-[var(--color-retina)]';
 
+  const isLoser = (doc: UploadedDoc): boolean => {
+    const arr = nameGroups.get(doc.name.toLowerCase());
+    return !!(arr && arr.length > 1 && arr[0].id !== doc.id);
+  };
+
+  // 일괄 처리 핸들러
+  const resolveAllOverwrite = () => {
+    const toDelete = conflicts.flatMap((group) => group.slice(1).map((d) => d.id));
+    if (toDelete.length) onDelete?.(toDelete);
+  };
+  const resolveAllRename = () => {
+    if (!onRename) return;
+    const existing = new Set(docs.map((d) => d.name));
+    conflicts.forEach((group) => {
+      group.slice(1).forEach((d) => {
+        const next = ensureUniqueName(d.name, existing);
+        existing.add(next);
+        onRename(d.id, next);
+      });
+    });
+  };
+
   return (
     <div className="mt-6 rounded-2xl border bg-white p-6">
+      <ConflictBar
+        hidden={autoResolve !== 'none'}
+        conflictCount={conflicts.length}
+        onOverwriteAll={resolveAllOverwrite}
+        onRenameAll={resolveAllRename}
+      />
+
       <div className="mb-4 flex flex-wrap items-center justify-end">
         <Select
           value={fileType}
@@ -157,8 +235,15 @@ export default function UploadedFileList({
                   doc.category ??
                   '기타';
 
+                const losing = isLoser(doc);
+
+                const existingNames = docs.filter((d) => d.id !== doc.id).map((d) => d.name);
+
                 return (
-                  <tr key={doc.id} className="border-b last:border-b-0">
+                  <tr
+                    key={doc.id}
+                    className={`border-b last:border-b-0 ${losing ? 'bg-amber-50/40' : ''}`}
+                  >
                     <td className="px-4 py-2">
                       <Checkbox
                         checked={!!selected[doc.id]}
@@ -167,17 +252,15 @@ export default function UploadedFileList({
                       />
                     </td>
 
-                    <td className="max-w-[200px] px-4 py-2 sm:max-w-[300px]">
-                      <div className="min-w-0 flex items-center gap-2">
-                        <div className="flex h-4 w-4 shrink-0 items-center justify-center">
-                          <FileText size={16} className={brandText} />
-                        </div>
-                        <span className="min-w-0 flex-1">
-                          <span className="block w-full truncate text-sm text-gray-800">
-                            {doc.name}
-                          </span>
-                        </span>
-                      </div>
+                    <td className="max-w-[260px] px-4 py-2 sm:max-w-[360px]">
+                      <FileNameCell
+                        id={doc.id}
+                        name={doc.name}
+                        losing={losing}
+                        brandTextClass={brandText}
+                        onRename={onRename}
+                        existingNames={existingNames}
+                      />
                     </td>
 
                     <td className="px-4 py-2 text-right text-gray-600">
@@ -198,6 +281,20 @@ export default function UploadedFileList({
 
                     <td className="px-2 py-2">
                       <div className="flex items-center justify-end gap-1.5">
+                        {losing && (
+                          <Tooltip
+                            content="이 항목만 삭제하여 최신만 남기기"
+                            side="bottom"
+                            offset={1}
+                          >
+                            <button
+                              className="rounded-md p-2 text-red-600 hover:bg-red-50"
+                              onClick={() => onDelete?.([doc.id])}
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </Tooltip>
+                        )}
                         <Tooltip content="다운로드" side="bottom" offset={1}>
                           <button
                             className="rounded-md p-2 hover:bg-gray-50"
@@ -206,14 +303,17 @@ export default function UploadedFileList({
                             <Download size={16} />
                           </button>
                         </Tooltip>
-                        <Tooltip content="삭제" side="bottom" offset={1}>
-                          <button
-                            className="rounded-md p-2 text-red-600 hover:bg-red-50"
-                            onClick={() => onDelete?.([doc.id])}
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </Tooltip>
+
+                        {!losing && (
+                          <Tooltip content="삭제" side="bottom" offset={1}>
+                            <button
+                              className="rounded-md p-2 text-red-600 hover:bg-red-50"
+                              onClick={() => onDelete?.([doc.id])}
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </Tooltip>
+                        )}
                       </div>
                     </td>
                   </tr>

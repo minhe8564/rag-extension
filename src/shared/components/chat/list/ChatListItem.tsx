@@ -4,7 +4,7 @@ import Tooltip from '@/shared/components/Tooltip';
 import clsx from 'clsx';
 import { toast } from 'react-toastify';
 import type { SessionItem } from '@/shared/types/chat.types';
-import { formatIsoDatetime } from '@/shared/util/iso';
+import { formatIsoDatetime } from '@/shared/utils/iso';
 
 type Brand = 'retina' | 'hebees';
 
@@ -83,7 +83,7 @@ export default function ChatListItem({
                 if (e.key === 'Enter') submit();
                 if (e.key === 'Escape') cancel();
               }}
-              className="w-full rounded-md border px-2.5 py-1.5 text-sm outline-none focus:outline-none focus:ring-0 focus:border-gray-400"
+              className="w-full rounded-md border px-2.5 py-1.5 text-sm border-gray-300 outline-none focus:outline-none focus:ring-0 focus:border-gray-400"
             />
           </div>
         ) : (

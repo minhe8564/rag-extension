@@ -3,7 +3,7 @@ import { Search, X, Clock, ChevronRight, Loader2 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { getSessions } from '@/shared/api/chat.api';
 import type { SessionItem, ListSessionsResult } from '@/shared/types/chat.types';
-import { formatIsoDatetime } from '@/shared/util/iso';
+import { formatIsoDatetime } from '@/shared/utils/iso';
 
 export type ChatSearchModalProps = {
   open: boolean;

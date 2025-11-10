@@ -3,7 +3,7 @@ import Tooltip from '@/shared/components/Tooltip';
 import ChatMarkdown from '@/shared/components/chat/ChatMarkdown';
 import InlineReaskInput from '@/shared/components/chat/InlineReaskInput';
 import ReferencedDocsPanel from '@/shared/components/chat/ReferencedDocs';
-import { formatIsoDatetime } from '@/shared/util/iso';
+import { formatIsoDatetime } from '@/shared/utils/iso';
 import type { ReferencedDocument } from '@/shared/types/chat.types';
 
 type Brand = 'retina' | 'hebees';

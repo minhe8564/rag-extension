@@ -32,11 +32,13 @@ export default function UploadTab() {
     file: f,
   });
 
+  // 업로드 → 일단 리스트에 추가 (이름 충돌 처리는 UploadedFileList에서 해결)
   const handleUpload = ({ files, category, categoryName }: UploadPayload) => {
     const mapped = files.map((f) => makeDoc(f, category, categoryName));
     setUploadedDocs((prev) => [...mapped, ...prev]);
   };
 
+  // 서버 업로드(선택 항목)
   const ingestSelected = async () => {
     if (uploading) return;
     setUploading(true);
@@ -101,7 +103,7 @@ export default function UploadTab() {
     const url = URL.createObjectURL(doc.file);
     const a = document.createElement('a');
     a.href = url;
-    a.download = doc.name;
+    a.download = doc.name; // 리네임된 이름이 파일 저장명에 반영됩니다.
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -109,6 +111,13 @@ export default function UploadTab() {
   const handleDelete = (ids: string[]) => {
     setUploadedDocs((prev) => prev.filter((d) => !ids.includes(d.id)));
     setSelectedIds((prev) => prev.filter((id) => !ids.includes(id)));
+  };
+
+  // ★ 리네임 반영: UploadedFileList가 충돌 처리 시 호출
+  const handleRename = (id: string, nextName: string) => {
+    setUploadedDocs((prev) =>
+      prev.map((d) => (d.id === id ? ({ ...d, name: nextName } as UDoc) : d))
+    );
   };
 
   const selectedDocs = useMemo(
@@ -142,6 +151,7 @@ export default function UploadTab() {
         docs={uploadedDocs}
         onDownload={handleDownload}
         onDelete={handleDelete}
+        onRename={handleRename}
         brand="retina"
         onSelectChange={setSelectedIds}
       />
