@@ -11,11 +11,13 @@ import org.apache.catalina.connector.ClientAbortException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotWritableException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
+import jakarta.servlet.http.HttpServletRequest;
 
 @Slf4j
 @RestControllerAdvice
@@ -39,9 +41,20 @@ public class GlobalExceptionHandler {
     }
 
     /* 2) 권한 위반 */
-    @ExceptionHandler(AccessDeniedException.class)
+    @ExceptionHandler({AccessDeniedException.class, AuthorizationDeniedException.class})
     protected ResponseEntity<BaseResponse<Object>> handleAccessDeniedException(
-        AccessDeniedException e) {
+        Exception e, HttpServletRequest request) {
+
+        // SSE 스트리밍 요청이거나 응답이 이미 커밋된 경우 무시
+        String acceptHeader = request.getHeader("Accept");
+        boolean isSseRequest = acceptHeader != null && acceptHeader.contains("text/event-stream");
+
+        if (isSseRequest) {
+            // SSE 스트리밍 중 발생한 권한 예외는 조용히 처리
+            log.debug("Access denied during SSE streaming, ignoring: {}", e.getMessage());
+            return null;
+        }
+
         ErrorCode errorCode = ErrorCode.PERMISSION_DENIED;
         var body = BaseResponse.error(
             errorCode.getStatus(),

@@ -92,4 +92,56 @@ public class MonitoringUtils {
         }
         return NETWORK_BYTES_KEY + ":" + safe;
     }
+
+    /**
+     * Build Redis Stream key for network traffic with optional host suffix.
+     *
+     * @deprecated Use {@link #buildStreamKey(String, String)} instead
+     */
+    @Deprecated
+    public static String buildNetworkStreamKey(String hostIdentifier) {
+        return buildStreamKey(NETWORK_STREAM_KEY, hostIdentifier);
+    }
+
+    /**
+     * Build Redis Stream key with optional host suffix.
+     *
+     * @param baseKey        기본 Stream 키 (예: CPU_STREAM_KEY, MEMORY_STREAM_KEY)
+     * @param hostIdentifier 호스트 식별자 (null이면 baseKey 반환)
+     * @return 호스트별 Stream 키 또는 기본 키
+     */
+    public static String buildStreamKey(String baseKey, String hostIdentifier) {
+        if (hostIdentifier == null) {
+            return baseKey;
+        }
+        String normalized = hostIdentifier.trim();
+        if (normalized.isEmpty()) {
+            return baseKey;
+        }
+        String safe = normalized.replaceAll("[^A-Za-z0-9:_-]", "_");
+        if (safe.isEmpty()) {
+            return baseKey;
+        }
+        return baseKey + ":" + safe;
+    }
+
+    /**
+     * Build Redis Stream key for CPU usage with optional host suffix.
+     *
+     * @deprecated Use {@link #buildStreamKey(String, String)} instead
+     */
+    @Deprecated
+    public static String buildCpuStreamKey(String hostIdentifier) {
+        return buildStreamKey(CPU_STREAM_KEY, hostIdentifier);
+    }
+
+    /**
+     * Build Redis Stream key for memory usage with optional host suffix.
+     *
+     * @deprecated Use {@link #buildStreamKey(String, String)} instead
+     */
+    @Deprecated
+    public static String buildMemoryStreamKey(String hostIdentifier) {
+        return buildStreamKey(MEMORY_STREAM_KEY, hostIdentifier);
+    }
 }
