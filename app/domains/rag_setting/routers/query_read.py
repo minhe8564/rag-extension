@@ -12,6 +12,7 @@ from ....core.auth.check_role import check_role
 from ..schemas.query import (
     QueryTemplateListItem,
     QueryTemplateDetailResponse,
+    StrategyDetail,
 )
 from ..schemas.strategy import PaginationInfo
 from ..services.query import list_query_templates, get_query_template

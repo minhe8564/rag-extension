@@ -125,6 +125,7 @@ class StrategyDetail(BaseModel):
 
         return cls(
             no=binary_to_uuid(strategy.strategy_no),
+            code=strategy.code,
             name=strategy.name,
             description=strategy.description or "",
             parameters=parameters or {},

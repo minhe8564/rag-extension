@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....core.database import get_db
-from ....core.schemas import BaseResponse
+from ....core.schemas import BaseResponse, Result
 from ....core.auth.check_role import check_role
 from ..schemas.query import (
     QueryTemplateUpdateRequest,

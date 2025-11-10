@@ -521,8 +521,11 @@ async def update_ingest_template(
 
     # IngestGroup 기본 정보 업데이트
     ingest_group.name = name
-    ingest_group.chunking_strategy_no = uuid_to_binary(chunking_no)
-    ingest_group.chunking_parameter = chunking_parameters or {}
+    ingest_group.chunking_strategy_no = chunking_strategy.strategy_no
+    ingest_group.chunking_parameter = build_strategy_parameters(
+        chunking_strategy,
+        chunking.get("parameters"),
+    )
     ingest_group.is_default = is_default
 
     # 기존 ExtractionGroup 삭제
@@ -546,7 +549,8 @@ async def update_ingest_template(
         session.add(extraction_group)
 
     # 새로운 EmbeddingGroup 생성
-    for emb in embeddings:
+    embedding_payloads = [sparse_embedding, *dense_embeddings]
+    for emb in embedding_payloads:
         embedding_group = EmbeddingGroup(
             ingest_group_no=ingest_group.ingest_group_no,
             name=emb.get("name", "임베딩 전략"),

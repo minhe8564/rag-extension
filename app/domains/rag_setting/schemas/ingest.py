@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from typing import Dict, Any, List, Optional
-from pydantic import BaseModel, Field
+import uuid
+from pydantic import BaseModel, Field, field_validator
 from .strategy import PaginationInfo
 
 
@@ -131,7 +132,7 @@ class IngestTemplateDetailResponse(BaseModel):
     denseEmbeddings: List[StrategyDetail] = Field(..., description="밀집 임베딩 전략 목록")
     sparseEmbedding: StrategyDetail = Field(..., description="희소 임베딩 전략")
 
-    @field_validator('no')
+    @field_validator('ingestNo')
     @classmethod
     def validate_uuid(cls, v: str) -> str:
         """UUID 형식 검증"""
