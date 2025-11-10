@@ -42,6 +42,8 @@ async def jwt_auth_middleware_handler(request: Request, call_next):
 
 # Include routers (docs_router를 먼저 등록하여 /service-docs 경로가 FastAPI 기본 /docs보다 우선되도록)
 app.include_router(backend_router.docs_router)
+app.include_router(rag_router.docs_router)
+app.include_router(rag_router.nested_docs_router)
 app.include_router(rag_router.router)
 app.include_router(backend_router.router)
 
