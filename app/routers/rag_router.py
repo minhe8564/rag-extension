@@ -42,8 +42,8 @@ async def get_ingest_docs(request: Request):
         request=request,
         service_url=app_settings.rag_orchestrator_url,
         service_key="rag",
-        path="/service-docs/docs",
-        public_prefix="/rag/service-docs/rag"
+        path="/docs",
+        public_prefix=""
     )
 
 @docs_router.get("/openapi.json")
@@ -52,8 +52,9 @@ async def get_ingest_openapi(request: Request):
         request=request,
         service_url=app_settings.rag_orchestrator_url,
         service_key="rag",
-        path="/service-docs/openapi.json",
-        is_openapi=True
+        path="/openapi.json",
+        is_openapi=True,
+        public_prefix=""
     )
 
 @docs_router.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
@@ -65,7 +66,7 @@ async def proxy_ingest_api(request: Request, path: str):
         request=request,
         service_url=app_settings.rag_orchestrator_url,
         service_key="rag",
-        path=f"/service-docs/api{decoded_path}"
+        path=f"/{decoded_path}"
     )
 
 # Nested service docs under /rag/service-docs/{service}
