@@ -1,5 +1,14 @@
 import { useState, useEffect } from 'react';
-import { FolderOpen, FileText, ChevronLeft, ChevronRight, ChevronDown, Trash2 } from 'lucide-react';
+import { useQuery, useQueries } from '@tanstack/react-query';
+import {
+  FolderOpen,
+  FileText,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  ChevronRight as ChevronRightIcon,
+  Trash2,
+} from 'lucide-react';
 import { getCollections, getDocInCollections } from '@/domains/admin/api/documents.api';
 import type { collectionType, documentDatatype } from '@/domains/admin/types/documents.types';
 import { deleteDocument } from '@/shared/api/file.api';
@@ -12,59 +21,55 @@ export default function ColList() {
   const [selectedCollections, setSelectedCollections] = useState<Set<string>>(new Set());
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [hoveredCollection, setHoveredCollection] = useState<string | null>(null);
+
   const FILES_PER_PAGE = 5;
 
-  // 컬렉션 목록 불러오기
+  // 컬렉션 목록 조회
+  const { data: collectionsResult } = useQuery({
+    queryKey: ['collections'],
+    queryFn: () => getCollections(),
+    staleTime: 1000 * 60 * 10,
+  });
+
+  // 컬렉션 리스트 업데이트
   useEffect(() => {
-    const fetchCollections = async () => {
-      const result = await getCollections();
-      console.log(result);
-      const list = result.data;
-      console.log(list);
-      setCollections(list);
-    };
-    fetchCollections();
-  }, []);
+    if (collectionsResult?.data) {
+      setCollections(collectionsResult.data);
+    }
+  }, [collectionsResult]);
 
-  // 보기 버튼 클릭 시 문서 리스트 호출
-  const handleViewClick = async (collectionNo: string) => {
-    console.log('View clicked for collectionNo:', collectionNo);
-    const res = await getDocInCollections(collectionNo);
-    console.log(res);
-    const docs = res.data;
-    console.log(docs);
-    setCollections((prev) =>
-      prev.map((c) => (c.collectionNo === collectionNo ? { ...c, files: docs } : c))
-    );
+  console.log(collections);
+  //  각 컬렉션의 문서 쿼리 (React Query로 병렬 관리)
+  const docsQueries = useQueries({
+    queries: collections.map((col) => ({
+      queryKey: ['docs', col.collectionNo],
+      queryFn: () => getDocInCollections(col.collectionNo),
+      select: (res) => (res as { data: documentDatatype[] }).data,
+      enabled: !!open[col.collectionNo], // 열린 컬렉션만 API 요청
+      staleTime: 1000 * 60 * 5,
+    })),
+  });
 
-    setOpen((prev) => ({ ...prev, [collectionNo]: true }));
+  // 보기 버튼 클릭
+  const handleViewClick = (collectionNo: string) => {
+    setOpen((prev) => ({
+      ...prev,
+      [collectionNo]: !prev[collectionNo],
+    }));
   };
 
-  // 컬렉션 토글 (선택/해제)
+  // 컬렉션 선택 토글
   const toggleSelectCollection = (colNo: string) => {
     setSelectedCollections((prev) => {
       const next = new Set(prev);
       const willSelect = !next.has(colNo);
       if (willSelect) next.add(colNo);
       else next.delete(colNo);
-
-      const col = collections.find((c) => c.collectionNo === colNo);
-      if (col && (col as any).files) {
-        setSelectedFiles((prevFiles) => {
-          const nextFiles = new Set(prevFiles);
-          for (const f of (col as any).files as documentDatatype[]) {
-            const key = `${colNo}::${f.fileNo}`;
-            if (willSelect) nextFiles.add(key);
-            else nextFiles.delete(key);
-          }
-          return nextFiles;
-        });
-      }
       return next;
     });
   };
 
-  //  파일 선택
+  // 파일 선택
   const toggleSelectFile = (colNo: string, fileNo: string) => {
     const key = `${colNo}::${fileNo}`;
     setSelectedFiles((prev) => {
@@ -75,22 +80,10 @@ export default function ColList() {
     });
   };
 
-  // 단일 문서 삭제
+  // 문서 삭제
   const handleDeleteDoc = async (fileNo: string) => {
-    console.log('Deleting fileNo:', fileNo);
     try {
       await deleteDocument(fileNo);
-
-      // 삭제 후 UI 상태 갱신
-      setCollections((prev) =>
-        prev.map((c) => {
-          if (!(c as any).files) return c;
-          // 해당 컬렉션 내에서 fileNo 일치하지 않는 것만 남김
-          const newFiles = (c as any).files.filter((f: documentDatatype) => f.fileNo !== fileNo);
-          return { ...c, files: newFiles };
-        })
-      );
-
       toast.success('문서가 삭제되었습니다 ✅');
     } catch (error) {
       toast.error('문서 삭제 중 오류가 발생했습니다.');
@@ -105,36 +98,35 @@ export default function ColList() {
           disabled={selectedFiles.size === 0}
           className="flex items-center gap-1 px-3 py-1.5 text-white text-xs font-semibold rounded-md bg-[linear-gradient(90deg,#BE7DB1_10%,#81BAFF_100%)] disabled:opacity-40 hover:opacity-90 transition"
         >
-          <Trash2 size={14} onClick={() => {}} />
+          <Trash2 size={14} />
           선택 삭제
         </button>
       </div>
 
       {/* 컬렉션 목록 */}
-      {collections.map((col) => {
-        const files: documentDatatype[] = Array.isArray((col as any).files)
-          ? (col as any).files
-          : [];
+      {collections.map((col, index) => {
         const colNo = col.collectionNo;
+        const docsQuery = docsQueries[index];
+        const docs = docsQuery?.data || [];
+        const isDocsLoading = docsQuery?.isLoading;
+
         const currentPage = page[colNo] || 1;
         const start = (currentPage - 1) * FILES_PER_PAGE;
-        const totalFiles = files.length;
-        const visibleFiles = files.slice(start, start + FILES_PER_PAGE);
-
+        const totalFiles = docs.length;
+        const visibleFiles = docs.slice(start, start + FILES_PER_PAGE);
         const totalPages = Math.ceil(totalFiles / FILES_PER_PAGE);
 
         return (
           <div
             key={colNo}
             onMouseLeave={() => setHoveredCollection((prev) => (prev === colNo ? null : prev))}
-            className={
-              `border rounded-lg p-3 transition cursor-pointer ` +
-              (selectedCollections.has(colNo)
+            className={`border rounded-lg p-3 transition cursor-pointer ${
+              selectedCollections.has(colNo)
                 ? 'bg-[var(--color-hebees-bg)]/40 ring-1 ring-[var(--color-hebees)]'
                 : hoveredCollection === colNo
                   ? ''
-                  : 'hover:bg-[var(--color-hebees-bg)]/50 hover:ring-1 hover:ring-[var(--color-hebees)]')
-            }
+                  : 'hover:bg-[var(--color-hebees-bg)]/50 hover:ring-1 hover:ring-[var(--color-hebees)]'
+            }`}
           >
             {/* 헤더 */}
             <div className="flex items-center justify-between">
@@ -155,23 +147,17 @@ export default function ColList() {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (open[colNo]) {
-                      setOpen((prev) => ({ ...prev, [colNo]: false }));
-                    } else {
-                      handleViewClick(colNo);
-                    }
+                    handleViewClick(colNo);
                   }}
                   className="flex items-center text-sm text-gray-500 hover:text-[var(--color-hebees)] transition"
                 >
                   {open[colNo] ? (
                     <>
-                      <ChevronDown size={15} className="" />
-                      접기
+                      <ChevronDown size={15} /> 접기
                     </>
                   ) : (
                     <>
-                      <ChevronRight size={15} className="" />
-                      보기
+                      <ChevronRightIcon size={15} /> 보기
                     </>
                   )}
                 </button>
@@ -181,68 +167,70 @@ export default function ColList() {
             {/* 파일 목록 */}
             {open[colNo] && (
               <>
-                <ul className="pl-4 text-xs text-gray-700 space-y-2 mt-2">
-                  {visibleFiles.map((file) => (
-                    <li
-                      key={file.fileNo}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleSelectFile(colNo, file.fileNo);
-                      }}
-                      onMouseEnter={() => setHoveredCollection(colNo)}
-                      onMouseLeave={() =>
-                        setHoveredCollection((prev) => (prev === colNo ? null : prev))
-                      }
-                      className="flex items-center justify-between border-b border-gray-100 pb-2 last:border-none cursor-pointer hover:bg-[var(--color-hebees-bg)]/60"
-                    >
-                      {/* 파일 정보 */}
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:gap-3 text-[13px] w-full">
-                        <div className="flex items-center gap-2 w-[260px]">
-                          <div className="w-6 h-6 bg-[var(--color-hebees)] rounded-md flex items-center justify-center">
-                            <FileText size={14} className="text-[var(--color-white)]" />
+                {isDocsLoading ? (
+                  <p className="pl-5 text-xs text-gray-400 py-2">문서를 불러오는 중...</p>
+                ) : totalFiles === 0 ? (
+                  <p className="pl-5 text-xs text-gray-400 py-2">등록된 문서가 없습니다.</p>
+                ) : (
+                  <ul className="pl-4 text-xs text-gray-700 space-y-2 mt-2">
+                    {visibleFiles.map((file) => (
+                      <li
+                        key={file.fileNo}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleSelectFile(colNo, file.fileNo);
+                        }}
+                        className="flex items-center justify-between border-b border-gray-100 pb-2 last:border-none cursor-pointer hover:bg-[var(--color-hebees-bg)]/60"
+                      >
+                        {/* 파일 정보 */}
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:gap-3 text-[13px] w-full">
+                          <div className="flex items-center gap-2 w-[260px]">
+                            <div className="w-6 h-6 bg-[var(--color-hebees)] rounded-md flex items-center justify-center">
+                              <FileText size={14} className="text-[var(--color-white)]" />
+                            </div>
+                            <span className="truncate max-w-[200px] font-medium">{file.name}</span>
                           </div>
-                          <span className="truncate max-w-[200px] font-medium">{file.name}</span>
+
+                          {/* 파일 세부 정보 */}
+                          <div className="flex flex-wrap sm:flex-nowrap items-center gap-x-4 gap-y-1 text-gray-500">
+                            <span className="whitespace-nowrap">{file.size} KB</span>
+                            <span className="whitespace-nowrap">
+                              {collections.find((c) => c.collectionNo === file.collectionNo)
+                                ?.name || '알 수 없음'}
+                            </span>
+                            <span className="whitespace-nowrap">
+                              {new Date(file.createdAt).toLocaleString()}
+                            </span>
+                          </div>
                         </div>
 
-                        {/* 추가 정보 (파일 용량, `저장` 위치, 저장 일시) */}
-                        <div className="flex flex-wrap sm:flex-nowrap items-center gap-x-4 gap-y-1 text-gray-500">
-                          <span className="whitespace-nowrap"> {file.size} KB</span>
-                          <span className="whitespace-nowrap">
-                            {collections.find((c) => c.collectionNo === file.collectionNo)?.name ||
-                              '알 수 없음'}
-                          </span>
-                          <span className="whitespace-nowrap">
-                            {new Date(file.createdAt).toLocaleString()}
-                          </span>
+                        {/* 선택 및 삭제 */}
+                        <div className="flex items-center gap-2 ml-4">
+                          <input
+                            type="checkbox"
+                            className="accent-[var(--color-hebees)] cursor-pointer"
+                            checked={selectedFiles.has(`${colNo}::${file.fileNo}`)}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={() => toggleSelectFile(colNo, file.fileNo)}
+                          />
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteDoc(file.fileNo);
+                            }}
+                            className="text-[var(--color-hebees)] hover:opacity-80 transition"
+                          >
+                            <Trash2 size={16} />
+                          </button>
                         </div>
-                      </div>
-
-                      {/* 선택 및 삭제 */}
-                      <div className="flex items-center gap-2 ml-4">
-                        <input
-                          type="checkbox"
-                          className="accent-[var(--color-hebees)] cursor-pointer"
-                          checked={selectedFiles.has(`${colNo}::${file.fileNo}`)}
-                          onClick={(e) => e.stopPropagation()}
-                          onChange={() => toggleSelectFile(colNo, file.fileNo)}
-                        />
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            // handleDeleteFile(colNo, file.fileNo);
-                          }}
-                          className="text-[var(--color-hebees)] hover:opacity-80 transition"
-                        >
-                          <Trash2 size={16} onClick={() => handleDeleteDoc(file.fileNo)} />
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+                      </li>
+                    ))}
+                  </ul>
+                )}
 
                 {/* 페이지네이션 */}
                 {totalPages > 1 && (
-                  <div className="flex justify-center gap-2 items-center">
+                  <div className="flex justify-center gap-2 items-center mt-2">
                     <button
                       onClick={() =>
                         setPage((prev) => ({

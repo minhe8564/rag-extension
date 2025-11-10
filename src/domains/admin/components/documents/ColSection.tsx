@@ -2,7 +2,7 @@ import { FolderOpen, FileText, ChevronDown, ChevronRight, ChevronLeft } from 'lu
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { RawMyDoc } from '@/shared/types/file.types';
-import type { documentDatatype, collectionType } from '@/domains/admin/types/documents.types';
+import type { documentDatatype } from '@/domains/admin/types/documents.types';
 import { getDocInCollections, getCollections } from '@/domains/admin/api/documents.api';
 
 type ColSectionProps = {
@@ -15,8 +15,6 @@ export default function ColSection({ selectedCollection, onCollectionSelect }: C
   const [openCollection, setOpenCollection] = useState<Record<string, boolean>>({});
   const [page, setPage] = useState<Record<string, number>>({});
   const [docsByCollection, setDocsByCollection] = useState<Record<string, documentDatatype[]>>({});
-  const [colLoading, setColLoading] = useState(false);
-
   const FILES_PER_PAGE = 5;
 
   // 컬렉션 목록 조회 (useQuery는 여기 1개만)

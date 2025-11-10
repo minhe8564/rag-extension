@@ -14,6 +14,8 @@ export default function VecProcess({
   initialCollection?: string;
   isVectorizingDone?: boolean;
 }) {
+  const temp = isVectorizingDone;
+  console.log(temp);
   // 외부에서 특정 파일로 진입 시 초기 인덱스 동기화
   useEffect(() => {
     if (!initialFileName) return;
@@ -23,6 +25,7 @@ export default function VecProcess({
     //     (f) => f.name === initialFileName && (f.collection as string) === initialCollection
     //   );
     // }
+
     if (idx < 0) {
       idx = selectedFiles.findIndex((f) => f.name === initialFileName);
     }
