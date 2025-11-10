@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface KeywordAggregateDailyRepository
     extends JpaRepository<KeywordAggregateDaily, UUID>, KeywordAggregateDailyRepositoryCustom {
 
-    Optional<KeywordAggregateDaily> findByAggregateDateAndKeyword(LocalDate aggregateDate, String keyword);
+    Optional<KeywordAggregateDaily> findByAggregateDateAndKeyword(LocalDate aggregateDate,
+        String keyword);
 }
 

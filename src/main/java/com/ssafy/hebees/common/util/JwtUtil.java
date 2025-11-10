@@ -131,7 +131,9 @@ public class JwtUtil {
      * 요청 쿠키에서 refreshToken 추출
      */
     public String extractRefreshTokenFromCookies(HttpServletRequest request) {
-        if (request.getCookies() == null) return null;
+        if (request.getCookies() == null) {
+            return null;
+        }
         return Arrays.stream(request.getCookies())
             .filter(c -> "refreshToken".equals(c.getName()))
             .map(Cookie::getValue)
@@ -140,14 +142,13 @@ public class JwtUtil {
     }
 
     /**
-     * 입력으로 받은 토큰 문자열을 표준 형태로 정규화합니다.
-     * - 앞뒤 공백 제거
-     * - "Bearer " 접두사 제거
-     * - 실수로 Cookie 문자열 전체가 들어온 경우 refreshToken 값만 추출
-     * - 마침표가 2개를 초과하는 경우, 첫 3개 세그먼트(헤더.페이로드.서명)까지만 사용
+     * 입력으로 받은 토큰 문자열을 표준 형태로 정규화합니다. - 앞뒤 공백 제거 - "Bearer " 접두사 제거 - 실수로 Cookie 문자열 전체가 들어온 경우
+     * refreshToken 값만 추출 - 마침표가 2개를 초과하는 경우, 첫 3개 세그먼트(헤더.페이로드.서명)까지만 사용
      */
     public String normalizeToken(String token) {
-        if (token == null) return null;
+        if (token == null) {
+            return null;
+        }
         String t = token.trim();
 
         // Remove Bearer prefix

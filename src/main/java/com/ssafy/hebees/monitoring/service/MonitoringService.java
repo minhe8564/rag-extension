@@ -3,6 +3,8 @@ package com.ssafy.hebees.monitoring.service;
 import com.ssafy.hebees.monitoring.dto.response.CpuUsageResponse;
 import com.ssafy.hebees.monitoring.dto.response.MemoryUsageResponse;
 import com.ssafy.hebees.monitoring.dto.response.NetworkTrafficResponse;
+import com.ssafy.hebees.monitoring.dto.response.RunpodCpuUsageResponse;
+import com.ssafy.hebees.monitoring.dto.response.RunpodGpuUsageResponse;
 import com.ssafy.hebees.monitoring.dto.response.ServicePerformanceListResponse;
 import com.ssafy.hebees.monitoring.dto.response.ServiceStatusListResponse;
 import com.ssafy.hebees.monitoring.dto.response.StorageListResponse;
@@ -23,6 +25,7 @@ public class MonitoringService {
     private final NetworkMonitoringService networkMonitoringService;
     private final ServiceMonitoringService serviceMonitoringService;
     private final DiskMonitoringService diskMonitoringService;
+    private final RunpodMonitoringService runpodMonitoringService;
 
     // CPU Monitoring
     public Flux<ServerSentEvent<CpuUsageResponse>> streamCpuUsage() {
@@ -52,5 +55,14 @@ public class MonitoringService {
     // Disk Monitoring
     public StorageListResponse getStorageInfo() {
         return diskMonitoringService.getStorageInfo();
+    }
+
+    // Runpod Monitoring
+    public RunpodGpuUsageResponse getRunpodGpuUsage(String podId) {
+        return runpodMonitoringService.getGpuUsage(podId);
+    }
+
+    public RunpodCpuUsageResponse getRunpodCpuUsage(String podId) {
+        return runpodMonitoringService.getCpuUsage(podId);
     }
 }

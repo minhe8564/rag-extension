@@ -23,7 +23,13 @@ jwt:
   secret: "${JWT_SECRET}"
   access-token-expiration: "${JWT_ACCESS_TOKEN_EXPIRATION}"
   refresh-token-expiration: "${JWT_REFRESH_TOKEN_EXPIRATION}"
-
+runpod:
+  base-url: http://localhost  # 기본값
+  model: qwen3-vl:8b
+  name: qwen3
+  # Runpod 공식 API 설정 (모니터링용)
+  api-key: "${RUNPOD_API_KEY}"
+  api-base-url: https://api.runpod.io/graphql
 logging:
   level:
     org.hibernate.SQL: WARN

@@ -37,8 +37,12 @@ springdoc:
 
 # Runpod (Ollama) 설정
 runpod:
-  base-url: https://yo4z0wke606i0e-11434.proxy.runpod.net
+  base-url: http://localhost  # 기본값
   model: qwen3-vl:8b
+  name: qwen3
+  # Runpod 공식 API 설정 (모니터링용)
+  api-key: "${RUNPOD_API_KEY:}"
+  api-base-url: https://api.runpod.io/graphql
 
 # Actuator 설정
 management:
