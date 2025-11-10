@@ -78,24 +78,13 @@ async def list_filtered_collections(
     count_stmt = (
         select(func.count(func.distinct(Collection.collection_no)))
         .select_from(Collection)
-        .join(File, File.collection_no == Collection.collection_no)
-        .where(File.bucket.in_(["public", "hebees"]))
+        .where(Collection.name.in_(["public", "hebees"]))
     )
     res_total = await session.execute(count_stmt)
     total_items = int(res_total.scalar() or 0)
     stmt = (
         select(Collection)
-        .join(File, File.collection_no == Collection.collection_no)
-        .where(File.bucket.in_(["public", "hebees"]))
-        .group_by(
-            Collection.collection_no,
-            Collection.offer_no,
-            Collection.name,
-            Collection.version,
-            Collection.ingest_group_no,
-            Collection.created_at,
-            Collection.updated_at,
-        )
+        .where(Collection.name.in_(["public", "hebees"]))
         .order_by(Collection.created_at.desc())
         .limit(limit)
         .offset(offset)
