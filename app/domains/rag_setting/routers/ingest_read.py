@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ....core.database import get_db
 from ....core.schemas import BaseResponse, Result
 from ....core.auth.check_role import check_role
-from ....core.constants import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
+from ....core.config import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from ..schemas.ingest import (
     IngestGroupListItem,
     IngestGroupListResponse,
