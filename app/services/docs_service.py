@@ -24,7 +24,11 @@ async def proxy_docs_request(
     
     # OpenAPI JSON 요청
     if is_openapi:
-        target_url = f"{service_url}/openapi.json"
+        # 우선 전달된 경로가 있으면 그것을 사용 (예: /service-docs/{service}/openapi.json → ingest 경유)
+        if decoded_path:
+            target_url = f"{service_url}{decoded_path}"
+        else:
+            target_url = f"{service_url}/openapi.json"
     else:
         target_url = f"{service_url}{decoded_path}"
     
@@ -70,42 +74,10 @@ async def proxy_docs_request(
             response_headers.pop("transfer-encoding", None)
             response_headers.pop("content-length", None)
             
-            # Swagger UI HTML인 경우 base URL 수정
+            # Swagger UI HTML은 원본 그대로 반환 (ingest/백엔드가 완성한 HTML 유지)
             content_type_header = response.headers.get("content-type", "")
             if "text/html" in content_type_header:
-                content = response.text
-                
-                # 절대 경로 교체
-                content = content.replace(
-                    f'{service_url}/openapi.json',
-                    f'/service-docs/be/openapi.json'
-                )
-                
-                # 상대 경로 교체 (★ 이게 중요)
-                content = content.replace(
-                    '"/openapi.json"',
-                    f'"/service-docs/be/openapi.json"'
-                )
-                content = content.replace(
-                    "'/openapi.json'",
-                    f"'/service-docs/be/openapi.json'"
-                )
-                content = content.replace(
-                    'url: "/openapi.json"',
-                    f'url: "/service-docs/be/openapi.json"'
-                )
-                content = content.replace(
-                    "url: '/openapi.json'",
-                    f"url: '/service-docs/be/openapi.json'"
-                )
-                
-                # OAuth redirect URL도 안전하게 변경
-                content = content.replace(
-                    "/docs/oauth2-redirect",
-                    f"/service-docs/be/docs/oauth2-redirect"
-                )
-                
-                return HTMLResponse(content=content, headers=response_headers)
+                return HTMLResponse(content=response.text, headers=response_headers)
             
             # JSON 응답인 경우 OpenAPI 스펙의 servers URL 수정
             content_type = response.headers.get("content-type", "")
@@ -138,3 +110,123 @@ async def proxy_docs_request(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Proxy error: {str(e)}")
 
+
+async def proxy_service_docs(
+    request: Request,
+    service_url: str,
+    service_key: str,
+    path: str = "",
+    is_openapi: bool = False,
+    public_prefix: str | None = None
+):
+    """일반화된 서비스 Swagger 프록시 (service_key에 따라 경로 치환)"""
+    decoded_path = unquote(path) if path else ""
+    if decoded_path and not decoded_path.startswith("/"):
+        decoded_path = "/" + decoded_path
+
+    # OpenAPI 요청은 전달된 경로가 있으면 그것을 우선 사용
+    if is_openapi:
+        target_url = f"{service_url}{decoded_path if decoded_path else '/openapi.json'}"
+    else:
+        target_url = f"{service_url}{decoded_path}"
+
+    query_string = str(request.url.query)
+    if query_string:
+        target_url = f"{target_url}?{query_string}"
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+            forwarded_headers = {
+                key: value
+                for key, value in request.headers.items()
+                if key.lower() not in {"x-user-role", "x-user-uuid", "host", "content-length"}
+            }
+            headers = dict(forwarded_headers)
+            user_info = getattr(request.state, "user", None)
+            if user_info and getattr(user_info, "is_authenticated", False):
+                headers["x-user-role"] = str(user_info.role)
+                headers["x-user-uuid"] = str(user_info.user_uuid)
+
+            body: Optional[bytes] = None
+            if request.method in ("POST", "PUT", "PATCH"):
+                body = await request.body()
+
+            response = await client.request(
+                method=request.method,
+                url=target_url,
+                headers=headers,
+                content=body,
+            )
+
+            response_headers = dict(response.headers)
+            response_headers.pop("host", None)
+            response_headers.pop("content-encoding", None)
+            response_headers.pop("transfer-encoding", None)
+            response_headers.pop("content-length", None)
+
+            content_type_header = response.headers.get("content-type", "")
+            if "text/html" in content_type_header:
+                # HTML 내 openapi.json 참조를 게이트웨이 공개 경로로 rewrite
+                content = response.text
+                # UI가 참조해야 하는 공개 prefix 계산
+                if public_prefix:
+                    base = public_prefix
+                else:
+                    req_path = request.url.path
+                    if req_path.endswith("/docs"):
+                        base = req_path[: -len("/docs")]
+                    elif req_path.endswith("/openapi.json"):
+                        base = req_path[: -len("/openapi.json")]
+                    else:
+                        base = f"/service-docs/{service_key}"
+                # 절대경로 {service_url}/openapi.json -> {base}/openapi.json
+                content = content.replace(
+                    f"{service_url}/openapi.json",
+                    f"{base}/openapi.json"
+                )
+                # 상대경로 "/openapi.json" -> "{base}/openapi.json"
+                content = content.replace('"/openapi.json"', f'"{base}/openapi.json"')
+                content = content.replace("'/openapi.json'", f"'{base}/openapi.json'")
+                content = content.replace('url: "/openapi.json"', f'url: "{base}/openapi.json"')
+                content = content.replace("url: '/openapi.json'", f"url: '{base}/openapi.json'")
+                # ingest가 '/service-docs/{service}/openapi.json'을 사용한다면, 게이트웨이 공개 경로로 보정
+                if base.startswith("/rag/"):
+                    content = content.replace('"/service-docs/', '"/rag/service-docs/')
+                    content = content.replace("'/service-docs/", "'/rag/service-docs/")
+                    content = content.replace('url: "/service-docs/', 'url: "/rag/service-docs/')
+                    content = content.replace("url: '/service-docs/", "url: '/rag/service-docs/")
+                else:
+                    # 절대 ingest URL로 매핑: {ingest_url}/service-docs/{service}/openapi.json
+                    content = content.replace('"/service-docs/', f'"{service_url}/service-docs/')
+                    content = content.replace("'/service-docs/", f"'{service_url}/service-docs/")
+                    content = content.replace('url: "/service-docs/', f'url: "{service_url}/service-docs/')
+                    content = content.replace("url: '/service-docs/", f"url: '{service_url}/service-docs/")
+                # OAuth redirect URL도 공개 경로 기준으로 변경
+                content = content.replace(
+                    "/docs/oauth2-redirect",
+                    f"{base}/docs/oauth2-redirect"
+                )
+                return HTMLResponse(content=content, headers=response_headers)
+
+            content_type = response.headers.get("content-type", "")
+            if is_openapi or content_type.startswith("application/json"):
+                try:
+                    data = response.json()
+                    if isinstance(data, dict) and "paths" in data:
+                        data["servers"] = [{"url": "./api", "description": "Gateway proxy"}]
+                    return JSONResponse(content=data, status_code=response.status_code, headers=response_headers)
+                except:
+                    pass
+
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=response_headers,
+                media_type=content_type
+            )
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="Service request timeout")
+    except httpx.ConnectError:
+        raise HTTPException(status_code=503, detail="Service is unavailable")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Proxy error: {str(e)}")
