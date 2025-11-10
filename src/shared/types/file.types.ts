@@ -60,10 +60,8 @@ export interface FilesResponse<T> {
   message: string;
   isSuccess: boolean;
   result: {
-    data: {
-      data: T[];
-      pagination: ServerPagination;
-    };
+    data: T[];
+    pagination: ServerPagination;
   };
 }
 
@@ -77,3 +75,9 @@ export interface FetchMyDocsNormalized {
 }
 
 export type PresignedUrl = { url: string };
+
+export type DeleteFileData = {
+  fileNo: string;
+  name: string;
+  deleted: boolean;
+};

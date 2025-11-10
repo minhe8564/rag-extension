@@ -168,7 +168,7 @@ export default function ImageAlbum() {
         onClose={() => setConfirmOpen(false)}
         onConfirm={handleConfirmDelete}
         title="이미지 삭제"
-        message={`정말 삭제할까요?\n [ImageId] ${pendingDeleteId ?? ''}`}
+        message={`정말 삭제할까요?\n"[ImageId] ${pendingDeleteId ?? ''}"`}
         confirmText="삭제"
         cancelText="취소"
         variant="danger"

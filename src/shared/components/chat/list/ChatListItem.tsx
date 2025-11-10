@@ -1,4 +1,3 @@
-// src/domains/user/components/chat-list/ChatListItem.tsx
 import { useEffect, useRef, useState } from 'react';
 import { PencilLine, Trash2, Check, X, Loader2, Clock } from 'lucide-react';
 import Tooltip from '@/shared/components/Tooltip';
@@ -6,6 +5,8 @@ import clsx from 'clsx';
 import { toast } from 'react-toastify';
 import type { SessionItem } from '@/shared/types/chat.types';
 import { formatIsoDatetime } from '@/shared/util/iso';
+
+type Brand = 'retina' | 'hebees';
 
 type Props = {
   session: SessionItem;
@@ -15,6 +16,12 @@ type Props = {
   onRequestDelete: () => void;
   renaming?: boolean;
   deleting?: boolean;
+  brand?: Brand;
+};
+
+const BRAND_THEME: Record<Brand, { primary: string; primaryBg: string }> = {
+  retina: { primary: 'var(--color-retina)', primaryBg: 'var(--color-retina-bg)' },
+  hebees: { primary: 'var(--color-hebees)', primaryBg: 'var(--color-hebees-bg)' },
 };
 
 export default function ChatListItem({
@@ -25,6 +32,7 @@ export default function ChatListItem({
   onRequestDelete,
   renaming,
   deleting,
+  brand = 'retina',
 }: Props) {
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(session.title || '');
@@ -35,7 +43,6 @@ export default function ChatListItem({
   }, [editing]);
 
   useEffect(() => {
-    // 외부에서 제목이 갱신된 경우 동기화
     if (!editing) setTitle(session.title || '');
   }, [session.title, editing]);
 
@@ -51,12 +58,18 @@ export default function ChatListItem({
     setTitle(session.title || '');
   };
 
+  const cssVars: Record<`--${string}`, string> = {
+    '--color-primary': BRAND_THEME[brand].primary,
+    '--color-primary-bg': BRAND_THEME[brand].primaryBg,
+  };
+
   return (
     <li
       data-active={isActive ? '1' : '0'}
+      style={cssVars}
       className={clsx(
         'group flex items-center rounded-md gap-2 px-3 py-2',
-        isActive ? 'bg-[var(--color-retina-bg)]' : 'hover:bg-gray-50'
+        isActive ? 'bg-[var(--color-primary-bg)]' : 'hover:bg-gray-50'
       )}
     >
       <button onClick={() => onSelect(session)} className="flex-1 text-left" disabled={editing}>
@@ -93,7 +106,7 @@ export default function ChatListItem({
               <button
                 onClick={submit}
                 disabled={renaming}
-                className="rounded-md p-1.5 text-[var(--color-retina)] hover:bg-white"
+                className="rounded-md p-1.5 text-[var(--color-primary)] hover:bg-white"
               >
                 {renaming ? <Loader2 className="animate-spin" size={16} /> : <Check size={16} />}
               </button>

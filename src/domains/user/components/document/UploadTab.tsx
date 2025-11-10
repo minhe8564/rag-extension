@@ -3,12 +3,14 @@ import FileDropzone from '@/shared/components/file/FileUploader';
 import UploadedFileList from '@/shared/components/file/UploadedFileList';
 import type { UploadedDoc as UDoc } from '@/shared/components/file/UploadedFileList';
 import { uploadFiles } from '@/shared/api/file.api';
+import { toast } from 'react-toastify';
 
 type UploadPayload = { files: File[]; category: string; categoryName?: string };
 
 export default function UploadTab() {
   const [uploadedDocs, setUploadedDocs] = useState<UDoc[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   const detectType = (f: File): UDoc['type'] => {
     const name = f.name.toLowerCase();
@@ -19,19 +21,78 @@ export default function UploadTab() {
     return 'txt';
   };
 
+  const makeDoc = (f: File, category: string, categoryName?: string): UDoc => ({
+    id: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}_${f.name}`,
+    name: f.name,
+    sizeKB: f.size / 1024,
+    uploadedAt: new Date().toLocaleString(),
+    category: categoryName ?? category,
+    categoryId: category,
+    type: detectType(f),
+    file: f,
+  });
+
   const handleUpload = ({ files, category, categoryName }: UploadPayload) => {
-    const now = new Date().toLocaleString();
-    const mapped: UDoc[] = files.map((f) => ({
-      id: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}_${f.name}`,
-      name: f.name,
-      sizeKB: f.size / 1024,
-      uploadedAt: now,
-      category: categoryName ?? category,
-      categoryId: category,
-      type: detectType(f),
-      file: f,
-    }));
+    const mapped = files.map((f) => makeDoc(f, category, categoryName));
     setUploadedDocs((prev) => [...mapped, ...prev]);
+  };
+
+  const ingestSelected = async () => {
+    if (uploading) return;
+    setUploading(true);
+
+    const targets = uploadedDocs.filter((d) => selectedIds.includes(d.id) && d.file);
+    if (targets.length === 0) {
+      setUploading(false);
+      return;
+    }
+
+    setUploadedDocs((prev) =>
+      prev.map((doc) =>
+        selectedIds.includes(doc.id) ? ({ ...doc, status: 'pending' } as UDoc) : doc
+      )
+    );
+
+    let successCount = 0;
+
+    const grouped = targets.reduce<Record<string, UDoc[]>>((acc, doc) => {
+      const key = doc.categoryId ?? doc.category ?? '기타';
+      (acc[key] ||= []).push(doc);
+      return acc;
+    }, {});
+
+    for (const [categoryNo, docs] of Object.entries(grouped)) {
+      try {
+        const files = docs.map((d) => d.file!).filter(Boolean);
+        const res = await uploadFiles({ files, categoryNo });
+
+        const isOk = res?.data?.isSuccess === true || res?.status === 201;
+        const fileNos: string[] = (res?.data?.result?.data?.fileNos ?? []).map(String);
+
+        if (isOk) successCount += docs.length;
+
+        setUploadedDocs((prev) => {
+          const idxById = new Map(docs.map((d, i) => [d.id, i]));
+          return prev.map((doc) => {
+            const idx = idxById.get(doc.id);
+            if (idx === undefined) return doc;
+            return { ...doc, status: 'uploaded', fileNo: fileNos[idx] } as UDoc;
+          });
+        });
+      } catch {
+        const idSet = new Set(docs.map((d) => d.id));
+        setUploadedDocs((prev) =>
+          prev.map((doc) => (idSet.has(doc.id) ? ({ ...doc, status: 'failed' } as UDoc) : doc))
+        );
+      }
+    }
+
+    setUploading(false);
+
+    if (successCount > 0) {
+      toast.success(`문서 ${successCount}개 업로드 완료!`);
+      setTimeout(() => window.location.reload(), 500);
+    }
   };
 
   const handleDownload = (id: string) => {
@@ -55,58 +116,16 @@ export default function UploadTab() {
     [uploadedDocs, selectedIds]
   );
 
-  const selectedTotalKB = useMemo(
-    () => selectedDocs.reduce((sum, d) => sum + (d.sizeKB ?? 0), 0),
+  const selectedKB = useMemo(
+    () => selectedDocs.reduce((s, d) => s + (d.sizeKB ?? 0), 0),
     [selectedDocs]
   );
 
-  const selectedTotalStr =
-    selectedTotalKB >= 1024
-      ? `${(selectedTotalKB / 1024).toFixed(1)} MB`
-      : `${selectedTotalKB.toFixed(1)} KB`;
+  const selectedStr =
+    selectedKB >= 1024 ? `${(selectedKB / 1024).toFixed(1)} MB` : `${selectedKB.toFixed(1)} KB`;
 
-  const ingestSelected = async () => {
-    const targets = selectedDocs.filter((d) => d.file);
-    if (targets.length === 0) {
-      console.log('선택된 업로드 대상이 없습니다.');
-      return;
-    }
-
-    setUploadedDocs((prev) =>
-      prev.map((doc) => (selectedIds.includes(doc.id) ? { ...doc, status: 'pending' } : doc))
-    );
-
-    const byCategory = targets.reduce<Record<string, UDoc[]>>((acc, doc) => {
-      const key = doc.categoryId ?? doc.category;
-      if (!key) return acc;
-      if (!acc[key]) acc[key] = [];
-      acc[key]!.push(doc);
-      return acc;
-    }, {});
-
-    for (const [categoryNo, docs] of Object.entries(byCategory)) {
-      try {
-        const files = docs.map((d) => d.file!).filter(Boolean);
-        const { data } = await uploadFiles({ files, categoryNo });
-        const fileNos = data.data.fileNos ?? [];
-
-        setUploadedDocs((prev) => {
-          const indexById = new Map(docs.map((d, i) => [d.id, i]));
-          return prev.map((doc) => {
-            const idx = indexById.get(doc.id);
-            if (idx === undefined) return doc;
-            return { ...doc, status: 'uploaded', fileNo: fileNos[idx] };
-          });
-        });
-      } catch (err) {
-        console.error('uploadFiles error (category:', categoryNo, ')', err);
-        setUploadedDocs((prev) => {
-          const idSet = new Set(docs.map((d) => d.id));
-          return prev.map((doc) => (idSet.has(doc.id) ? { ...doc, status: 'failed' } : doc));
-        });
-      }
-    }
-  };
+  const hasPending = selectedDocs.some((d) => d.status === 'pending');
+  const canIngest = selectedIds.length > 0 && !hasPending;
 
   return (
     <>
@@ -129,19 +148,18 @@ export default function UploadTab() {
 
       {selectedIds.length > 0 && (
         <div className="mt-6">
-          <div className="mx-auto w-full rounded-xl border border-gray-200 bg-white/95 backdrop-blur p-4 shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="mx-auto w-full rounded-xl border p-4 bg-white/95 shadow-sm backdrop-blur">
+            <div className="flex justify-between items-center gap-3">
               <p className="text-sm text-gray-700">
-                선택된 파일 <span className="font-medium">{selectedIds.length}</span>개 · 총{' '}
-                <span className="font-medium">{selectedTotalStr}</span>
+                선택 {selectedIds.length}개 · {selectedStr}
               </p>
-
               <button
                 type="button"
                 onClick={ingestSelected}
-                className="inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-semibold text-white bg-[var(--color-retina)] hover:bg-[var(--color-retina)]/90"
+                disabled={!canIngest || uploading}
+                className="px-4 py-2 text-sm font-semibold rounded text-white bg-[var(--color-retina)] hover:bg-[var(--color-retina)]/90 disabled:opacity-60"
               >
-                문서 업로드
+                {uploading ? '문서 업로드 중...' : '문서 업로드'}
               </button>
             </div>
           </div>

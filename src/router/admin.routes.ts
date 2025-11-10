@@ -5,10 +5,11 @@ import RequireAdmin from '@/guards/RequireAdmin';
 import AdminLayout from '@/layouts/AdminLayout';
 
 const AdminDashboard = lazy(() => import('@/domains/admin/pages/Dashboard'));
-const AdminDocuments = lazy(() => import('@/domains/admin/pages/Documents'));
-const AdminChat = lazy(() => import('@/domains/admin/pages/TextChat'));
-const AdminRagTest = lazy(() => import('@/domains/admin/pages/RagTest'));
 const AdminRagSettings = lazy(() => import('@/domains/admin/pages/RagSettings'));
+const AdminRagTest = lazy(() => import('@/domains/admin/pages/RagTest'));
+const AdminChat = lazy(() => import('@/domains/admin/pages/TextChat'));
+const AdminImageChat = lazy(() => import('@/domains/admin/pages/ImageGenerator'));
+const AdminDocuments = lazy(() => import('@/domains/admin/pages/Documents'));
 const AdminUsers = lazy(() => import('@/domains/admin/pages/UsersManagement'));
 const AdminProfile = lazy(() => import('@/domains/admin/pages/Profile'));
 
@@ -30,10 +31,12 @@ export const adminRoutes: RouteObject = {
           children: [
             { index: true, element: createElement(AdminDashboard) },
             { path: 'dashboard', element: createElement(AdminDashboard) },
-            { path: 'documents', element: createElement(AdminDocuments) },
-            { path: 'chat', element: createElement(AdminChat) },
-            { path: 'rag/test', element: createElement(AdminRagTest) },
             { path: 'rag/settings', element: createElement(AdminRagSettings) },
+            { path: 'rag/test', element: createElement(AdminRagTest) },
+            { path: 'chat/text', element: createElement(AdminChat) },
+            { path: 'chat/text/:sessionNo', element: createElement(AdminChat) },
+            { path: 'chat/image', element: createElement(AdminImageChat) },
+            { path: 'documents', element: createElement(AdminDocuments) },
             { path: 'users', element: createElement(AdminUsers) },
             { path: 'profile', element: createElement(AdminProfile) },
           ],

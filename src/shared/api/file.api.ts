@@ -7,6 +7,7 @@ import type {
   RawMyDoc,
   FilesResponse,
   FetchMyDocsNormalized,
+  DeleteFileData,
 } from '@/shared/types/file.types';
 
 // 업로드
@@ -21,8 +22,9 @@ export function uploadFiles({
   form.append('category', categoryNo);
   if (bucket !== undefined && bucket !== null) form.append('bucket', bucket);
 
-  return fastApi.post<UploadFilesResult>('/api/v1/files', form, { params: { onNameConflict } });
-  // return fastApi.post<UploadFilesResult>('/api/v1/files', form);
+  return fastApi.post<ApiEnvelope<UploadFilesResult>>('/api/v1/files', form, {
+    params: { onNameConflict },
+  });
 }
 
 // 카테고리
@@ -46,7 +48,7 @@ export async function fetchMyDocumentsNormalized(params?: {
     },
   });
 
-  const payload = data.result.data;
+  const payload = data.result;
   const list = payload.data;
   const pg = payload.pagination;
 
@@ -56,10 +58,10 @@ export async function fetchMyDocumentsNormalized(params?: {
       name: f.name,
       sizeKB: f.size,
       type: f.type,
-      bucket: f.bucket,
-      path: f.path,
-      categoryNo: f.categoryNo,
-      collectionNo: f.collectionNo,
+      bucket: f.bucket ?? undefined,
+      path: f.path ?? undefined,
+      categoryNo: f.categoryNo ?? undefined,
+      collectionNo: f.collectionNo ?? undefined,
       uploadedAt: f.createdAt,
     })),
     total: pg.totalItems,
@@ -73,16 +75,9 @@ export async function fetchMyDocumentsNormalized(params?: {
 // 파일 Presigned URL 발급
 export async function getPresignedUrl(
   fileNo: string,
-  opts?: {
-    days?: number;
-    inline?: boolean;
-    contentType?: string;
-    versionId?: string;
-  }
+  opts?: { days?: number; inline?: boolean; contentType?: string; versionId?: string }
 ): Promise<string> {
-  type PresignedUrlResponse = ApiEnvelope<{
-    data: { url: string };
-  }>;
+  type PresignedUrlResponse = ApiEnvelope<{ data: { url: string } }>;
 
   const res = await fastApi.get<PresignedUrlResponse>(`/api/v1/files/${fileNo}/presigned`, {
     params: {
@@ -93,8 +88,15 @@ export async function getPresignedUrl(
     },
   });
 
-  const url = res.data?.result?.data?.url;
-  return url;
+  return res.data?.result?.data?.url;
+}
+
+// 파일 삭제
+export async function deleteFile(fileNo: string): Promise<DeleteFileData> {
+  const res = await fastApi.delete<ApiEnvelope<{ data: DeleteFileData }>>(
+    `/api/v1/files/${fileNo}`
+  );
+  return res.data?.result?.data;
 }
 
 // 문서 삭제

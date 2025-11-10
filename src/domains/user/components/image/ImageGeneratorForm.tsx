@@ -3,6 +3,8 @@ import Tooltip from '@/shared/components/Tooltip';
 import type { StylePreset } from '@/domains/user/types/image.type';
 import { STYLE_LABEL } from '@/domains/user/types/image.type';
 
+type Brand = 'retina' | 'hebees';
+
 type Props = {
   prompt: string;
   setPrompt: (v: string) => void;
@@ -15,6 +17,18 @@ type Props = {
   maxLen: number;
   onGenerate: () => void;
   onReusePrompt: (addition?: string) => void;
+  brand?: Brand;
+};
+
+const brandColors: Record<Brand, { color: string; bg: string }> = {
+  retina: {
+    color: 'var(--color-retina)',
+    bg: 'var(--color-retina-bg)',
+  },
+  hebees: {
+    color: 'var(--color-hebees)',
+    bg: 'var(--color-hebees-bg)',
+  },
 };
 
 export default function ImageGeneratorForm({
@@ -29,11 +43,19 @@ export default function ImageGeneratorForm({
   maxLen,
   onGenerate,
   onReusePrompt,
+  brand = 'retina',
 }: Props) {
   const chars = prompt.length;
 
+  const colors = brandColors[brand];
+
+  const cssVars: Record<`--${string}`, string> = {
+    '--color-primary': colors.color,
+    '--color-primary-bg': colors.bg,
+  };
+
   return (
-    <div className="rounded-xl border bg-white p-8">
+    <div className="rounded-xl border bg-white p-8" style={cssVars}>
       <div className="mb-6 space-y-2">
         <div className="text-xl font-semibold text-black">이미지 설명</div>
         <div className="text-base text-gray-500">
@@ -44,9 +66,14 @@ export default function ImageGeneratorForm({
       <div className="relative">
         <textarea
           value={prompt}
-          onChange={e => setPrompt(e.target.value.slice(0, maxLen))}
-          className="w-full h-40 resize-none rounded-md p-4 text-sm bg-[var(--color-retina-bg)] border-none outline-none focus:ring-1 focus:ring-[var(--color-retina)]"
-          placeholder='예: "포근한 크리스마스 분위기의 일러스트, 눈 내리는 마을, 트리와 선물 상자, 따뜻한 조명, 포스터 스타일"'
+          onChange={(e) => setPrompt(e.target.value.slice(0, maxLen))}
+          className="
+            w-full h-40 resize-none rounded-md p-4 text-sm
+            bg-[var(--color-primary-bg)]
+            border-none outline-none
+            focus:ring-1 focus:ring-[var(--color-primary)]
+          "
+          placeholder='예: "포근한 크리스마스 분위기의 일러스트..."'
         />
         <div className="absolute bottom-4 right-4 text-sm text-gray-400">
           {chars}/{maxLen}
@@ -58,7 +85,7 @@ export default function ImageGeneratorForm({
           <label className="block text-sm text-gray-500 mb-2">사이즈</label>
           <select
             value={size}
-            onChange={e => setSize(e.target.value as string)}
+            onChange={(e) => setSize(e.target.value as string)}
             className="w-full rounded-md border px-2 py-2 text-sm"
           >
             <option value="1024x1024">1024 × 1024 (정사각형)</option>
@@ -78,7 +105,7 @@ export default function ImageGeneratorForm({
       <div className="mt-6">
         <label className="block text-sm text-gray-500 mb-3">스타일 프리셋</label>
         <div className="flex flex-wrap gap-2">
-          {(Object.keys(STYLE_LABEL) as StylePreset[]).map(k => {
+          {(Object.keys(STYLE_LABEL) as StylePreset[]).map((k) => {
             const active = k === style;
             return (
               <button
@@ -87,7 +114,7 @@ export default function ImageGeneratorForm({
                 className={
                   'rounded-full px-3 py-1.5 text-sm border ' +
                   (active
-                    ? 'border-[var(--color-retina)] bg-[var(--color-retina-bg)]'
+                    ? 'border-[var(--color-primary)] bg-[var(--color-primary-bg)]'
                     : 'hover:bg-gray-50')
                 }
               >
@@ -101,8 +128,8 @@ export default function ImageGeneratorForm({
       <div className="mt-6 flex items-center justify-center gap-4">
         <button
           disabled={disabled}
-          onClick={() => onGenerate()}
-          className="inline-flex items-center gap-2 rounded-md bg-[var(--color-retina)] px-8 py-2 text-white disabled:opacity-50"
+          onClick={onGenerate}
+          className="inline-flex items-center gap-2 rounded-md bg-[var(--color-primary)] px-8 py-2 text-white disabled:opacity-50"
         >
           {loading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
           이미지 생성하기

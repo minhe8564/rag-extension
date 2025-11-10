@@ -31,7 +31,7 @@ export default function Documents() {
           <FileText size={26} className="text-[var(--color-retina)]" />
         </div>
         <div>
-          <h1 className="text-2xl font-semibold mb-1">문서</h1>
+          <h1 className="text-2xl font-semibold mb-1">문서 관리</h1>
           <p className="text-sm text-gray-600">업로드하거나, 내 문서 목록을 확인하세요.</p>
         </div>
       </div>

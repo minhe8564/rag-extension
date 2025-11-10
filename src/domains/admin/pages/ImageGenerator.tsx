@@ -92,8 +92,8 @@ export default function ImageGenerator() {
   return (
     <div className="space-y-8 px-4 mb-20">
       <div className="flex items-center gap-3">
-        <div className="p-3 rounded-xl bg-[var(--color-retina-bg)] flex items-center justify-center">
-          <Image size={26} className="text-[var(--color-retina)]" />
+        <div className="p-3 rounded-xl bg-[var(--color-hebees-bg)] flex items-center justify-center">
+          <Image size={26} className="text-[var(--color-hebees)]" />
         </div>
         <div>
           <h1 className="text-2xl font-semibold mb-1">이미지 생성</h1>
@@ -116,7 +116,7 @@ export default function ImageGenerator() {
           maxLen={MAX_LEN}
           onGenerate={onGenerate}
           onReusePrompt={(t) => setPrompt((prev) => prev + ' ' + t)}
-          brand="retina"
+          brand="hebees"
         />
 
         <ImageResultPane

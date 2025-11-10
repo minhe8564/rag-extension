@@ -4,8 +4,9 @@ import { toast } from 'react-toastify';
 import ChatInput from '@/shared/components/chat/ChatInput';
 import ChatMessageItem from '@/shared/components/chat/ChatMessageItem';
 import type { UiMsg, UiRole } from '@/shared/components/chat/ChatMessageItem';
-import { getMessages, sendMessage, createSession } from '@/shared/api/chat.api';
+import { getSession, getMessages, sendMessage, createSession } from '@/shared/api/chat.api';
 import ScrollToBottomButton from '@/shared/components/chat/ScrollToBottomButton';
+import { useGlobalModelStore } from '@/shared/store/useGlobalModelStore';
 
 import type {
   ChatRole,
@@ -30,6 +31,10 @@ const deriveSessionNo = (
   return legacy?.[1] ?? null;
 };
 
+const setGlobalModel = (model: string) => {
+  localStorage.setItem('global-chat-model', model);
+};
+
 export default function TextChat() {
   const { sessionNo: paramsSessionNo } = useParams<{ sessionNo: string }>();
   const location = useLocation();
@@ -46,6 +51,7 @@ export default function TextChat() {
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const forceScrollRef = useRef(false);
 
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [editingDraft, setEditingDraft] = useState<string>('');
@@ -79,6 +85,11 @@ export default function TextChat() {
       try {
         const res = await getMessages(derivedSessionNo);
         const page: MessagePage = res.data.result;
+        const res2 = await getSession(derivedSessionNo);
+        const sessionInfo = res2.data.result;
+        if (sessionInfo.llmName) {
+          setGlobalModel(sessionInfo.llmName);
+        }
 
         const mapped: UiMsg[] =
           page.data?.map((m: MessageItem) => ({
@@ -112,6 +123,11 @@ export default function TextChat() {
   }, [derivedSessionNo, location.pathname, location.search]);
 
   useEffect(() => {
+    if (forceScrollRef.current) {
+      forceScrollRef.current = false;
+      requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }));
+      return;
+    }
     if (isAtBottom()) {
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
@@ -126,16 +142,22 @@ export default function TextChat() {
     return data.sessionNo;
   };
 
+  const model = useGlobalModelStore.getState().model;
+
   const handleSend = async (msg: string) => {
+    forceScrollRef.current = true;
+
     setList((prev) => [...prev, { role: 'user', content: msg }]);
     setAwaitingAssistant(true);
     setList((prev) => [...prev, { role: 'assistant', content: '', messageNo: '__pending__' }]);
 
     try {
       const sessionNo = await ensureSession();
-      const body: SendMessageRequest = { content: msg };
+      const body: SendMessageRequest = { content: msg, model: model };
       const res = await sendMessage(sessionNo, body);
       const result: SendMessageResult = res.data.result;
+
+      forceScrollRef.current = true;
 
       setList((prev) =>
         prev.map((it) =>
@@ -169,7 +191,7 @@ export default function TextChat() {
     '자료를 기반으로 답변을 조합하고 있습니다…',
     '근거를 기반으로 답변을 다듬고 있습니다…',
     'HEBEES RAG 답변 생성 중입니다…',
-  ];
+  ] as const;
 
   const [thinkingIdx, setThinkingIdx] = useState(0);
 
@@ -181,12 +203,11 @@ export default function TextChat() {
     const t = setInterval(() => {
       setThinkingIdx((i) => (i + 1) % thinkingMessages.length);
     }, 2000);
-
     return () => clearInterval(t);
   }, [awaitingAssistant, thinkingMessages.length]);
 
   return (
-    <section className="flex flex-col min-h[calc(100vh-62px)] z-0 h-full">
+    <section className="flex flex-col min-h-[calc(100vh-62px)] z-0 h-full">
       {hasMessages ? (
         <>
           <div
@@ -207,6 +228,7 @@ export default function TextChat() {
                   onSubmitReask={submitReask}
                   isPendingAssistant={awaitingAssistant && m.role === 'assistant' && !m.content}
                   pendingSubtitle={thinkingMessages[thinkingIdx]}
+                  brand="retina"
                 />
               ))}
               <div ref={bottomRef} />

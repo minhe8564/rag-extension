@@ -1,19 +1,26 @@
 import { useState } from 'react';
-import { Outlet, NavLink } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import {
   Menu,
   Settings,
   Monitor,
   FolderCog,
-  MessageCirclePlus,
+  MessageSquare,
   Bot,
   Bell,
   LogOut,
   UserCog,
   Users,
+  Search,
+  Image,
 } from 'lucide-react';
 import Tooltip from '@/shared/components/Tooltip';
+import ChatList from '@/shared/components/chat/list/ChatList';
+import ChatSearchModal from '@/shared/components/chat/ChatSearchModal';
 import HebeesLogo from '@/assets/hebees-logo.png';
+import Select from '@/shared/components/Select';
+import type { Option } from '@/shared/components/Select';
+import { useGlobalModelStore } from '@/shared/store/useGlobalModelStore';
 
 const labelCls = (isOpen: boolean) =>
   'ml-2 overflow-hidden whitespace-nowrap transition-[max-width,opacity,transform] duration-300 ' +
@@ -27,8 +34,40 @@ const linkCls = ({ isActive }: { isActive: boolean }) =>
     ? 'bg-[var(--color-hebees-bg)] text-[var(--color-hebees)]'
     : 'text-gray-700 hover:bg-[var(--color-hebees)] hover:text-white');
 
+const MODEL_OPTIONS: Option[] = [
+  {
+    value: 'qwen3-v1:8b',
+    label: 'Qwen3-v1:8B',
+    desc: '가볍고 빠른 멀티모달 모델',
+  },
+  {
+    value: 'gpt-4o',
+    label: 'GPT-4o',
+    desc: '전반적인 품질·안정성 균형',
+  },
+  {
+    value: 'gemini-2.5 flash',
+    label: 'Gemini 2 .5 Flash',
+    desc: '대용량 문서·검색 작업에 최적',
+  },
+  {
+    value: 'claude-sonnet 4',
+    label: 'Claude Sonnet 4',
+    desc: '복잡한 분석·글쓰기·요약에 강점',
+  },
+];
+
 export default function AdminLayout() {
   const [isOpen, setIsOpen] = useState(true);
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const [sp] = useSearchParams();
+  const activeSessionNo = sp.get('session') || undefined;
+  const navigate = useNavigate();
+  const { model, setModel } = useGlobalModelStore();
+
+  const { pathname } = useLocation();
+  const isChatRoute = pathname.startsWith('/admin/chat/text');
 
   return (
     <div className="flex min-h-screen">
@@ -75,27 +114,6 @@ export default function AdminLayout() {
             </div>
           </NavLink>
 
-          <NavLink to="/admin/documents" className={linkCls}>
-            <FolderCog size={18} className="flex-shrink-0" />
-            <div className={labelCls(isOpen)}>
-              <span className="inline-block">문서 관리</span>
-            </div>
-          </NavLink>
-
-          <NavLink to="/admin/chat" className={linkCls}>
-            <MessageCirclePlus size={18} className="flex-shrink-0" />
-            <div className={labelCls(isOpen)}>
-              <span className="inline-block">RAG 채팅</span>
-            </div>
-          </NavLink>
-
-          {/* <NavLink to="/admin/chat/image" className={linkCls}>
-            <Image size={18} className="flex-shrink-0" />
-            <div className={labelCls(isOpen)}>
-              <span className="inline-block">이미지 생성하기</span>
-            </div>
-          </NavLink> */}
-
           <NavLink to="/admin/rag/settings" className={linkCls}>
             <Settings size={18} className="flex-shrink-0" />
             <div className={labelCls(isOpen)}>
@@ -109,7 +127,53 @@ export default function AdminLayout() {
               <span className="inline-block">RAG 모델 테스트</span>
             </div>
           </NavLink>
+
+          <NavLink to="/admin/chat/text" className={linkCls}>
+            <MessageSquare size={18} className="flex-shrink-0" />
+            <div className={labelCls(isOpen)}>
+              <span className="inline-block">RAG 채팅</span>
+            </div>
+          </NavLink>
+
+          <NavLink to="/admin/chat/image" className={linkCls}>
+            <Image size={18} className="flex-shrink-0" />
+            <div className={labelCls(isOpen)}>
+              <span className="inline-block">이미지 생성</span>
+            </div>
+          </NavLink>
+
+          <NavLink to="/admin/documents" className={linkCls}>
+            <FolderCog size={18} className="flex-shrink-0" />
+            <div className={labelCls(isOpen)}>
+              <span className="inline-block">문서 관리</span>
+            </div>
+          </NavLink>
+
+          <button
+            type="button"
+            className={
+              'flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ' +
+              'text-gray-700 hover:bg-[var(--color-hebees)] hover:text-white'
+            }
+            onClick={() => setOpen(true)}
+          >
+            <Search size={18} className="flex-shrink-0" />
+            <div className={labelCls(isOpen)}>
+              <span className="inline-block">채팅 검색</span>
+            </div>
+          </button>
         </nav>
+
+        {isOpen && (
+          <div className="mt-3 px-2">
+            <ChatList
+              activeSessionNo={activeSessionNo}
+              onSelect={(s) => navigate(`/admin/chat/text/${s.sessionNo}`)}
+              pageSize={20}
+              brand="hebees"
+            />
+          </div>
+        )}
 
         <div className="mt-auto px-2 pb-4">
           <NavLink
@@ -143,7 +207,20 @@ export default function AdminLayout() {
       </aside>
 
       <main className="flex-1 min-w-0">
-        <div className="sticky top-0 bg-transparent flex justify-end px-8 py-5">
+        <div
+          className={`sticky z-30 top-0 flex px-8 py-5 ${
+            isChatRoute ? 'justify-between' : 'justify-end'
+          }`}
+        >
+          {isChatRoute && (
+            <Select
+              value={model}
+              onChange={setModel}
+              options={MODEL_OPTIONS}
+              className="w-[200px]"
+              placeholder="모델 선택"
+            />
+          )}
           <Bell
             size={22}
             className="text-gray-600 hover:text-gray-800 cursor-pointer transition-colors shake-hover"
@@ -155,6 +232,14 @@ export default function AdminLayout() {
           </div>
         </div>
       </main>
+
+      <ChatSearchModal
+        open={open}
+        value={q}
+        onValueChange={setQ}
+        onClose={() => setOpen(false)}
+        onSelect={(s) => navigate(`/user/chat/text?session=${s.sessionNo}`)}
+      />
     </div>
   );
 }

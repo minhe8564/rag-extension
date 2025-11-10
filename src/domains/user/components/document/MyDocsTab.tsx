@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import clsx from 'clsx';
-import { fetchMyDocumentsNormalized, getPresignedUrl } from '@/shared/api/file.api';
+import { fetchMyDocumentsNormalized, getPresignedUrl, deleteFile } from '@/shared/api/file.api';
 import type { MyDoc } from '@/shared/types/file.types';
 import UploadedFileList, { type UploadedDoc } from '@/shared/components/file/UploadedFileList';
 import Pagination from '@/shared/components/Pagination';
 import { RefreshCw } from 'lucide-react';
+import { toast } from 'react-toastify';
+import ConfirmModal from '@/shared/components/ConfirmModal';
 
 const PAGE_SIZE = 20;
 
@@ -20,7 +22,11 @@ export default function MyDocsTab() {
   const [hasNext, setHasNext] = useState(false);
   const [loading, setLoading] = useState(false);
   const [refreshTick, setRefreshTick] = useState(0);
-  // const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<{ fileNo: string; name?: string } | null>(
+    null
+  );
 
   const reqSeq = useRef(0);
 
@@ -35,7 +41,6 @@ export default function MyDocsTab() {
           pageNum,
           pageSize: PAGE_SIZE,
         });
-
         if (!active || myReqId !== reqSeq.current) return;
 
         setMyDocs(items);
@@ -56,8 +61,6 @@ export default function MyDocsTab() {
     };
   }, [pageNum, refreshTick]);
 
-  const hasPrev = pageNum > 1;
-
   const uploadedDocs: UploadedDoc[] = useMemo(
     () =>
       myDocs.map((d) => ({
@@ -75,19 +78,16 @@ export default function MyDocsTab() {
   );
 
   const handleDownload = async (fileNo: string) => {
-    // setDownloadingId(fileNo);
     const doc = myDocs.find((m) => m.fileNo === fileNo);
     const fallbackName = doc?.name || `${fileNo}.bin`;
 
     try {
       const signedUrl = await getPresignedUrl(fileNo, { inline: false });
-
       const res = await fetch(signedUrl);
       if (!res.ok) throw new Error('Failed to fetch file');
 
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
-
       const a = document.createElement('a');
       a.href = blobUrl;
       a.download = fallbackName;
@@ -95,16 +95,60 @@ export default function MyDocsTab() {
       document.body.appendChild(a);
       a.click();
       a.remove();
-
       URL.revokeObjectURL(blobUrl);
     } catch (error) {
       console.error('File download failed:', error);
-
       const signedUrl = await getPresignedUrl(fileNo, { inline: false });
       window.open(signedUrl, '_blank');
-    } finally {
-      // setDownloadingId(null);
     }
+  };
+
+  const requestDelete = (ids: string[]) => {
+    const fileNo = Array.isArray(ids) ? ids[0] : undefined;
+    if (!fileNo) return;
+
+    const target = myDocs.find((d) => d.fileNo === fileNo);
+    setPendingDelete({ fileNo, name: target?.name });
+    setConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDelete?.fileNo) return;
+
+    try {
+      setDeleting(true);
+      const res = await deleteFile(pendingDelete.fileNo);
+
+      if (res?.deleted) {
+        toast.success('문서를 삭제했어요.');
+
+        setMyDocs((prev) => prev.filter((d) => d.fileNo !== pendingDelete.fileNo));
+        setTotal((t) => Math.max(0, t - 1));
+
+        setTimeout(() => {
+          const afterCount = myDocs.length - 1;
+          if (afterCount === 0 && pageNum > 1) {
+            setPageNum((p) => Math.max(1, p - 1));
+            setRefreshTick((t) => t + 1);
+          }
+        }, 0);
+      } else {
+        toast.error('삭제에 실패했습니다.');
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error('삭제 중 오류가 발생했어요.');
+    } finally {
+      setDeleting(false);
+      setConfirmOpen(false);
+      setPendingDelete(null);
+    }
+  };
+
+  const closeConfirm = () => {
+    if (deleting) return;
+    setConfirmOpen(false);
+    setPendingDelete(null);
   };
 
   return (
@@ -118,15 +162,18 @@ export default function MyDocsTab() {
           <button
             type="button"
             onClick={() => setRefreshTick((t) => t + 1)}
-            disabled={loading}
+            disabled={loading || deleting}
             className={clsx(
               'flex items-center gap-1.5 text-sm rounded-md px-3 py-1',
               'border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-black transition-colors',
               'disabled:opacity-50 disabled:cursor-not-allowed'
             )}
           >
-            <RefreshCw size={16} className={clsx(loading && 'animate-spin text-gray-400')} />
-            {loading ? '불러오는 중...' : '새로고침'}
+            <RefreshCw
+              size={16}
+              className={clsx((loading || deleting) && 'animate-spin text-gray-400')}
+            />
+            {loading ? '불러오는 중...' : deleting ? '삭제 중...' : '새로고침'}
           </button>
         </div>
 
@@ -139,6 +186,7 @@ export default function MyDocsTab() {
             brand="retina"
             hideFooter
             onDownload={handleDownload}
+            onDelete={requestDelete}
           />
         )}
 
@@ -146,9 +194,9 @@ export default function MyDocsTab() {
           <Pagination
             pageNum={pageNum}
             totalPages={totalPages}
-            hasPrev={hasPrev}
+            hasPrev={pageNum > 1}
             hasNext={hasNext || pageNum < totalPages}
-            isLoading={loading}
+            isLoading={loading || deleting}
             onPageChange={(newPage) => {
               const isNextClick = newPage === pageNum + 1;
               if (newPage < 1) return;
@@ -162,6 +210,22 @@ export default function MyDocsTab() {
           />
         )}
       </div>
+
+      <ConfirmModal
+        open={confirmOpen}
+        onClose={closeConfirm}
+        onConfirm={confirmDelete}
+        title="문서 삭제"
+        message={
+          pendingDelete?.name
+            ? `정말 이 문서를 삭제할까요?\n"${pendingDelete.name}"`
+            : '정말 삭제할까요?'
+        }
+        confirmText={deleting ? '삭제 중...' : '삭제'}
+        cancelText="취소"
+        variant="danger"
+        zIndex={10080}
+      />
     </div>
   );
 }

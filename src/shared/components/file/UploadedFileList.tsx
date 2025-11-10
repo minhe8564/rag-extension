@@ -54,7 +54,9 @@ export default function UploadedFileList({
     () => Math.max(1, Math.ceil(filtered.length / pageSize)),
     [filtered.length, pageSize]
   );
+
   const safePage = Math.min(page, totalPages);
+
   const pageItems = useMemo(
     () => filtered.slice((safePage - 1) * pageSize, safePage * pageSize),
     [filtered, safePage, pageSize]
@@ -225,53 +227,51 @@ export default function UploadedFileList({
       {!hideFooter && (
         <>
           <div className={`py-4 text-sm ${selectedIds.length ? brandText : 'text-gray-400'}`}>
-            <div className={`py-4 text-sm ${selectedIds.length ? brandText : 'text-gray-400'}`}>
-              {selectedIds.length ? (
-                <div
-                  className={`flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 ${brandBorder} ${brandBg}`}
-                >
-                  <span>{selectedIds.length}개 파일이 선택되었습니다.</span>
+            {selectedIds.length ? (
+              <div
+                className={`flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 ${brandBorder} ${brandBg}`}
+              >
+                <span>{selectedIds.length}개 파일이 선택되었습니다.</span>
 
-                  <div className="flex items-center gap-1">
-                    <Tooltip content="선택 해제" side="bottom">
-                      <button
-                        type="button"
-                        onClick={() => setSelected({})}
-                        className="rounded-md p-2 hover:bg-white text-black"
-                      >
-                        <X size={16} />
-                      </button>
-                    </Tooltip>
+                <div className="flex items-center gap-1">
+                  <Tooltip content="선택 해제" side="bottom">
+                    <button
+                      type="button"
+                      onClick={() => setSelected({})}
+                      className="rounded-md p-2 hover:bg-white text-black"
+                    >
+                      <X size={16} />
+                    </button>
+                  </Tooltip>
 
-                    <Tooltip content="선택 다운로드" side="bottom">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          selectedIds.forEach((id, i) => {
-                            setTimeout(() => onDownload?.(id), i * 120);
-                          });
-                        }}
-                        className="rounded-md p-2 hover:bg-white text-black"
-                      >
-                        <Download size={16} />
-                      </button>
-                    </Tooltip>
+                  <Tooltip content="선택 다운로드" side="bottom">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        selectedIds.forEach((id, i) => {
+                          setTimeout(() => onDownload?.(id), i * 120);
+                        });
+                      }}
+                      className="rounded-md p-2 hover:bg-white text-black"
+                    >
+                      <Download size={16} />
+                    </button>
+                  </Tooltip>
 
-                    <Tooltip content="선택 삭제" side="bottom">
-                      <button
-                        type="button"
-                        onClick={() => onDelete?.(selectedIds)}
-                        className="rounded-md p-2 hover:bg-white text-red-600"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </Tooltip>
-                  </div>
+                  <Tooltip content="선택 삭제" side="bottom">
+                    <button
+                      type="button"
+                      onClick={() => onDelete?.(selectedIds)}
+                      className="rounded-md p-2 hover:bg-white text-red-600"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </Tooltip>
                 </div>
-              ) : (
-                <span>파일을 선택하면 일괄 작업을 수행할 수 있어요.</span>
-              )}
-            </div>
+              </div>
+            ) : (
+              <span>파일을 선택하면 일괄 작업을 수행할 수 있어요.</span>
+            )}
           </div>
 
           <div className="flex items-center justify-center gap-5 py-3 text-sm">

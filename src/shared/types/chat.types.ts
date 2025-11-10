@@ -4,9 +4,13 @@ import type { Pagination } from '@/shared/lib/api.types';
 export interface SessionItem {
   sessionNo: string;
   title: string;
-  createdAt: string;
-  lastRequestedAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  lastRequestedAt?: string;
+  updatedAt?: string;
+  llmNo: string;
+  llmName: string;
+  userNo: string;
+  userName: string;
 }
 
 export interface ListSessionsResult {
@@ -68,6 +72,7 @@ export interface CreateSessionResult {
 // 메세지 전송 관련
 export interface SendMessageRequest {
   content: string;
+  model?: string;
 }
 
 export interface SendMessageResult {

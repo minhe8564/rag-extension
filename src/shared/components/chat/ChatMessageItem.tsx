@@ -6,6 +6,7 @@ import ReferencedDocsPanel from '@/shared/components/chat/ReferencedDocs';
 import { formatIsoDatetime } from '@/shared/util/iso';
 import type { ReferencedDocument } from '@/shared/types/chat.types';
 
+type Brand = 'retina' | 'hebees';
 export type UiRole = 'user' | 'assistant' | 'system' | 'tool';
 
 export type UiMsg = {
@@ -27,6 +28,7 @@ type Props = {
   onSubmitReask: (value: string) => void;
   isPendingAssistant?: boolean;
   pendingSubtitle: string;
+  brand: Brand;
 };
 
 export default function ChatMessageItem({
@@ -40,15 +42,23 @@ export default function ChatMessageItem({
   onSubmitReask,
   isPendingAssistant = false,
   pendingSubtitle,
+  brand = 'retina',
 }: Props) {
   const isUser = msg.role === 'user';
+
+  const BRAND_COLORS: Record<Brand, { bg: string }> = {
+    retina: { bg: 'var(--color-retina-bg)' },
+    hebees: { bg: 'var(--color-hebees-bg)' },
+  };
+
+  const bgColor = BRAND_COLORS[brand].bg;
 
   return (
     <div
       className={`
         px-3 py-1.5 relative group break-words
         ${isUser ? (isEditing ? 'w-full max-w-lg' : 'w-fit max-w-[60%]') : 'w-full'}
-        ${isUser ? 'rounded-xl border ml-auto bg-[var(--color-retina-bg)] text-black' : 'bg-white'}
+        ${isUser ? `rounded-xl border ml-auto bg-[${bgColor}] text-black` : 'bg-white'}
       `}
     >
       {isEditing && isUser ? (
@@ -59,7 +69,6 @@ export default function ChatMessageItem({
         />
       ) : !isUser && isPendingAssistant ? (
         <div className="flex items-center gap-3 py-1.5">
-          {/* 회전하는 그라데이션 원 (꽉 찬 원) */}
           <span className="relative inline-flex h-6 w-6">
             <span
               className="
