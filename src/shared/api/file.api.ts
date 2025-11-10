@@ -96,3 +96,9 @@ export async function getPresignedUrl(
   const url = res.data?.result?.data?.url;
   return url;
 }
+
+// 문서 삭제
+export const deleteFile = async (fileNo: string) => {
+  const { data } = await fastApi.delete(`/api/v1/files/${fileNo}`);
+  return data.result;
+};

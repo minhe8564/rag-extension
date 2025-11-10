@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { getCollections, getDocInCollections } from '@/domains/admin/api/documents.api';
 import type { collectionType, documentDatatype } from '@/domains/admin/types/documents.types';
-import { deleteDocument } from '@/shared/api/file.api';
+import { deleteFile } from '@/shared/api/file.api';
 import { toast } from 'react-toastify';
 
 export default function ColList() {
@@ -83,7 +83,7 @@ export default function ColList() {
   // 문서 삭제
   const handleDeleteDoc = async (fileNo: string) => {
     try {
-      await deleteDocument(fileNo);
+      await deleteFile(fileNo);
       toast.success('문서가 삭제되었습니다 ✅');
     } catch (error) {
       toast.error('문서 삭제 중 오류가 발생했습니다.');
