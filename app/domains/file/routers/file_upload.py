@@ -72,7 +72,8 @@ async def upload_file(
         try:
             background_tasks.add_task(
                 call_ingest,
-                user_role=role_upper,
+                user_role=x_user_role,
+                user_uuid=x_user_uuid,
                 batch_meta=batch_meta,
             )
         except Exception:
