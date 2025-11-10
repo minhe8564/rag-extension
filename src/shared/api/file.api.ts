@@ -98,9 +98,3 @@ export async function deleteFile(fileNo: string): Promise<DeleteFileData> {
   );
   return res.data?.result?.data;
 }
-
-// 문서 삭제
-export const deleteFile = async (fileNo: string) => {
-  const { data } = await fastApi.delete(`/api/v1/files/${fileNo}`);
-  return data.result;
-};
