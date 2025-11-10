@@ -59,10 +59,8 @@ export interface FilesResponse<T> {
   message: string;
   isSuccess: boolean;
   result: {
-    data: {
-      data: T[];
-      pagination: ServerPagination;
-    };
+    data: T[];
+    pagination: ServerPagination;
   };
 }
 

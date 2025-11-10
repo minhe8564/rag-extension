@@ -6,7 +6,6 @@ import ChatMessageItem from '@/shared/components/chat/ChatMessageItem';
 import type { UiMsg, UiRole } from '@/shared/components/chat/ChatMessageItem';
 import { getMessages, sendMessage, createSession } from '@/shared/api/chat.api';
 import ScrollToBottomButton from '@/shared/components/chat/ScrollToBottomButton';
-import Select, { type Option } from '@/shared/components/Select';
 
 import type {
   ChatRole,
@@ -31,14 +30,7 @@ const deriveSessionNo = (
   return legacy?.[1] ?? null;
 };
 
-type ModelId = 'qwen3-v1:8b' | 'gpt-4o' | 'gemini-1.5 flash' | 'claude-sonnet 3.5';
-
-const MODEL_OPTIONS: Option[] = [
-  { value: 'qwen3-v1:8b', label: 'Qwen3-v1:8B', desc: '경량·빠른 추론, 비용 절약형' },
-  { value: 'gpt-4o', label: 'GPT-4o', desc: '균형형 멀티모달·고품질' },
-  { value: 'gemini-1.5 flash', label: 'Gemini 1.5 Flash', desc: '대용량 컨텍스트·실시간 응답' },
-  { value: 'claude-sonnet 3.5', label: 'Claude Sonnet 3.5', desc: '긴 문맥·정교한 추론' },
-];
+const getGlobalModel = () => localStorage.getItem('global-chat-model') || 'gpt-4o';
 
 export default function TextChat() {
   const { sessionNo: paramsSessionNo } = useParams<{ sessionNo: string }>();
@@ -60,8 +52,6 @@ export default function TextChat() {
 
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [editingDraft, setEditingDraft] = useState<string>('');
-
-  const [model, setModel] = useState<ModelId>('gpt-4o');
 
   const isAtBottom = () => {
     const el = scrollRef.current;
@@ -87,14 +77,6 @@ export default function TextChat() {
   useEffect(() => {
     if (!derivedSessionNo) return;
     setCurrentSessionNo(derivedSessionNo);
-
-    const saved = localStorage.getItem(`chat:model:${derivedSessionNo}`) as ModelId | null;
-    if (saved && MODEL_OPTIONS.some((o) => o.value === saved)) {
-      setModel(saved);
-    } else {
-      localStorage.setItem(`chat:model:${derivedSessionNo}`, 'gpt-4o');
-      setModel('gpt-4o');
-    }
 
     (async () => {
       try {
@@ -149,7 +131,6 @@ export default function TextChat() {
     const data: CreateSessionResult = created.data.result;
     setCurrentSessionNo(data.sessionNo);
     window.history.replaceState(history.state, '', `/user/chat/text/${data.sessionNo}`);
-    localStorage.setItem(`chat:model:${data.sessionNo}`, model);
     return data.sessionNo;
   };
 
@@ -162,9 +143,7 @@ export default function TextChat() {
 
     try {
       const sessionNo = await ensureSession();
-      localStorage.setItem(`chat:model:${sessionNo}`, model);
-
-      const body: SendMessageRequest = { content: msg, model };
+      const body: SendMessageRequest = { content: msg, model: getGlobalModel() };
       const res = await sendMessage(sessionNo, body);
       const result: SendMessageResult = res.data.result;
 
@@ -217,32 +196,8 @@ export default function TextChat() {
     return () => clearInterval(t);
   }, [awaitingAssistant, thinkingMessages.length]);
 
-  const handleChangeModel = (next: string) => {
-    if (!MODEL_OPTIONS.some((o) => o.value === next)) return;
-    const typed = next as ModelId;
-    setModel(typed);
-    if (currentSessionNo) {
-      localStorage.setItem(`chat:model:${currentSessionNo}`, typed);
-    }
-  };
-
   return (
     <section className="flex flex-col min-h-[calc(100vh-62px)] z-0 h-full">
-      <div className="sticky top-0 z-10 w-full border-b bg-white/80 backdrop-blur">
-        <div className="mx-auto w-full max-w-[75%] px-12 py-2 flex items-center justify-between">
-          <div className="inline-flex items-center gap-3">
-            <span className="text-xs font-medium text-gray-600">모델</span>
-            <Select
-              value={model}
-              onChange={handleChangeModel}
-              options={MODEL_OPTIONS}
-              className="w-[260px]"
-              placeholder="모델을 선택하세요"
-            />
-          </div>
-        </div>
-      </div>
-
       {hasMessages ? (
         <>
           <div

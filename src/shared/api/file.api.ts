@@ -46,7 +46,7 @@ export async function fetchMyDocumentsNormalized(params?: {
     },
   });
 
-  const payload = data.result.data;
+  const payload = data.result;
   const list = payload.data;
   const pg = payload.pagination;
 

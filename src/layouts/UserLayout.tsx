@@ -5,6 +5,8 @@ import Tooltip from '@/shared/components/Tooltip';
 import ChatList from '@/shared/components/chat/list/ChatList';
 import ChatSearchModal from '@/shared/components/chat/ChatSearchModal';
 import RetinaLogo from '@/assets/retina-logo.png';
+import Select from '@/shared/components/Select';
+import type { Option } from '@/shared/components/Select';
 
 const labelCls = (isOpen: boolean) =>
   'ml-2 overflow-hidden whitespace-nowrap transition-[max-width,opacity,transform] duration-300 ' +
@@ -18,6 +20,29 @@ const linkCls = ({ isActive }: { isActive: boolean }) =>
     ? 'bg-[var(--color-retina-bg)] text-[var(--color-retina)]'
     : 'text-gray-700 hover:bg-[var(--color-retina)] hover:text-white');
 
+const MODEL_OPTIONS: Option[] = [
+  {
+    value: 'qwen3-v1:8b',
+    label: 'Qwen3-v1:8B',
+    desc: '가볍고 빠른 멀티모달 모델',
+  },
+  {
+    value: 'gpt-4o',
+    label: 'GPT-4o',
+    desc: '전반적인 품질·안정성 균형',
+  },
+  {
+    value: 'gemini-1.5 flash',
+    label: 'Gemini 1.5 Flash',
+    desc: '대용량 문서·검색 작업에 최적',
+  },
+  {
+    value: 'claude-sonnet 3.5',
+    label: 'Claude Sonnet 3.5',
+    desc: '복잡한 분석·글쓰기·요약에 강점',
+  },
+];
+
 export default function UserLayout() {
   const [isOpen, setIsOpen] = useState(true);
   const [open, setOpen] = useState(false);
@@ -25,6 +50,15 @@ export default function UserLayout() {
   const [sp] = useSearchParams();
   const activeSessionNo = sp.get('session') || undefined;
   const navigate = useNavigate();
+
+  const [globalModel, setGlobalModel] = useState<string>(() => {
+    return localStorage.getItem('global-chat-model') ?? 'gpt-4o';
+  });
+
+  const handleGlobalModelChange = (value: string) => {
+    setGlobalModel(value);
+    localStorage.setItem('global-chat-model', value);
+  };
 
   return (
     <div className="flex min-h-screen bg-transparent">
@@ -134,7 +168,15 @@ export default function UserLayout() {
       </aside>
 
       <main className="flex-1 min-w-0">
-        <div className="sticky top-0 bg-transparent flex justify-end px-8 py-5">
+        <div className="sticky z-30 top-0 bg-transparent flex justify-end px-8 py-5">
+          <Select
+            value={globalModel}
+            onChange={handleGlobalModelChange}
+            options={MODEL_OPTIONS}
+            className="w-[240px]"
+            placeholder="모델 선택"
+          />
+
           <Bell
             size={22}
             className="text-gray-600 hover:text-gray-800 cursor-pointer transition-colors shake-hover"
