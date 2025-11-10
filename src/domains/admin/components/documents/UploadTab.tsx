@@ -4,6 +4,7 @@ import FileUploader from '@/shared/components/file/FileUploader';
 import UploadList from '@/domains/admin/components/documents/UploadList';
 import ColSection from '@/domains/admin/components/documents/ColSection';
 import SelectVectorization from '@/domains/admin/components/documents/SelectVectorization';
+// import VecProcess from '@/domains/admin/components/documents/VecProcess';
 import type { RawMyDoc } from '@/shared/types/file.types';
 import { toast } from 'react-toastify';
 
@@ -103,7 +104,7 @@ export default function UploadTab() {
         </div>
 
         {/* 화살표 ① */}
-        <ArrowRight className="text-gray-400 w-6 h-6 flex-shrink-0" />
+        <ArrowRight className="w-6 h-6 text-[var(--color-retina-dark)]" />
 
         {/* 가운데: 컬렉션 선택 */}
         <div className="flex-1">
@@ -115,7 +116,7 @@ export default function UploadTab() {
         </div>
 
         {/* 화살표 ② */}
-        <ArrowRight className="text-gray-400 w-6 h-6 flex-shrink-0" />
+        <ArrowRight className="w-6 h-6 text-[var(--color-retina-dark)]" />
 
         {/* 오른쪽: 벡터화 대상 목록 */}
         <div className="flex-1">
@@ -124,6 +125,9 @@ export default function UploadTab() {
             onRemove={handleRemoveFromFinal}
           />
         </div>
+        {/* <div>
+          <VecProcess />
+        </div> */}
       </div>
     </section>
   );
