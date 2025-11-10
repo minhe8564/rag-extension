@@ -26,21 +26,6 @@ export default function NumberBoard() {
   const token = useAuthStore((state) => state.accessToken);
   // 실시간 데이터 로딩
   useEffect(() => {
-    // getUserCount();
-    // getDocumentCount();
-    // getErrorCount();
-
-    // 3개의 EventSource를 한번에 관리
-    // const authData = localStorage.getItem('auth-storage');
-    // const token = authData ? JSON.parse(authData)?.state?.accessToken : null;
-    console.log(token);
-
-    // 토큰 없으면 실행 x
-    if (!token) {
-      console.error('No access token found for SSE connection.');
-      return;
-    }
-
     const sources = {
       user: new EventSourcePolyfill(
         `${SPRING_API_BASE_URL}/api/v1/analytics/metrics/access-users/stream`,
@@ -122,9 +107,6 @@ export default function NumberBoard() {
     return () => {
       Object.values(sources).forEach((s) => s.close());
       console.log(' SSE 연결 종료');
-      sources.user.close();
-      sources.document.close();
-      sources.error.close();
     };
   }, []);
 
@@ -136,7 +118,6 @@ export default function NumberBoard() {
         getTotalDocumentCount(),
         getTotalErrorCount(),
       ]);
-      console.log(totalUserData, totalDocumentData, totalErrorData);
 
       const normalziedTotalUserData = {
         user: { totalUser: totalUserData.totalUser, asOf: totalUserData.asOf },
@@ -182,22 +163,27 @@ export default function NumberBoard() {
     fetchTotalData();
   }, []);
 
+  const totalFieldMap = {
+    user: 'totalUser',
+    document: 'totalDocs',
+    error: 'totalErrors',
+  } as const;
+
   const renderCard = (
     key: keyof TrendGroup,
     title: string,
     icon: JSX.Element,
     totalLabel: string
   ) => {
-    const current = currentData?.[key]?.data.accessUsers ?? 999;
+    const current = currentData?.[key]?.data.accessUsers ?? 0;
     const trend = trendData?.[key];
     const total = totalData?.[key];
-
     // TOTAL 수는 API에서 가져온 데이터 사용
-    const totalCount = total?.total ?? 999;
-    // console.log(totalData)
+    const field = totalFieldMap[key];
+    const totalCount = (total as Record<string, number | string | undefined>)?.[field] ?? 0;
     // 하루 전 대비 수는 API에서 가져온 데이터로 계산
     const deltaValue =
-      trend?.deltaPct !== undefined ? Number((trend.deltaPct * 100).toFixed(2)) : 999;
+      trend?.deltaPct !== undefined ? Number((trend.deltaPct * 100).toFixed(2)) : 0;
     const direction = trend?.direction ?? 'flat';
 
     const IconArrow = direction === 'up' ? TrendingUp : direction === 'down' ? TrendingDown : null;
