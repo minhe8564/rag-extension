@@ -84,9 +84,11 @@ class ChatAskServiceImplTest {
     void ask_success_returnsResponseAndPersistsMessages() {
         when(sessionRepository.findBySessionNo(sessionNo)).thenReturn(Optional.of(session));
 
-        when(messageService.getAllMessages(userNo, sessionNo)).thenAnswer(invocation -> List.copyOf(history));
+        when(messageService.getAllMessages(userNo, sessionNo)).thenAnswer(
+            invocation -> List.copyOf(history));
 
-        when(messageService.createMessage(eq(userNo), eq(sessionNo), any(MessageCreateRequest.class)))
+        when(messageService.createMessage(eq(userNo), eq(sessionNo),
+            any(MessageCreateRequest.class)))
             .thenAnswer(invocation -> {
                 MessageCreateRequest request = invocation.getArgument(2);
                 MessageResponse response = new MessageResponse(
@@ -116,7 +118,8 @@ class ChatAskServiceImplTest {
         assertThat(history).hasSize(3); // system + human + ai
         assertThat(session.getLastRequestedAt()).isNotNull();
 
-        verify(messageService, times(2)).createMessage(eq(userNo), eq(sessionNo), any(MessageCreateRequest.class));
+        verify(messageService, times(2)).createMessage(eq(userNo), eq(sessionNo),
+            any(MessageCreateRequest.class));
         verify(runpodClient).chat(captor.capture());
 
         List<RunpodChatMessage> runpodMessages = captor.getValue();

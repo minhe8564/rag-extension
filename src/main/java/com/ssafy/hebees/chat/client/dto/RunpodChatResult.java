@@ -4,5 +4,6 @@ public record RunpodChatResult(
     String role,
     String content
 ) {
+
 }
 

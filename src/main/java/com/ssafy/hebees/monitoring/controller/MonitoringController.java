@@ -4,6 +4,8 @@ import com.ssafy.hebees.common.response.BaseResponse;
 import com.ssafy.hebees.monitoring.dto.response.CpuUsageResponse;
 import com.ssafy.hebees.monitoring.dto.response.MemoryUsageResponse;
 import com.ssafy.hebees.monitoring.dto.response.NetworkTrafficResponse;
+import com.ssafy.hebees.monitoring.dto.response.RunpodCpuUsageResponse;
+import com.ssafy.hebees.monitoring.dto.response.RunpodGpuUsageResponse;
 import com.ssafy.hebees.monitoring.dto.response.ServicePerformanceListResponse;
 import com.ssafy.hebees.monitoring.dto.response.ServiceStatusListResponse;
 import com.ssafy.hebees.monitoring.dto.response.StorageListResponse;
@@ -21,6 +23,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
@@ -151,6 +154,42 @@ public class MonitoringController {
             HttpStatus.OK,
             response,
             "스토리지 사용량 정보를 조회하였습니다."
+        ));
+    }
+
+    @GetMapping(value = "/runpod/{podId}/gpu", produces = MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Runpod GPU 사용량 조회", description = "Runpod 공식 API를 통해 Pod의 GPU 사용량을 조회합니다")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "조회 성공"),
+        @ApiResponse(responseCode = "403", description = "권한 없음 (ADMIN 접근 가능)")
+    })
+    public ResponseEntity<BaseResponse<RunpodGpuUsageResponse>> getRunpodGpuUsage(
+        @PathVariable String podId
+    ) {
+        RunpodGpuUsageResponse response = monitoringService.getRunpodGpuUsage(podId);
+        return ResponseEntity.ok(BaseResponse.of(
+            HttpStatus.OK,
+            response,
+            "Runpod GPU 사용량 조회 성공"
+        ));
+    }
+
+    @GetMapping(value = "/runpod/{podId}/cpu", produces = MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Runpod CPU 사용량 조회", description = "Runpod 공식 API를 통해 Pod의 CPU 사용량을 조회합니다")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "조회 성공"),
+        @ApiResponse(responseCode = "403", description = "권한 없음 (ADMIN 접근 가능)")
+    })
+    public ResponseEntity<BaseResponse<RunpodCpuUsageResponse>> getRunpodCpuUsage(
+        @PathVariable String podId
+    ) {
+        RunpodCpuUsageResponse response = monitoringService.getRunpodCpuUsage(podId);
+        return ResponseEntity.ok(BaseResponse.of(
+            HttpStatus.OK,
+            response,
+            "Runpod CPU 사용량 조회 성공"
         ));
     }
 }

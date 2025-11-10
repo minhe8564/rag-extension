@@ -11,5 +11,6 @@ public record AccessTokenIssueByEmailRequest(
     @Schema(description = "사용자 이메일", example = "user@example.com")
     String email
 ) {
+
 }
 

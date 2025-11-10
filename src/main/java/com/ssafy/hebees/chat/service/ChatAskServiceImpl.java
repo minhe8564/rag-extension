@@ -48,7 +48,8 @@ public class ChatAskServiceImpl implements ChatAskService {
         session.updateLastRequestedAt(LocalDateTime.now());
 
         // 사용자 메시지 저장
-        messageService.createMessage(owner, sessionId, buildHumanMessage(owner, session, sanitizedQuestion));
+        messageService.createMessage(owner, sessionId,
+            buildHumanMessage(owner, session, sanitizedQuestion));
 
         // 대화 이력 조회
         List<MessageResponse> history = messageService.getAllMessages(owner, sessionId);
