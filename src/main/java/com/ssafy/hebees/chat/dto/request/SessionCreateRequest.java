@@ -13,6 +13,9 @@ public record SessionCreateRequest(
     @Schema(description = "사용할 LLM 식별자", format = "uuid", example = "bc4b6766-b861-4ad0-959b-f170767875da", nullable = true)
     UUID llm,
 
+    @Schema(description = "사용할 LLM 이름", example = "GPT-4o", nullable = true)
+    String llmName,
+
     @Schema(description = "초기 질문(세션명 힌트)", example = "2주뒤에 삼성전자에 가려면 오늘부터 래그프레스를 하루에 몇번씩 해야해?", nullable = true)
     String query
 ) {

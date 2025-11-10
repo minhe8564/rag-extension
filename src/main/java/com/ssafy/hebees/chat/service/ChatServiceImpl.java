@@ -167,7 +167,10 @@ public class ChatServiceImpl implements ChatService {
         UUID owner = requireUser(userNo);
 
         UUID llmNo = request.llm();
-        if (llmNo != null) { // LLM이 유효한지 확인
+        String llmName = request.llmName();
+        if(llmName != null) {
+            llmNo = getLlmNoByName(llmName);
+        } else if (llmNo != null) { // LLM이 유효한지 확인
             strategyRepository.findByStrategyNo(llmNo)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BAD_REQUEST));
         } else { // LLM 기본값 사용
@@ -187,6 +190,12 @@ public class ChatServiceImpl implements ChatService {
         log.info("세션 생성 성공: userNo={}, sessionNo={}", owner, saved.getSessionNo());
 
         return new SessionCreateResponse(saved.getSessionNo(), title);
+    }
+
+    private UUID getLlmNoByName(String llmName) {
+        return strategyRepository.findByNameAndCodeStartingWith(llmName, "GEN")
+            .orElseThrow(()->new BusinessException(ErrorCode.BAD_REQUEST))
+            .getStrategyNo();
     }
 
     @Override
@@ -238,7 +247,9 @@ public class ChatServiceImpl implements ChatService {
         String newTitle = request.title() != null ? request.title() : session.getTitle();
 
         UUID newLlmNo;
-        if (request.llm() != null) { // LLM이 유효한지 확인
+        if(request.llmName() != null){
+            newLlmNo = getLlmNoByName(request.llmName());
+        } else if (request.llm() != null) { // LLM이 유효한지 확인
             strategyRepository.findByStrategyNo(request.llm())
                 .orElseThrow(() -> new BusinessException(ErrorCode.BAD_REQUEST));
             newLlmNo = request.llm();
