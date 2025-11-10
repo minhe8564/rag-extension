@@ -20,6 +20,7 @@ import ChatSearchModal from '@/shared/components/chat/ChatSearchModal';
 import HebeesLogo from '@/assets/hebees-logo.png';
 import Select from '@/shared/components/Select';
 import type { Option } from '@/shared/components/Select';
+import { useGlobalModelStore } from '@/shared/store/useGlobalModelStore';
 
 const labelCls = (isOpen: boolean) =>
   'ml-2 overflow-hidden whitespace-nowrap transition-[max-width,opacity,transform] duration-300 ' +
@@ -63,15 +64,7 @@ export default function AdminLayout() {
   const [sp] = useSearchParams();
   const activeSessionNo = sp.get('session') || undefined;
   const navigate = useNavigate();
-
-  const [globalModel, setGlobalModel] = useState<string>(() => {
-    return localStorage.getItem('global-chat-model') ?? 'gpt-4o';
-  });
-
-  const handleGlobalModelChange = (value: string) => {
-    setGlobalModel(value);
-    localStorage.setItem('global-chat-model', value);
-  };
+  const { model, setModel } = useGlobalModelStore();
 
   return (
     <div className="flex min-h-screen">
@@ -213,8 +206,8 @@ export default function AdminLayout() {
       <main className="flex-1 min-w-0">
         <div className="sticky z-30 top-0 bg-transparent flex justify-between px-8 py-5">
           <Select
-            value={globalModel}
-            onChange={handleGlobalModelChange}
+            value={model}
+            onChange={setModel}
             options={MODEL_OPTIONS}
             className="w-[240px]"
             placeholder="모델 선택"

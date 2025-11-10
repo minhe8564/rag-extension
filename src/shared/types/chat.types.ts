@@ -4,9 +4,13 @@ import type { Pagination } from '@/shared/lib/api.types';
 export interface SessionItem {
   sessionNo: string;
   title: string;
-  createdAt: string;
-  lastRequestedAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  lastRequestedAt?: string;
+  updatedAt?: string;
+  llmNo: string;
+  llmName: string;
+  userNo: string;
+  userName: string;
 }
 
 export interface ListSessionsResult {

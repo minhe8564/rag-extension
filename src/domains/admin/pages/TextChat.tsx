@@ -4,8 +4,9 @@ import { toast } from 'react-toastify';
 import ChatInput from '@/shared/components/chat/ChatInput';
 import ChatMessageItem from '@/shared/components/chat/ChatMessageItem';
 import type { UiMsg, UiRole } from '@/shared/components/chat/ChatMessageItem';
-import { getMessages, sendMessage, createSession } from '@/shared/api/chat.api';
+import { getSession, getMessages, sendMessage, createSession } from '@/shared/api/chat.api';
 import ScrollToBottomButton from '@/shared/components/chat/ScrollToBottomButton';
+import { useGlobalModelStore } from '@/shared/store/useGlobalModelStore';
 
 import type {
   ChatRole,
@@ -30,7 +31,9 @@ const deriveSessionNo = (
   return legacy?.[1] ?? null;
 };
 
-const getGlobalModel = () => localStorage.getItem('global-chat-model') || 'gpt-4o';
+const setGlobalModel = (model: string) => {
+  localStorage.setItem('global-chat-model', model);
+};
 
 export default function TextChat() {
   const { sessionNo: paramsSessionNo } = useParams<{ sessionNo: string }>();
@@ -82,6 +85,11 @@ export default function TextChat() {
       try {
         const res = await getMessages(derivedSessionNo);
         const page: MessagePage = res.data.result;
+        const res2 = await getSession(derivedSessionNo);
+        const sessionInfo = res2.data.result;
+        if (sessionInfo.llmName) {
+          setGlobalModel(sessionInfo.llmName);
+        }
 
         const mapped: UiMsg[] =
           page.data?.map((m: MessageItem) => ({
@@ -134,6 +142,8 @@ export default function TextChat() {
     return data.sessionNo;
   };
 
+  const model = useGlobalModelStore.getState().model;
+
   const handleSend = async (msg: string) => {
     forceScrollRef.current = true;
 
@@ -143,7 +153,10 @@ export default function TextChat() {
 
     try {
       const sessionNo = await ensureSession();
-      const body: SendMessageRequest = { content: msg, model: getGlobalModel() };
+      const body: SendMessageRequest = {
+        content: msg,
+        model: model,
+      };
       const res = await sendMessage(sessionNo, body);
       const result: SendMessageResult = res.data.result;
 
