@@ -121,6 +121,12 @@ public class RunpodMonitoringClient {
      * GPU 조회용 GraphQL 쿼리 생성 명세서에 맞게 수정
      */
     private String buildGpuQuery(String podId) {
+        // podId 검증 및 이스케이프 처리
+        if (!StringUtils.hasText(podId)) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        }
+        // GraphQL 문자열 값 이스케이프 (따옴표, 줄바꿈 등)
+        String escapedPodId = podId.replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r");
         return String.format("""
             query {
               pod(input: {podId: "%s"}) {
@@ -141,7 +147,7 @@ public class RunpodMonitoringClient {
                 }
               }
             }
-            """, podId);
+            """, escapedPodId);
     }
 
     /**

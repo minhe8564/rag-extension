@@ -153,6 +153,25 @@ public class SessionRepositoryCustomImpl implements SessionRepositoryCustom {
     private BooleanExpression isNotDeleted() {
         return session.deletedAt.isNull();
     }
+
+    @Override
+    public long countDistinctUserNosByLastRequestedAtAfter(LocalDateTime threshold) {
+        if (threshold == null) {
+            return 0L;
+        }
+
+        List<UUID> distinctUserNos = queryFactory
+            .select(session.userNo)
+            .distinct()
+            .from(session)
+            .where(
+                session.lastRequestedAt.gt(threshold),
+                isNotDeleted()
+            )
+            .fetch();
+
+        return distinctUserNos != null ? distinctUserNos.size() : 0L;
+    }
 }
 
 

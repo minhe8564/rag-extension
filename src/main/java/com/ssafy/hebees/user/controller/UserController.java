@@ -2,12 +2,14 @@ package com.ssafy.hebees.user.controller;
 
 import com.ssafy.hebees.common.response.BaseResponse;
 import com.ssafy.hebees.common.util.SecurityUtil;
+import com.ssafy.hebees.monitoring.service.ActiveUserService;
 import com.ssafy.hebees.user.dto.request.UserSignupRequest;
 import com.ssafy.hebees.user.dto.response.UserInfoResponse;
 import com.ssafy.hebees.user.dto.response.UserListPageResponse;
 import com.ssafy.hebees.user.dto.response.UserResponse;
 import com.ssafy.hebees.user.dto.response.UserSignupResponse;
 import com.ssafy.hebees.user.service.UserService;
+import com.ssafy.hebees.user.service.ActiveUserStreamService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -17,9 +19,12 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 
@@ -32,6 +37,8 @@ import java.util.List;
 public class UserController {
 
     private final UserService userService;
+    private final ActiveUserService activeUserService;
+    private final ActiveUserStreamService activeUserStreamService;
 
     @PostMapping("/signup")
     @Operation(summary = "회원가입", description = "새로운 사용자를 등록합니다.")
@@ -144,6 +151,20 @@ public class UserController {
             .orElseThrow(() -> new RuntimeException("인증된 사용자가 없습니다."));
         var user = userService.findByUuid(userUuid);
         return ResponseEntity.ok(BaseResponse.success(UserInfoResponse.of(user)));
+    }
+
+    @GetMapping(value = "/active/realtime", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @Operation(
+        summary = "실시간 활성 사용자 수 SSE 스트리밍",
+        description = "최근 5분 내 활동이 있는 실시간 활성 사용자 수를 SSE로 스트리밍합니다. 활성 사용자 수가 변경될 때마다 업데이트됩니다."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "SSE 연결 성공")
+    })
+    public SseEmitter subscribeActiveUsersSSE(
+        @RequestHeader(name = "Last-Event-ID", required = false) String lastEventId
+    ) {
+        return activeUserStreamService.subscribeActiveUsers(lastEventId);
     }
 }
 

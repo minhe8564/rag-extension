@@ -79,4 +79,26 @@ public class RedisConfig {
         @Qualifier("monitoringLettuceConnectionFactory") LettuceConnectionFactory connectionFactory) {
         return new StringRedisTemplate(connectionFactory);
     }
+
+    @Bean(name = "activeUserLettuceConnectionFactory")
+    public LettuceConnectionFactory activeUserLettuceConnectionFactory(RedisProperties props) {
+        RedisStandaloneConfiguration conf = new RedisStandaloneConfiguration();
+        conf.setHostName(props.getHost());
+        conf.setPort(props.getPort());
+        if (props.getPassword() != null && !props.getPassword().isEmpty()) {
+            conf.setPassword(RedisPassword.of(props.getPassword()));
+        }
+        if (props.getUsername() != null && !props.getUsername().isEmpty()) {
+            conf.setUsername(props.getUsername());
+        }
+        conf.setDatabase(3); // 활성 사용자 정보는 DB3
+        return new LettuceConnectionFactory(conf);
+    }
+
+    @Bean(name = "activeUserRedisTemplate")
+    public StringRedisTemplate activeUserRedisTemplate(
+        @Qualifier("activeUserLettuceConnectionFactory") LettuceConnectionFactory connectionFactory) {
+        return new StringRedisTemplate(connectionFactory);
+    }
+
 }
