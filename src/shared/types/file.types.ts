@@ -31,6 +31,7 @@ export interface RawMyDoc {
   categoryNo: string;
   collectionNo: string;
   createdAt: string;
+  originalFile?: File;
 }
 
 export interface MyDoc {

@@ -1,134 +1,121 @@
-import UploadFile from '@/domains/admin/components/documents/UploadFile';
-// import UploadList from '@/domains/admin/components/documents/UploadList';
+import { useState, useEffect } from 'react';
+import FileUploader from '@/shared/components/file/FileUploader';
+import UploadList from '@/domains/admin/components/documents/UploadList';
 import ColSection from '@/domains/admin/components/documents/ColSection';
 import SelectVectorization from '@/domains/admin/components/documents/SelectVectorization';
-import DuplicatedModal from '@/domains/admin/components/documents/DuplicatedModal';
-import type { FileType } from '@/domains/admin/types/documents.types';
-
-import { useState, useEffect } from 'react';
+import type { RawMyDoc } from '@/shared/types/file.types';
 import { toast } from 'react-toastify';
 
 export default function UploadTab() {
-  // 업로드된 파일 상태 관리
-  const [uploadedFiles, setUploadedFiles] = useState<FileType[]>([]);
-  const [duplicates, setDuplicates] = useState<FileType[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  //  업로드된 전체 파일
+  const [uploadedFiles, setUploadedFiles] = useState<RawMyDoc[]>([]);
 
-  // 업로드 문서 선택(왼쪽)
-  const [selectedFiles, setSelectedFiles] = useState<FileType[]>([]);
-  // 컬렉션 선택(오른쪽)
-  const [selectedCollection, setSelectedCollection] = useState<'public' | 'hebees' | null>(null);
-  // 두 조건이 충족되면 생기는 최종 선택목록
-  const [finalSelectedFiles, setFinalSelectedFiles] = useState<FileType[]>([]);
+  //  UploadList에서 선택된 파일들
+  const [selectedFiles, setSelectedFiles] = useState<RawMyDoc[]>([]);
 
-  const handleFilesSelected = (merged: FileType[]) => {
-    setUploadedFiles(merged);
+  //  선택된 컬렉션 (public / hebees)
+  const [selectedCollection, setSelectedCollection] = useState<string | null>(null);
+
+  //  컬렉션 지정까지 완료된 최종 선택 목록
+  const [finalSelectedFiles, setFinalSelectedFiles] = useState<RawMyDoc[]>([]);
+
+  //  FileUploader → RawMyDoc 변환
+  const handleUpload = ({ files, category }: { files: File[]; category: string }) => {
+    if (!files || files.length === 0) return;
+
+    const newFiles: RawMyDoc[] = Array.from(files).map((f) => ({
+      fileNo: crypto.randomUUID(),
+      name: f.name,
+      size: f.size,
+      type: f.type,
+      bucket: '',
+      path: '',
+      categoryNo: category,
+      collectionNo: '',
+      createdAt: new Date().toISOString(),
+      originalFile: f,
+    }));
+
+    setUploadedFiles((prev) => [...prev, ...newFiles]);
   };
 
-  const handleDuplicateDetected = (dups: FileType[]) => {
-    setDuplicates(dups);
-    setIsModalOpen(true);
-  };
-
-  const confirmOverwrite = () => {
-    const newNames = new Set(duplicates.map((f) => f.name));
-    const filtered = uploadedFiles.filter((f) => !newNames.has(f.name));
-    setUploadedFiles([...filtered, ...duplicates]);
-    setIsModalOpen(false);
-  };
-
-  // 업로드 목록 변경 처리: 업로드 목록 갱신 + 체크 초기화 + 최종 선택 목록 동기화
-  // const handleFilesChange = (nextFiles: FileType[]) => {
-  //   setUploadedFiles(nextFiles);
+  // 파일 삭제
+  // const handleDelete = (remainingFiles: RawMyDoc[]) => {
+  //   setUploadedFiles(remainingFiles);
   //   setSelectedFiles([]);
-  //   const existingNames = new Set(nextFiles.map((f) => f.name));
-  //   setFinalSelectedFiles((prev) => prev.filter((f) => existingNames.has(f.name)));
   // };
 
-  // 컬렉션 선택 (ColSection에서 온거)
-  const handleCollectionSelect = (collectionName: 'public' | 'hebees' | null) => {
-    setSelectedCollection(collectionName);
+  // 컬렉션 선택 시
+  const handleCollectionSelect = (name: string | null) => {
+    setSelectedCollection(name);
   };
 
+  // 파일 선택 + 컬렉션 선택 시 → SelectVectorization으로 이동
   useEffect(() => {
     if (selectedFiles.length > 0 && selectedCollection) {
-      const combined = selectedFiles.map((file) => ({
-        ...file,
-        collection: selectedCollection,
+      const combined = selectedFiles.map((f) => ({
+        ...f,
+        collectionNo: selectedCollection,
       }));
 
       setFinalSelectedFiles((prev) => {
-        // 파일명+컬렉션 조합으로만 중복을 방지하여
-        // 동일 파일을 다른 컬렉션에 중복 햐추가할 수 있게 함
-        const existingComposite = new Set(prev.map((f) => `${f.name}::${f.collection}`));
-
-        // 배치 내부 중복까지 포함해서 한 번에 수집
-        const seen = new Set(existingComposite);
-        const toAdd: FileType[] = [];
-        const blockedNames: string[] = [];
-
-        for (const f of combined) {
-          const key = `${f.name}::${f.collection}`;
-          if (seen.has(key)) {
-            blockedNames.push(f.name);
-          } else {
-            seen.add(key);
-            toAdd.push(f);
-          }
+        const existingKeys = new Set(prev.map((f) => `${f.fileNo}::${f.collectionNo}`));
+        const newOnes = combined.filter(
+          (f) => !existingKeys.has(`${f.fileNo}::${selectedCollection}`)
+        );
+        console.log('새로 추가되는 파일들:', newOnes);
+        if (newOnes.length === 0) {
+          toast('⚠️ 해당 파일은 이미 선택 목록에 존재합니다.');
+          return prev; // 중복이면 추가하지 않음
         }
-
-        if (blockedNames.length > 0) {
-          const uniques = Array.from(new Set(blockedNames));
-          const bulletList = uniques.map((n) => `- ${n}`).join('\n');
-          toast.warn(
-            <div
-              style={{ whiteSpace: 'pre-line' }}
-            >{`이미 같은 컬렉션에 선택된 문서가 있어요:\n${bulletList}`}</div>
-          );
-        }
-        return [...prev, ...toAdd];
+        return [...prev, ...newOnes];
       });
 
+      // 초기화
       setSelectedFiles([]);
-      setTimeout(() => setSelectedCollection(null), 0); // 다음 렌더 프레임에서 컬렉션 초기화
+      setSelectedCollection(null);
     }
   }, [selectedFiles, selectedCollection]);
 
+  // 선택 목록에서 제거
+  const handleRemoveFromFinal = (file: RawMyDoc) => {
+    setFinalSelectedFiles((prev) =>
+      prev.filter((f) => !(f.fileNo === file.fileNo && f.collectionNo === file.collectionNo))
+    );
+  };
+
   return (
-    <>
-      <UploadFile
-        existingFiles={uploadedFiles}
-        onFilesSelected={handleFilesSelected}
-        onDuplicateDetected={handleDuplicateDetected}
-      />
-      {isModalOpen && (
-        <DuplicatedModal
-          duplicates={duplicates}
-          onConfirm={confirmOverwrite}
-          onCancel={() => setIsModalOpen(false)}
-        />
-      )}
+    <section className="flex flex-col gap-4 my-4">
+      {/* 파일 업로더 */}
+      <FileUploader onUpload={handleUpload} accept=".pdf,.xlsx" multiple brand="hebees" />
+
+      {/* 2️업로드된 파일 목록 + 컬렉션 선택 */}
       <div className="flex gap-4">
-        {/* <UploadList
-          files={uploadedFiles}
-          onFilesChange={handleFilesChange}
-          onSelectFiles={setSelectedFiles}
-          selectedFiles={selectedFiles}
-        /> */}
-        <ColSection
-          selectedCollection={selectedCollection}
-          onCollectionSelect={handleCollectionSelect}
-        />
+        {/* 왼쪽: 업로드된 문서 */}
+        <div className="flex-[2]">
+          <UploadList
+            files={uploadedFiles}
+            selectedFiles={selectedFiles}
+            onFilesChange={setUploadedFiles}
+            onSelectFiles={setSelectedFiles}
+          />
+        </div>
+
+        {/* 오른쪽: 컬렉션 선택 */}
+        <div className="flex-[2]">
+          <ColSection
+            selectedCollection={selectedCollection}
+            onCollectionSelect={handleCollectionSelect}
+            uploadedFiles={finalSelectedFiles} // 이미 컬렉션이 지정된 파일만 표시
+          />
+        </div>
       </div>
+
+      {/* 선택 목록 (벡터화 대상) */}
       <SelectVectorization
         finalSelectedFiles={finalSelectedFiles}
-        onRemove={(file) => {
-          setFinalSelectedFiles((prev) =>
-            prev.filter((f) => !(f.name === file.name && f.collection === file.collection))
-          );
-          setSelectedFiles([]);
-        }}
+        onRemove={handleRemoveFromFinal}
       />
-    </>
+    </section>
   );
 }

@@ -2,7 +2,9 @@ import { springApi } from '@/shared/lib/apiInstance';
 import type { ApiEnvelope } from '@/shared/lib/api.types';
 import type {
   ChangeTrend,
-  TotalCount,
+  TotalDocsType,
+  TotalUserType,
+  TotalErrorsType,
   chatbotUsageTime,
   modelTokenTime,
   chatbotUsageHeatmap,
@@ -20,7 +22,7 @@ export const getUserCount = async () => {
 
 // 총 사용자 수 조회
 export const getTotalUserCount = async () => {
-  const { data } = await springApi.get<ApiEnvelope<TotalCount>>(
+  const { data } = await springApi.get<ApiEnvelope<TotalUserType>>(
     '/api/v1/analytics/metrics/access-users/total'
   );
   return data.result;
@@ -43,7 +45,7 @@ export const getDocumentCount = async () => {
 
 // 총 업로드 문서 수 조회
 export const getTotalDocumentCount = async () => {
-  const { data } = await springApi.get<ApiEnvelope<TotalCount>>(
+  const { data } = await springApi.get<ApiEnvelope<TotalDocsType>>(
     '/api/v1/analytics/metrics/upload-documents/total'
   );
   return data.result;
@@ -66,7 +68,7 @@ export const getErrorCount = async () => {
 
 // 총 발생한 오류 수 조회
 export const getTotalErrorCount = async () => {
-  const { data } = await springApi.get<ApiEnvelope<TotalCount>>(
+  const { data } = await springApi.get<ApiEnvelope<TotalErrorsType>>(
     '/api/v1/analytics/metrics/errors/total'
   );
   return data.result;
