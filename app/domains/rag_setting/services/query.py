@@ -11,6 +11,7 @@ from fastapi import HTTPException, status
 
 from ..models.query_template import QueryGroup, uuid_to_binary, binary_to_uuid
 from ..models.strategy import Strategy
+from ..schemas.query import QueryTemplateUpdateRequest, QueryTemplatePartialUpdateRequest
 
 
 async def verify_strategy_exists(

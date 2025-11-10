@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ....core.database import get_db
 from ....core.schemas import BaseResponse, Result
 from ....core.auth.check_role import check_role
+from ....core.constants import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from ..schemas.query import (
     QueryTemplateListItem,
     QueryTemplateDetailResponse,
@@ -20,10 +21,6 @@ from ..models.query_template import binary_to_uuid
 
 
 router = APIRouter(prefix="/rag", tags=["RAG - Query Template Management"])
-
-# 페이지네이션 설정
-DEFAULT_PAGE_SIZE = 20
-MAX_PAGE_SIZE = 100
 
 
 @router.get(
