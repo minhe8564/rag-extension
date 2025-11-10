@@ -3,6 +3,7 @@ package com.ssafy.hebees.monitoring.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssafy.hebees.monitoring.dto.response.MemoryUsageResponse;
+import com.ssafy.hebees.common.util.HostIdentifierResolver;
 import com.ssafy.hebees.common.util.MonitoringUtils;
 import lombok.extern.slf4j.Slf4j;
 import oshi.SystemInfo;
@@ -17,8 +18,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Schedulers;
-
-import java.time.Duration;
+import jakarta.annotation.PostConstruct;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -28,14 +28,35 @@ import java.util.Map;
 public class MemoryMonitoringService {
 
     private final StringRedisTemplate monitoringRedisTemplate;
+    private final HostIdentifierResolver hostIdentifierResolver;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private final SystemInfo systemInfo = new SystemInfo();
     private final HardwareAbstractionLayer hal = systemInfo.getHardware();
+    private String memoryStreamKey;
 
     public MemoryMonitoringService(
-        @Qualifier("monitoringRedisTemplate") StringRedisTemplate monitoringRedisTemplate) {
+        @Qualifier("monitoringRedisTemplate") StringRedisTemplate monitoringRedisTemplate,
+        HostIdentifierResolver hostIdentifierResolver) {
         this.monitoringRedisTemplate = monitoringRedisTemplate;
+        this.hostIdentifierResolver = hostIdentifierResolver;
+    }
+
+    @PostConstruct
+    void initMemoryStreamKey() {
+        String hostIdentifier = hostIdentifierResolver.resolveHostIdentifier();
+        memoryStreamKey = MonitoringUtils.buildStreamKey(MonitoringUtils.MEMORY_STREAM_KEY,
+            hostIdentifier);
+        log.debug("Initialized memory stream Redis key: {}", memoryStreamKey);
+    }
+
+    private String getMemoryStreamKey() {
+        if (memoryStreamKey == null) {
+            String hostIdentifier = hostIdentifierResolver.resolveHostIdentifier();
+            memoryStreamKey = MonitoringUtils.buildStreamKey(MonitoringUtils.MEMORY_STREAM_KEY,
+                hostIdentifier);
+        }
+        return memoryStreamKey;
     }
 
     private double calculateMemoryUsagePercent(double usedGb, double totalGb) {
@@ -67,11 +88,11 @@ public class MemoryMonitoringService {
             String jsonData = objectMapper.writeValueAsString(memoryData);
 
             Map<String, String> record = Collections.singletonMap("data", jsonData);
-            RedisStreamUtils.addRecord(monitoringRedisTemplate, MonitoringUtils.MEMORY_STREAM_KEY,
+            RedisStreamUtils.addRecord(monitoringRedisTemplate, getMemoryStreamKey(),
                 record);
 
             // Stream 크기 제한 (최근 1000개만 유지)
-            RedisStreamUtils.trimStream(monitoringRedisTemplate, MonitoringUtils.MEMORY_STREAM_KEY,
+            RedisStreamUtils.trimStream(monitoringRedisTemplate, getMemoryStreamKey(),
                 1000, false);
         } catch (JsonProcessingException e) {
             log.error("메모리 데이터 직렬화 실패", e);
@@ -81,13 +102,13 @@ public class MemoryMonitoringService {
     }
 
     /**
-     * Redis Stream에서 메모리 이벤트를 읽어옵니다.
+     * Redis Stream에서 메모리 이벤트를 읽어옴.
      */
     public List<MapRecord<String, String, String>> readEvents(String lastId, long blockMillis,
         Long count) {
         return RedisStreamUtils.readEvents(
             monitoringRedisTemplate,
-            MonitoringUtils.MEMORY_STREAM_KEY,
+            getMemoryStreamKey(),
             lastId,
             blockMillis,
             count);
@@ -101,7 +122,7 @@ public class MemoryMonitoringService {
         // Stream에서 최신 레코드 ID 조회
         try {
             lastId = RedisStreamUtils.getLatestRecordId(monitoringRedisTemplate,
-                MonitoringUtils.MEMORY_STREAM_KEY);
+                getMemoryStreamKey());
         } catch (Exception e) {
             log.warn("초기 메모리 Stream ID 조회 실패", e);
         }

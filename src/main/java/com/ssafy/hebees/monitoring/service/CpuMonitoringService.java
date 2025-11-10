@@ -3,6 +3,7 @@ package com.ssafy.hebees.monitoring.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssafy.hebees.monitoring.dto.response.CpuUsageResponse;
+import com.ssafy.hebees.common.util.HostIdentifierResolver;
 import com.ssafy.hebees.common.util.MonitoringUtils;
 import lombok.extern.slf4j.Slf4j;
 import oshi.SystemInfo;
@@ -19,7 +20,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Schedulers;
-
+import jakarta.annotation.PostConstruct;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -30,14 +31,35 @@ import java.util.Map;
 public class CpuMonitoringService {
 
     private final StringRedisTemplate monitoringRedisTemplate;
+    private final HostIdentifierResolver hostIdentifierResolver;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private final SystemInfo systemInfo = new SystemInfo();
     private final HardwareAbstractionLayer hal = systemInfo.getHardware();
+    private String cpuStreamKey;
 
     public CpuMonitoringService(
-        @Qualifier("monitoringRedisTemplate") StringRedisTemplate monitoringRedisTemplate) {
+        @Qualifier("monitoringRedisTemplate") StringRedisTemplate monitoringRedisTemplate,
+        HostIdentifierResolver hostIdentifierResolver) {
         this.monitoringRedisTemplate = monitoringRedisTemplate;
+        this.hostIdentifierResolver = hostIdentifierResolver;
+    }
+
+    @PostConstruct
+    void initCpuStreamKey() {
+        String hostIdentifier = hostIdentifierResolver.resolveHostIdentifier();
+        cpuStreamKey = MonitoringUtils.buildStreamKey(MonitoringUtils.CPU_STREAM_KEY,
+            hostIdentifier);
+        log.debug("Initialized CPU stream Redis key: {}", cpuStreamKey);
+    }
+
+    private String getCpuStreamKey() {
+        if (cpuStreamKey == null) {
+            String hostIdentifier = hostIdentifierResolver.resolveHostIdentifier();
+            cpuStreamKey = MonitoringUtils.buildStreamKey(MonitoringUtils.CPU_STREAM_KEY,
+                hostIdentifier);
+        }
+        return cpuStreamKey;
     }
 
     // CPU ticks cache
@@ -126,11 +148,11 @@ public class CpuMonitoringService {
             String jsonData = objectMapper.writeValueAsString(cpuData);
 
             Map<String, String> record = Collections.singletonMap("data", jsonData);
-            RedisStreamUtils.addRecord(monitoringRedisTemplate, MonitoringUtils.CPU_STREAM_KEY,
+            RedisStreamUtils.addRecord(monitoringRedisTemplate, getCpuStreamKey(),
                 record);
 
             // Stream 크기 제한 (최근 1000개만 유지)
-            RedisStreamUtils.trimStream(monitoringRedisTemplate, MonitoringUtils.CPU_STREAM_KEY,
+            RedisStreamUtils.trimStream(monitoringRedisTemplate, getCpuStreamKey(),
                 1000, false);
         } catch (JsonProcessingException e) {
             log.error("CPU 데이터 직렬화 실패", e);
@@ -146,7 +168,7 @@ public class CpuMonitoringService {
         Long count) {
         return RedisStreamUtils.readEvents(
             monitoringRedisTemplate,
-            MonitoringUtils.CPU_STREAM_KEY,
+            getCpuStreamKey(),
             lastId,
             blockMillis,
             count);
@@ -160,7 +182,7 @@ public class CpuMonitoringService {
         // Stream에서 최신 레코드 ID 조회
         try {
             lastId = RedisStreamUtils.getLatestRecordId(monitoringRedisTemplate,
-                MonitoringUtils.CPU_STREAM_KEY);
+                getCpuStreamKey());
         } catch (Exception e) {
             log.warn("초기 CPU Stream ID 조회 실패", e);
         }

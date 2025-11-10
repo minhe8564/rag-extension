@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssafy.hebees.monitoring.config.MonitoringProperties;
 import com.ssafy.hebees.monitoring.dto.response.NetworkTrafficResponse;
+import com.ssafy.hebees.common.util.HostIdentifierResolver;
 import com.ssafy.hebees.common.util.MonitoringUtils;
 import lombok.extern.slf4j.Slf4j;
 import oshi.SystemInfo;
@@ -11,8 +12,6 @@ import oshi.hardware.HardwareAbstractionLayer;
 import oshi.hardware.NetworkIF;
 import org.springframework.beans.factory.annotation.Qualifier;
 import jakarta.annotation.PostConstruct;
-import java.lang.management.ManagementFactory;
-import java.net.InetAddress;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -26,8 +25,6 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Schedulers;
 
-import java.time.Duration;
-
 @Slf4j
 @Service
 public class NetworkMonitoringService {
@@ -37,7 +34,9 @@ public class NetworkMonitoringService {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final StringRedisTemplate monitoringRedisTemplate;
     private final MonitoringProperties monitoringProperties;
+    private final HostIdentifierResolver hostIdentifierResolver;
     private String networkBytesKey;
+    private String networkStreamKey;
 
     // Network bandwidth cache
     private volatile Double cachedBandwidthMbps = null;
@@ -45,53 +44,38 @@ public class NetworkMonitoringService {
 
     public NetworkMonitoringService(
         @Qualifier("monitoringRedisTemplate") StringRedisTemplate monitoringRedisTemplate,
-        MonitoringProperties monitoringProperties) {
+        MonitoringProperties monitoringProperties,
+        HostIdentifierResolver hostIdentifierResolver) {
         this.monitoringRedisTemplate = monitoringRedisTemplate;
         this.monitoringProperties = monitoringProperties;
+        this.hostIdentifierResolver = hostIdentifierResolver;
     }
 
     @PostConstruct
-    void initNetworkBytesKey() {
-        String hostIdentifier = resolveHostIdentifier();
+    void initNetworkKeys() {
+        String hostIdentifier = hostIdentifierResolver.resolveHostIdentifier();
         networkBytesKey = MonitoringUtils.buildNetworkBytesKey(hostIdentifier);
+        networkStreamKey = MonitoringUtils.buildStreamKey(MonitoringUtils.NETWORK_STREAM_KEY,
+            hostIdentifier);
         log.debug("Initialized network bytes Redis key: {}", networkBytesKey);
-    }
-
-    private String resolveHostIdentifier() {
-        String configured = monitoringProperties.getHostIdentifier();
-        if (configured != null) {
-            String trimmed = configured.trim();
-            if (!trimmed.isEmpty()) {
-                return trimmed;
-            }
-        }
-
-        try {
-            String hostname = InetAddress.getLocalHost().getHostName();
-            if (hostname != null && !hostname.isBlank()) {
-                return hostname;
-            }
-        } catch (Exception e) {
-            log.debug("Hostname lookup failed for network monitoring key", e);
-        }
-
-        try {
-            String runtimeName = ManagementFactory.getRuntimeMXBean().getName();
-            if (runtimeName != null && !runtimeName.isBlank()) {
-                return runtimeName;
-            }
-        } catch (Exception e) {
-            log.debug("Runtime MXBean lookup failed for network monitoring key", e);
-        }
-
-        return null;
+        log.debug("Initialized network stream Redis key: {}", networkStreamKey);
     }
 
     private String getNetworkBytesKey() {
         if (networkBytesKey == null) {
-            networkBytesKey = MonitoringUtils.buildNetworkBytesKey(resolveHostIdentifier());
+            String hostIdentifier = hostIdentifierResolver.resolveHostIdentifier();
+            networkBytesKey = MonitoringUtils.buildNetworkBytesKey(hostIdentifier);
         }
         return networkBytesKey;
+    }
+
+    private String getNetworkStreamKey() {
+        if (networkStreamKey == null) {
+            String hostIdentifier = hostIdentifierResolver.resolveHostIdentifier();
+            networkStreamKey = MonitoringUtils.buildStreamKey(MonitoringUtils.NETWORK_STREAM_KEY,
+                hostIdentifier);
+        }
+        return networkStreamKey;
     }
 
     private double getNetworkBandwidthMbps() {
@@ -227,14 +211,14 @@ public class NetworkMonitoringService {
             try {
                 String jsonData = objectMapper.writeValueAsString(trafficData);
 
-                // Redis Stream에 추가
+                // Redis Stream에 추가 (호스트별 Stream 키 사용)
                 Map<String, String> record = Collections.singletonMap("data", jsonData);
                 RedisStreamUtils.addRecord(monitoringRedisTemplate,
-                    MonitoringUtils.NETWORK_STREAM_KEY, record);
+                    getNetworkStreamKey(), record);
 
                 // Stream 크기 제한 (최근 1000개만 유지)
                 RedisStreamUtils.trimStream(monitoringRedisTemplate,
-                    MonitoringUtils.NETWORK_STREAM_KEY, 1000, false);
+                    getNetworkStreamKey(), 1000, false);
 
                 log.debug("네트워크 트래픽 데이터 저장 완료: inbound={}, outbound={}", inboundMbps, outboundMbps);
             } catch (JsonProcessingException e) {
@@ -252,7 +236,7 @@ public class NetworkMonitoringService {
         Long count) {
         return RedisStreamUtils.readEvents(
             monitoringRedisTemplate,
-            MonitoringUtils.NETWORK_STREAM_KEY,
+            getNetworkStreamKey(),
             lastId,
             blockMillis,
             count);
@@ -267,7 +251,7 @@ public class NetworkMonitoringService {
 
         try {
             List<MapRecord<String, String, String>> records = RedisStreamUtils.getLatestRecords(
-                monitoringRedisTemplate, MonitoringUtils.NETWORK_STREAM_KEY, 1L);
+                monitoringRedisTemplate, getNetworkStreamKey(), 1L);
             if (records != null && !records.isEmpty()) {
                 MapRecord<String, String, String> latestRecord = records.get(0);
                 lastId = latestRecord.getId().getValue();
