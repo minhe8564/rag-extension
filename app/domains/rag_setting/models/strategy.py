@@ -106,7 +106,7 @@ class Strategy(Base):
     strategy_type_no = Column(
         "STRATEGY_TYPE_NO",
         LargeBinary(16),
-        ForeignKey("STRATEGY_TYPE.STRATEGY_TYPE_NO", ondelete="CASCADE"),
+        ForeignKey("STRATEGY_TYPE.STRATEGY_TYPE_NO", ondelete="RESTRICT"),
         nullable=False,
         index=True
     )

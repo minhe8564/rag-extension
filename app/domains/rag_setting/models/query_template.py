@@ -65,7 +65,7 @@ class QueryGroup(Base):
     transformation_strategy_no = Column(
         "TRANSFORMATION_STRATEGY_NO",
         LargeBinary(16),
-        ForeignKey("STRATEGY.STRATEGY_NO", ondelete="CASCADE"),
+        ForeignKey("STRATEGY.STRATEGY_NO", ondelete="RESTRICT"),
         nullable=False,
         index=True
     )
@@ -74,7 +74,7 @@ class QueryGroup(Base):
     retrieval_strategy_no = Column(
         "RETRIEVAL_STRATEGY_NO",
         LargeBinary(16),
-        ForeignKey("STRATEGY.STRATEGY_NO", ondelete="CASCADE"),
+        ForeignKey("STRATEGY.STRATEGY_NO", ondelete="RESTRICT"),
         nullable=False,
         index=True
     )
@@ -83,7 +83,7 @@ class QueryGroup(Base):
     reranking_strategy_no = Column(
         "RERANKING_STRATEGY_NO",
         LargeBinary(16),
-        ForeignKey("STRATEGY.STRATEGY_NO", ondelete="CASCADE"),
+        ForeignKey("STRATEGY.STRATEGY_NO", ondelete="RESTRICT"),
         nullable=False,
         index=True
     )
@@ -92,7 +92,7 @@ class QueryGroup(Base):
     system_prompting_strategy_no = Column(
         "SYSTEM_PROMPTING_STRATEGY_NO",
         LargeBinary(16),
-        ForeignKey("STRATEGY.STRATEGY_NO", ondelete="CASCADE"),
+        ForeignKey("STRATEGY.STRATEGY_NO", ondelete="RESTRICT"),
         nullable=False,
         index=True
     )
@@ -101,7 +101,7 @@ class QueryGroup(Base):
     user_prompting_strategy_no = Column(
         "USER_PROMPTING_STRATEGY_NO",
         LargeBinary(16),
-        ForeignKey("STRATEGY.STRATEGY_NO", ondelete="CASCADE"),
+        ForeignKey("STRATEGY.STRATEGY_NO", ondelete="RESTRICT"),
         nullable=False,
         index=True
     )
@@ -110,7 +110,7 @@ class QueryGroup(Base):
     generation_strategy_no = Column(
         "GENERATION_STRATEGY_NO",
         LargeBinary(16),
-        ForeignKey("STRATEGY.STRATEGY_NO", ondelete="CASCADE"),
+        ForeignKey("STRATEGY.STRATEGY_NO", ondelete="RESTRICT"),
         nullable=False,
         index=True
     )
