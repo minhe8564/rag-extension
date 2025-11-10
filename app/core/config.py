@@ -1,15 +1,8 @@
 """
-공통 상수 정의
+Backwards-compatibility shim for pagination constants.
 
-애플리케이션 전역에서 사용되는 상수들을 정의합니다.
+Prefer importing from `app.core.config` (the package), not this module.
 """
 
-# ============================================
-# Pagination Constants
-# ============================================
+from app.core.config import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE  # re-export
 
-DEFAULT_PAGE_SIZE = 20
-"""기본 페이지 크기 (페이지당 항목 수)"""
-
-MAX_PAGE_SIZE = 100
-"""최대 페이지 크기 (페이지당 최대 항목 수)"""
