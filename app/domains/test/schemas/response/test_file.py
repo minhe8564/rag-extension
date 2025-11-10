@@ -13,6 +13,7 @@ class TestFileListItem(BaseModel):
     description: str
     bucket: str
     path: str
+    status: str
     createdAt: datetime
 
     class Config:
