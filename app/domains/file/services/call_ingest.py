@@ -18,8 +18,6 @@ async def call_ingest(user_role: str, user_uuid: str, batch_meta: UploadBatchMet
     Non-blocking usage is recommended via FastAPI BackgroundTasks.
     """
     payload: dict[str, Any] = {
-        "userUUID": user_uuid,
-        "userRole": user_role,
         "bucket": batch_meta.bucket,
         "offerNo": batch_meta.offerNo,
         "files": [
