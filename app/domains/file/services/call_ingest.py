@@ -18,6 +18,7 @@ async def call_ingest(user_role: str, user_uuid: str, batch_meta: UploadBatchMet
     Non-blocking usage is recommended via FastAPI BackgroundTasks.
     """
     payload: dict[str, Any] = {
+        "userUUID": user_uuid,
         "userRole": user_role,
         "bucket": batch_meta.bucket,
         "offerNo": batch_meta.offerNo,
@@ -34,10 +35,15 @@ async def call_ingest(user_role: str, user_uuid: str, batch_meta: UploadBatchMet
 
     # 내부 Container 이름으로 호출
     url = getattr(settings, "ingest_process_url", None)
+    print("Ingest URL:", url)
     timeout = httpx.Timeout(20.0, connect=5.0)
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
-            resp = await client.post(url, json=payload)
+            headers = {
+                "x_user_role": str(user_role),
+                "x_user_uuid": str(user_uuid),
+            }
+            resp = await client.post(url, json=payload, headers=headers)
             resp.raise_for_status()
             logger.info("Ingest call success: status=%s", resp.status_code)
     except Exception as e:
