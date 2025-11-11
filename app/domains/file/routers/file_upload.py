@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, File as FFile, UploadFile, Request, HTTP
 from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
+from datetime import datetime, timezone
 
 from app.core.database import get_db
 from app.core.schemas import BaseResponse
@@ -11,6 +12,8 @@ from ..schemas.response.upload_files import FileUploadBatchResult
 from ..services.call_ingest import call_ingest
 from ..schemas.request.upload_files import FileUploadRequest
 from ..services.upload import upload_files as upload_files_service
+from app.core.clients.redis_client import get_redis_client
+from app.core.config.settings import settings
 
 
 router = APIRouter(prefix="/files", tags=["File"])
@@ -44,9 +47,11 @@ async def upload_file(
         effective_collection = None
 
     files_payload: list[tuple[bytes, str, str | None]] = []
+    file_sizes: list[int] = []
     for f in files:
         content = await f.read()
         files_payload.append((content, f.filename or "uploaded", f.content_type))
+        file_sizes.append(len(content))
 
     # Persist and upload files; errors here should fail the request
     try:
@@ -67,7 +72,52 @@ async def upload_file(
         logger.exception("Unexpected error during file upload")
         raise
 
-    # Best-effort: background ingest task registration should not fail the request
+    # Best-effort: write Redis run meta for each file
+    try:
+        redis = get_redis_client()
+        n = len(batch_meta.files)
+        run_ids: list[str] = []
+        if n > 0:
+            base = await redis.incrby("ingest:run:seq", n)
+            start = base - (n - 1)
+            run_ids = [str(start + i) for i in range(n)]
+
+        pipe = redis.pipeline(transaction=False)
+
+        now_iso = datetime.now(timezone.utc).isoformat()
+        # batch_meta.files order matches input order; align sizes accordingly
+        for idx, fmeta in enumerate(batch_meta.files):
+            run_id = run_ids[idx] if idx < len(run_ids) else str(idx)
+            meta_key = f"ingest:run:{run_id}:meta"
+            # HSET with required fields
+            pipe.hset(
+                meta_key,
+                mapping={
+                    "userId": x_user_uuid,
+                    "fileNo": fmeta.fileNo,
+                    "fileName": fmeta.fileName,
+                    "fileCategory": request.category,
+                    "bucket": batch_meta.bucket,
+                    "size": str(file_sizes[idx]) if idx < len(file_sizes) else "0",
+                    "status": "PENDING",
+                    "currentStep": "UPLOAD",
+                    "progressPct": "0",
+                    "overallPct": "0",
+                    "createdAt": now_iso,
+                    "updatedAt": now_iso,
+                },
+            )
+            # optional TTL
+            if getattr(settings, "ingest_meta_ttl_sec", 0) and settings.ingest_meta_ttl_sec > 0:
+                pipe.expire(meta_key, settings.ingest_meta_ttl_sec)
+            # Add run id to user's running set
+            pipe.sadd(f"ingest:user:{x_user_uuid}:runs", run_id)
+
+        await pipe.execute()
+    except Exception:
+        logger.exception("Failed to write ingest run metadata to Redis")
+
+    # Then register background ingest task (best-effort)
     if background_tasks is not None:
         try:
             background_tasks.add_task(

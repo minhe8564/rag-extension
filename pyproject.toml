@@ -40,6 +40,7 @@ dependencies = [
   "websockets>=13.0,<15.0",
   "psutil>=5.9.0",
   "python-multipart>=0.0.20",
+  "redis>=7.0.1",
 ]
 
 [build-system]
