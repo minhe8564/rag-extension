@@ -1,37 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
-import Select, { type Option } from '@/shared/components/Select';
-import { LabelRow } from '@/domains/admin/components/rag-settings/ui/labelRow';
-import { Slider } from '@/domains/admin/components/rag-settings/ui/Slider';
+import { useEffect, useState } from 'react';
+import type { Option } from '@/shared/components/Select';
 import { Save } from 'lucide-react';
 import { toast } from 'react-toastify';
-import type { RagOptions } from '@/domains/admin/components/rag-settings/options';
-import type { FlowStepId } from '@/shared/components/rag-pipeline/PipelineFlow';
-import { PipelineIcons } from '@/shared/components/rag-pipeline/PipelineIcons';
-import SectionHeader from '@/domains/admin/components/rag-settings/ui/SectionHeader';
 import Tooltip from '@/shared/components/Tooltip';
-
-type SavePayload = {
-  template: string;
-  templateName: string;
-  extractEngine: string;
-  chunkStrategy: string;
-  chunkSize: number;
-  overlap: number;
-  embedModel: string;
-  embedSparse: string;
-  embedBackup: string;
-  isCreateMode?: boolean;
-};
-
-export type IngestPreset = {
-  extractEngine?: string;
-  chunkStrategy?: string;
-  chunkSize?: number;
-  overlap?: number;
-  embedModel?: string;
-  embedSparse?: string;
-  embedBackup?: string;
-};
+import IngestSettingsFields from '@/domains/admin/components/rag-settings/ingest/IngestSettingsFields';
+import type {
+  SavePayload,
+  IngestSettingsFormProps,
+} from '@/domains/admin/types/rag-settings/ingest/ingestSettings.types';
+import type { FlowStepId } from '@/shared/components/rag-pipeline/PipelineFlow';
 
 export function IngestSettingsForm({
   template,
@@ -41,15 +18,7 @@ export function IngestSettingsForm({
   loading = false,
   anchors,
   preset,
-}: {
-  template: string;
-  isCreateMode?: boolean;
-  onSave?: (payload: SavePayload) => void | Promise<void>;
-  options?: RagOptions | null;
-  loading?: boolean;
-  anchors?: Partial<Record<FlowStepId, React.RefObject<HTMLDivElement>>>;
-  preset?: IngestPreset;
-}) {
+}: IngestSettingsFormProps) {
   const templateOpts: Option[] = options?.ingestTemplate ?? [];
   const extractOpts: Option[] = options?.extract ?? [];
   const chunkOpts: Option[] = options?.chunk ?? [];
@@ -59,7 +28,6 @@ export function IngestSettingsForm({
 
   const selectedTemplateLabel =
     templateOpts.find((o) => o.value === template)?.label ?? '템플릿 없음';
-
   const safe = (opts: Option[], v?: string) =>
     v && opts.some((o) => o.value === v) ? v : (opts[0]?.value ?? '');
 
@@ -76,59 +44,28 @@ export function IngestSettingsForm({
     setTemplateName(isCreateMode ? '' : selectedTemplateLabel);
   }, [isCreateMode, selectedTemplateLabel, template]);
 
-  const [baseline, setBaseline] = useState<SavePayload | null>(null);
-
-  const currentPayload = useMemo<SavePayload>(
-    () => ({
-      template,
-      templateName,
-      extractEngine,
-      chunkStrategy,
-      chunkSize,
-      overlap,
-      embedModel,
-      embedSparse,
-      embedBackup,
-      isCreateMode,
-    }),
-    [
-      template,
-      templateName,
-      extractEngine,
-      chunkStrategy,
-      chunkSize,
-      overlap,
-      embedModel,
-      embedSparse,
-      embedBackup,
-      isCreateMode,
-    ]
-  );
-
-  const toComparable = (p: SavePayload) => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { isCreateMode: _omit, ...rest } = p;
-    return rest;
-  };
-
-  const dirty = useMemo(() => {
-    if (isCreateMode) return templateName.trim().length > 0;
-    return baseline
-      ? JSON.stringify(toComparable(baseline)) !== JSON.stringify(toComparable(currentPayload))
-      : false;
-  }, [isCreateMode, templateName, baseline, currentPayload]);
+  const [baseline, setBaseline] = useState<Omit<SavePayload, 'isCreateMode' | 'template'>>({
+    templateName: selectedTemplateLabel,
+    extractEngine,
+    chunkStrategy,
+    chunkSize,
+    overlap,
+    embedModel,
+    embedSparse,
+    embedBackup,
+  });
 
   useEffect(() => {
     if (!extractOpts.length && !chunkOpts.length && !embedDenseOpts.length) return;
 
     const next = {
-      extractEngine: safe(extractOpts, preset?.extractEngine ?? extractEngine),
-      chunkStrategy: safe(chunkOpts, preset?.chunkStrategy ?? chunkStrategy),
-      chunkSize: typeof preset?.chunkSize === 'number' ? preset!.chunkSize : chunkSize,
-      overlap: typeof preset?.overlap === 'number' ? preset!.overlap : overlap,
-      embedModel: safe(embedDenseOpts, preset?.embedModel ?? embedModel),
-      embedSparse: safe(embedSparseOpts, preset?.embedSparse ?? embedSparse),
-      embedBackup: safe(embedBackupOpts, preset?.embedBackup ?? embedBackup),
+      extractEngine: safe(extractOpts, preset?.extractEngine),
+      chunkStrategy: safe(chunkOpts, preset?.chunkStrategy),
+      chunkSize: typeof preset?.chunkSize === 'number' ? preset!.chunkSize : 512,
+      overlap: typeof preset?.overlap === 'number' ? preset!.overlap : 40,
+      embedModel: safe(embedDenseOpts, preset?.embedModel),
+      embedSparse: safe(embedSparseOpts, preset?.embedSparse),
+      embedBackup: safe(embedBackupOpts, preset?.embedBackup),
     };
 
     setExtractEngine(next.extractEngine);
@@ -141,13 +78,14 @@ export function IngestSettingsForm({
 
     if (!isCreateMode) {
       setBaseline({
-        template,
         templateName: selectedTemplateLabel,
         ...next,
-        isCreateMode: false,
       });
     } else {
-      setBaseline(null);
+      setBaseline({
+        templateName: '',
+        ...next,
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -161,16 +99,52 @@ export function IngestSettingsForm({
     embedBackupOpts.length,
   ]);
 
-  const scrollTo = (id: FlowStepId) =>
-    anchors?.[id]?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const dirty = isCreateMode
+    ? templateName.trim().length > 0
+    : JSON.stringify({
+        templateName,
+        extractEngine,
+        chunkStrategy,
+        chunkSize,
+        overlap,
+        embedModel,
+        embedSparse,
+        embedBackup,
+      }) !== JSON.stringify(baseline);
+
+  const scrollTo = (id: FlowStepId) => {
+    anchors?.[id]?.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
+  };
 
   const handleSave = async () => {
-    try {
-      await onSave?.(currentPayload);
-      toast.success(isCreateMode ? '템플릿이 생성되었습니다.' : '설정이 저장되었습니다.');
-      if (!isCreateMode) setBaseline(currentPayload);
-    } catch {
-      toast.error('설정 저장에 실패했습니다.');
+    const payload: SavePayload = {
+      template,
+      templateName,
+      extractEngine,
+      chunkStrategy,
+      chunkSize,
+      overlap,
+      embedModel,
+      embedSparse,
+      embedBackup,
+      isCreateMode,
+    };
+    await onSave?.(payload);
+    toast.success(isCreateMode ? '템플릿이 생성되었습니다.' : '설정이 저장되었습니다.');
+    if (!isCreateMode) {
+      setBaseline({
+        templateName,
+        extractEngine,
+        chunkStrategy,
+        chunkSize,
+        overlap,
+        embedModel,
+        embedSparse,
+        embedBackup,
+      });
     }
   };
 
@@ -180,15 +154,15 @@ export function IngestSettingsForm({
       onClick={handleSave}
       disabled={loading || !dirty}
       className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors
-      disabled:cursor-not-allowed disabled:opacity-60
-      ${
-        dirty && !loading
-          ? 'bg-[var(--color-hebees)] text-white border-[var(--color-hebees)] hover:opacity-90'
-          : 'bg-white text-gray-700 border hover:bg-gray-50'
-      }`}
+  disabled:cursor-not-allowed disabled:opacity-60
+  ${
+    dirty && !loading
+      ? 'bg-[var(--color-hebees)] text-white border-[var(--color-hebees)] hover:opacity-90'
+      : 'bg-white text-gray-700 border hover:bg-gray-50'
+  }`}
     >
       <Save className="h-4 w-4" />
-      {isCreateMode ? '생성' : '저장'}
+      <span>{isCreateMode ? '생성' : '저장'}</span>
     </button>
   );
 
@@ -228,117 +202,31 @@ export function IngestSettingsForm({
         </div>
       </div>
 
-      <div ref={anchors?.extract} className="rounded-2xl border bg-white p-8 shadow-sm">
-        <SectionHeader
-          id="extract"
-          title="Extract · 문서 수집"
-          subtitle="문서에서 텍스트·이미지·표를 추출하는 방법을 선택합니다."
-          icon={PipelineIcons.Extract}
-          onClick={scrollTo}
-        />
-        <div className="flex items-center justify-between gap-4">
-          <LabelRow label="추출 엔진 선택" hint="PDF/이미지 등 입력 형식에 맞는 엔진을 고르세요." />
-          <div className="max-w-xs w-full">
-            <Select
-              value={extractEngine}
-              onChange={setExtractEngine}
-              options={extractOpts}
-              disabled={loading || extractOpts.length === 0}
-            />
-          </div>
-        </div>
-      </div>
-
-      <div ref={anchors?.chunking} className="rounded-2xl border bg-white p-8 shadow-sm">
-        <SectionHeader
-          id="chunking"
-          title="Chunking · 문서 분할"
-          subtitle="문서를 의미 단위로 나누어 처리 효율을 높입니다."
-          icon={PipelineIcons.Chunking}
-          onClick={scrollTo}
-        />
-        <div className="mb-6 flex items-center justify-between gap-4">
-          <LabelRow label="청킹 전략 선택" hint="문서를 나누는 기준을 선택합니다." />
-          <div className="max-w-xs w-full">
-            <Select
-              value={chunkStrategy}
-              onChange={setChunkStrategy}
-              options={chunkOpts}
-              disabled={loading || chunkOpts.length === 0}
-            />
-          </div>
-        </div>
-        <div className="mb-6 flex items-center justify-between gap-4">
-          <LabelRow
-            label="청크 크기"
-            hint="큰 청크는 더 많은 컨텍스트를, 작은 청크는 더 높은 정밀도를 제공합니다."
-          />
-          <div className="max-w-sm w-full">
-            <Slider value={chunkSize} min={1} max={512} onChange={setChunkSize} />
-          </div>
-        </div>
-        <div className="flex items-center justify-between gap-4">
-          <LabelRow
-            label="오버랩 토큰 수"
-            hint="오버랩이 클수록 문맥 연속성은 좋아지지만 중복이 증가합니다."
-          />
-          <div className="max-w-sm w-full">
-            <Slider value={overlap} min={0} max={200} step={1} onChange={setOverlap} />
-          </div>
-        </div>
-      </div>
-
-      <div ref={anchors?.embedding} className="rounded-2xl border bg-white p-8 shadow-sm">
-        <SectionHeader
-          id="embedding"
-          title="Embedding · 벡터화"
-          subtitle="분할된 문서를 벡터로 변환합니다. Dense/Sparse를 함께 구성할 수 있어요."
-          icon={PipelineIcons.Embedding}
-          onClick={scrollTo}
-        />
-        <div className="mb-6 flex items-center justify-between gap-4">
-          <LabelRow
-            label="임베딩 모델 (Dense)"
-            hint="텍스트를 벡터로 변환할 기본 임베딩 모델입니다."
-          />
-          <div className="max-w-sm w-full">
-            <Select
-              value={embedModel}
-              onChange={setEmbedModel}
-              options={embedDenseOpts}
-              disabled={loading || embedDenseOpts.length === 0}
-            />
-          </div>
-        </div>
-        <div className="mb-6 flex items-center justify-between gap-4">
-          <LabelRow
-            label="임베딩 모델 (Sparse)"
-            hint="희소 벡터 기반 임베딩(예: SPLADE). 하이브리드 검색에 유리합니다."
-          />
-          <div className="max-w-sm w-full">
-            <Select
-              value={embedSparse}
-              onChange={setEmbedSparse}
-              options={embedSparseOpts}
-              disabled={loading || embedSparseOpts.length === 0}
-            />
-          </div>
-        </div>
-        <div className="flex items-center justify-between gap-4">
-          <LabelRow
-            label="추가 임베딩 모델 (Dense)"
-            hint="보조 임베딩 모델을 설정해 도메인 적응력을 높일 수 있습니다."
-          />
-          <div className="max-w-sm w-full">
-            <Select
-              value={embedBackup}
-              onChange={setEmbedBackup}
-              options={embedBackupOpts}
-              disabled={loading || embedBackupOpts.length === 0}
-            />
-          </div>
-        </div>
-      </div>
+      <IngestSettingsFields
+        anchors={anchors}
+        loading={loading}
+        scrollTo={scrollTo}
+        // values
+        extractEngine={extractEngine}
+        chunkStrategy={chunkStrategy}
+        chunkSize={chunkSize}
+        overlap={overlap}
+        embedModel={embedModel}
+        embedSparse={embedSparse}
+        embedBackup={embedBackup}
+        // handlers
+        setExtractEngine={setExtractEngine}
+        setChunkStrategy={setChunkStrategy}
+        setChunkSize={setChunkSize}
+        setOverlap={setOverlap}
+        setEmbedModel={setEmbedModel}
+        setEmbedSparse={setEmbedSparse}
+        // options
+        extractOpts={extractOpts}
+        chunkOpts={chunkOpts}
+        embedDenseOpts={embedDenseOpts}
+        embedSparseOpts={embedSparseOpts}
+      />
     </div>
   );
 }

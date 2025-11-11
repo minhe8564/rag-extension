@@ -5,10 +5,12 @@ import type {
   CpuEvent,
   MemoryEvent,
   NetworkEvent,
+  ExpenseEvent,
   Errors,
   Connected,
   Streams,
   UseMonitoringStreamsOptions,
+  ModelExpense,
 } from '@/domains/admin/types/system.dashboard.types';
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -65,13 +67,13 @@ function createErrorListener(
 export function useMonitoringStreams(opts: UseMonitoringStreamsOptions = {}) {
   const token = useAuthStore.getState().accessToken;
   const base = import.meta.env.VITE_SPRING_BASE_URL;
-  console.log(base);
 
   const urls = useMemo<Required<Streams>>(
     () => ({
       cpu: opts.urls?.cpu ?? `${base}/api/v1/monitoring/cpu/stream`,
       memory: opts.urls?.memory ?? `${base}/api/v1/monitoring/memory/stream`,
       network: opts.urls?.network ?? `${base}/api/v1/monitoring/network/stream`,
+      expense: opts.urls?.expense ?? `${base}/api/v1/analytics/metrics/expense/stream`,
     }),
     [opts.urls, base]
   );
@@ -79,23 +81,26 @@ export function useMonitoringStreams(opts: UseMonitoringStreamsOptions = {}) {
   const [cpu, setCpu] = useState<CpuEvent | null>(null);
   const [memory, setMemory] = useState<MemoryEvent | null>(null);
   const [network, setNetwork] = useState<NetworkEvent | null>(null);
+  const [expense, setExpense] = useState<ExpenseEvent | null>(null);
 
   const [errors, setErrors] = useState<Errors>({});
   const [connected, setConnected] = useState<Connected>({
     cpu: false,
     memory: false,
     network: false,
+    expense: false,
   });
 
   const esCpuRef = useRef<EventSourcePolyfill | null>(null);
   const esMemRef = useRef<EventSourcePolyfill | null>(null);
   const esNetRef = useRef<EventSourcePolyfill | null>(null);
+  const esExpRef = useRef<EventSourcePolyfill | null>(null);
 
-  // 리스너 참조(클린업용)
   const listenersRef = useRef<{
     cpu?: { payload: ESListener; error: ESListener };
     memory?: { payload: ESListener; error: ESListener };
     network?: { payload: ESListener; error: ESListener };
+    expense?: { payload: ESListener; error: ESListener };
   }>({});
 
   useEffect(() => {
@@ -109,7 +114,7 @@ export function useMonitoringStreams(opts: UseMonitoringStreamsOptions = {}) {
     };
     const withCreds = opts.withCredentials ?? true;
 
-    // CPU 스트림
+    // CPU
     {
       const es = new EventSourcePolyfill(urls.cpu, { headers, withCredentials: withCreds });
       esCpuRef.current = es;
@@ -131,7 +136,7 @@ export function useMonitoringStreams(opts: UseMonitoringStreamsOptions = {}) {
       listenersRef.current.cpu = { payload: payloadListener, error: errorListener };
     }
 
-    // Memory 스트림
+    // Memory
     {
       const es = new EventSourcePolyfill(urls.memory, { headers, withCredentials: withCreds });
       esMemRef.current = es;
@@ -153,7 +158,7 @@ export function useMonitoringStreams(opts: UseMonitoringStreamsOptions = {}) {
       listenersRef.current.memory = { payload: payloadListener, error: errorListener };
     }
 
-    // Network 스트림
+    // Network
     {
       const es = new EventSourcePolyfill(urls.network, { headers, withCredentials: withCreds });
       esNetRef.current = es;
@@ -175,8 +180,29 @@ export function useMonitoringStreams(opts: UseMonitoringStreamsOptions = {}) {
       listenersRef.current.network = { payload: payloadListener, error: errorListener };
     }
 
+    // Expense
+    {
+      const es = new EventSourcePolyfill(urls.expense, { headers, withCredentials: withCreds });
+      esExpRef.current = es;
+
+      const payloadListener = createPayloadListener<ExpenseEvent>(
+        setExpense,
+        (b) => setConnected((c) => ({ ...c, expense: b })),
+        (s) => setErrors((e) => ({ ...e, expense: s }))
+      );
+      const errorListener = createErrorListener(
+        (b) => setConnected((c) => ({ ...c, expense: b })),
+        (msg) => setErrors((e) => ({ ...e, expense: msg }))
+      );
+
+      es.addEventListener('init', payloadListener);
+      es.addEventListener('update', payloadListener);
+      es.addEventListener('error', errorListener);
+
+      listenersRef.current.expense = { payload: payloadListener, error: errorListener };
+    }
+
     return () => {
-      // 이벤트 제거 + 연결 종료
       if (esCpuRef.current && listenersRef.current.cpu) {
         esCpuRef.current.removeEventListener('init', listenersRef.current.cpu.payload);
         esCpuRef.current.removeEventListener('update', listenersRef.current.cpu.payload);
@@ -195,14 +221,20 @@ export function useMonitoringStreams(opts: UseMonitoringStreamsOptions = {}) {
         esNetRef.current.removeEventListener('error', listenersRef.current.network.error);
         esNetRef.current.close();
       }
+      if (esExpRef.current && listenersRef.current.expense) {
+        esExpRef.current.removeEventListener('init', listenersRef.current.expense.payload);
+        esExpRef.current.removeEventListener('update', listenersRef.current.expense.payload);
+        esExpRef.current.removeEventListener('error', listenersRef.current.expense.error);
+        esExpRef.current.close();
+      }
       esCpuRef.current = null;
       esMemRef.current = null;
       esNetRef.current = null;
+      esExpRef.current = null;
       listenersRef.current = {};
     };
-  }, [token, urls.cpu, urls.memory, urls.network, opts.withCredentials]);
+  }, [token, urls.cpu, urls.memory, urls.network, urls.expense, opts.withCredentials]);
 
-  // 편의 계산치
   const { cpuBar, cpuBarColor, memBar, memBarColor, netBar, netBarColor } = useMemo(() => {
     const _cpuBar = typeof cpu?.cpuUsagePercent === 'number' ? cpu.cpuUsagePercent : undefined;
     const _cpuBarColor =
@@ -229,12 +261,10 @@ export function useMonitoringStreams(opts: UseMonitoringStreamsOptions = {}) {
       network && network.bandwidthMbps
         ? (Math.max(network.inboundMbps, network.outboundMbps) / network.bandwidthMbps) * 100
         : undefined;
-
     const _netBar =
       typeof netPct === 'number'
         ? Math.min(100, Math.max(0, Number(netPct.toFixed(1))))
         : undefined;
-
     const _netBarColor =
       _netBar !== undefined
         ? _netBar >= 85
@@ -254,10 +284,20 @@ export function useMonitoringStreams(opts: UseMonitoringStreamsOptions = {}) {
     };
   }, [cpu, memory, network]);
 
+  const { grandPriceUsd, topSpenders } = useMemo(() => {
+    const grand = expense?.grandPriceUsd ?? 0;
+    const top: ModelExpense[] = (expense?.models ?? [])
+      .slice()
+      .sort((a, b) => b.totalPriceUsd - a.totalPriceUsd)
+      .slice(0, 3);
+    return { grandPriceUsd: grand, topSpenders: top };
+  }, [expense]);
+
   return {
     cpu,
     memory,
     network,
+    expense,
     errors,
     connected,
     cpuBar,
@@ -266,5 +306,7 @@ export function useMonitoringStreams(opts: UseMonitoringStreamsOptions = {}) {
     memBarColor,
     netBar,
     netBarColor,
+    grandPriceUsd,
+    topSpenders,
   };
 }

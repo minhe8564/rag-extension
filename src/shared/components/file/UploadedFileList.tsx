@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Download, Trash2, X } from 'lucide-react';
+import { X, Download, Trash2 } from 'lucide-react';
 import Checkbox from '@/shared/components/Checkbox';
 import Tooltip from '@/shared/components/Tooltip';
 import Select from '@/shared/components/Select';
@@ -7,21 +7,10 @@ import Pagination from '@/shared/components/Pagination';
 import { fileTypeOptions } from '@/domains/admin/components/rag-settings/options';
 import { useCategoryStore } from '@/shared/store/categoryMap';
 import ConflictBar from '@/shared/components/file/ConflictBar';
-import FileNameCell from '@/shared/components/file/FileNameCell';
 import { ensureUniqueName } from '@/shared/utils/fileName';
-
-export type UploadedDoc = {
-  id: string;
-  name: string;
-  sizeKB: number;
-  uploadedAt?: string;
-  category?: string;
-  categoryId?: string;
-  type: string;
-  file?: File;
-  fileNo?: string;
-  status?: 'pending' | 'uploaded' | 'failed';
-};
+import { useNameGroups } from '@/shared/hooks/useNameGroups';
+import UploadedFileTableRow from './UploadedFileTableRow';
+import type { UploadedDoc } from '@/shared/types/file.types';
 
 type Props = {
   docs: UploadedDoc[];
@@ -71,29 +60,8 @@ export default function UploadedFileList({
 
   const selectedIds = useMemo(() => Object.keys(selected).filter((id) => selected[id]), [selected]);
 
-  const nameGroups = useMemo(() => {
-    const map = new Map<string, UploadedDoc[]>();
-    filtered.forEach((d) => {
-      const key = d.name.toLowerCase();
-      const arr = map.get(key) ?? [];
-      arr.push(d);
-      map.set(key, arr);
-    });
+  const { conflicts, isLoser } = useNameGroups(filtered);
 
-    const byRecent = (a: UploadedDoc, b: UploadedDoc) =>
-      (new Date(b.uploadedAt || 0).getTime() || 0) - (new Date(a.uploadedAt || 0).getTime() || 0);
-
-    map.forEach((arr) => arr.sort(byRecent));
-
-    return map;
-  }, [filtered]);
-
-  const conflicts = useMemo(
-    () => Array.from(nameGroups.values()).filter((arr) => arr.length > 1),
-    [nameGroups]
-  );
-
-  // 자동 해결 정책 적용
   useEffect(() => {
     if (autoResolve === 'none' || filtered.length === 0 || !conflicts.length) return;
 
@@ -125,9 +93,7 @@ export default function UploadedFileList({
     setSelected((prev) => {
       const next: Record<string, boolean> = {};
       const existing = new Set(docs.map((d) => d.id));
-      for (const id of Object.keys(prev)) {
-        if (existing.has(id)) next[id] = prev[id];
-      }
+      for (const id of Object.keys(prev)) if (existing.has(id)) next[id] = prev[id];
       return next;
     });
 
@@ -156,35 +122,26 @@ export default function UploadedFileList({
   const brandBorder =
     brand === 'hebees' ? 'border-[var(--color-hebees)]' : 'border-[var(--color-retina)]';
 
-  const isLoser = (doc: UploadedDoc): boolean => {
-    const arr = nameGroups.get(doc.name.toLowerCase());
-    return !!(arr && arr.length > 1 && arr[0].id !== doc.id);
-  };
-
-  // 일괄 처리 핸들러
-  const resolveAllOverwrite = () => {
-    const toDelete = conflicts.flatMap((group) => group.slice(1).map((d) => d.id));
-    if (toDelete.length) onDelete?.(toDelete);
-  };
-  const resolveAllRename = () => {
-    if (!onRename) return;
-    const existing = new Set(docs.map((d) => d.name));
-    conflicts.forEach((group) => {
-      group.slice(1).forEach((d) => {
-        const next = ensureUniqueName(d.name, existing);
-        existing.add(next);
-        onRename(d.id, next);
-      });
-    });
-  };
-
   return (
     <div className="mt-6 rounded-2xl border bg-white p-6">
       <ConflictBar
         hidden={autoResolve !== 'none'}
         conflictCount={conflicts.length}
-        onOverwriteAll={resolveAllOverwrite}
-        onRenameAll={resolveAllRename}
+        onOverwriteAll={() => {
+          const toDelete = conflicts.flatMap((group) => group.slice(1).map((d) => d.id));
+          if (toDelete.length) onDelete?.(toDelete);
+        }}
+        onRenameAll={() => {
+          if (!onRename) return;
+          const existing = new Set(docs.map((d) => d.name));
+          conflicts.forEach((group) => {
+            group.slice(1).forEach((d) => {
+              const next = ensureUniqueName(d.name, existing);
+              existing.add(next);
+              onRename(d.id, next);
+            });
+          });
+        }}
       />
 
       <div className="mb-4 flex flex-wrap items-center justify-end">
@@ -217,6 +174,7 @@ export default function UploadedFileList({
               <th className="px-4 py-2 text-right">크기</th>
               <th className="px-4 py-2 text-right">업로드 시간</th>
               <th className="px-4 py-2 text-right">카테고리</th>
+              <th className="px-4 py-2 text-right">상태</th>
               <th className="px-4 py-2 text-right">작업</th>
             </tr>
           </thead>
@@ -224,7 +182,7 @@ export default function UploadedFileList({
           <tbody>
             {pageItems.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-gray-400">
+                <td colSpan={7} className="px-4 py-10 text-center text-gray-400">
                   업로드된 파일이 없습니다.
                 </td>
               </tr>
@@ -236,87 +194,23 @@ export default function UploadedFileList({
                   '기타';
 
                 const losing = isLoser(doc);
-
                 const existingNames = docs.filter((d) => d.id !== doc.id).map((d) => d.name);
 
                 return (
-                  <tr
+                  <UploadedFileTableRow
                     key={doc.id}
-                    className={`border-b last:border-b-0 ${losing ? 'bg-amber-50/40' : ''}`}
-                  >
-                    <td className="px-4 py-2">
-                      <Checkbox
-                        checked={!!selected[doc.id]}
-                        onChange={(e) => setSelected((s) => ({ ...s, [doc.id]: e.target.checked }))}
-                        brand={brand}
-                      />
-                    </td>
-
-                    <td className="max-w-[260px] px-4 py-2 sm:max-w-[360px]">
-                      <FileNameCell
-                        id={doc.id}
-                        name={doc.name}
-                        losing={losing}
-                        brandTextClass={brandText}
-                        onRename={onRename}
-                        existingNames={existingNames}
-                      />
-                    </td>
-
-                    <td className="px-4 py-2 text-right text-gray-600">
-                      {doc.sizeKB >= 1024
-                        ? `${(doc.sizeKB / 1024).toFixed(1)} MB`
-                        : `${doc.sizeKB.toFixed(1)} KB`}
-                    </td>
-
-                    <td className="px-4 py-2 text-right text-gray-600">{doc.uploadedAt ?? '-'}</td>
-
-                    <td className="px-4 py-2">
-                      <div className="flex justify-end">
-                        <span className="inline-flex items-center rounded-full border border-gray-300 px-3 py-1 text-xs text-gray-700">
-                          {categoryName}
-                        </span>
-                      </div>
-                    </td>
-
-                    <td className="px-2 py-2">
-                      <div className="flex items-center justify-end gap-1.5">
-                        {losing && (
-                          <Tooltip
-                            content="이 항목만 삭제하여 최신만 남기기"
-                            side="bottom"
-                            offset={1}
-                          >
-                            <button
-                              className="rounded-md p-2 text-red-600 hover:bg-red-50"
-                              onClick={() => onDelete?.([doc.id])}
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </Tooltip>
-                        )}
-                        <Tooltip content="다운로드" side="bottom" offset={1}>
-                          <button
-                            className="rounded-md p-2 hover:bg-gray-50"
-                            onClick={() => onDownload?.(doc.id)}
-                          >
-                            <Download size={16} />
-                          </button>
-                        </Tooltip>
-
-                        {!losing && (
-                          <Tooltip content="삭제" side="bottom" offset={1}>
-                            <button
-                              className="rounded-md p-2 text-red-600 hover:bg-red-50"
-                              onClick={() => onDelete?.([doc.id])}
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </Tooltip>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
+                    doc={doc}
+                    losing={losing}
+                    brand={brand}
+                    brandTextClass={brandText}
+                    categoryName={categoryName}
+                    selected={!!selected[doc.id]}
+                    onToggleSelect={(checked) => setSelected((s) => ({ ...s, [doc.id]: checked }))}
+                    onDownload={onDownload}
+                    onDelete={onDelete}
+                    onRename={onRename}
+                    existingNames={existingNames}
+                  />
                 );
               })
             )}
@@ -332,7 +226,6 @@ export default function UploadedFileList({
                 className={`flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 ${brandBorder} ${brandBg}`}
               >
                 <span>{selectedIds.length}개 파일이 선택되었습니다.</span>
-
                 <div className="flex items-center gap-1">
                   <Tooltip content="선택 해제" side="bottom">
                     <button
@@ -348,9 +241,7 @@ export default function UploadedFileList({
                     <button
                       type="button"
                       onClick={() => {
-                        selectedIds.forEach((id, i) => {
-                          setTimeout(() => onDownload?.(id), i * 120);
-                        });
+                        selectedIds.forEach((id, i) => setTimeout(() => onDownload?.(id), i * 120));
                       }}
                       className="rounded-md p-2 hover:bg-white text-black"
                     >

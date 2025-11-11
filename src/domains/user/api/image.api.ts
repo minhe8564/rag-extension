@@ -8,6 +8,7 @@ import type {
 
 // 이미지 생성 요청
 export const generateImages = async (payload: GenerateImageRequest) => {
+  console.log(payload);
   const { data } = await fastApi.post<ApiEnvelope<{ data: GenerateImageResponse }>>(
     '/api/v1/images/generate',
     payload

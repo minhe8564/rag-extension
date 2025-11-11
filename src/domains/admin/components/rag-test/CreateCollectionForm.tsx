@@ -5,7 +5,7 @@ import Card from '@/shared/components/Card';
 import Select from '@/shared/components/Select';
 import FileDropzone from '@/shared/components/file/FileUploader';
 import UploadedFileList from '@/shared/components/file/UploadedFileList';
-import type { UploadedDoc as UDoc } from '@/shared/components/file/UploadedFileList';
+import type { UploadedDoc as UDoc } from '@/shared/types/file.types';
 import type { Collection } from '@/domains/admin/components/rag-test/types';
 import type { RagOptions } from '@/domains/admin/components/rag-settings/options';
 

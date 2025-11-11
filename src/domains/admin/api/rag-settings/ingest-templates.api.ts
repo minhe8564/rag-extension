@@ -62,7 +62,6 @@ export async function patchIngestTemplate(
   payload: Partial<UpsertIngestTemplateDto>
 ): Promise<IngestTemplateDetailResult> {
   if (!ingestNo) throw new Error('ingestNo is required');
-  console.log(payload);
   const res = await fastApi.patch<ApiEnvelope<IngestTemplateDetailResult>>(
     `/api/v1/rag/ingest-templates/${encodeURIComponent(ingestNo)}`,
     payload

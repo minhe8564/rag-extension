@@ -23,6 +23,7 @@ export type Streams = {
   cpu?: string;
   memory?: string;
   network?: string;
+  expense?: string;
 };
 
 export type UseMonitoringStreamsOptions = {
@@ -34,12 +35,14 @@ export type Errors = {
   cpu?: string | null;
   memory?: string | null;
   network?: string | null;
+  expense?: string | null;
 };
 
 export type Connected = {
-  cpu: boolean;
-  memory: boolean;
-  network: boolean;
+  cpu?: boolean;
+  memory?: boolean;
+  network?: boolean;
+  expense?: boolean;
 };
 
 export type ApiEnvelope<T> = {
@@ -108,3 +111,16 @@ export type StorageUsageResult = {
 };
 
 export type StorageUsageResponse = ApiEnvelope<StorageUsageResult>;
+
+export type ModelExpense = {
+  model: string;
+  inputPriceUsd: number;
+  outputPriceUsd: number;
+  totalPriceUsd: number;
+};
+
+export type ExpenseEvent = {
+  timestamp: string;
+  models: ModelExpense[];
+  grandPriceUsd: number;
+};

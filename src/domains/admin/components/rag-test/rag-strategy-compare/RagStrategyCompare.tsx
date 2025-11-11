@@ -66,7 +66,6 @@ export function RagStrategyCompare({ initialIngest, initialQueries, onRunCompare
         right: { ingest: fixedIngest, query: rightQueryId ? queryMap.get(rightQueryId) : null },
       };
     }
-    // mode === 'ingest-2'
     const fixedQuery = fixedQueryId ? queryMap.get(fixedQueryId) : null;
     return {
       left: { ingest: leftIngestId ? ingestMap.get(leftIngestId) : null, query: fixedQuery },

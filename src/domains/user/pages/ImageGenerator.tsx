@@ -27,7 +27,6 @@ export default function ImageGenerator() {
       setImages(urls);
     } catch (err) {
       console.error('generateImages error:', err);
-      toast.error('이미지 생성 중 오류가 발생했어요.');
     } finally {
       setLoading(false);
     }
@@ -43,7 +42,6 @@ export default function ImageGenerator() {
       setImages(urls);
     } catch (err) {
       console.error('regenerateImages error:', err);
-      toast.error('재생성 중 오류가 발생했어요.');
     } finally {
       setLoading(false);
     }

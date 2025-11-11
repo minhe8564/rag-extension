@@ -13,7 +13,6 @@ type UiStatus = 'healthy' | 'warning' | 'error';
 type ServiceStatus = ServicesStatusResult['services'][number]['status'];
 
 function mapUiStatus(s: ServiceStatus): UiStatus {
-  // RUNNING → healthy, STOPPED → error, UNKNOWN → warning
   if (s === 'RUNNING') return 'healthy';
   if (s === 'STOPPED') return 'error';
   return 'warning';

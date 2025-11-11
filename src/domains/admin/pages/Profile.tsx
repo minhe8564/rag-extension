@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { springApi } from '@/shared/lib/apiInstance';
-import { Loader2, UserCog, Mail, Shield, UserSquare2 } from 'lucide-react';
+import { Loader2, UserCog, Mail, Shield, UserSquare2, Images } from 'lucide-react';
 import ProfileInfoCard from '@/shared/components/ProfileInfoCard';
+import ImageAlbum from '@/domains/user/components/image/ImageAlbum';
+import FooterInfo from '@/shared/components/FooterInfo';
 
 type UserInfo = {
   userNo: string;
@@ -34,52 +36,72 @@ export default function Profile() {
     role === 2 ? '관리자' : role === 1 ? '사용자' : '알 수 없음';
 
   return (
-    <div className="space-y-8 px-4 mb-20">
-      <div className="flex items-center gap-3">
-        <div className="p-3 rounded-xl bg-[var(--color-hebees-bg)] flex items-center justify-center">
-          <UserCog size={28} className="text-[var(--color-hebees)]" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-semibold">내 정보</h1>
-          <p className="text-sm text-gray-600">내 계정 정보를 확인하고 관리할 수 있습니다.</p>
-        </div>
-      </div>
-
-      <div className="rounded-xl border bg-white p-6 shadow-sm">
-        {loading ? (
-          <div className="flex items-center justify-center py-10 text-gray-500">
-            <Loader2 size={18} className="animate-spin mr-2" />
-            정보를 불러오는 중입니다...
+    <div className="min-h-screen flex flex-col">
+      <main className="flex-1 space-y-8 px-4">
+        <div className="flex items-center gap-4">
+          <div className="p-3 rounded-xl bg-[var(--color-hebees-bg)] flex items-center justify-center">
+            <UserCog size={28} className="text-[var(--color-hebees)]" />
           </div>
-        ) : user ? (
-          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <ProfileInfoCard
-              brand="hebees"
-              icon={<UserSquare2 size={20} strokeWidth={1.8} />}
-              label="이름"
-              value={<span className="text-base font-semibold text-gray-900">{user.name}</span>}
-            />
-            <ProfileInfoCard
-              brand="hebees"
-              icon={<Mail size={20} strokeWidth={1.8} />}
-              label="이메일"
-              value={<span className="text-base font-medium text-gray-900">{user.email}</span>}
-            />
-            <ProfileInfoCard
-              brand="hebees"
-              icon={<Shield size={20} strokeWidth={1.8} />}
-              label="역할"
-              value={
-                <span className={`text-base font-medium text-gray-900}`}>
-                  {getRoleLabel(user.role)}
-                </span>
-              }
-            />
-          </dl>
-        ) : (
-          <div className="text-center text-gray-500 py-10">사용자 정보를 불러오지 못했습니다.</div>
-        )}
-      </div>
+          <div>
+            <h1 className="text-2xl font-semibold">내 정보</h1>
+            <p className="text-sm text-gray-600">내 계정 정보를 확인하고 관리할 수 있습니다.</p>
+          </div>
+        </div>
+
+        <div className="rounded-xl border bg-white p-6 shadow-sm">
+          {loading ? (
+            <div className="flex items-center justify-center py-10 text-gray-500">
+              <Loader2 size={18} className="animate-spin mr-2" />
+              정보를 불러오는 중입니다...
+            </div>
+          ) : user ? (
+            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <ProfileInfoCard
+                brand="hebees"
+                icon={<UserSquare2 size={20} strokeWidth={1.8} />}
+                label="이름"
+                value={<span className="text-base font-semibold text-gray-900">{user.name}</span>}
+              />
+              <ProfileInfoCard
+                brand="hebees"
+                icon={<Mail size={20} strokeWidth={1.8} />}
+                label="이메일"
+                value={<span className="text-base font-medium text-gray-900">{user.email}</span>}
+              />
+              <ProfileInfoCard
+                brand="hebees"
+                icon={<Shield size={20} strokeWidth={1.8} />}
+                label="역할"
+                value={
+                  <span className="text-base font-medium text-gray-900">
+                    {getRoleLabel(user.role)}
+                  </span>
+                }
+              />
+            </dl>
+          ) : (
+            <div className="text-center text-gray-500 py-10">
+              사용자 정보를 불러오지 못했습니다.
+            </div>
+          )}
+        </div>
+
+        <section>
+          <div className="flex items-center gap-4 mb-4">
+            <div className="p-3 rounded-xl bg-[var(--color-hebees-bg)] flex items-center justify-center">
+              <Images size={28} className="text-[var(--color-hebees)]" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-semibold">내 이미지 앨범</h1>
+              <p className="text-sm text-gray-600">생성한 이미지를 한눈에 확인할 수 있습니다.</p>
+            </div>
+          </div>
+
+          <ImageAlbum />
+        </section>
+      </main>
+
+      <FooterInfo brand="hebees" />
     </div>
   );
 }

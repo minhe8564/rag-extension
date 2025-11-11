@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import clsx from 'clsx';
 import { fetchMyDocumentsNormalized, getPresignedUrl, deleteFile } from '@/shared/api/file.api';
 import type { MyDoc } from '@/shared/types/file.types';
-import UploadedFileList, { type UploadedDoc } from '@/shared/components/file/UploadedFileList';
+import UploadedFileList from '@/shared/components/file/UploadedFileList';
+import type { UploadedDoc } from '@/shared/types/file.types';
 import Pagination from '@/shared/components/Pagination';
 import { RefreshCw } from 'lucide-react';
 import { toast } from 'react-toastify';
@@ -70,9 +71,9 @@ export default function MyDocsTab() {
         sizeKB: d.sizeKB,
         uploadedAt: new Date(d.uploadedAt).toLocaleString(),
         category: d.bucket ?? '기타',
-        categoryId: d.categoryNo,
+        categoryId: d.categoryNo != null ? String(d.categoryNo) : undefined,
         type: typeof d.type === 'string' ? d.type : 'txt',
-        status: 'uploaded',
+        status: d.status ?? undefined,
       })),
     [myDocs]
   );
@@ -137,7 +138,6 @@ export default function MyDocsTab() {
       }
     } catch (e) {
       console.error(e);
-      toast.error('삭제 중 오류가 발생했어요.');
     } finally {
       setDeleting(false);
       setConfirmOpen(false);

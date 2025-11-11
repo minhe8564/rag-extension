@@ -7,6 +7,7 @@ type CardProps = {
   tip?: string;
   subtitle?: string;
   children: ReactNode;
+  status?: ReactNode;
   className?: string;
 };
 
@@ -17,23 +18,24 @@ export default function Card({
   tip,
   subtitle,
   children,
+  status,
   className = '',
 }: CardProps) {
   return (
     <section className={`rounded-2xl border bg-white p-8 shadow-sm ${className}`}>
       {title && (
         <div className="mb-2">
-          <div className="flex items-start gap-3">
+          <div className="flex items-start gap-3 w-full">
             {icon && (
               <div className={`w-11 h-11 flex items-center justify-center rounded-xl ${iconBg}`}>
                 {icon}
               </div>
             )}
-
-            <div className="flex flex-col justify-center">
+            <div className="flex flex-col justify-center min-w-0">
               <h3 className="font-semibold text-gray-900">{title}</h3>
               {subtitle && <p className="text-sm text-gray-500 mt-0.5">{subtitle}</p>}
             </div>
+            {status && <div className="ml-auto shrink-0">{status}</div>}
           </div>
 
           {tip && (

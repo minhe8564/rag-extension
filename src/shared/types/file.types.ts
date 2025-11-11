@@ -1,6 +1,21 @@
 export type OnNameConflict = 'reject' | 'overwrite';
 export type UploadBucket = 'public' | 'private' | 'test' | null;
 
+export type RagStatus = 'PENDING' | 'INGESTING' | 'COMPLETED' | 'FAILED';
+
+export type UploadedDoc = {
+  id: string;
+  name: string;
+  sizeKB: number;
+  uploadedAt?: string;
+  category?: string;
+  categoryId?: string;
+  type: string;
+  file?: File;
+  fileNo?: string;
+  status?: RagStatus | string;
+};
+
 export interface UploadFilesParams {
   files: File[];
   categoryNo: string;
@@ -28,12 +43,12 @@ export interface RawMyDoc {
   type: string;
   bucket: string;
   path: string;
+  status: 'PENDING' | 'INGESTING' | 'COMPLETED' | 'FAILED';
   categoryNo: string;
   collectionNo: string;
   createdAt: string;
   originalFile?: File;
 }
-
 export interface MyDoc {
   fileNo: string;
   name: string;
@@ -41,6 +56,7 @@ export interface MyDoc {
   type: RawMyDoc['type'];
   bucket: string;
   path: string;
+  status: 'PENDING' | 'INGESTING' | 'COMPLETED' | 'FAILED';
   categoryNo: string;
   collectionNo: string;
   uploadedAt: string;

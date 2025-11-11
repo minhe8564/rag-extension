@@ -10,7 +10,6 @@ export interface PreviewTooltipProps {
 export default function PreviewTooltip({ url, x, y, visible }: PreviewTooltipProps) {
   if (!visible || !url) return null;
 
-  // 화면 밖 방지
   const margin = 16;
   const width = 320;
   const height = 200;

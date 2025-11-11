@@ -158,7 +158,6 @@ function applyInterceptors(instance: typeof springApi | typeof ragApi | typeof f
 
         default:
           toast.error(msg);
-          console.error('[API ERROR]', error);
           break;
       }
 

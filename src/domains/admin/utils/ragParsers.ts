@@ -1,4 +1,3 @@
-// src/domains/admin/components/rag-settings/utils/ragParsers.ts
 export const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null;
 

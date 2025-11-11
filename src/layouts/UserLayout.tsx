@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { Menu, MessageSquare, Image, FolderCog, LogOut, Bell, UserCog, Search } from 'lucide-react';
 import Tooltip from '@/shared/components/Tooltip';
@@ -22,26 +22,10 @@ const linkCls = ({ isActive }: { isActive: boolean }) =>
     : 'text-gray-700 hover:bg-[var(--color-retina)] hover:text-white');
 
 const MODEL_OPTIONS: Option[] = [
-  {
-    value: 'qwen3-v1:8b',
-    label: 'Qwen3-v1:8B',
-    desc: '가볍고 빠른 멀티모달 모델',
-  },
-  {
-    value: 'gpt-4o',
-    label: 'GPT-4o',
-    desc: '전반적인 품질·안정성 균형',
-  },
-  {
-    value: 'gemini-2.5 flash',
-    label: 'Gemini 2 .5 Flash',
-    desc: '대용량 문서·검색 작업에 최적',
-  },
-  {
-    value: 'claude-sonnet 4',
-    label: 'Claude Sonnet 4',
-    desc: '복잡한 분석·글쓰기·요약에 강점',
-  },
+  { value: 'qwen3-v1:8b', label: 'Qwen3-v1:8B', desc: '가볍고 빠른 멀티모달 모델' },
+  { value: 'gpt-4o', label: 'GPT-4o', desc: '전반적인 품질·안정성 균형' },
+  { value: 'gemini-2.5 flash', label: 'Gemini 2.5 Flash', desc: '대용량 문서·검색 작업에 최적' },
+  { value: 'claude-sonnet 4', label: 'Claude Sonnet 4', desc: '복잡한 분석·글쓰기·요약에 강점' },
 ];
 
 export default function UserLayout() {
@@ -51,7 +35,14 @@ export default function UserLayout() {
   const [sp] = useSearchParams();
   const activeSessionNo = sp.get('session') || undefined;
   const navigate = useNavigate();
+
   const { model, setModel } = useGlobalModelStore();
+
+  useEffect(() => {
+    if (!localStorage.getItem('global-chat-model')) {
+      setModel('qwen3-v1:8b');
+    }
+  }, [setModel]);
 
   const { pathname } = useLocation();
   const isChatRoute = pathname.startsWith('/user/chat/text');
@@ -117,10 +108,7 @@ export default function UserLayout() {
 
           <button
             type="button"
-            className={
-              'flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ' +
-              'text-gray-700 hover:bg-[var(--color-retina)] hover:text-white'
-            }
+            className="flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors text-gray-700 hover:bg-[var(--color-retina)] hover:text-white"
             onClick={() => setOpen(true)}
           >
             <Search size={18} className="flex-shrink-0" />
@@ -165,7 +153,7 @@ export default function UserLayout() {
 
       <main className="flex-1 min-w-0">
         <div
-          className={`sticky z-30 top-0 flex px-8 py-5 ${
+          className={`sticky z-50 top-0 flex px-8 py-5 ${
             isChatRoute ? 'justify-between' : 'justify-end'
           }`}
         >
@@ -175,16 +163,17 @@ export default function UserLayout() {
               onChange={setModel}
               options={MODEL_OPTIONS}
               className="w-[200px]"
-              placeholder="모델 선택"
             />
           )}
+
           <Bell
             size={22}
             className="text-gray-600 hover:text-gray-800 cursor-pointer transition-colors shake-hover"
           />
         </div>
-        <div className="flex flex-col w-full gap-3 px-8">
-          <Outlet />
+
+        <div className="flex w-full flex-col gap-3 px-8">
+          <Outlet key={pathname + location.search} />
         </div>
       </main>
 

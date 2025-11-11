@@ -71,7 +71,7 @@ export interface UpsertIngestTemplateDto {
   extractions: StrategyRefInput[];
   chunking: StrategyRefInput;
   denseEmbeddings: StrategyRefInput[];
-  sparseEmbedding?: StrategyRefInput; // ← sparse로 통일
+  sparseEmbedding?: StrategyRefInput;
 }
 
 // Query 업서트

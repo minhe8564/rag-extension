@@ -175,6 +175,7 @@ export default function IngestTab({
       return;
     }
 
+    // console.log('patchIngestTemplate', payload.template, dto);
     await patchIngestTemplate(payload.template, dto);
 
     const [detail, list] = await Promise.all([

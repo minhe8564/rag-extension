@@ -60,6 +60,7 @@ export async function fetchMyDocumentsNormalized(params?: {
       type: f.type,
       bucket: f.bucket ?? undefined,
       path: f.path ?? undefined,
+      status: f.status,
       categoryNo: f.categoryNo ?? undefined,
       collectionNo: f.collectionNo ?? undefined,
       uploadedAt: f.createdAt,

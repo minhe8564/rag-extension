@@ -26,17 +26,13 @@ function ProgressBar({ value, color }: { value: number; color: string }) {
 }
 
 function ServiceCard({ service }: { service: ServicePerformance }) {
-  // 안전한 상태 보정: 없거나 스펙 밖이면 NORMAL
   const safeStatus: PerfLevel =
     service?.status === 'NORMAL' || service?.status === 'WARNING' || service?.status === 'CRITICAL'
       ? service.status
       : 'NORMAL';
 
-  // 항상 fallback 보장
   const t = tone[safeStatus] ?? tone.NORMAL;
 
-  // 화면 표시는 퍼센트 문자열, 게이지는 0~100 값 사용
-  // 지금은 백엔드가 0~10 스케일을 주는 전제라 *10로 표기 중 (필요하면 *100로 바꾸세요)
   const pct = (n: unknown, digits = 1) =>
     typeof n === 'number' && Number.isFinite(n) ? `${(n * 10).toFixed(digits)}%` : 'N/A';
 

@@ -128,7 +128,7 @@ export default function ImageGeneratorForm({
       <div className="mt-6 flex items-center justify-center gap-4">
         <button
           disabled={disabled}
-          onClick={onGenerate}
+          onClick={() => onGenerate()}
           className="inline-flex items-center gap-2 rounded-md bg-[var(--color-primary)] px-8 py-2 text-white disabled:opacity-50"
         >
           {loading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}

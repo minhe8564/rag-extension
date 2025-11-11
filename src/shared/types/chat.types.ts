@@ -63,10 +63,12 @@ export interface ListMessagesParams {
 export interface SessionRequest {
   title?: string;
   llm?: string;
+  query?: string;
 }
 
 export interface CreateSessionResult {
   sessionNo: string;
+  title?: string;
 }
 
 // 메세지 전송 관련

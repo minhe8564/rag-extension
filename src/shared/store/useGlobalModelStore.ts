@@ -6,7 +6,7 @@ interface ModelState {
 }
 
 export const useGlobalModelStore = create<ModelState>((set) => ({
-  model: localStorage.getItem('global-chat-model') ?? 'gpt-4o',
+  model: localStorage.getItem('global-chat-model') ?? 'qwen3-v1:8b',
   setModel: (m) => {
     localStorage.setItem('global-chat-model', m);
     set({ model: m });

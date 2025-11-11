@@ -218,7 +218,6 @@ export default function AdminLayout() {
               onChange={setModel}
               options={MODEL_OPTIONS}
               className="w-[200px]"
-              placeholder="모델 선택"
             />
           )}
           <Bell
@@ -226,10 +225,8 @@ export default function AdminLayout() {
             className="text-gray-600 hover:text-gray-800 cursor-pointer transition-colors shake-hover"
           />
         </div>
-        <div className="flex w-full min-h-[calc(100vh-62px)] flex-col gap-3 px-8">
-          <div className="flex-1 flex flex-col">
-            <Outlet />
-          </div>
+        <div className="flex w-full flex-col gap-3 px-8">
+          <Outlet key={pathname + location.search} />
         </div>
       </main>
 

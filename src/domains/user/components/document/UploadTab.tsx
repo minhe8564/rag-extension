@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
 import FileDropzone from '@/shared/components/file/FileUploader';
 import UploadedFileList from '@/shared/components/file/UploadedFileList';
-import type { UploadedDoc as UDoc } from '@/shared/components/file/UploadedFileList';
 import { uploadFiles } from '@/shared/api/file.api';
+import { Loader2 } from 'lucide-react';
 import { toast } from 'react-toastify';
+import type { UploadedDoc as UDoc } from '@/shared/types/file.types';
 
 type UploadPayload = { files: File[]; category: string; categoryName?: string };
 
@@ -32,13 +33,11 @@ export default function UploadTab() {
     file: f,
   });
 
-  // 업로드 → 일단 리스트에 추가 (이름 충돌 처리는 UploadedFileList에서 해결)
   const handleUpload = ({ files, category, categoryName }: UploadPayload) => {
     const mapped = files.map((f) => makeDoc(f, category, categoryName));
     setUploadedDocs((prev) => [...mapped, ...prev]);
   };
 
-  // 서버 업로드(선택 항목)
   const ingestSelected = async () => {
     if (uploading) return;
     setUploading(true);
@@ -49,12 +48,6 @@ export default function UploadTab() {
       return;
     }
 
-    setUploadedDocs((prev) =>
-      prev.map((doc) =>
-        selectedIds.includes(doc.id) ? ({ ...doc, status: 'pending' } as UDoc) : doc
-      )
-    );
-
     let successCount = 0;
 
     const grouped = targets.reduce<Record<string, UDoc[]>>((acc, doc) => {
@@ -63,8 +56,8 @@ export default function UploadTab() {
       return acc;
     }, {});
 
-    for (const [categoryNo, docs] of Object.entries(grouped)) {
-      try {
+    try {
+      for (const [categoryNo, docs] of Object.entries(grouped)) {
         const files = docs.map((d) => d.file!).filter(Boolean);
         const res = await uploadFiles({ files, categoryNo });
 
@@ -78,22 +71,19 @@ export default function UploadTab() {
           return prev.map((doc) => {
             const idx = idxById.get(doc.id);
             if (idx === undefined) return doc;
-            return { ...doc, status: 'uploaded', fileNo: fileNos[idx] } as UDoc;
+            return { ...doc, fileNo: fileNos[idx] } as UDoc;
           });
         });
-      } catch {
-        const idSet = new Set(docs.map((d) => d.id));
-        setUploadedDocs((prev) =>
-          prev.map((doc) => (idSet.has(doc.id) ? ({ ...doc, status: 'failed' } as UDoc) : doc))
-        );
       }
-    }
 
-    setUploading(false);
+      if (successCount > 0) {
+        toast.success(`문서 ${successCount}개 업로드 완료!`);
+        setUploadedDocs((prev) => prev.filter((d) => !(selectedIds.includes(d.id) && d.fileNo)));
 
-    if (successCount > 0) {
-      toast.success(`문서 ${successCount}개 업로드 완료!`);
-      setTimeout(() => window.location.reload(), 500);
+        setSelectedIds([]);
+      }
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -103,7 +93,7 @@ export default function UploadTab() {
     const url = URL.createObjectURL(doc.file);
     const a = document.createElement('a');
     a.href = url;
-    a.download = doc.name; // 리네임된 이름이 파일 저장명에 반영됩니다.
+    a.download = doc.name;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -113,7 +103,6 @@ export default function UploadTab() {
     setSelectedIds((prev) => prev.filter((id) => !ids.includes(id)));
   };
 
-  // ★ 리네임 반영: UploadedFileList가 충돌 처리 시 호출
   const handleRename = (id: string, nextName: string) => {
     setUploadedDocs((prev) =>
       prev.map((d) => (d.id === id ? ({ ...d, name: nextName } as UDoc) : d))
@@ -132,9 +121,6 @@ export default function UploadTab() {
 
   const selectedStr =
     selectedKB >= 1024 ? `${(selectedKB / 1024).toFixed(1)} MB` : `${selectedKB.toFixed(1)} KB`;
-
-  const hasPending = selectedDocs.some((d) => d.status === 'pending');
-  const canIngest = selectedIds.length > 0 && !hasPending;
 
   return (
     <>
@@ -163,13 +149,21 @@ export default function UploadTab() {
               <p className="text-sm text-gray-700">
                 선택 {selectedIds.length}개 · {selectedStr}
               </p>
+
               <button
                 type="button"
                 onClick={ingestSelected}
-                disabled={!canIngest || uploading}
-                className="px-4 py-2 text-sm font-semibold rounded text-white bg-[var(--color-retina)] hover:bg-[var(--color-retina)]/90 disabled:opacity-60"
+                disabled={uploading || !selectedIds.length}
+                className="px-4 py-2 text-sm font-semibold rounded text-white bg-[var(--color-retina)] hover:bg-[var(--color-retina)]/90 disabled:opacity-60 disabled:pointer-events-none"
               >
-                {uploading ? '문서 업로드 중...' : '문서 업로드'}
+                {uploading ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 className="animate-spin" size={16} />
+                    문서 업로드 중…
+                  </span>
+                ) : (
+                  '문서 업로드'
+                )}
               </button>
             </div>
           </div>

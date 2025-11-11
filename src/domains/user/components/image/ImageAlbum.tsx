@@ -89,16 +89,18 @@ export default function ImageAlbum() {
 
   if (images.length === 0)
     return (
-      <div className="flex flex-col items-center justify-center py-10 text-gray-400">
-        <ImageOff size={40} strokeWidth={1.6} className="mb-3" />
-        <p className="text-sm">생성한 이미지가 없습니다.</p>
+      <div className="rounded-xl border bg-white p-6 shadow-sm mt-6">
+        <div className="flex flex-col items-center justify-center py-10 text-gray-400">
+          <ImageOff size={40} strokeWidth={1.6} className="mb-3" />
+          <p className="text-sm">생성한 이미지가 없습니다.</p>
+        </div>
       </div>
     );
 
   return (
-    <>
+    <div className="rounded-xl border bg-white p-6 shadow-sm mt-6">
       <div
-        className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-6 z-0"
+        className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 z-0"
         onMouseMove={onMouseMove}
       >
         {images.map((img) => (
@@ -173,6 +175,6 @@ export default function ImageAlbum() {
         cancelText="취소"
         variant="danger"
       />
-    </>
+    </div>
   );
 }
