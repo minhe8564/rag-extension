@@ -61,8 +61,15 @@ class Settings(BaseSettings):
 
     # External APIs
     ingest_base_url: str = "http://hebees-rag-orchestrator:8000"
-    ingest_process_url: str = f"{ingest_base_url}/ingest/process"
+    ingest_process_url: str = ""  # 환경 변수로 직접 설정 가능
     ingest_delete_url: str = ""  # optional: vector cleanup endpoint
+
+    @property
+    def ingest_process_url_resolved(self) -> str:
+        """ingest_process_url이 설정되어 있으면 사용, 없으면 ingest_base_url 기반으로 생성"""
+        if self.ingest_process_url:
+            return self.ingest_process_url
+        return f"{self.ingest_base_url}/ingest/process"
 
     # Redis
     redis_url: str = "redis://localhost:6379/1"

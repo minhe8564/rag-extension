@@ -34,7 +34,7 @@ async def call_ingest(user_role: str, user_uuid: str, batch_meta: UploadBatchMet
     }
 
     # 내부 Container 이름으로 호출
-    url = getattr(settings, "ingest_process_url", None)
+    url = settings.ingest_process_url_resolved
     print("Ingest URL:", url)
     timeout = httpx.Timeout(20.0, connect=5.0)
     try:
