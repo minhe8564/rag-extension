@@ -5,8 +5,8 @@ Google NanoBanana를 사용하여 이미지를 생성하고 MinIO에 업로드�
 import logging
 import uuid
 import hashlib
-from datetime import datetime
 from typing import List, Optional
+from app.core.utils.timezone_utils import now_kst
 from PIL import Image
 from io import BytesIO
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -126,8 +126,8 @@ class ImageService:
             offer_no=offer.offer_no,
             collection_no=None,
             source_no=None,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            created_at=now_kst(),
+            updated_at=now_kst()
         )
         
         # Repository를 통해 저장
@@ -218,7 +218,7 @@ class ImageService:
         original_file.hash = file_hash
         original_file.description = f"Generated image from prompt: {prompt[:100]}"
         original_file.path = object_key  # 🔧 추가: 경로도 업데이트
-        original_file.updated_at = datetime.utcnow()
+        original_file.updated_at = now_kst()
         
         merged_file = await db.merge(original_file)
         await db.commit()

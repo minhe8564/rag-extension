@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime
 from sqlalchemy import Column, DateTime, LargeBinary, String, Integer, Text, ForeignKey
 from app.core.database.base import Base
+from app.core.utils.timezone_utils import now_kst
 
 
 class TestFile(Base):
@@ -40,14 +40,14 @@ class TestFile(Base):
     created_at = Column(
         "CREATED_AT",
         DateTime,
-        default=datetime.utcnow,
+        default=now_kst,
         nullable=False,
     )
     updated_at = Column(
         "UPDATED_AT",
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=now_kst,
+        onupdate=now_kst,
         nullable=False,
     )
 
