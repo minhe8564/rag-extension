@@ -1,16 +1,20 @@
 """
 Excel 프로세서
-Excel 파일(.xlsx, .xls)을 Markdown으로 변환
+Excel 파일(.xlsx, .xls)을 PDF로 변환 후 Marker로 처리
 """
 import logging
+import threading
+import torch
+import tempfile
 from pathlib import Path
 from typing import Dict, Any, List
 
-import pandas as pd
-from xlrd.biffh import XLRDError
-from openpyxl.utils.exceptions import InvalidFileException
-from zipfile import BadZipFile
+from marker.converters.pdf import PdfConverter
+from marker.models import create_model_dict
+from marker.output import text_from_rendered
 
+from app.core.settings import settings
+from app.core.utils.pdf_converter import convert_to_pdf
 from .base import BaseProcessor
 
 logger = logging.getLogger(__name__)
@@ -19,6 +23,7 @@ logger = logging.getLogger(__name__)
 class ExcelProcessor(BaseProcessor):
     """
     Excel 파일(.xlsx, .xls)을 Markdown으로 변환하는 프로세서
+    PDF로 변환 후 Marker로 처리
     """
     
     @property
@@ -28,133 +33,111 @@ class ExcelProcessor(BaseProcessor):
         """
         return [".xlsx", ".xls"]
     
-    def _dataframe_to_markdown(self, df: pd.DataFrame, sheet_name: str = None) -> str:
-        """
-        DataFrame을 Markdown 테이블 형식으로 변환
-        """
-        if df.empty:
-            return f"## {sheet_name or 'Sheet'}\n\n(빈 시트)\n\n"
+    def __init__(self):
+        self._model_dict = None
+        self._lock = threading.Lock()
         
-        # DataFrame to Markdown table
-        md_table = df.to_markdown(index=False, tablefmt="pipe")
-        
-        if sheet_name:
-            return f"## {sheet_name}\n\n{md_table}\n\n"
+        # settings에서 명시적으로 device가 지정된 경우
+        requested_device = settings.marker_device.lower()
+        if requested_device in ["cuda", "mps", "cpu"]:
+            if requested_device == "cuda" and torch.cuda.is_available():
+                self._device = "cuda"
+            elif requested_device == "mps" and torch.backends.mps.is_available():
+                self._device = "mps"
+            elif requested_device == "cpu":
+                self._device = "cpu"
+            else:
+                logger.warning(f"{requested_device}를 사용하도록 설정되어 있지만 사용할 수 없습니다. 자동으로 다른 device로 전환합니다.")
+                self._device = self._auto_select_device()
         else:
-            return f"{md_table}\n\n"
+            self._device = self._auto_select_device()
+        
+        # dtype 설정
+        if self._device == "cpu":
+            self._dtype = "float32"
+            self._dtype_t = torch.float32
+        else:
+            self._dtype = settings.marker_dtype.lower() if settings.marker_dtype else "float16"
+            self._dtype_t = getattr(torch, self._dtype, torch.float16)
+        
+    def _auto_select_device(self) -> str:
+        """
+        자동으로 device 선택 (우선순위: CUDA > MPS > CPU)
+        """
+        if torch.cuda.is_available():
+            return "cuda"
+        elif torch.backends.mps.is_available():
+            return "mps"
+        else:
+            return "cpu"
     
-    def _is_protected_file_error(self, error: Exception) -> bool:
+    def _ensure_model(self):
         """
-        보호된 파일 관련 오류인지 확인
+        Marker 모델을 싱글톤으로 로드 (thread-safe)
+        PDFProcessor와 동일한 모델 공유
         """
-        error_str = str(error).lower()
-        error_type = type(error).__name__
+        if self._model_dict is not None:
+            return self._model_dict
         
-        # 보호된 파일 관련 오류 패턴
-        protected_patterns = [
-            "can't find workbook",
-            "ole2 compound document",
-            "password",
-            "protected",
-            "encrypted",
-            "locked",
-            "permission denied",
-            "decrypt",
-        ]
-        
-        return any(pattern in error_str for pattern in protected_patterns) or \
-               error_type in ['XLRDError', 'BadZipFile', 'InvalidFileException', 'PermissionError']
+        with self._lock:
+            if self._model_dict is not None:
+                return self._model_dict
+            
+            try:
+                logger.info(f"[Excel Marker 모델] 로딩 시작 - Device: {self._device.upper()}, Dtype: {self._dtype}")
+                kwargs = {"device": self._device}
+                if self._dtype_t is not None:
+                    kwargs["dtype"] = self._dtype_t
+                self._model_dict = create_model_dict(**kwargs)
+                logger.info(f"[Excel Marker 모델] 로드 완료 - Device: {self._device.upper()}, Dtype: {self._dtype}")
+            except TypeError:
+                logger.info(f"[Excel Marker 모델] 로딩 시작 (dtype 제외) - Device: {self._device.upper()}")
+                self._model_dict = create_model_dict(device=self._device)
+                logger.info(f"[Excel Marker 모델] 로드 완료 - Device: {self._device.upper()}")
+            
+            return self._model_dict
     
     def process(self, file_path: str) -> Dict[str, Any]:
         """
-        Excel 파일 -> Markdown 변환
+        Excel 파일 -> PDF 변환 -> Marker로 Markdown 변환
         """
         if not Path(file_path).exists():
             raise FileNotFoundError(f"파일을 찾을 수 없습니다: {file_path}")
         
+        pdf_path = None
         try:
-            # Excel 파일 읽기 시도
-            excel_file = pd.ExcelFile(file_path)
-            sheet_names = excel_file.sheet_names
+            # 1. Excel 파일을 PDF로 변환
+            logger.info(f"Excel 파일을 PDF로 변환 시작: {file_path}")
+            pdf_path = convert_to_pdf(file_path)
+            logger.info(f"PDF 변환 완료: {pdf_path}")
             
-            logger.info(f"Excel 파일 처리 시작: {file_path}, 시트 수: {len(sheet_names)}")
-            
-            markdown_parts = []
-            sheets_info = []
-            
-            # 각 시트 처리
-            for sheet_name in sheet_names:
-                try:
-                    df = pd.read_excel(excel_file, sheet_name=sheet_name)
-                    
-                    # Markdown 변환
-                    md_content = self._dataframe_to_markdown(df, sheet_name)
-                    markdown_parts.append(md_content)
-                    
-                    sheets_info.append({
-                        "name": sheet_name,
-                        "rows": len(df),
-                        "columns": len(df.columns),
-                        "column_names": list(df.columns)
-                    })
-                    
-                    logger.info(f"시트 '{sheet_name}' 처리 완료: {len(df)}행, {len(df.columns)}열")
-                    
-                except Exception as e:
-                    # 보호된 시트 오류 확인
-                    if self._is_protected_file_error(e):
-                        error_msg = f"시트 '{sheet_name}'가 보호되어 있어 읽을 수 없습니다. 비밀번호를 제거하거나 보호를 해제한 후 다시 시도해주세요."
-                        logger.warning(f"보호된 시트: {sheet_name}, 오류: {e}")
-                        markdown_parts.append(f"## {sheet_name}\n\n⚠️ {error_msg}\n\n")
-                    else:
-                        logger.warning(f"시트 처리 실패: {sheet_name}, 오류: {e}")
-                        markdown_parts.append(f"## {sheet_name}\n\n(시트 처리 중 오류 발생: {str(e)})\n\n")
-            
-            # 전체 Markdown 합치기
-            full_markdown = "\n".join(markdown_parts)
+            # 2. PDF를 Marker로 처리
+            mdict = self._ensure_model()
+            conv = PdfConverter(artifact_dict=mdict)
+            rendered = conv(pdf_path)
+            md_text, _, images = text_from_rendered(rendered)
             
             logger.info(f"Excel 파일 처리 완료: {file_path}")
             
             return {
-                "content": full_markdown,
+                "content": md_text,
                 "metadata": {
                     "file_type": Path(file_path).suffix.lower(),
-                    "sheet_count": len(sheet_names),
-                    "sheets": sheets_info,
+                    "device": self._device,
+                    "dtype": self._dtype,
+                    "image_count": len(images) if images else 0,
                 }
             }
-            
-        except XLRDError as e:
-            # xlrd 관련 오류 (보호된 .xls 파일 등)
-            error_str = str(e).lower()
-            if "can't find workbook" in error_str or "ole2" in error_str:
-                error_msg = "Excel 파일이 보호되어 있거나 손상되었습니다. 파일이 비밀번호로 보호되어 있는지 확인하고, 보호를 해제한 후 다시 시도해주세요."
-            else:
-                error_msg = f"Excel 파일 읽기 실패: {str(e)}"
-            logger.error(f"Excel 파일 읽기 실패 (XLRDError): {file_path}, 오류: {e}")
-            raise ValueError(error_msg)
-            
-        except BadZipFile as e:
-            error_msg = "Excel 파일이 손상되었거나 보호되어 있습니다. 파일이 비밀번호로 보호되어 있는지 확인해주세요."
-            logger.error(f"Excel 파일 읽기 실패 (BadZipFile): {file_path}, 오류: {e}")
-            raise ValueError(error_msg)
-            
-        except InvalidFileException as e:
-            error_msg = "Excel 파일이 보호되어 있거나 유효하지 않은 형식입니다. 비밀번호를 제거하거나 보호를 해제한 후 다시 시도해주세요."
-            logger.error(f"Excel 파일 읽기 실패 (InvalidFileException): {file_path}, 오류: {e}")
-            raise ValueError(error_msg)
-            
-        except PermissionError as e:
-            error_msg = "Excel 파일에 접근할 수 없습니다. 파일이 다른 프로그램에서 열려있거나 권한이 없습니다."
-            logger.error(f"Excel 파일 접근 실패 (PermissionError): {file_path}, 오류: {e}")
-            raise ValueError(error_msg)
-            
         except Exception as e:
-            # 보호된 파일 오류 확인
-            if self._is_protected_file_error(e):
-                error_msg = "Excel 파일이 보호되어 있어 읽을 수 없습니다. 비밀번호를 제거하거나 보호를 해제한 후 다시 시도해주세요."
-                logger.error(f"보호된 Excel 파일: {file_path}, 오류: {e}")
-                raise ValueError(error_msg)
-            else:
-                logger.error(f"Excel 처리 실패: {file_path}, 오류: {e}", exc_info=True)
-                raise
+            logger.error(f"Excel 처리 실패: {file_path}, 오류: {e}", exc_info=True)
+            raise
+        finally:
+            # 임시 PDF 파일 정리
+            if pdf_path and Path(pdf_path).exists():
+                try:
+                    # 임시 디렉토리에 있는 파일만 삭제
+                    if tempfile.gettempdir() in str(pdf_path):
+                        Path(pdf_path).unlink()
+                        logger.debug(f"임시 PDF 파일 삭제: {pdf_path}")
+                except Exception as e:
+                    logger.warning(f"임시 PDF 파일 삭제 실패: {pdf_path}, 오류: {e}")
