@@ -1,8 +1,8 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import List, Optional
+from typing import Optional
 from pathlib import Path
 
-BASE_DIR = Path(__file__).parent.parent
+BASE_DIR = Path(__file__).parent.parent.parent
 
 
 class Settings(BaseSettings):
@@ -10,14 +10,28 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
 
-    # CORS
-    allowed_origins: str = "http://localhost:5173,http://localhost:3000"
+    # OpenAI 설정
+    openai_api_key: str
+
+    # MongoDB 설정
+    mongo_host: str
+    mongo_port: int = 27017
+    mongo_username: str
+    mongo_password: str
+    mongo_database: str
 
     @property
-    def allowed_origins_list(self) -> List[str]:
-        return [origin.strip() for origin in self.allowed_origins.split(",")]
+    def mongo_url(self) -> str:
+        return f"mongodb://{self.mongo_username}:{self.mongo_password}@{self.mongo_host}:{self.mongo_port}/{self.mongo_database}"
 
-    # Logging
+    # Redis 설정
+    redis_host: str
+    redis_port: int = 16379
+    redis_username: Optional[str] = None
+    redis_password: Optional[str] = None
+    redis_db: int = 1
+
+    # 로깅 설정
     logging_level: str = "INFO"
     log_file_enabled: bool = False
     log_file_path: str = "/var/log/hebees/generation.log"
@@ -27,13 +41,6 @@ class Settings(BaseSettings):
     # Environment
     environment: str = "production"
     debug: bool = False
-
-    # Redis settings for history
-    redis_host: str = "localhost"
-    redis_port: int = 6379
-    redis_username: Optional[str] = None
-    redis_password: Optional[str] = None
-    redis_db: int = 1
 
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",
