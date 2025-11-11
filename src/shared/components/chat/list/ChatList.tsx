@@ -160,17 +160,17 @@ export default function ChatList({
   }, [activeSessionNo]);
 
   const isLoadingInitial = isFetching && pageNum === 0;
-  const activeNo = activeSessionNo ?? localActiveNo;
 
   return (
-    <div className="flex flex-col bg-white">
+    <div className="flex flex-col bg-white min-h-0 overflow-x-visible">
       {items.length > 0 && (
-        <div className="flex items-center justify-between px-3 py-2 overflow-visible">
+        <div className="sticky top-0 z-10 flex items-center justify-between px-3 py-2 bg-white">
           <div className="text-sm font-semibold text-gray-700">
             채팅 목록 <span className="text-gray-400">({items.length})</span>
           </div>
 
           <Tooltip
+            portal
             content={collapsed ? '채팅 목록 펼치기' : '채팅 목록 접기'}
             side="bottom"
             shiftX={15}
@@ -193,11 +193,11 @@ export default function ChatList({
         </div>
       )}
 
-      <div className="relative min-h-[390px] flex-1 mt-1">
+      <div className="relative flex-1 min-h-0 mt-1">
         {!isLoadingInitial && !isError && items.length === 0 && null}
 
         {!collapsed && (
-          <div className="absolute inset-0 overflow-y-auto overscroll-contain pr-1">
+          <div className="relative h-full pr-1">
             <ul>
               {items.map((session) => (
                 <ChatListItem
@@ -218,7 +218,7 @@ export default function ChatList({
             </ul>
 
             {items.length > 0 && hasNext && (
-              <div className="sticky bottom-0 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 flex items-center justify-center p-3">
+              <div className="flex items-center justify-center p-3">
                 <button
                   onClick={loadMore}
                   disabled={isFetching}

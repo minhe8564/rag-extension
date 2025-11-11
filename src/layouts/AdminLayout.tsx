@@ -23,7 +23,7 @@ import type { Option } from '@/shared/components/Select';
 import { useGlobalModelStore } from '@/shared/store/useGlobalModelStore';
 
 const labelCls = (isOpen: boolean) =>
-  'ml-2 overflow-hidden whitespace-nowrap transition-[max-width,opacity,transform] duration-300 ' +
+  'ml-2 whitespace-nowrap transition-[max-width,opacity,transform] duration-300 ' +
   (isOpen
     ? 'max-w-[8rem] opacity-100 translate-x-0'
     : 'max-w-0 opacity-0 -translate-x-2 pointer-events-none');
@@ -70,7 +70,7 @@ export default function AdminLayout() {
   const isChatRoute = pathname.startsWith('/admin/chat/text');
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-transparent">
       <aside
         className={`sticky top-0 self-start shrink-0 h-dvh flex flex-col bg-white transition-all duration-300 shadow-sm ${
           isOpen ? 'w-64 border-r' : 'w-[64px] border-r'
@@ -106,7 +106,7 @@ export default function AdminLayout() {
           )}
         </div>
 
-        <nav className="flex flex-col gap-1 px-2 mt-1 overflow-hidden">
+        <nav className="flex flex-col gap-1 px-2 mt-1 shrink-0">
           <NavLink to="/admin/dashboard" className={linkCls}>
             <Monitor size={18} className="flex-shrink-0" />
             <div className={labelCls(isOpen)}>
@@ -165,7 +165,7 @@ export default function AdminLayout() {
         </nav>
 
         {isOpen && (
-          <div className="mt-3 px-2">
+          <div className="mt-6 mb-10 px-2 flex-1 min-h-0 overflow-y-auto overflow-x-visible overscroll-contain no-scrollbar">
             <ChatList
               activeSessionNo={activeSessionNo}
               onSelect={(s) => navigate(`/admin/chat/text/${s.sessionNo}`)}
@@ -175,7 +175,7 @@ export default function AdminLayout() {
           </div>
         )}
 
-        <div className="mt-auto px-2 pb-4">
+        <div className="mt-auto px-2 pb-4 shrink-0">
           <NavLink
             to="/admin/users"
             className="flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors text-gray-700 hover:bg-[var(--color-hebees-bg)] hover:text-[var(--color-hebees)]"
@@ -235,7 +235,7 @@ export default function AdminLayout() {
         value={q}
         onValueChange={setQ}
         onClose={() => setOpen(false)}
-        onSelect={(s) => navigate(`/user/chat/text?session=${s.sessionNo}`)}
+        onSelect={(s) => navigate(`/admin/chat/text?session=${s.sessionNo}`)}
       />
     </div>
   );

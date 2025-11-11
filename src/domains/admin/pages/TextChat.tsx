@@ -135,7 +135,7 @@ export default function TextChat() {
   const thinkingSubtitle = useThinkingTicker(awaitingAssistant);
 
   return (
-    <section className="flex flex-col min-h-[calc(100vh-62px)] h-full">
+    <section className="flex flex-col min-h-[calc(100vh-82px)] h-full">
       {list.length > 0 ? (
         <>
           <div
