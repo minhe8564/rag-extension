@@ -2,7 +2,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from . import __version__, __title__, __description__
 from .config import settings
+from .routers import router
 from datetime import datetime
+from .core.openapi import custom_openapi
+
+
 
 app = FastAPI(
     title=__title__,
@@ -17,6 +21,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.openapi = lambda: custom_openapi(app)
+
+# Router 등록
+app.include_router(router)
 
 @app.get("/")
 async def root():
