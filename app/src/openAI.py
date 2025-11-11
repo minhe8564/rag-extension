@@ -183,11 +183,12 @@ class OpenAI(BaseGenerationStrategy):
                 def _fetch_presigned(file_no: str) -> str:
                     if not file_no:
                         return ""
-                    # Server URL (production) - switch to internal backend when deploying:
+                    # Internal backend URL
                     url = f"http://hebees-python-backend:8000/api/v1/files/{file_no}/presigned"
+                    logger.info(f"[OpenAI] Fetching presigned URL: {url}")
                     try:
                         with httpx.Client(timeout=10.0, follow_redirects=True) as client:
-                            # Build headers explicitly
+                            # Forward role/uuid headers only (internal communication)
                             headers = {}
                             if request_headers:
                                 if request_headers.get("x-user-uuid"):
@@ -196,8 +197,18 @@ class OpenAI(BaseGenerationStrategy):
                                     headers["x-user-role"] = request_headers.get("x-user-role")
                             r = client.get(url, headers=headers)
                             r.raise_for_status()
-                            data = r.json()
-                            return ((data.get("result") or {}).get("data") or {}).get("url") or data.get("url") or ""
+                            presigned_url = ""
+                            try:
+                                data = r.json()
+                                presigned_url = (data.get("result", {}).get("data", {}) or {}).get("url") or data.get("url") or ""
+                            except Exception:
+                                presigned_url = r.text.strip().strip('"')
+                            if not presigned_url:
+                                logger.warning(f"[OpenAI] Presigned URL not resolved for {file_no}")
+                                return ""
+                            logger.info("presigned URL fetched")
+                            logger.info(f"presigned URL: {presigned_url}")
+                            return presigned_url
                     except Exception as e:
                         logger.warning(f"[OpenAI] presigned fetch failed for {file_no}: {e}")
                         return ""
