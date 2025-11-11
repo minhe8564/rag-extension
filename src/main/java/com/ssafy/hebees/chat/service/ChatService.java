@@ -21,8 +21,6 @@ public interface ChatService {
 
     SessionCreateResponse createSession(UUID userNo, SessionCreateRequest request);
 
-    String generateSessionTitle(String query);
-
     void updateSession(UUID userNo, UUID sessionNo, SessionUpdateRequest request);
 
     void deleteSession(UUID userNo, UUID sessionNo);
