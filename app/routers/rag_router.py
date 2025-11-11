@@ -66,7 +66,7 @@ async def proxy_ingest_api(request: Request, path: str):
         request=request,
         service_url=app_settings.rag_orchestrator_url,
         service_key="rag",
-        path=f"/{decoded_path}"
+        path=f"{decoded_path}"
     )
 
 # Nested service docs under /rag/service-docs/{service}
