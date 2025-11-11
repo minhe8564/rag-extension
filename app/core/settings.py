@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     def allowed_origins_list(self) -> List[str]:
         return [origin.strip() for origin in self.allowed_origins.split(",")]
 
+    # External Embedding Provider
+    embedding_provider_url: str = "https://aloojgpo171my1-8000.proxy.runpod.net"
+
     # Milvus 설정
     milvus_host: str = "milvus-standalone"
     milvus_port: int = 19530
