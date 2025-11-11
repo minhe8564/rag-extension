@@ -60,7 +60,8 @@ class Settings(BaseSettings):
         return self.minio_endpoint_url
 
     # External APIs
-    ingest_process_url: str = "http://hebees-rag-orchestrator:8000/process"
+    ingest_base_url: str = "http://hebees-rag-orchestrator:8000"
+    ingest_process_url: str = f"{ingest_base_url}/ingest/process"
     ingest_delete_url: str = ""  # optional: vector cleanup endpoint
 
     # Redis
