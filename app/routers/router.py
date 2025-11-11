@@ -92,7 +92,7 @@ async def extract_process(request: ExtractProcessRequest, x_user_role: str | Non
 
         # 1) presigned URL 획득
         file_no = request.fileNo
-        presigned_endpoint = f"http://hebees-python-backend:8000/be/api/v1/files/{file_no}/presigned"  # 내부통신용 (주석)
+        presigned_endpoint = f"http://hebees-python-backend:8000/api/v1/files/{file_no}/presigned"  # 내부통신용 (주석)
         logger.info(f"Fetching presigned URL: {presigned_endpoint}")
         async with httpx.AsyncClient(timeout=3600.0) as client:
             # 전달받은 헤더를 그대로 /be 호출에 포함
