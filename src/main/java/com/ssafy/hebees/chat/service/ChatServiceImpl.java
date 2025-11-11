@@ -1,8 +1,5 @@
 package com.ssafy.hebees.chat.service;
 
-import com.ssafy.hebees.chat.client.RunpodClient;
-import com.ssafy.hebees.chat.client.dto.RunpodChatMessage;
-import com.ssafy.hebees.chat.client.dto.RunpodChatResult;
 import com.ssafy.hebees.chat.dto.request.SessionCreateRequest;
 import com.ssafy.hebees.chat.dto.request.SessionSearchRequest;
 import com.ssafy.hebees.chat.dto.request.SessionUpdateRequest;
@@ -22,7 +19,6 @@ import com.ssafy.hebees.ragsetting.repository.QueryGroupRepository;
 import com.ssafy.hebees.ragsetting.repository.StrategyRepository;
 import com.ssafy.hebees.user.entity.User;
 import com.ssafy.hebees.user.repository.UserRepository;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -41,10 +37,10 @@ import org.springframework.util.StringUtils;
 public class ChatServiceImpl implements ChatService {
 
     private final SessionRepository sessionRepository;
-    private final RunpodClient runpodClient;
     private final UserRepository userRepository;
     private final StrategyRepository strategyRepository;
     private final QueryGroupRepository queryGroupRepository;
+    private final SessionTitleAsyncService sessionTitleAsyncService;
 
     @Override
     public ListResponse<SessionResponse> getSessions(UUID userNo, SessionSearchRequest request) {
@@ -98,16 +94,15 @@ public class ChatServiceImpl implements ChatService {
     @Override
     @Transactional
     public SessionCreateResponse createSession(UUID userNo, SessionCreateRequest request) {
-        LocalDateTime lastRequestedAt = null;
-
         String title = request.title();
+        String sanitizedQuery =
+            StringUtils.hasText(request.query()) ? request.query().strip() : null;
+        boolean shouldGenerateTitleAsync = false;
+
         if (title == null || title.isBlank()) { // 세션명이 없다면 생성
-            String query = request.query();
-            if (StringUtils.hasText(query)) { // 사용자 질문으로 세션 제목 생성
-                title = generateSessionTitle(query);
-                lastRequestedAt = LocalDateTime.now();
-            } else { // 힌트가 없다면, 기본값 사용
-                title = SessionCreateRequest.DEFAULT_TITLE;
+            title = SessionCreateRequest.DEFAULT_TITLE;
+            if (sanitizedQuery != null) {
+                shouldGenerateTitleAsync = true;
             }
         } else {
             title = title.strip();
@@ -129,11 +124,14 @@ public class ChatServiceImpl implements ChatService {
             .title(title)
             .userNo(owner)
             .llmNo(llmNo)
-            .lastRequestedAt(lastRequestedAt)
             .build();
 
         Session saved = sessionRepository.save(session);
         log.info("세션 생성 성공: userNo={}, sessionNo={}", owner, saved.getSessionNo());
+
+        if (shouldGenerateTitleAsync) {
+            sessionTitleAsyncService.generateSessionTitle(saved.getSessionNo(), sanitizedQuery);
+        }
 
         return new SessionCreateResponse(saved.getSessionNo(), title);
     }
@@ -154,48 +152,6 @@ public class ChatServiceImpl implements ChatService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.BAD_REQUEST))
                 .getStrategyNo();
         }
-    }
-
-    @Override
-    public String generateSessionTitle(String query) {
-        String sanitizedQuery = query.strip();
-        if (!StringUtils.hasText(sanitizedQuery)) {
-            return SessionCreateRequest.DEFAULT_TITLE;
-        }
-
-        try {
-            RunpodChatResult result = runpodClient.chat(List.of(
-                RunpodChatMessage.of("system",
-                    "You are an assistant that reads the user's question and replies only with a concise Korean session title under 15   characters. Do not include punctuation or any extra text."),
-                RunpodChatMessage.of("user", sanitizedQuery)
-            ));
-
-            String title = Optional.ofNullable(result)
-                .map(RunpodChatResult::content)
-                .map(String::trim)
-                .orElse("");
-
-            if (!StringUtils.hasText(title)) {
-                return fallbackTitle(sanitizedQuery);
-            }
-
-            if (title.length() > 20) {
-                title = title.substring(0, 20);
-            }
-
-            return title;
-        } catch (BusinessException e) {
-            log.warn("Runpod 세션 제목 생성 실패: {}", e.getMessage());
-            return fallbackTitle(sanitizedQuery);
-        } catch (Exception e) {
-            log.error("Runpod 세션 제목 생성 중 알 수 없는 오류", e);
-            return fallbackTitle(sanitizedQuery);
-        }
-    }
-
-    private String fallbackTitle(String query) {
-        String candidate = query.length() > 20 ? query.substring(0, 20) : query;
-        return StringUtils.hasText(candidate) ? candidate : SessionCreateRequest.DEFAULT_TITLE;
     }
 
     @Override

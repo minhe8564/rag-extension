@@ -31,7 +31,6 @@ public class ChatAskServiceImpl implements ChatAskService {
     private final SessionRepository sessionRepository;
     private final MessageService messageService;
     private final RunpodClient runpodClient;
-    private final ChatService chatService;
 
     @Override
     public AskResponse ask(UUID userNo, UUID sessionNo, String question) {
@@ -48,9 +47,6 @@ public class ChatAskServiceImpl implements ChatAskService {
             throw new BusinessException(ErrorCode.PERMISSION_DENIED);
         }
 
-        if (session.getLastRequestedAt() == null) {
-            session.updateTitle(chatService.generateSessionTitle(question));
-        }
         session.updateLastRequestedAt(LocalDateTime.now());
 
         // 사용자 메시지 저장
