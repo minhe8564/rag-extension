@@ -38,8 +38,8 @@ async def call_ingest(user_role: str, user_uuid: str, batch_meta: UploadBatchMet
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
             headers = {
-                "x_user_role": str(user_role),
-                "x_user_uuid": str(user_uuid),
+                "x-user-role": str(user_role),
+                "x-user-uuid": str(user_uuid),
             }
             resp = await client.post(url, json=payload, headers=headers)
             resp.raise_for_status()
