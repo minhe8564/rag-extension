@@ -2,6 +2,7 @@ package com.ssafy.hebees.chat.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.ssafy.hebees.chat.entity.Session;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -30,5 +31,19 @@ public record SessionResponse(
     @Schema(description = "사용자 이름", example = "강하늘")
     String userName
 ) {
+    public static SessionResponse of(Session session) {
+        return of(session, null, null);
+    }
 
+    public static SessionResponse of(Session session, String llmName, String userName) {
+        return new SessionResponse(
+            session.getSessionNo(),
+            session.getTitle(),
+            session.getUpdatedAt(),
+            session.getLlmNo(),
+            llmName,
+            session.getUserNo(),
+            userName
+        );
+    }
 }

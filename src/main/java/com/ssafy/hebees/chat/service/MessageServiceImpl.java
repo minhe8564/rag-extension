@@ -12,6 +12,7 @@ import com.ssafy.hebees.chat.repository.MessageRepository;
 import com.ssafy.hebees.chat.repository.SessionRepository;
 import com.ssafy.hebees.common.exception.BusinessException;
 import com.ssafy.hebees.common.exception.ErrorCode;
+import com.ssafy.hebees.common.util.UserValidationUtil;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -40,7 +41,7 @@ public class MessageServiceImpl implements MessageService {
     @Transactional
     public MessageResponse createMessage(UUID userNo, UUID sessionNo,
         MessageCreateRequest request) {
-        UUID owner = requireUser(userNo);
+        UUID owner = UserValidationUtil.requireUser(userNo);
         UUID sessionId = requireSession(sessionNo);
 
         validateOwnership(owner, sessionId);
@@ -71,7 +72,7 @@ public class MessageServiceImpl implements MessageService {
     @Override
     public MessageCursorResponse listMessages(UUID userNo, UUID sessionNo,
         MessageCursorRequest request) {
-        UUID owner = requireUser(userNo);
+        UUID owner = UserValidationUtil.requireUser(userNo);
         UUID sessionId = requireSession(sessionNo);
 
         validateOwnership(owner, sessionId);
@@ -111,7 +112,7 @@ public class MessageServiceImpl implements MessageService {
 
     @Override
     public MessageResponse getMessage(UUID userNo, UUID sessionNo, UUID messageNo) {
-        UUID owner = requireUser(userNo);
+        UUID owner = UserValidationUtil.requireUser(userNo);
         UUID sessionId = requireSession(sessionNo);
         UUID messageId = requireMessage(messageNo);
 
@@ -151,7 +152,7 @@ public class MessageServiceImpl implements MessageService {
 
     @Override
     public List<MessageResponse> getAllMessages(UUID userNo, UUID sessionNo) {
-        UUID owner = requireUser(userNo);
+        UUID owner = UserValidationUtil.requireUser(userNo);
         UUID sessionId = requireSession(sessionNo);
 
         validateOwnership(owner, sessionId);
@@ -174,13 +175,6 @@ public class MessageServiceImpl implements MessageService {
                 log.warn("세션 조회 실패 - 존재하지 않음: sessionNo={}", sessionNo);
                 return new BusinessException(ErrorCode.NOT_FOUND);
             });
-    }
-
-    private UUID requireUser(UUID userNo) {
-        if (userNo == null) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED);
-        }
-        return userNo;
     }
 
     private UUID requireSession(UUID sessionNo) {

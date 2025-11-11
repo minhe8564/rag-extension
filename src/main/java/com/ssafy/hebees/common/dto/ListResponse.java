@@ -6,4 +6,7 @@ public record ListResponse<T>(
     List<T> data
 ) {
 
+    public static <T> ListResponse<T> of(List<T> data) {
+        return new ListResponse<>(data == null ? List.of() : data);
+    }
 }

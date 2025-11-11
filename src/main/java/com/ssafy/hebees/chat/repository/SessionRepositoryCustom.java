@@ -12,14 +12,12 @@ public interface SessionRepositoryCustom {
 
     Optional<Session> findBySessionNo(UUID sessionNo);
 
-    Page<Session> searchSessionsByUser(UUID userNo, String keyword, Pageable pageable);
+    List<Session> searchSessionsByUser(UUID userNo, String keyword);
 
     Page<Session> searchAllSessions(String keyword, Pageable pageable);
 
     List<Session> findCreatedBetween(LocalDateTime startInclusive, LocalDateTime endExclusive,
         int limit);
-
-    long countDistinctUserNosByLastRequestedAtAfter(LocalDateTime threshold);
 }
 
 
