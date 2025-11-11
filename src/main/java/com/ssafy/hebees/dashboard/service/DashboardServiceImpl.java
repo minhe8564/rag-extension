@@ -41,6 +41,7 @@ import com.ssafy.hebees.dashboard.repository.KeywordAggregateDailyRepository;
 import com.ssafy.hebees.dashboard.repository.ModelAggregateHourlyRepository;
 import com.ssafy.hebees.dashboard.repository.UsageAggregateHourlyRepository;
 import com.ssafy.hebees.dashboard.repository.UserAggregateHourlyRepository;
+import com.ssafy.hebees.ragsetting.repository.StrategyRepository;
 import com.ssafy.hebees.user.entity.User;
 import com.ssafy.hebees.user.repository.UserRepository;
 import java.time.DayOfWeek;
@@ -90,6 +91,7 @@ public class DashboardServiceImpl implements DashboardService {
     private final MessageErrorRepository messageErrorRepository;
     private final RunpodClient runpodClient;
     private final ObjectMapper objectMapper;
+    private final StrategyRepository strategyRepository;
 
     @Override
     public Change24hResponse getAccessUsersChange24h() {
@@ -169,9 +171,26 @@ public class DashboardServiceImpl implements DashboardService {
             accumulator.addTokens(aggregate.getTotalTokens());
             accumulator.addResponseTime(aggregate.getTotalResponseTimeMs(),
                 aggregate.getResponseCount());
-            if (aggregate.getLlmName() != null && !aggregate.getLlmName().isBlank()) {
-                modelNames.putIfAbsent(aggregate.getLlmNo(), aggregate.getLlmName());
-            }
+        }
+
+        Set<UUID> llmNos = modelMetrics.keySet().stream()
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+        if (!llmNos.isEmpty()) {
+            strategyRepository.findAllById(llmNos)
+                .forEach(strategy -> {
+                    if (strategy == null || strategy.getStrategyNo() == null) {
+                        return;
+                    }
+                    String candidate = strategy.getName();
+                    if (!StringUtils.hasText(candidate)) {
+                        candidate = strategy.getCode();
+                    }
+                    if (!StringUtils.hasText(candidate)) {
+                        candidate = strategy.getStrategyNo().toString();
+                    }
+                    modelNames.put(strategy.getStrategyNo(), candidate);
+                });
         }
 
         List<UUID> sortedModelIds = modelMetrics.keySet().stream()
