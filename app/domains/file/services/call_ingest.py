@@ -33,7 +33,7 @@ async def call_ingest(user_role: str, user_uuid: str, batch_meta: UploadBatchMet
     }
 
     # 내부 Container 이름으로 호출
-    url = getattr(settings, "ingest_process_url", None) or "http://hebees-ingest:8000/process"
+    url = getattr(settings, "ingest_process_url", None)
     timeout = httpx.Timeout(20.0, connect=5.0)
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
