@@ -1,11 +1,12 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
-from app.schemas.request.queryRequest import QueryProcessRequest
-from app.schemas.response.queryProcessResponse import QueryProcessResponse, QueryProcessResult, Citation
+from app.schemas.request.queryProcessV2Request import QueryProcessV2Request
+from app.schemas.response.queryProcessResponse import QueryProcessResponse, QueryProcessResult
 from app.schemas.response.errorResponse import ErrorResponse
 from app.service.query_service import QueryService
 from loguru import logger
+
 
 router = APIRouter(prefix="/query", tags=["query"])
 
@@ -14,35 +15,35 @@ query_service = QueryService()
 
 @router.post("/process")
 async def query(
-    request: QueryProcessRequest,
-    db: AsyncSession = Depends(get_db)
+    request: QueryProcessV2Request,
+    db: AsyncSession = Depends(get_db),
+    x_user_role: str | None = Header(default=None, alias="x-user-role"),
+    x_user_uuid: str | None = Header(default=None, alias="x-user-uuid"),
+    authorization: str | None = Header(default=None, alias="Authorization")
 ):
-    """Query 요청 처리: query-embedding -> search -> cross-encoder -> generation 순서로 처리"""
+    """Query 요청 처리 V2: 사용자/관리자 분기, 기본 파라미터/전략 DB 조회, generation에 메타 전달"""
     try:
-        logger.info("Received query request: {}", request.query)
-        result = await query_service.process_query(request, db)
-        
-        # citations 변환
-        citations = [
-            Citation(
-                text=citation.get("text", ""),
-                page=citation.get("page", 1),
-                chunk_id=citation.get("chunk_id", 0),
-                score=citation.get("score", 0.0)
-            )
-            for citation in result.get("citations", [])
-        ]
-        
-        # Response 생성
+        logger.info("Received query request V2: {}", request.query)
+        logger.info("x-user-role: {}", x_user_role)
+        logger.info("x-user-uuid: {}", x_user_uuid)
+        result = await query_service.process_query_v2(
+            request=request,
+            db=db,
+            x_user_role=x_user_role,
+            x_user_uuid=x_user_uuid,
+            authorization=authorization
+        )
+        # Response 생성 (final shape)
         response = QueryProcessResponse(
             status=200,
             code="OK",
             message="요청에 성공하였습니다.",
             isSuccess=True,
             result=QueryProcessResult(
-                query=result.get("query", request.query),
-                answer=result.get("answer", ""),
-                citations=citations
+                messageNo=str(result.get("messageNo", "")),
+                role="ai",
+                content=str(result.get("content", "")),
+                createdAt=str(result.get("createdAt", ""))
             )
         )
         return response

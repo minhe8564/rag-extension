@@ -269,13 +269,15 @@ class GatewayClient:
         query: str,
         retrieved_chunks: List[Dict[str, Any]],
         strategy: str,
-        parameters: dict
+        parameters: dict,
+        extra_headers: Dict[str, Any] = None
     ) -> Dict[Any, Any]:
         """Generation 컨테이너로 요청 - 서비스 간 직접 통신"""
         logger.debug(f"POST {self.generation_direct_url} | generationStrategy={strategy}")
         async with httpx.AsyncClient(timeout=3600.0) as client:
             response = await client.post(
                 self.generation_direct_url,
+                headers={k: v for k, v in (extra_headers or {}).items() if v},
                 json={
                     "query": query,
                     "retrievedChunks": retrieved_chunks,
