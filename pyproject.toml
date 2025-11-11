@@ -34,6 +34,20 @@ dependencies = [
   "uvicorn==0.38.0",
   "watchfiles==1.1.1",
   "websockets==15.0.1",
+  "langchain==1.0.3",
+  "langchain-community==0.4.1",
+  "langchain-openai==1.0.1",
+  "langchain-ollama==1.0.0",
+  "langchain-core==1.0.2",
+  "langchain-classic>=1.0.0",
+  "openai>=1.54.0",
+  "loguru>=0.7.2",
+  "tiktoken>=0.8.0",
+  "redis>=5.0.0",
+  "motor>=3.3.0",
+  "pymongo>=4.6.0",
+  "transformers>=4.30.0",
+  "langchain-mongodb>=0.7.0",
 ]
 
 [build-system]

@@ -1,0 +1,342 @@
+from .base import BaseGenerationStrategy
+from typing import Dict, Any, List, Optional
+from loguru import logger
+import os
+import time
+import httpx
+
+# ✅ OpenAI LLM (LangChain 전용 Wrapper)
+from langchain_openai import ChatOpenAI
+
+# ✅ LangChain Core (LCEL 기반 구성 요소)
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.documents import Document
+from langchain_core.runnables.history import RunnableWithMessageHistory
+
+# ✅ LangChain Chains (Retrieval + Combination)
+from langchain_classic.chains.retrieval import create_retrieval_chain
+from langchain_classic.chains.combine_documents import create_stuff_documents_chain
+
+
+class OpenAI(BaseGenerationStrategy):
+    """
+    ✅ LangChain 1.x 구조 기반 OpenAI 답변 생성 전략
+    - RetrievalQA / ConversationalRetrievalChain / load_qa_chain 삭제됨
+    - 대신 create_retrieval_chain + create_stuff_documents_chain + RunnableWithMessageHistory 사용
+    """
+
+    def __init__(self, parameters: Dict[Any, Any] = None):
+        super().__init__(parameters)
+
+        # 환경변수에서 OpenAI API 키 가져오기
+        self.openai_api_key = os.getenv("OPENAI_API_KEY")
+
+        # 파라미터에서 설정값 가져오기
+        self.model_name = self.parameters.get("model_name", "gpt-4o")
+        self.temperature = self.parameters.get("temperature", 0.1)
+        self.openai_api_key = self.parameters.get("openai_api_key", self.openai_api_key)
+
+        if not self.openai_api_key:
+            raise ValueError("OPENAI_API_KEY must be set in environment or parameters")
+
+        logger.info(f"[OpenAI] Initializing LLM: {self.model_name}")
+
+        try:
+            self.llm = ChatOpenAI(
+                openai_api_key=self.openai_api_key,
+                model_name=self.model_name,
+                temperature=self.temperature
+            )
+            logger.info("[OpenAI] LLM initialized successfully")
+        except Exception as e:
+            logger.error(f"[OpenAI] Failed to initialize LLM: {str(e)}")
+            raise
+
+    def _init_prompt_template(self, include_history: bool = False):
+        """✅ LCEL용 ChatPromptTemplate 생성 (context, question 필수)"""
+        use_strict_unknown = self.parameters.get("use_strict_unknown", False)
+        unknown_clause = (
+            "If you don't know the answer, just say that you don't know, don't make up an answer.\n\n"
+            if use_strict_unknown else ""
+        )
+        # Allow override via systemPrompt/userPrompt ({{query}}/{{docs}} → {input}/{context})
+        system_prompt = str(self.parameters.get("systemPrompt", "")) or None
+        user_prompt = str(self.parameters.get("userPrompt", "")) or None
+        def normalize(p: str) -> str:
+            return p.replace("{{query}}", "{input}").replace("{{docs}}", "{context}")
+        if system_prompt:
+            system_prompt = unknown_clause + normalize(system_prompt)
+        else:
+            system_prompt = unknown_clause + "Use the provided context to answer the user's question accurately."
+        if not user_prompt:
+            user_prompt = "Context:\n{context}\n\nQuestion: {input}"
+        else:
+            user_prompt = normalize(user_prompt)
+
+        # Log effective prompts (truncated)
+        try:
+            logger.info(f"[OpenAI] systemPrompt: {(system_prompt or '')[:200]}")
+            logger.info(f"[OpenAI] userPrompt: {(user_prompt or '')[:200]}")
+        except Exception:
+            pass
+        if include_history:
+            return ChatPromptTemplate.from_messages([
+                ("system", system_prompt),
+                MessagesPlaceholder("chat_history"),
+                ("human", user_prompt)
+            ])
+        else:
+            return ChatPromptTemplate.from_messages([
+                ("system", system_prompt),
+                ("human", user_prompt)
+            ])
+    
+    def generate(
+        self,
+        query: str,
+        retrieved_chunks: List[Dict[str, Any]],
+        memory=None,
+        user_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+        request_headers: Optional[Dict[str, str]] = None
+    ) -> Dict[Any, Any]:
+        """
+        ✅ LangChain 1.x 구조에 맞는 답변 생성
+        - memory가 있으면 RunnableWithMessageHistory 사용
+        - 없으면 create_stuff_documents_chain + create_retrieval_chain 조합
+        """
+        if not query or not query.strip():
+            raise ValueError("Query cannot be empty")
+
+        logger.info(
+            f"[OpenAI] Generating answer for query: {query[:50]}... with {len(retrieved_chunks)} chunks, memory={memory is not None}"
+        )
+
+        try:
+            # ✅ retrieved_chunks → Document 변환 (duck-typing 기반 간소화, 예외 제거)
+            def get_val(obj, key, default=None):
+                val = getattr(obj, key, None)
+                if val is not None:
+                    return val
+                getter = getattr(obj, 'get', None)
+                return getter(key, default) if callable(getter) else default
+
+            documents: List[Document] = []
+            for index, chunk in enumerate(retrieved_chunks):
+                text = get_val(chunk, 'page_content', None) or get_val(chunk, 'text', '') or ''
+                meta = get_val(chunk, 'metadata', {}) or {}
+                page_value = get_val(chunk, 'page', None)
+                chunk_id_value = get_val(chunk, 'chunk_id', None)
+                score_value = get_val(chunk, 'score', None)
+                file_no = get_val(chunk, 'fileNo', None)
+                file_name = get_val(chunk, 'fileName', None)
+
+                page_number = int((page_value if page_value is not None else meta.get('page', 1)) or 1)
+                chunk_identifier = int((chunk_id_value if chunk_id_value is not None else meta.get('chunk_id', index)) or index)
+                score_number = float((score_value if score_value is not None else meta.get('score', 0.0)) or 0.0)
+
+                doc_meta = {"page": page_number, "chunk_id": chunk_identifier, "score": score_number}
+                if file_no:
+                    doc_meta["file_no"] = file_no
+                if file_name:
+                    # also nest like milvus row
+                    doc_meta["metadata"] = {"FILE_NAME": file_name}
+                documents.append(Document(page_content=text, metadata=doc_meta))
+
+            if not documents:
+                logger.warning("[OpenAI] No documents retrieved")
+                return {
+                    "query": query,
+                    "answer": "I don't have enough information to answer this question.",
+                    "citations": [],
+                    "contexts_used": 0,
+                    "strategy": "openAI",
+                    "parameters": self.parameters,
+                }
+
+            prompt = self._init_prompt_template(include_history=bool(memory))
+            
+            combine_chain = create_stuff_documents_chain(self.llm, prompt)
+
+            # ✅ Static retriever (이미 가져온 문서 사용)
+            from app.core.retriever import StaticDocumentRetriever
+            retriever = StaticDocumentRetriever(documents=documents)
+
+            retrieval_chain = create_retrieval_chain(retriever, combine_chain)
+
+            def build_citations(source_documents: List[Any]) -> List[Dict[str, Any]]:
+                items: List[Dict[str, Any]] = []
+                for index, doc in enumerate(source_documents):
+                    text_value = get_val(doc, 'page_content', None) or get_val(doc, 'text', '') or ''
+                    meta = get_val(doc, 'metadata', {}) or {}
+                    page_value = get_val(doc, 'page', meta.get('page', 1))
+                    chunk_id_value = get_val(doc, 'chunk_id', meta.get('chunk_id', index))
+                    score_value = get_val(doc, 'score', meta.get('score', 0.0))
+                    page_number = int(page_value)
+                    chunk_identifier = int(chunk_id_value)
+                    score_number = float(score_value)
+                    items.append({"text": str(text_value), "page": page_number, "chunk_id": chunk_identifier, "score": score_number})
+                return items
+
+            def build_references_from_documents(source_documents: List[Any]) -> List[Dict[str, Any]]:
+                refs: List[Dict[str, Any]] = []
+                def _fetch_presigned(file_no: str) -> str:
+                    if not file_no:
+                        return ""
+                    # Server URL (production) - switch to internal backend when deploying:
+                    url = f"http://hebees-python-backend:8000/api/v1/files/{file_no}/presigned"
+                    try:
+                        with httpx.Client(timeout=10.0, follow_redirects=True) as client:
+                            # Build headers explicitly
+                            headers = {}
+                            if request_headers:
+                                if request_headers.get("x-user-uuid"):
+                                    headers["x-user-uuid"] = request_headers.get("x-user-uuid")
+                                if request_headers.get("x-user-role"):
+                                    headers["x-user-role"] = request_headers.get("x-user-role")
+                            r = client.get(url, headers=headers)
+                            r.raise_for_status()
+                            data = r.json()
+                            return ((data.get("result") or {}).get("data") or {}).get("url") or data.get("url") or ""
+                    except Exception as e:
+                        logger.warning(f"[OpenAI] presigned fetch failed for {file_no}: {e}")
+                        return ""
+                for doc in source_documents:
+                    text_value = get_val(doc, 'page_content', None) or get_val(doc, 'text', '') or ''
+                    meta = get_val(doc, 'metadata', {}) or {}
+                    inner = meta.get('metadata', {}) if isinstance(meta.get('metadata', {}), dict) else {}
+                    file_no = meta.get('file_no') or meta.get('FILE_NO') or inner.get('FILE_NO') or inner.get('file_no')
+                    file_name = inner.get('FILE_NAME') or meta.get('file_name') or ""
+                    title = str(file_name) if file_name else ""
+                    base_name = title.replace('\\', '/').split('/')[-1] if title else ""
+                    name_wo_ext = base_name.rsplit('.', 1)[0] if '.' in base_name else base_name
+                    file_ext = base_name.rsplit('.', 1)[-1].lower() if '.' in base_name else ""
+                    page_value = get_val(doc, 'page', meta.get('page', 1))
+                    try:
+                        page_number = int(page_value)
+                    except Exception:
+                        page_number = 1
+                    download_url = _fetch_presigned(str(file_no)) if file_no else ""
+                    refs.append({
+                        "fileNo": str(file_no) if file_no else "",
+                        "name": base_name,            # swap: store full filename with extension
+                        "title": name_wo_ext,         # swap: store filename without extension
+                        "type": file_ext,
+                        "index": page_number,
+                        "downloadUrl": download_url,
+                        "snippet": str(text_value),
+                    })
+                return refs
+
+            # ✅ 메모리 지원 여부에 따라 분기
+            # 응답 시간 측정 시작
+            response_start_time = time.time() * 1000  # milliseconds
+            citations: List[Dict[str, Any]] = []
+            
+            if memory is not None:
+                logger.info("[OpenAI] Using create_retrieval_chain with memory")
+                # 간결한 history 추출: chat_memory.messages가 있으면 최근 10개, 없으면 빈 리스트
+                history_messages = []
+                if hasattr(memory, 'chat_memory') and hasattr(memory.chat_memory, 'messages'):
+                    msgs = memory.chat_memory.messages
+                    history_messages = msgs[-10:] if len(msgs) > 10 else msgs
+
+                # 프롬프트 실행
+                result = retrieval_chain.invoke({
+                    "input": query,
+                    "chat_history": history_messages
+                })
+
+                # answer만 단순 추출
+                answer = (
+                    (result.get("answer") if isinstance(result, dict) else None)
+                    or getattr(result, "content", None)
+                    or (str(result) if result else "")
+                )
+                if not answer:
+                    logger.error(f"[OpenAI] Could not extract answer from result. Result type: {type(result)}, Result: {result}")
+                    raise ValueError(f"Could not extract answer from retrieval chain result. Result type: {type(result)}")
+                logger.debug(f"[OpenAI] Extracted answer length: {len(answer)}")
+                
+                # 응답 시간 계산
+                response_time_ms = int((time.time() * 1000) - response_start_time)
+
+                # Build citations and pending AI payload (tokens, latency, model)
+                citations = build_citations(documents)
+                references = build_references_from_documents(documents)
+                from app.core.memory_manager import get_memory_manager
+
+                input_tokens = output_tokens = total_tokens = None
+                try:
+                    result_usage = result.get('usage')  # type: ignore[assignment]
+                except AttributeError:
+                    result_usage = None
+                if isinstance(result_usage, dict):
+                    input_tokens = result_usage.get('prompt_tokens')
+                    output_tokens = result_usage.get('completion_tokens')
+                    total_tokens = result_usage.get('total_tokens')
+                else:
+                    try:
+                        usage = result.response_metadata.get('token_usage', {})
+                        if usage:
+                            input_tokens = usage.get('prompt_tokens')
+                            output_tokens = usage.get('completion_tokens')
+                            total_tokens = usage.get('total_tokens')
+                    except Exception:
+                        pass
+
+                get_memory_manager().set_pending_ai_payload(
+                    user_id,
+                    session_id,
+                    references=references,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    total_tokens=total_tokens,
+                    response_time_ms=response_time_ms,
+                )
+
+                # 메모리에 대화 저장
+                # ConversationSummaryBufferMemory는 output_key="answer"로 설정되어 있으므로
+                # save_context는 내부적으로 output_key를 사용하여 출력을 찾음
+                # 따라서 {"answer": answer} 형식 사용
+                try:
+                    memory.save_context({"input": query}, {"answer": answer})
+                    logger.debug(f"[OpenAI] Successfully saved context to memory")
+                except Exception as save_error:
+                    logger.warning(f"[OpenAI] Failed to save context: {save_error}")
+                
+                # citations already built above
+            else:
+                logger.info("[OpenAI] Using create_retrieval_chain (no memory)")
+                response_start_time = time.time() * 1000  # milliseconds
+                # create_retrieval_chain은 "input" 키를 기대하며, context는 자동으로 제공됨
+                try:
+                    result = retrieval_chain.invoke({"input": query})
+                    answer = result.get("answer", "")
+                except Exception as e:
+                    logger.error(f"[OpenAI] Error invoking retrieval chain: {e}")
+                    raise
+                
+                citations = build_citations(documents)
+
+                # 메모리를 사용하지 않는 경우에는 MongoDB에 수동 저장하지 않음
+
+            logger.info(f"[OpenAI] Answer generated. Length: {len(answer)}")
+
+
+            if not citations:
+                citations = build_citations(documents)
+
+            return {
+                "query": query,
+                "answer": answer,
+                "citations": citations,
+                "contexts_used": len(citations),
+                "strategy": "openAI",
+                "parameters": self.parameters,
+            }
+
+        except Exception as e:
+            logger.error(f"[OpenAI] Error during generation: {str(e)}")
+            raise
+
