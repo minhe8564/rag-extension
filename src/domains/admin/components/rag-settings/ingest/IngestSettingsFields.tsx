@@ -16,7 +16,6 @@ export default function IngestSettingsFields({
   overlap,
   embedModel,
   embedSparse,
-  embedBackup,
 
   setExtractEngine,
   setChunkStrategy,

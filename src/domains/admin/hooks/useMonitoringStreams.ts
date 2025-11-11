@@ -286,7 +286,7 @@ export function useMonitoringStreams(opts: UseMonitoringStreamsOptions = {}) {
 
   const { grandPriceUsd, topSpenders } = useMemo(() => {
     const grand = expense?.grandPriceUsd ?? 0;
-    const top: ModelExpense[] = (expense?.items ?? [])
+    const top: ModelExpense[] = (expense?.models ?? [])
       .slice()
       .sort((a, b) => b.totalPriceUsd - a.totalPriceUsd)
       .slice(0, 3);
