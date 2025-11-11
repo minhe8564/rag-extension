@@ -21,22 +21,22 @@ class Settings(BaseSettings):
             return ["*"]
 
     # OpenAI 설정
-    openai_api_key: str
+    openai_api_key: str = ""
 
     # MongoDB 설정
-    mongo_host: str
+    mongo_host: str = "database-mongodb"
     mongo_port: int = 27017
-    mongo_username: str
-    mongo_password: str
-    mongo_database: str
+    mongo_username: str = "s407"
+    mongo_password: str = "1q2w3e4r"
+    mongo_database: str = "hebees"
 
     @property
     def mongo_url(self) -> str:
         return f"mongodb://{self.mongo_username}:{self.mongo_password}@{self.mongo_host}:{self.mongo_port}/{self.mongo_database}"
 
     # Redis 설정
-    redis_host: str
-    redis_port: int = 16379
+    redis_host: str = "database-redis"
+    redis_port: int = 6379
     redis_username: Optional[str] = None
     redis_password: Optional[str] = None
     redis_db: int = 1
