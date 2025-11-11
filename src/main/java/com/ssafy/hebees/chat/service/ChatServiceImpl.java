@@ -166,13 +166,10 @@ public class ChatServiceImpl implements ChatService {
 
         UUID owner = requireUser(userNo);
 
-        UUID llmNo = request.llm();
-        String llmName = request.llmName();
-        if(llmName != null) {
-            llmNo = getLlmNoByName(llmName);
-        } else if (llmNo != null) { // LLM이 유효한지 확인
-            strategyRepository.findByStrategyNo(llmNo)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BAD_REQUEST));
+        String llmInput = request.llm();
+        UUID llmNo;
+        if (StringUtils.hasText(llmInput)) {
+            llmNo = resolveLlmNo(llmInput);
         } else { // LLM 기본값 사용
             llmNo = getDefaultLLM().orElseThrow(
                 () -> new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR)
@@ -192,10 +189,22 @@ public class ChatServiceImpl implements ChatService {
         return new SessionCreateResponse(saved.getSessionNo(), title);
     }
 
-    private UUID getLlmNoByName(String llmName) {
-        return strategyRepository.findByNameAndCodeStartingWith(llmName, "GEN")
-            .orElseThrow(()->new BusinessException(ErrorCode.BAD_REQUEST))
-            .getStrategyNo();
+    private UUID resolveLlmNo(String identifier) {
+        String trimmed = identifier != null ? identifier.strip() : null;
+        if (!StringUtils.hasText(trimmed)) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST);
+        }
+
+        try {
+            UUID candidate = UUID.fromString(trimmed);
+            return strategyRepository.findByStrategyNo(candidate)
+                .map(Strategy::getStrategyNo)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BAD_REQUEST));
+        } catch (IllegalArgumentException ignored) {
+            return strategyRepository.findByNameAndCodeStartingWith(trimmed, "GEN")
+                .orElseThrow(() -> new BusinessException(ErrorCode.BAD_REQUEST))
+                .getStrategyNo();
+        }
     }
 
     @Override
@@ -247,18 +256,14 @@ public class ChatServiceImpl implements ChatService {
         String newTitle = request.title() != null ? request.title() : session.getTitle();
 
         UUID newLlmNo;
-        if(request.llmName() != null){
-            newLlmNo = getLlmNoByName(request.llmName());
-        } else if (request.llm() != null) { // LLM이 유효한지 확인
-            strategyRepository.findByStrategyNo(request.llm())
-                .orElseThrow(() -> new BusinessException(ErrorCode.BAD_REQUEST));
-            newLlmNo = request.llm();
+        if (StringUtils.hasText(request.llm())) {
+            newLlmNo = resolveLlmNo(request.llm());
         } else {
             newLlmNo = session.getLlmNo();
         }
 
         session.updateSettings(newTitle, newLlmNo);
-        log.info("세션 수정 요청: title={}, llmNo={}", request.title(), request.llm());
+        log.info("세션 수정 요청: title={}, llm={}", request.title(), request.llm());
         log.info("세션 수정 성공: userNo={}, sessionNo={}", session.getUserNo(), sessionNo);
     }
 
