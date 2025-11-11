@@ -3,7 +3,7 @@ from typing import List
 from pathlib import Path
 
 # Project root (two levels above 'app/core')
-BASE_DIR = Path(__file__).resolve().parents[2]
+BASE_DIR = Path(__file__).resolve().parents[3]
 
 
 class Settings(BaseSettings):
@@ -38,7 +38,6 @@ class Settings(BaseSettings):
     minio_region: str = ""
     minio_api_public_url: str = ""
     minio_use_presigned_url: bool = False
-    minio_image_storage_base_path: str = ""
 
     # Gemini API 설정
     gemini_api_key: str = ""

@@ -24,6 +24,7 @@ from .minio_service import MinIOService
 from .gemini_client import GeminiClient
 from app.core.utils.uuid_utils import _build_presigned_key
 from app.domains.file.services.presign import get_presigned_url
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -83,9 +84,7 @@ class ImageService:
         # 이미지 파일명 및 경로 생성
         file_uuid = uuid.uuid4()
         file_name = f"{file_uuid.hex}.png"
-        # Build object key using file service rule
-        category_no_str = str(uuid.UUID(bytes=file_category_no))
-        object_key = _build_presigned_key(category_no_str, file_name)
+        object_key = _build_presigned_key(user_uuid, file_name)
         
         user_no = user.user_no
         
@@ -201,7 +200,9 @@ class ImageService:
         file_hash = hashlib.sha256(image_bytes).hexdigest()
         file_size = len(image_bytes)
         
-        minio_path = original_file.path
+        # 🔧 수정: 기존 파일명 추출하고 사용자 UUID로 새 경로 생성
+        original_file_name = Path(original_file.path).name
+        object_key = _build_presigned_key(user_uuid, original_file_name)
         
         self.minio_service.upload_image(
             image=generated_image,
@@ -209,13 +210,14 @@ class ImageService:
             content_type="image/png"
         )
         
-        # 캐시 무효화를 위해 타임스탬프가 포함된 URL 생성
-        image_url = self.minio_service.get_image_url(minio_path, cache_bust=True)
+        # 🔧 수정: 새로운 경로로 URL 생성
+        image_url = self.minio_service.get_image_url(object_key, cache_bust=True)
         
         # 기존 FILE 엔티티 업데이트
         original_file.size = file_size
         original_file.hash = file_hash
         original_file.description = f"Generated image from prompt: {prompt[:100]}"
+        original_file.path = object_key  # 🔧 추가: 경로도 업데이트
         original_file.updated_at = datetime.utcnow()
         
         merged_file = await db.merge(original_file)
