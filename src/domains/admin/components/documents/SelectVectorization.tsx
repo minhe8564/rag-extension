@@ -143,7 +143,7 @@ export default function SelectVectorization({
                     if (!isUploading) return;
                     setSelectedFile(file);
                   }}
-                  className={`grid grid-cols-8 items-center text-sm border-b p-2 last:border-none transition
+                  className={`grid grid-cols-9 items-center text-sm border-b p-2 last:border-none transition
               ${isUploading ? 'hover:bg-[var(--color-hebees-bg)]/40 cursor-pointer' : 'cursor-default'}
               ${
                 selectedFile &&
@@ -154,7 +154,7 @@ export default function SelectVectorization({
               }`}
                 >
                   {/* 파일명 */}
-                  <div className="col-span-3 flex items-center gap-1 text-xs">
+                  <div className="col-span-4 flex items-center gap-1 text-xs">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -167,18 +167,15 @@ export default function SelectVectorization({
                     <div className="w-6 h-6 bg-[var(--color-hebees)] rounded-md flex items-center justify-center">
                       <FileText size={16} className="text-[var(--color-white)]" />
                     </div>
-                    <span className="truncate max-w-[150px]">{file.name}</span>
+                    <span className="truncate max-w-[170px]">{file.name}</span>
                   </div>
-
                   {/* 크기 */}
                   <span className="col-span-2 text-center text-xs">
                     {(file.size / 1024).toFixed(1)} KB
                   </span>
-
                   {/* 카테고리 */}
                   <span className="col-span-2 text-center text-xs">{categoryName}</span>
-
-                  {/* 저장위치 */}
+                  {/* 저장위치 */}w
                   <span className="col-span-1 text-center text-xs">
                     {' '}
                     {collections.find((c) => c.collectionNo === file.collectionNo)?.name || '-'}
@@ -220,13 +217,12 @@ export default function SelectVectorization({
         <button
           onClick={() => handleUpload(localFiles)}
           className="px-10 py-2 text-white font-semibold rounded-md
-                   bg-[linear-gradient(90deg,#BE7DB1_10%,#81BAFF_100%)]
+                   bg-[linear-gradient(90deg,#BE7DB1_10%,#8wwwwwww1BAFF_100%)]
                    hover:opacity-90 transition shadow-md"
         >
           벡터화 실행
         </button>
       </div>
-
       {/* VecProcess (고정된 높이 아래쪽에 추가로 띄움) */}
       {selectedFile && (
         <div className="mt-4">

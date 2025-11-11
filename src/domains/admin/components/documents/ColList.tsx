@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useQuery, useQueries } from '@tanstack/react-query';
+import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   FolderOpen,
   FileText,
@@ -8,14 +8,14 @@ import {
   ChevronDown,
   ChevronRight as ChevronRightIcon,
   Trash2,
+  Download,
 } from 'lucide-react';
 import { getCollections, getDocInCollections } from '@/domains/admin/api/documents.api';
 import type { collectionType, documentDatatype } from '@/domains/admin/types/documents.types';
-import { deleteFile } from '@/shared/api/file.api';
+import { deleteFile, downloadFile } from '@/shared/api/file.api';
 import { toast } from 'react-toastify';
 
 export default function ColList() {
-  const [collections, setCollections] = useState<collectionType[]>([]);
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [page, setPage] = useState<Record<string, number>>({});
   const [selectedCollections, setSelectedCollections] = useState<Set<string>>(new Set());
@@ -28,25 +28,16 @@ export default function ColList() {
   const { data: collectionsResult } = useQuery({
     queryKey: ['collections'],
     queryFn: () => getCollections(),
-    staleTime: 1000 * 60 * 10,
   });
 
-  // 컬렉션 리스트 업데이트
-  useEffect(() => {
-    if (collectionsResult?.data) {
-      setCollections(collectionsResult.data);
-    }
-  }, [collectionsResult]);
-
-  console.log(collections);
+  const collections = collectionsResult?.data ?? [];
   //  각 컬렉션의 문서 쿼리 (React Query로 병렬 관리)
   const docsQueries = useQueries({
     queries: collections.map((col) => ({
       queryKey: ['docs', col.collectionNo],
       queryFn: () => getDocInCollections(col.collectionNo),
-      select: (res) => (res as { data: documentDatatype[] }).data,
+      select: (res: { data: documentDatatype[] }) => res.data,
       enabled: !!open[col.collectionNo], // 열린 컬렉션만 API 요청
-      staleTime: 1000 * 60 * 5,
     })),
   });
 
@@ -80,13 +71,60 @@ export default function ColList() {
     });
   };
 
+  const queryClient = useQueryClient();
+
   // 문서 삭제
-  const handleDeleteDoc = async (fileNo: string) => {
+  const handleDeleteDoc = async (fileNo: string, colNo: string) => {
     try {
-      await deleteFile(fileNo);
-      toast.success('문서가 삭제되었습니다 ✅');
+      const data = await deleteFile(fileNo);
+      const isSuccess = data.deleted;
+      console.log('삭제 성공 여부:', isSuccess);
+
+      // 서버에서 실제로 삭제 성공했는지 확인
+      if (!isSuccess) {
+        toast.error('서버에서 문서를 삭제하지 못했습니다 ❌');
+        return;
+      }
+
+      // React Query 캐시 업데이트
+      const key = ['docs', colNo];
+      const old = queryClient.getQueryData<documentDatatype[]>(key);
+
+      if (Array.isArray(old)) {
+        queryClient.setQueryData(
+          key,
+          old.filter((doc) => doc.fileNo !== fileNo)
+        );
+      }
+
+      // 항상 최신화 (서버 데이터 동기화)
+      queryClient.invalidateQueries({ queryKey: key });
+
+      toast.success('삭제 완료 ✅');
     } catch (error) {
-      toast.error('문서 삭제 중 오류가 발생했습니다.');
+      toast.error('삭제 실패 ❌');
+      console.error('파일 삭제 오류:', error);
+    }
+  };
+
+  // 문서 다운로드
+  const handleDownloadDoc = async (fileNo: string, fileName: string) => {
+    console.log(fileNo, '@@', fileName);
+
+    try {
+      const result = await downloadFile(fileNo, {
+        inline: false,
+      });
+      const url = result.data.url;
+      console.log(fileNo, fileName);
+
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      link.click();
+    } catch (error) {
+      toast.error('문서 다운로드 중 오류가 발생했습니다.');
+      console.log(error);
     }
   };
 
@@ -206,6 +244,24 @@ export default function ColList() {
 
                         {/* 선택 및 삭제 */}
                         <div className="flex items-center gap-2 ml-4">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDownloadDoc(file.fileNo, file.name);
+                            }}
+                            className="text-[var(--color-hebees)] hover:opacity-80 transition"
+                          >
+                            <Download size={16} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteDoc(file.fileNo, colNo);
+                            }}
+                            className="text-[var(--color-hebees)] hover:opacity-80 transition"
+                          >
+                            <Trash2 size={16} />
+                          </button>
                           <input
                             type="checkbox"
                             className="accent-[var(--color-hebees)] cursor-pointer"
@@ -213,15 +269,6 @@ export default function ColList() {
                             onClick={(e) => e.stopPropagation()}
                             onChange={() => toggleSelectFile(colNo, file.fileNo)}
                           />
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteDoc(file.fileNo);
-                            }}
-                            className="text-[var(--color-hebees)] hover:opacity-80 transition"
-                          >
-                            <Trash2 size={16} />
-                          </button>
                         </div>
                       </li>
                     ))}

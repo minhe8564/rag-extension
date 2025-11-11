@@ -81,3 +81,21 @@ export type DeleteFileData = {
   name: string;
   deleted: boolean;
 };
+
+export type DownloadResult = {
+  data: {
+    url: string;
+  };
+  pagination: {
+    pageNum: number;
+    pageSize: number;
+    totalItems: number;
+    totalPages: number;
+    hasNext: boolean;
+  };
+  hasNext: boolean;
+  nextCursor: {
+    cursorCreatedAt: string;
+    cursorId: string;
+  };
+};
