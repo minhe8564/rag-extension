@@ -36,8 +36,8 @@ public class SessionRepositoryCustomImpl implements SessionRepositoryCustom {
     }
 
     @Override
-    public Page<Session> searchSessionsByUser(UUID userNo, String keyword, Pageable pageable) {
-        List<Session> content = queryFactory
+    public List<Session> searchSessionsByUser(UUID userNo, String keyword) {
+        return queryFactory
             .selectFrom(session)
             .where(
                 eqUserNo(userNo),
@@ -45,23 +45,7 @@ public class SessionRepositoryCustomImpl implements SessionRepositoryCustom {
                 isNotDeleted()
             )
             .orderBy(session.updatedAt.desc(), session.title.asc())
-            .offset(pageable.getOffset())
-            .limit(pageable.getPageSize())
             .fetch();
-
-        Long total = queryFactory
-            .select(session.count())
-            .from(session)
-            .where(
-                eqUserNo(userNo),
-                containsKeyword(keyword),
-                isNotDeleted()
-            )
-            .fetchOne();
-
-        long totalCount = total != null ? total : 0L;
-
-        return new PageImpl<>(content, pageable, totalCount);
     }
 
     @Override
@@ -152,25 +136,6 @@ public class SessionRepositoryCustomImpl implements SessionRepositoryCustom {
 
     private BooleanExpression isNotDeleted() {
         return session.deletedAt.isNull();
-    }
-
-    @Override
-    public long countDistinctUserNosByLastRequestedAtAfter(LocalDateTime threshold) {
-        if (threshold == null) {
-            return 0L;
-        }
-
-        List<UUID> distinctUserNos = queryFactory
-            .select(session.userNo)
-            .distinct()
-            .from(session)
-            .where(
-                session.lastRequestedAt.gt(threshold),
-                isNotDeleted()
-            )
-            .fetch();
-
-        return distinctUserNos != null ? distinctUserNos.size() : 0L;
     }
 }
 

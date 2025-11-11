@@ -4,7 +4,7 @@ import com.ssafy.hebees.chat.dto.request.AskRequest;
 import com.ssafy.hebees.chat.dto.request.MessageCreateRequest;
 import com.ssafy.hebees.chat.dto.request.MessageCursorRequest;
 import com.ssafy.hebees.chat.dto.request.SessionCreateRequest;
-import com.ssafy.hebees.chat.dto.request.SessionListRequest;
+import com.ssafy.hebees.chat.dto.request.SessionSearchRequest;
 import com.ssafy.hebees.chat.dto.request.SessionUpdateRequest;
 import com.ssafy.hebees.chat.dto.response.AskResponse;
 import com.ssafy.hebees.chat.dto.response.MessageCursorResponse;
@@ -12,11 +12,11 @@ import com.ssafy.hebees.chat.dto.response.MessageResponse;
 import com.ssafy.hebees.chat.dto.response.ReferencedDocumentListResponse;
 import com.ssafy.hebees.chat.dto.response.ReferencedDocumentResponse;
 import com.ssafy.hebees.chat.dto.response.SessionCreateResponse;
-import com.ssafy.hebees.chat.dto.response.SessionHistoryResponse;
 import com.ssafy.hebees.chat.dto.response.SessionResponse;
 import com.ssafy.hebees.chat.service.ChatAskService;
 import com.ssafy.hebees.chat.service.ChatService;
 import com.ssafy.hebees.chat.service.MessageService;
+import com.ssafy.hebees.common.dto.ListResponse;
 import com.ssafy.hebees.common.dto.PageRequest;
 import com.ssafy.hebees.common.dto.PageResponse;
 import com.ssafy.hebees.common.exception.BusinessException;
@@ -29,6 +29,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
+import java.util.Objects;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,6 +45,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.HttpClientErrorException.Forbidden;
 
 
 @RestController
@@ -63,48 +65,33 @@ public class ChatController {
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "세션 목록 조회 성공"),
     })
-    public ResponseEntity<BaseResponse<PageResponse<SessionResponse>>> listSessions(
-        @Valid @ModelAttribute PageRequest pageRequest,
-        @Valid @ModelAttribute SessionListRequest listRequest
+    public ResponseEntity<BaseResponse<ListResponse<SessionResponse>>> listSessions(
+        @Valid @ModelAttribute SessionSearchRequest request
     ) {
         UUID userNo = SecurityUtil.getCurrentUserUuid()
             .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_ACCESS_TOKEN));
-        PageResponse<SessionResponse> sessions = chatService.getSessions(userNo, pageRequest,
-            listRequest);
+
+        ListResponse<SessionResponse> sessions = chatService.getSessions(userNo, request);
 
         return ResponseEntity.ok(BaseResponse.of(HttpStatus.OK, sessions, "세션 목록 조회에 성공하였습니다."));
     }
 
     @GetMapping("/sessions/all")
-    @Operation(summary = "전체 세션 목록 조회", description = "모든 사용자 세션 목록을 조회합니다.")
+    @Operation(summary = "[관리자] 전체 세션 목록 조회", description = "모든 사용자 세션 목록을 조회합니다.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "전체 세션 목록 조회 성공"),
     })
     public ResponseEntity<BaseResponse<PageResponse<SessionResponse>>> listAllSessions(
         @Valid @ModelAttribute PageRequest pageRequest,
-        @Valid @ModelAttribute SessionListRequest listRequest
+        @Valid @ModelAttribute SessionSearchRequest searchRequest
     ) {
-        PageResponse<SessionResponse> sessions = chatService.getAllSessions(pageRequest,
-            listRequest);
+        String userRole = SecurityUtil.getCurrentUserRole()
+            .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_ACCESS_TOKEN));
+        if(!Objects.equals(userRole, "ADMIN")) throw new BusinessException(ErrorCode.PERMISSION_DENIED);
+
+        PageResponse<SessionResponse> sessions = chatService.getAllSessions(pageRequest, searchRequest);
 
         return ResponseEntity.ok(BaseResponse.of(HttpStatus.OK, sessions, "세션 목록 전체 조회에 성공하였습니다."));
-    }
-
-    @GetMapping("/users/{userNo}/history")
-    @Operation(summary = "특정 사용자 채팅 히스토리 조회", description = "특정 사용자의 세션과 메시지 내역을 조회합니다.")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "채팅 히스토리 조회 성공"),
-    })
-    public ResponseEntity<BaseResponse<PageResponse<SessionHistoryResponse>>> getUserChatHistory(
-        @PathVariable UUID userNo,
-        @Valid @ModelAttribute PageRequest pageRequest,
-        @Valid @ModelAttribute SessionListRequest listRequest
-    ) {
-        PageResponse<SessionHistoryResponse> history = chatService.getUserChatHistory(userNo,
-            pageRequest, listRequest);
-
-        return ResponseEntity.ok(
-            BaseResponse.of(HttpStatus.OK, history, "사용자 채팅 히스토리 조회 성공"));
     }
 
     @GetMapping("/sessions/{sessionNo}")
@@ -117,7 +104,7 @@ public class ChatController {
             .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_ACCESS_TOKEN));
         SessionResponse session = chatService.getSession(userNo, sessionNo);
 
-        return ResponseEntity.ok(BaseResponse.of(HttpStatus.OK, session));
+        return ResponseEntity.ok(BaseResponse.of(HttpStatus.OK, session, "세션 조회에 성공하였습니다."));
     }
 
     @PostMapping("/sessions")

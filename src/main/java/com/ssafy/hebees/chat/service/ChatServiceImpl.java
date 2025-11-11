@@ -4,17 +4,18 @@ import com.ssafy.hebees.chat.client.RunpodClient;
 import com.ssafy.hebees.chat.client.dto.RunpodChatMessage;
 import com.ssafy.hebees.chat.client.dto.RunpodChatResult;
 import com.ssafy.hebees.chat.dto.request.SessionCreateRequest;
-import com.ssafy.hebees.chat.dto.request.SessionListRequest;
+import com.ssafy.hebees.chat.dto.request.SessionSearchRequest;
 import com.ssafy.hebees.chat.dto.request.SessionUpdateRequest;
 import com.ssafy.hebees.chat.dto.response.SessionCreateResponse;
-import com.ssafy.hebees.chat.dto.response.SessionHistoryResponse;
 import com.ssafy.hebees.chat.dto.response.SessionResponse;
 import com.ssafy.hebees.chat.entity.Session;
 import com.ssafy.hebees.chat.repository.SessionRepository;
+import com.ssafy.hebees.common.dto.ListResponse;
 import com.ssafy.hebees.common.dto.PageRequest;
 import com.ssafy.hebees.common.dto.PageResponse;
 import com.ssafy.hebees.common.exception.BusinessException;
 import com.ssafy.hebees.common.exception.ErrorCode;
+import com.ssafy.hebees.common.util.UserValidationUtil;
 import com.ssafy.hebees.ragsetting.entity.QueryGroup;
 import com.ssafy.hebees.ragsetting.entity.Strategy;
 import com.ssafy.hebees.ragsetting.repository.QueryGroupRepository;
@@ -23,12 +24,8 @@ import com.ssafy.hebees.user.entity.User;
 import com.ssafy.hebees.user.repository.UserRepository;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -44,87 +41,40 @@ import org.springframework.util.StringUtils;
 public class ChatServiceImpl implements ChatService {
 
     private final SessionRepository sessionRepository;
-    private final MessageService messageService;
     private final RunpodClient runpodClient;
     private final UserRepository userRepository;
     private final StrategyRepository strategyRepository;
     private final QueryGroupRepository queryGroupRepository;
 
     @Override
-    public PageResponse<SessionResponse> getSessions(UUID userNo, PageRequest pageRequest,
-        SessionListRequest listRequest) {
-        UUID owner = requireUser(userNo);
+    public ListResponse<SessionResponse> getSessions(UUID userNo, SessionSearchRequest request) {
+        UUID owner = UserValidationUtil.requireUser(userNo);
 
-        Pageable pageable = org.springframework.data.domain.PageRequest.of(pageRequest.pageNum(),
-            pageRequest.pageSize());
-        String keyword = Optional.ofNullable(listRequest)
-            .map(SessionListRequest::query)
-            .orElse(null);
+        String keyword = request.query() != null ? request.query().strip() : null;
 
-        Page<Session> sessionPage = sessionRepository.searchSessionsByUser(owner, keyword,
-            pageable);
-
-        List<Session> sessions = sessionPage.getContent();
+        List<Session> sessions = sessionRepository.searchSessionsByUser(owner, keyword);
 
         List<SessionResponse> responses = sessions.stream()
-            .map(this::toSessionResponse)
+            .map(SessionResponse::of)
             .toList();
 
-        return PageResponse.of(
-            responses,
-            sessionPage.getNumber(),
-            sessionPage.getSize(),
-            sessionPage.getTotalElements()
-        );
+        return ListResponse.of(responses);
     }
 
     @Override
     public PageResponse<SessionResponse> getAllSessions(PageRequest pageRequest,
-        SessionListRequest listRequest) {
+        SessionSearchRequest searchRequest) {
+
         Pageable pageable = org.springframework.data.domain.PageRequest.of(pageRequest.pageNum(),
             pageRequest.pageSize());
-        String keyword = Optional.ofNullable(listRequest)
-            .map(SessionListRequest::query)
-            .orElse(null);
+        String keyword = searchRequest.query() != null ? searchRequest.query().strip() : null;
 
         Page<Session> sessionPage = sessionRepository.searchAllSessions(keyword, pageable);
 
         List<Session> sessions = sessionPage.getContent();
-        Map<UUID, String> userNames = resolveUserNames(sessions);
 
         List<SessionResponse> responses = sessions.stream()
-            .map(this::toSessionResponse)
-            .toList();
-
-        return PageResponse.of(
-            responses,
-            sessionPage.getNumber(),
-            sessionPage.getSize(),
-            sessionPage.getTotalElements()
-        );
-    }
-
-    @Override
-    public PageResponse<SessionHistoryResponse> getUserChatHistory(UUID userNo,
-        PageRequest pageRequest, SessionListRequest listRequest) {
-        UUID owner = requireUser(userNo);
-
-        Pageable pageable = org.springframework.data.domain.PageRequest.of(pageRequest.pageNum(),
-            pageRequest.pageSize());
-        String keyword = Optional.ofNullable(listRequest)
-            .map(SessionListRequest::query)
-            .orElse(null);
-
-        Page<Session> sessionPage = sessionRepository.searchSessionsByUser(owner, keyword,
-            pageable);
-
-        List<Session> sessions = sessionPage.getContent();
-
-        List<SessionHistoryResponse> responses = sessions.stream()
-            .map(session -> new SessionHistoryResponse(
-                toSessionResponse(session),
-                messageService.getAllMessages(owner, session.getSessionNo())
-            ))
+            .map(SessionResponse::of)
             .toList();
 
         return PageResponse.of(
@@ -138,12 +88,11 @@ public class ChatServiceImpl implements ChatService {
     @Override
     public SessionResponse getSession(UUID userNo, UUID sessionNo) {
         Session session = getOwnedSession(userNo, sessionNo);
-        Map<UUID, String> userNames = resolveUserNames(List.of(session));
+        User user = userRepository.findById(userNo)
+            .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         Strategy llm = strategyRepository.findByStrategyNo(session.getLlmNo()).orElse(null);
-        return toSessionResponse(session,
-            llm != null ? llm.getName() : "-",
-            userNames.get(session.getUserNo())
-        );
+
+        return SessionResponse.of(session, llm != null ? llm.getName() : "-", user.getName());
     }
 
     @Override
@@ -164,7 +113,7 @@ public class ChatServiceImpl implements ChatService {
             title = title.strip();
         }
 
-        UUID owner = requireUser(userNo);
+        UUID owner = UserValidationUtil.requireUser(userNo);
 
         String llmInput = request.llm();
         UUID llmNo;
@@ -276,7 +225,7 @@ public class ChatServiceImpl implements ChatService {
     }
 
     private Session getOwnedSession(UUID userNo, UUID sessionNo) {
-        UUID owner = requireUser(userNo);
+        UUID owner = UserValidationUtil.requireUser(userNo);
         UUID id = requireSessionNo(sessionNo);
 
         Session session = sessionRepository.findBySessionNo(id)
@@ -291,53 +240,11 @@ public class ChatServiceImpl implements ChatService {
         return session;
     }
 
-    private UUID requireUser(UUID userNo) {
-        if (userNo == null) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED);
-        }
-        return userNo;
-    }
-
     private UUID requireSessionNo(UUID sessionNo) {
         if (sessionNo == null) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT);
+            throw new BusinessException(ErrorCode.INPUT_NULL);
         }
         return sessionNo;
-    }
-
-    private Map<UUID, String> resolveUserNames(List<Session> sessions) {
-        if (sessions == null || sessions.isEmpty()) {
-            return Map.of();
-        }
-
-        Set<UUID> userIds = sessions.stream()
-            .map(Session::getUserNo)
-            .filter(Objects::nonNull)
-            .collect(Collectors.toSet());
-
-        if (userIds.isEmpty()) {
-            return Map.of();
-        }
-
-        return userRepository.findAllById(userIds).stream()
-            .filter(user -> user.getName() != null)
-            .collect(Collectors.toMap(User::getUuid, User::getName, (first, second) -> first));
-    }
-
-    private SessionResponse toSessionResponse(Session session) {
-        return toSessionResponse(session, null, null);
-    }
-
-    private SessionResponse toSessionResponse(Session session, String llmName, String userName) {
-        return new SessionResponse(
-            session.getSessionNo(),
-            session.getTitle(),
-            session.getUpdatedAt(),
-            session.getLlmNo(),
-            llmName,
-            session.getUserNo(),
-            userName
-        );
     }
 
     private Optional<Strategy> getDefaultLLM() {

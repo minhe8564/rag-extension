@@ -11,6 +11,7 @@ import com.ssafy.hebees.chat.entity.Session;
 import com.ssafy.hebees.chat.repository.SessionRepository;
 import com.ssafy.hebees.common.exception.BusinessException;
 import com.ssafy.hebees.common.exception.ErrorCode;
+import com.ssafy.hebees.common.util.UserValidationUtil;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -34,7 +35,8 @@ public class ChatAskServiceImpl implements ChatAskService {
 
     @Override
     public AskResponse ask(UUID userNo, UUID sessionNo, String question) {
-        UUID owner = requireUser(userNo);
+        UserValidationUtil.requireUser(userNo);
+        UUID owner = userNo;
         UUID sessionId = requireSession(sessionNo);
         String sanitizedQuestion = sanitize(question);
 
@@ -121,13 +123,6 @@ public class ChatAskServiceImpl implements ChatAskService {
         };
 
         return Optional.of(RunpodChatMessage.of(role, message.content()));
-    }
-
-    private UUID requireUser(UUID userNo) {
-        if (userNo == null) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED);
-        }
-        return userNo;
     }
 
     private UUID requireSession(UUID sessionNo) {

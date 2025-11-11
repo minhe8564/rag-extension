@@ -2,6 +2,7 @@ package com.ssafy.hebees.ragsetting.service;
 
 import com.ssafy.hebees.common.exception.BusinessException;
 import com.ssafy.hebees.common.exception.ErrorCode;
+import com.ssafy.hebees.common.util.UserValidationUtil;
 import com.ssafy.hebees.ragsetting.dto.request.LlmKeyCreateRequest;
 import com.ssafy.hebees.ragsetting.dto.request.LlmKeySelfCreateRequest;
 import com.ssafy.hebees.ragsetting.dto.request.LlmKeyUpdateRequest;
@@ -117,7 +118,7 @@ public class LlmKeyServiceImpl implements LlmKeyService {
     @Override
     @Transactional
     public LlmKeyResponse createSelf(UUID userNo, LlmKeySelfCreateRequest request) {
-        UUID owner = requireUser(userNo);
+        UUID owner = UserValidationUtil.requireUser(userNo);
         String identifier = request.llm();
         UUID strategyNo = resolveStrategyNo(identifier);
         Strategy strategy = fetchStrategy(strategyNo);
@@ -144,7 +145,7 @@ public class LlmKeyServiceImpl implements LlmKeyService {
 
     @Override
     public List<LlmKeyResponse> listSelf(UUID userNo) {
-        UUID owner = requireUser(userNo);
+        UUID owner = UserValidationUtil.requireUser(userNo);
         return llmKeyRepository.findAllByUser_Uuid(owner).stream()
             .map(this::mapToResponse)
             .collect(Collectors.toList());
@@ -153,7 +154,7 @@ public class LlmKeyServiceImpl implements LlmKeyService {
     @Override
     @Transactional
     public LlmKeyResponse updateSelf(UUID userNo, UUID llmKeyNo, LlmKeyUpdateRequest request) {
-        UUID owner = requireUser(userNo);
+        UUID owner = UserValidationUtil.requireUser(userNo);
         LlmKey llmKey = fetchLlmKeyOwnedByUser(llmKeyNo, owner);
 
         if (request.strategyNo() == null && request.apiKey() == null) {
@@ -183,7 +184,7 @@ public class LlmKeyServiceImpl implements LlmKeyService {
     @Override
     @Transactional
     public void deleteSelf(UUID userNo, UUID llmKeyNo) {
-        UUID owner = requireUser(userNo);
+        UUID owner = UserValidationUtil.requireUser(userNo);
         LlmKey llmKey = fetchLlmKeyOwnedByUser(llmKeyNo, owner);
         llmKeyRepository.delete(llmKey);
         log.info("LLM Key 삭제(사용자): userNo={}, llmKeyNo={}", owner, llmKeyNo);
@@ -191,7 +192,7 @@ public class LlmKeyServiceImpl implements LlmKeyService {
 
     @Override
     public LlmKeyResponse getSelfByLlm(UUID userNo, String llmIdentifier) {
-        UUID owner = requireUser(userNo);
+        UUID owner = UserValidationUtil.requireUser(userNo);
         UUID strategyNo = resolveStrategyNo(llmIdentifier);
         LlmKey llmKey = llmKeyRepository.findByUser_UuidAndStrategy_StrategyNo(owner, strategyNo)
             .orElseThrow(() -> {
@@ -222,13 +223,6 @@ public class LlmKeyServiceImpl implements LlmKeyService {
                 log.warn("LLM Key 조회 실패 - 소유자 불일치: llmKeyNo={}, userNo={}", llmKeyNo, userNo);
                 return new BusinessException(ErrorCode.PERMISSION_DENIED);
             });
-    }
-
-    private UUID requireUser(UUID userNo) {
-        if (userNo == null) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED);
-        }
-        return userNo;
     }
 
     private User fetchUser(UUID userNo) {
