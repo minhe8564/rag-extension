@@ -45,7 +45,7 @@ monitoring:
     - embedding-repo=hebees-embedding
     - extract-repo=hebees-extract
     - generation-repo=hebees-generation
-    - ingest-repo=hebees-ingest
+    - rag-orchestrator-repo=hebees-rag-orchestrator
     - python-backend-repo=hebees-python-backend
     - query-embedding-repo=hebees-query-embedding
     - search-repo=hebees-search
