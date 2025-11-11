@@ -34,7 +34,9 @@ async def proxy_docs_request(
         target_url = f"{target_url}?{query_string}"
     
     try:
-        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+        # Longer timeouts for potentially long-running operations (query/process, etc.)
+        timeout = httpx.Timeout(connect=30.0, read=3600.0, write=120.0, pool=30.0)
+        async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
             # 요청 헤더 복사 (사용자 정보 헤더는 게이트웨이가 관리)
             forwarded_headers = {
                 key: value
@@ -164,7 +166,9 @@ async def proxy_service_docs(
         target_url = f"{target_url}?{query_string}"
 
     try:
-        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+        # Longer timeouts for nested docs API calls (e.g., /service-docs/rag/api/*)
+        timeout = httpx.Timeout(connect=30.0, read=3600.0, write=120.0, pool=30.0)
+        async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
             forwarded_headers = {
                 key: value
                 for key, value in request.headers.items()

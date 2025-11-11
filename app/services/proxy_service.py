@@ -62,15 +62,25 @@ async def proxy_request(
         client_timeout = httpx.Timeout(
             connect=30.0,
             read=None,  # 무제한
-            write=30.0,
+            write=120.0,
             pool=30.0
         )
         logger.info(f"SSE 스트리밍 요청 감지 (Accept: text/event-stream): {target_path}, 타임아웃 무제한 설정")
     else:
-        client_timeout = timeout
+        # 일반 요청은 보다 여유 있는 타임아웃 구성 (read=timeout 초)
+        try:
+            read_timeout = float(timeout)
+        except Exception:
+            read_timeout = 3600.0
+        client_timeout = httpx.Timeout(
+            connect=30.0,
+            read=read_timeout,
+            write=120.0,
+            pool=30.0
+        )
     
     # HTTP 메서드에 따라 요청
-    client = httpx.AsyncClient(timeout=client_timeout)
+    client = httpx.AsyncClient(timeout=client_timeout, follow_redirects=True)
     try:
         upstream_request = client.build_request(
             method=request.method,
