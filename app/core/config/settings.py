@@ -3,7 +3,7 @@ from typing import List
 from pathlib import Path
 
 # Project root (two levels above 'app/core')
-BASE_DIR = Path(__file__).resolve().parents[2]
+BASE_DIR = Path(__file__).resolve().parents[3]
 
 
 class Settings(BaseSettings):
@@ -63,6 +63,11 @@ class Settings(BaseSettings):
     # External APIs
     ingest_process_url: str = "http://hebees-ingest:8000/process"
     ingest_delete_url: str = ""  # optional: vector cleanup endpoint
+
+    # Redis
+    redis_url: str = "redis://localhost:6379/1"
+    redis_db: int = 1
+    ingest_meta_ttl_sec: int = 0  # 0 or less disables TTL
 
     # Milvus settings (direct access)
     milvus_host: str = ""
