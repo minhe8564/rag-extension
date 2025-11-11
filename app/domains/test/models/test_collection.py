@@ -1,6 +1,6 @@
 from sqlalchemy import Column, DateTime, ForeignKey, LargeBinary, String
-from datetime import datetime
 from app.core.database.base import Base
+from app.core.utils.timezone_utils import now_kst
 
 
 class TestCollection(Base):
@@ -23,13 +23,13 @@ class TestCollection(Base):
     created_at = Column(
         "CREATED_AT",
         DateTime,
-        default=datetime.utcnow,
+        default=now_kst,
         nullable=False,
     )
     updated_at = Column(
         "UPDATED_AT",
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=now_kst,
+        onupdate=now_kst,
         nullable=False,
     )

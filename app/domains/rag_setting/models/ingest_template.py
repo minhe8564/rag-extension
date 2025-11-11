@@ -4,8 +4,8 @@ Ingest Group 모델
 
 from sqlalchemy import Column, DateTime, Boolean, LargeBinary, JSON, ForeignKey, String
 from sqlalchemy.orm import relationship
-from datetime import datetime
 from app.core.database.base import Base
+from app.core.utils.timezone_utils import now_kst
 import uuid
 
 
@@ -89,15 +89,15 @@ class IngestGroup(Base):
     created_at = Column(
         "CREATED_AT",
         DateTime,
-        default=datetime.utcnow,
+        default=now_kst,
         nullable=False,
     )
 
     updated_at = Column(
         "UPDATED_AT",
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=now_kst,
+        onupdate=now_kst,
         nullable=False,
     )
 
@@ -175,15 +175,15 @@ class ExtractionGroup(Base):
     created_at = Column(
         "CREATED_AT",
         DateTime,
-        default=datetime.utcnow,
+        default=now_kst,
         nullable=False,
     )
 
     updated_at = Column(
         "UPDATED_AT",
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=now_kst,
+        onupdate=now_kst,
         nullable=False,
     )
 
@@ -247,15 +247,15 @@ class EmbeddingGroup(Base):
     created_at = Column(
         "CREATED_AT",
         DateTime,
-        default=datetime.utcnow,
+        default=now_kst,
         nullable=False,
     )
 
     updated_at = Column(
         "UPDATED_AT",
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=now_kst,
+        onupdate=now_kst,
         nullable=False,
     )
 

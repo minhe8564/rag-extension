@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List
 import logging
-from datetime import datetime
+from app.core.utils.timezone_utils import now_kst
 
 from app.core.database import get_db
 from app.core.auth.check_role import check_role
@@ -62,7 +62,7 @@ async def generate_image(
         image_data = ImageGenerateResponse(
             status="success",
             images=generated_images,
-            created_at=datetime.utcnow()
+            created_at=now_kst()
         )
         
         return BaseResponse[ImageGenerateResponse](
@@ -113,7 +113,7 @@ async def regenerate_image(
         image_data = ImageGenerateResponse(
             status="success",
             images=generated_images,
-            created_at=datetime.utcnow()
+            created_at=now_kst()
         )
         
         return BaseResponse[ImageGenerateResponse](

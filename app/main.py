@@ -18,7 +18,7 @@ from .domains.rag_setting.routers import rag_router
 from .domains.test.routers.test_collection_router import router as test_collection_router
 from .domains.monitoring.routers.monitoring_controller import router as monitoring_router
 from .domains.runpod.routers.runpod_controller import router as runpod_router
-from datetime import datetime
+from .core.utils.timezone_utils import now_kst
 
 app = FastAPI(
     title=__title__,
@@ -78,6 +78,6 @@ async def health_check():
     return {
         "status": "healthy",
         "version": __version__,
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": now_kst().isoformat(),
     }
 

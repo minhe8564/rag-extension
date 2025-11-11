@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import hashlib
 import uuid
-from datetime import datetime
 from pathlib import Path
 from typing import Optional
+from app.core.utils.timezone_utils import now_kst
 
 from fastapi import HTTPException
 from sqlalchemy import select
@@ -89,7 +89,7 @@ async def upload_file(
     put_object(bucket_name, object_key, file_bytes, content_type or "application/octet-stream")
 
     # Persist into DB
-    now = datetime.now()
+    now = now_kst()
 
     # Validate optional FKs to avoid FK errors
     collection_no_bytes = _uuid_str_to_bytes(collection_no, field_name="collectionNo") if collection_no else None

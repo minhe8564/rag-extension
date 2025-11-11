@@ -8,9 +8,9 @@ from io import BytesIO
 from typing import Optional
 from PIL import Image
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
-from datetime import datetime
 import logging
 from app.core.config.settings import settings
+from app.core.utils.timezone_utils import now_kst
 
 logger = logging.getLogger(__name__)
 
@@ -161,7 +161,7 @@ class MinIOService:
         
         parsed_url = urlparse(url)
         query_params = parse_qs(parsed_url.query)
-        query_params['v'] = [str(int(datetime.utcnow().timestamp()))]
+        query_params['v'] = [str(int(now_kst().timestamp()))]
         new_query = urlencode(query_params, doseq=True)
         
         return urlunparse((
