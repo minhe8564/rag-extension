@@ -18,29 +18,29 @@ from ..services.query import update_query_template, partial_update_query_templat
 router = APIRouter(prefix="/rag", tags=["RAG - Query Template Management"])
 
 
-@router.put(
-    "/query-templates/{queryNo}",
-    response_model=BaseResponse[QueryTemplateDetailResponse],
-    status_code=status.HTTP_200_OK,
-    summary="Query 템플릿 수정 (관리자 전용)",
-    description="Query 템플릿을 수정합니다. 관리자만 접근 가능합니다.",
-    responses={
-        200: {
-            "description": "Query 템플릿 수정 성공",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "status": 200,
-                        "code": "OK",
-                        "message": "성공",
-                        "isSuccess": True,
-                        "result": {}
-                    }
-                }
-            }
-        },
-    },
-)
+# @router.put(
+#     "/query-templates/{queryNo}",
+#     response_model=BaseResponse[QueryTemplateDetailResponse],
+#     status_code=status.HTTP_200_OK,
+#     summary="Query 템플릿 수정 (관리자 전용)",
+#     description="Query 템플릿을 수정합니다. 관리자만 접근 가능합니다.",
+#     responses={
+#         200: {
+#             "description": "Query 템플릿 수정 성공",
+#             "content": {
+#                 "application/json": {
+#                     "example": {
+#                         "status": 200,
+#                         "code": "OK",
+#                         "message": "성공",
+#                         "isSuccess": True,
+#                         "result": {}
+#                     }
+#                 }
+#             }
+#         },
+#     },
+# )
 async def update_query_template_endpoint(
     queryNo: str,
     request: QueryTemplateUpdateRequest,
@@ -103,7 +103,7 @@ async def update_query_template_endpoint(
         raise
 
 
-@router.patch(
+@router.put(
     "/query-templates/{queryNo}",
     response_model=BaseResponse[QueryTemplateDetailResponse],
     status_code=status.HTTP_200_OK,

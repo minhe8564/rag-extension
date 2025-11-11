@@ -27,28 +27,28 @@ def _bytes_to_uuid_str(b: bytes) -> str:
         return b.hex()
 
 
-@router.put(
-    "/ingest-templates/{ingestNo}",
-    response_model=BaseResponse[IngestTemplateDetailResponse],
-    summary="Ingest 템플릿 수정 (관리자 전용)",
-    description="Ingest 템플릿을 수정합니다. 관리자만 접근 가능합니다.",
-    responses={
-        200: {
-            "description": "Ingest 템플릿 수정에 성공하였습니다.",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "status": 200,
-                        "code": "OK",
-                        "message": "Ingest 템플릿 수정 성공",
-                        "isSuccess": True,
-                        "result": { }
-                    }
-                }
-            }
-        }
-    }       
-)
+# @router.put(
+#     "/ingest-templates/{ingestNo}",
+#     response_model=BaseResponse[IngestTemplateDetailResponse],
+#     summary="Ingest 템플릿 수정 (관리자 전용)",
+#     description="Ingest 템플릿을 수정합니다. 관리자만 접근 가능합니다.",
+#     responses={
+#         200: {
+#             "description": "Ingest 템플릿 수정에 성공하였습니다.",
+#             "content": {
+#                 "application/json": {
+#                     "example": {
+#                         "status": 200,
+#                         "code": "OK",
+#                         "message": "Ingest 템플릿 수정 성공",
+#                         "isSuccess": True,
+#                         "result": { }
+#                     }
+#                 }
+#             }
+#         }
+#     }       
+# )
 async def update_ingest_template_endpoint(
     ingestNo: str,
     request: IngestTemplateUpdateRequest,
@@ -159,7 +159,7 @@ async def update_ingest_template_endpoint(
     )
 
 
-@router.patch(
+@router.put(
     "/ingest-templates/{ingestNo}",
     response_model=BaseResponse[IngestTemplateDetailResponse],
     summary="Ingest 템플릿 부분 수정 (관리자 전용)",
