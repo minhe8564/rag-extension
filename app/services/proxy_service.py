@@ -11,7 +11,7 @@ async def proxy_request(
     request: Request,
     target_url: str,
     path_prefix: str = "",
-    timeout: float = 30.0
+    timeout: float = 3600.0
 ):
     """
     범용 프록시 서비스 - 모든 HTTP 메서드 지원
