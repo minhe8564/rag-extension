@@ -1,6 +1,7 @@
 ﻿from __future__ import annotations
+import asyncio
 
-from fastapi import APIRouter, Depends, File as FFile, UploadFile, Request, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, Depends, File as FFile, UploadFile, Request, HTTPException, status, Query, BackgroundTasks
 from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
@@ -20,24 +21,26 @@ router = APIRouter(prefix="/files", tags=["File"])
 
 logger = logging.getLogger(__name__)
 
-
 @router.post("", response_model=BaseResponse[FileUploadBatchResult], status_code=201)
 async def upload_file(
     http_request: Request,
+    background_tasks: BackgroundTasks,
     request: FileUploadRequest = Depends(FileUploadRequest.as_form),
     files: List[UploadFile] = FFile(...),
     session: AsyncSession = Depends(get_db),
-    background_tasks: BackgroundTasks = None,
+    autoIngest: bool = Query(
+        True,
+        description="업로드 후 백그라운드 Ingest 실행 여부 (true=실행, false=미실행)",
+    ),
 ):
-    # Request is injected by FastAPI
     x_user_role = http_request.headers.get("x-user-role")
     x_user_uuid = http_request.headers.get("x-user-uuid")
     if not x_user_role or not x_user_uuid:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="x-user-role/x-user-uuid headers required")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="x-user-role/x-user-uuid headers required",
+        )
 
-    # Role-based branching
-    # - USER: ignore provided bucket/collection; use personal (offer_no) bucket
-    # - ADMIN: allow explicit bucket/collection
     role_upper = (x_user_role or "").upper()
     if role_upper == "ADMIN":
         effective_bucket = request.bucket
@@ -53,7 +56,6 @@ async def upload_file(
         files_payload.append((content, f.filename or "uploaded", f.content_type))
         file_sizes.append(len(content))
 
-    # Persist and upload files; errors here should fail the request
     try:
         batch_meta, file_nos = await upload_files_service(
             session,
@@ -65,78 +67,63 @@ async def upload_file(
             collection_no=effective_collection,
             user_role=role_upper,
         )
-    except HTTPException:
-        logger.exception("Upload failed with HTTPException")
-        raise
     except Exception:
-        logger.exception("Unexpected error during file upload")
+        logger.exception("Upload failed")
         raise
 
-    # Best-effort: write Redis run meta for each file
-    try:
-        redis = get_redis_client()
-        n = len(batch_meta.files)
-        run_ids: list[str] = []
-        if n > 0:
-            base = await redis.incrby("ingest:run:seq", n)
-            start = base - (n - 1)
-            run_ids = [str(start + i) for i in range(n)]
-
-        pipe = redis.pipeline(transaction=False)
-
-        now_iso = datetime.now(timezone.utc).isoformat()
-        # batch_meta.files order matches input order; align sizes accordingly
-        for idx, fmeta in enumerate(batch_meta.files):
-            run_id = run_ids[idx] if idx < len(run_ids) else str(idx)
-            meta_key = f"ingest:run:{run_id}:meta"
-            # HSET with required fields
-            pipe.hset(
-                meta_key,
-                mapping={
-                    "userId": x_user_uuid,
-                    "fileNo": fmeta.fileNo,
-                    "fileName": fmeta.fileName,
-                    "fileCategory": request.category,
-                    "bucket": batch_meta.bucket,
-                    "size": str(file_sizes[idx]) if idx < len(file_sizes) else "0",
-                    "status": "PENDING",
-                    "currentStep": "UPLOAD",
-                    "progressPct": "0",
-                    "overallPct": "0",
-                    "createdAt": now_iso,
-                    "updatedAt": now_iso,
-                },
-            )
-            # optional TTL
-            if getattr(settings, "ingest_meta_ttl_sec", 0) and settings.ingest_meta_ttl_sec > 0:
-                pipe.expire(meta_key, settings.ingest_meta_ttl_sec)
-            # Add run id to user's running set
-            pipe.sadd(f"ingest:user:{x_user_uuid}:runs", run_id)
-
-        await pipe.execute()
-    except Exception:
-        logger.exception("Failed to write ingest run metadata to Redis")
-
-    # Then register background ingest task (best-effort)
-    if background_tasks is not None:
+    # ingest 옵션이 true일 때만 수행
+    if autoIngest:
         try:
-            background_tasks.add_task(
-                call_ingest,
-                user_role=x_user_role,
-                user_uuid=x_user_uuid,
-                batch_meta=batch_meta,
-            )
+            redis = get_redis_client()
+            n = len(batch_meta.files)
+            base = await redis.incrby("ingest:run:seq", n)
+            run_ids = [str(base - (n - 1) + i) for i in range(n)]
+
+            pipe = redis.pipeline(transaction=False)
+            now_iso = datetime.now(timezone.utc).isoformat()
+            for idx, fmeta in enumerate(batch_meta.files):
+                run_id = run_ids[idx]
+                meta_key = f"ingest:run:{run_id}:meta"
+                pipe.hset(
+                    meta_key,
+                    mapping={
+                        "userId": x_user_uuid,
+                        "fileNo": fmeta.fileNo,
+                        "fileName": fmeta.fileName,
+                        "fileCategory": request.category,
+                        "bucket": batch_meta.bucket,
+                        "size": str(file_sizes[idx]),
+                        "status": "PENDING",
+                        "currentStep": "UPLOAD",
+                        "progressPct": "0",
+                        "overallPct": "0",
+                        "createdAt": now_iso,
+                        "updatedAt": now_iso,
+                    },
+                )
+                if getattr(settings, "ingest_meta_ttl_sec", 0) > 0:
+                    pipe.expire(meta_key, settings.ingest_meta_ttl_sec)
+                pipe.sadd(f"ingest:user:{x_user_uuid}:runs", run_id)
+            await pipe.execute()
         except Exception:
-            logger.exception("Failed to register background ingest task")
+            logger.exception("Failed to write ingest run metadata to Redis")
+
+        # ingest 비동기 호출
+        if background_tasks is not None:
+            try:
+                background_tasks.add_task(
+                    call_ingest,
+                    user_role=role_upper,
+                    user_uuid=x_user_uuid,
+                    batch_meta=batch_meta,
+                )
+            except Exception:
+                logger.exception("Failed to register background ingest task")
 
     return BaseResponse[FileUploadBatchResult](
         status=201,
         code="CREATED",
         message="업로드 완료",
         isSuccess=True,
-        result={
-            "data": FileUploadBatchResult(
-                fileNos=file_nos,
-            )
-        },
+        result={"data": FileUploadBatchResult(fileNos=file_nos)},
     )
