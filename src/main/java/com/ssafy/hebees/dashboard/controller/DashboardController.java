@@ -1,9 +1,9 @@
 package com.ssafy.hebees.dashboard.controller;
 
-import com.ssafy.hebees.dashboard.service.AnalyticsExpenseStreamService;
 import com.ssafy.hebees.common.response.BaseResponse;
 import com.ssafy.hebees.dashboard.dto.request.ErrorMetricIncrementRequest;
 import com.ssafy.hebees.dashboard.dto.request.MetricIncrementRequest;
+import com.ssafy.hebees.dashboard.dto.request.ModelExpenseUsageRequest;
 import com.ssafy.hebees.dashboard.dto.request.TimeSeriesRequest;
 import com.ssafy.hebees.dashboard.dto.request.TrendKeywordCreateRequest;
 import com.ssafy.hebees.dashboard.dto.request.TrendKeywordRequest;
@@ -12,12 +12,14 @@ import com.ssafy.hebees.dashboard.dto.response.ChatbotTimeSeriesResponse;
 import com.ssafy.hebees.dashboard.dto.response.ChatroomsTodayResponse;
 import com.ssafy.hebees.dashboard.dto.response.ErrorsTodayResponse;
 import com.ssafy.hebees.dashboard.dto.response.HeatmapResponse;
+import com.ssafy.hebees.dashboard.dto.response.ModelPriceResponse;
 import com.ssafy.hebees.dashboard.dto.response.ModelTimeSeriesResponse;
 import com.ssafy.hebees.dashboard.dto.response.TotalDocumentsResponse;
 import com.ssafy.hebees.dashboard.dto.response.TotalErrorsResponse;
 import com.ssafy.hebees.dashboard.dto.response.TotalUsersResponse;
 import com.ssafy.hebees.dashboard.dto.response.TrendKeywordCreateResponse;
 import com.ssafy.hebees.dashboard.dto.response.TrendKeywordsResponse;
+import com.ssafy.hebees.dashboard.service.AnalyticsExpenseStreamService;
 import com.ssafy.hebees.dashboard.service.DashboardMetricStreamService;
 import com.ssafy.hebees.dashboard.service.DashboardService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -169,6 +171,21 @@ public class DashboardController {
         @RequestHeader(name = "Last-Event-ID", required = false) String lastEventId
     ) {
         return analyticsExpenseStreamService.subscribeExpenseStream(lastEventId);
+    }
+
+    @PostMapping("/metrics/models/increment")
+    @Operation(summary = "모델 사용량 갱신", description = "모델별 입력/출력 토큰 사용량과 응답 시간을 기록하고 SSE 구독자에게 최신 비용 정보를 전송합니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "집계 및 SSE 갱신 성공")
+    })
+    public ResponseEntity<BaseResponse<ModelPriceResponse>> recordExpenseUsage(
+        @Valid @RequestBody ModelExpenseUsageRequest request
+    ) {
+        ModelPriceResponse response = analyticsExpenseStreamService.recordModelUsage(
+            request.modelNo(), request.inputTokens(), request.outputTokens(),
+            request.responseTimeMs());
+        return ResponseEntity.ok(
+            BaseResponse.of(HttpStatus.OK, response, "모델 비용 집계를 업데이트하였습니다."));
     }
 
     @PostMapping("/metrics/access-users/increment")

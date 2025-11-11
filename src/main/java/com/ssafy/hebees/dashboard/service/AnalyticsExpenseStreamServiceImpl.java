@@ -5,12 +5,15 @@ import com.ssafy.hebees.dashboard.dto.response.ModelPriceResponse;
 import com.ssafy.hebees.dashboard.entity.ModelAggregateHourly;
 import com.ssafy.hebees.dashboard.repository.ModelAggregateHourlyRepository;
 import com.ssafy.hebees.ragsetting.entity.ModelPrice;
+import com.ssafy.hebees.ragsetting.entity.Strategy;
 import com.ssafy.hebees.ragsetting.repository.ModelPriceRepository;
+import com.ssafy.hebees.ragsetting.repository.StrategyRepository;
 import jakarta.annotation.Nullable;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -26,6 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import org.springframework.util.StringUtils;
 
 @Slf4j
 @Service
@@ -38,6 +42,7 @@ public class AnalyticsExpenseStreamServiceImpl implements AnalyticsExpenseStream
 
     private final ModelAggregateHourlyRepository modelAggregateHourlyRepository;
     private final ModelPriceRepository modelPriceRepository;
+    private final StrategyRepository strategyRepository;
 
     private final Set<SseEmitter> emitters = new CopyOnWriteArraySet<>();
     private volatile ModelPriceResponse lastBroadcast;
@@ -62,20 +67,45 @@ public class AnalyticsExpenseStreamServiceImpl implements AnalyticsExpenseStream
     }
 
     @Override
-    public void notifyExpenseChanged() {
-        if (emitters.isEmpty()) {
-            return;
-        }
+    @Transactional
+    public ModelPriceResponse recordModelUsage(UUID modelId, long inputTokens, long outputTokens,
+        long responseTimeMs) {
+        Objects.requireNonNull(modelId, "modelId must not be null");
 
+        long safeInputTokens = Math.max(inputTokens, 0L);
+        long safeOutputTokens = Math.max(outputTokens, 0L);
+        long safeResponseTimeMs = Math.max(responseTimeMs, 0L);
+
+        LocalDateTime bucket = LocalDateTime.now(MonitoringUtils.KST).truncatedTo(ChronoUnit.HOURS);
+
+        ModelAggregateHourly aggregate = modelAggregateHourlyRepository
+            .findByLlmNoAndAggregateDateTime(modelId, bucket)
+            .orElseGet(() -> createAggregate(bucket, modelId));
+
+        aggregate.recordUsage(safeInputTokens, safeOutputTokens, safeResponseTimeMs);
+        modelAggregateHourlyRepository.save(aggregate);
+
+        return refreshSnapshotAndBroadcast();
+    }
+
+    @Override
+    public void notifyExpenseChanged() {
         try {
-            ModelPriceResponse snapshot = loadCurrentExpenseSnapshot();
-            if (!snapshot.equals(lastBroadcast)) {
-                lastBroadcast = snapshot;
-                broadcastUpdate(snapshot);
-            }
+            refreshSnapshotAndBroadcast();
         } catch (Exception e) {
             log.warn("Failed to broadcast analytics expense snapshot: {}", e.getMessage(), e);
         }
+    }
+
+    private ModelPriceResponse refreshSnapshotAndBroadcast() {
+        ModelPriceResponse snapshot = loadCurrentExpenseSnapshot();
+        if (lastBroadcast == null || !snapshot.equals(lastBroadcast)) {
+            lastBroadcast = snapshot;
+            broadcastUpdate(snapshot);
+        } else {
+            lastBroadcast = snapshot;
+        }
+        return snapshot;
     }
 
     private void broadcastUpdate(ModelPriceResponse snapshot) {
@@ -118,6 +148,14 @@ public class AnalyticsExpenseStreamServiceImpl implements AnalyticsExpenseStream
         log.debug("Removed analytics expense stream emitter. Remaining={}", emitters.size());
     }
 
+    private ModelAggregateHourly createAggregate(LocalDateTime bucket, UUID modelId) {
+        return ModelAggregateHourly.builder()
+            .aggregateNo(UUID.randomUUID())
+            .aggregateDateTime(bucket)
+            .llmNo(modelId)
+            .build();
+    }
+
     private ModelPriceResponse loadCurrentExpenseSnapshot() {
         LocalDateTime now = LocalDateTime.now(MonitoringUtils.KST);
         LocalDate today = now.toLocalDate();
@@ -142,14 +180,28 @@ public class AnalyticsExpenseStreamServiceImpl implements AnalyticsExpenseStream
 
             accumulator.addInputTokens(aggregate.getInputTokens());
             accumulator.addOutputTokens(aggregate.getOutputTokens());
-            accumulator.updateModelName(aggregate.getLlmName());
         }
 
         if (accumulators.isEmpty()) {
             return ModelPriceResponse.of(now, List.of());
         }
 
-        Iterable<UUID> modelIds = Objects.requireNonNull(List.copyOf(accumulators.keySet()));
+        List<UUID> modelIds = Objects.requireNonNull(List.copyOf(accumulators.keySet()));
+
+        strategyRepository.findAllById(modelIds).stream()
+            .filter(Objects::nonNull)
+            .forEach(strategy -> {
+                UUID strategyNo = strategy.getStrategyNo();
+                if (strategyNo == null) {
+                    return;
+                }
+                ModelAccumulator accumulator = accumulators.get(strategyNo);
+                if (accumulator == null) {
+                    return;
+                }
+                accumulator.updateModelName(resolveStrategyName(strategy));
+            });
+
         Map<UUID, ModelPrice> pricesByModel = modelPriceRepository.findAllById(modelIds).stream()
             .collect(Collectors.toMap(ModelPrice::getLlmNo, Function.identity()));
 
@@ -191,12 +243,24 @@ public class AnalyticsExpenseStreamServiceImpl implements AnalyticsExpenseStream
     }
 
     private String resolveModelName(ModelAggregateHourly aggregate) {
-        String name = aggregate.getLlmName();
-        if (name != null && !name.isBlank()) {
-            return name;
-        }
         UUID llmNo = aggregate.getLlmNo();
         return llmNo != null ? llmNo.toString() : "UNKNOWN";
+    }
+
+    private String resolveStrategyName(Strategy strategy) {
+        if (strategy == null) {
+            return null;
+        }
+        String name = strategy.getName();
+        if (StringUtils.hasText(name)) {
+            return name;
+        }
+        String code = strategy.getCode();
+        if (StringUtils.hasText(code)) {
+            return code;
+        }
+        UUID strategyNo = strategy.getStrategyNo();
+        return strategyNo != null ? strategyNo.toString() : null;
     }
 
     private static class ModelAccumulator {
@@ -222,7 +286,7 @@ public class AnalyticsExpenseStreamServiceImpl implements AnalyticsExpenseStream
         }
 
         void updateModelName(String candidate) {
-            if (candidate != null && !candidate.isBlank()) {
+            if (StringUtils.hasText(candidate)) {
                 modelName = candidate;
             }
         }
