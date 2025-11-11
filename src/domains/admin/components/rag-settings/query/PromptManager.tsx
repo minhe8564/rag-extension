@@ -1,111 +1,166 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Plus, Save, Trash2 } from 'lucide-react';
 import Select from '@/shared/components/Select';
 import ConfirmModal from '@/shared/components/ConfirmModal';
+import { toast } from 'react-toastify';
 
-type Prompt = { id: string; name: string; content: string };
+import type { PromptType, Prompt } from '@/domains/admin/types/rag-settings/prompts.types';
+import {
+  getPrompts,
+  getPromptDetail,
+  createPrompt,
+  updatePrompt,
+  deletePrompt,
+} from '@/domains/admin/api/rag-settings/prompts.api';
 
 type Props = {
   storageKey: string;
-  initialPrompts?: Prompt[];
+  initialPrompts?: Array<{ id: string; name: string; content: string }>;
   onChange?: (prompts: Prompt[]) => void;
 };
 
-const uid = () => Math.random().toString(36).slice(2, 10);
+const DEFAULT_TYPE: PromptType = 'user';
+const makeDescription = (content: string, max = 120) =>
+  (content ?? '').replace(/\s+/g, ' ').slice(0, max);
 
-export default function PromptManager({ storageKey, initialPrompts, onChange }: Props) {
-  const lsKey = `pm:${storageKey}`;
+export default function PromptManager({ initialPrompts, onChange }: Props) {
+  const [prompts, setPrompts] = useState<Prompt[]>(
+    (initialPrompts ?? []).map((p) => ({
+      promptNo: p.id,
+      name: p.name,
+      content: p.content,
+      type: DEFAULT_TYPE,
+      description: makeDescription(p.content),
+    }))
+  );
 
-  const load = (): Prompt[] => {
-    const raw = localStorage.getItem(lsKey);
-    if (raw) return JSON.parse(raw);
-    return initialPrompts ?? [];
-  };
-
-  const [prompts, setPrompts] = useState<Prompt[]>(load());
-  const [selectedId, setSelectedId] = useState<string | null>(prompts[0]?.id ?? null);
+  const [selectedNo, setSelectedNo] = useState<string | null>(prompts[0]?.promptNo ?? null);
   const [draft, setDraft] = useState<Prompt | null>(prompts[0] ?? null);
+
   const [isNew, setIsNew] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
+
   const [openDelete, setOpenDelete] = useState(false);
 
+  const [listLoading, setListLoading] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false); // ✅ 복구됨
+
+  const reloadList = async (selectAfter?: string | null) => {
+    setListLoading(true);
+
+    const { data } = await getPrompts({ pageNum: 1, pageSize: 100 });
+
+    setPrompts(data);
+    onChange?.(data);
+
+    const nextId = selectAfter ?? data[0]?.promptNo ?? null;
+    setSelectedNo(nextId);
+
+    if (nextId) {
+      const detail = await getPromptDetail(nextId);
+      setDraft(detail);
+    } else {
+      setDraft(null);
+    }
+
+    setIsNew(false);
+    setIsDirty(false);
+    setListLoading(false);
+  };
+
+  useEffect(() => {
+    reloadList(selectedNo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const selected = useMemo(
-    () => (selectedId ? (prompts.find((p) => p.id === selectedId) ?? null) : null),
-    [prompts, selectedId]
+    () => (selectedNo ? (prompts.find((p) => p.promptNo === selectedNo) ?? null) : null),
+    [prompts, selectedNo]
   );
 
   const selectOptions = useMemo(
     () =>
       prompts.map((p) => ({
         label: p.name,
-        value: p.id,
-        desc: p.content.slice(0, 60),
+        value: p.promptNo,
+        desc: p.description || makeDescription(p.content ?? ''),
       })),
     [prompts]
   );
 
-  const persist = (next: Prompt[]) => {
-    setPrompts(next);
-    localStorage.setItem(lsKey, JSON.stringify(next));
-    onChange?.(next);
-  };
+  const handleSelect = async (id: string) => {
+    setDetailLoading(true);
 
-  const handleSelect = (id: string) => {
-    const target = prompts.find((p) => p.id === id);
-    if (!target) return;
-    setSelectedId(id);
-    setDraft({ ...target });
+    const detail = await getPromptDetail(id);
+    setSelectedNo(id);
+    setDraft(detail);
     setIsNew(false);
     setIsDirty(false);
+
+    setDetailLoading(false);
   };
 
   const addNew = () => {
-    const fresh: Prompt = { id: uid(), name: '', content: '' };
-    setDraft(fresh);
-    setSelectedId(null);
+    setDraft({
+      promptNo: '',
+      name: '',
+      content: '',
+      type: DEFAULT_TYPE,
+      description: '',
+    });
+
+    setSelectedNo(null);
     setIsNew(true);
     setIsDirty(true);
   };
 
-  const onClickDelete = () => {
-    if (isNew || !selected) return;
-    setOpenDelete(true);
-  };
-
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!selected) return;
 
-    const next = prompts.filter((p) => p.id !== selected.id);
-    persist(next);
+    setDeleting(true); // ✅ 시작
+    await deletePrompt(selected.promptNo);
 
-    if (next.length === 0) {
-      setSelectedId(null);
-      setDraft(null);
-    } else {
-      setSelectedId(next[0].id);
-      setDraft({ ...next[0] });
-    }
-    setIsNew(false);
-    setIsDirty(false);
+    toast.success('프롬프트가 삭제되었습니다.');
     setOpenDelete(false);
+
+    await reloadList(null);
+    setDeleting(false); // ✅ 끝
   };
 
-  const save = () => {
+  const save = async () => {
     if (!(draft && (isDirty || isNew))) return;
 
-    if (isNew) {
-      const next = [draft, ...prompts];
-      persist(next);
-      setSelectedId(draft.id);
-      setIsNew(false);
+    const payload = {
+      name: draft.name?.trim(),
+      type: draft.type ?? DEFAULT_TYPE,
+      description:
+        (draft.description && draft.description.trim()) || makeDescription(draft.content ?? ''),
+      content: draft.content ?? '',
+    };
+
+    if (!payload.name) return toast.warn('이름을 입력해주세요.');
+    if (!payload.content) return toast.warn('내용을 입력해주세요.');
+
+    setSaving(true);
+
+    if (isNew || !draft.promptNo) {
+      const createdNo = await createPrompt(payload);
+      toast.success('프롬프트가 생성되었습니다.');
+      await reloadList(createdNo);
+    } else {
+      const updated = await updatePrompt(draft.promptNo, payload);
+      setPrompts((prev) =>
+        prev.map((p) => (p.promptNo === updated.promptNo ? { ...p, ...updated } : p))
+      );
+      setDraft(updated);
       setIsDirty(false);
-      return;
+      toast.success('프롬프트가 저장되었습니다.');
     }
 
-    if (!selected) return;
-    const next = prompts.map((p) => (p.id === selected.id ? { ...draft } : p));
-    persist(next);
-    setIsDirty(false);
+    setSaving(false);
+    setIsNew(false);
   };
 
   return (
@@ -114,61 +169,48 @@ export default function PromptManager({ storageKey, initialPrompts, onChange }: 
         <div className="flex flex-wrap items-center gap-2">
           <div className="max-w-xs w-full">
             <Select
-              value={isNew ? null : selectedId}
+              value={isNew ? null : selectedNo}
               onChange={(id) => handleSelect(id)}
               options={selectOptions}
-              placeholder="템플릿 선택"
-              disabled={prompts.length === 0}
-              className="focus:outline-none"
+              placeholder={listLoading ? '불러오는 중…' : '프롬프트 선택'}
+              disabled={listLoading || prompts.length === 0}
             />
           </div>
 
           <button
             type="button"
             onClick={addNew}
-            className="inline-flex items-center gap-2 rounded-lg border bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
-            title="새 템플릿"
+            disabled={detailLoading || saving}
+            className="btn-secondary"
           >
-            <Plus className="size-4" /> 새 템플릿
+            <Plus className="size-4" /> 새 프롬프트
           </button>
 
           <button
             type="button"
-            onClick={onClickDelete}
-            disabled={isNew || !selected}
+            onClick={() => setOpenDelete(true)}
+            disabled={isNew || !selected || detailLoading}
             className={`flex items-center gap-2 rounded-lg text-gray-700 border border-gray-200 px-3 py-2 text-sm font-medium ${
-              isNew || !selected
+              isNew || !selected || detailLoading
                 ? 'cursor-not-allowed opacity-40'
                 : 'border-black text-black hover:bg-gray-50'
             }`}
-            title={
-              isNew
-                ? '새 템플릿은 삭제할 항목이 없어요'
-                : !selected
-                  ? '선택된 템플릿이 없어요'
-                  : '삭제'
-            }
           >
-            <Trash2 className="size-4" /> 삭제
+            <Trash2 className="size-4" /> {deleting ? '삭제 중…' : '삭제'}
           </button>
 
           <button
             type="button"
             onClick={save}
-            disabled={!(draft && (isDirty || isNew))}
-            className={`flex items-center gap-2 rounded-lg text-gray-700 border border-gray-200 px-3 py-2 text-sm font-medium ${
-              draft && (isDirty || isNew)
-                ? 'border-[var(--color-hebees)] text-[var(--color-hebees)] hover:bg-[var(--color-hebees-bg)]'
-                : 'cursor-not-allowed opacity-40'
-            }`}
-            title={draft && (isDirty || isNew) ? '저장' : '변경 사항이 없어요'}
+            disabled={!(draft && (isDirty || isNew)) || saving || detailLoading}
+            className="btn-primary"
           >
-            <Save className="size-4" /> 저장
+            <Save className="size-4" /> {saving ? '저장 중…' : '저장'}
           </button>
         </div>
 
         <input
-          className="w-full rounded-md border border-gray-200 px-3 py-2 text-base focus:outline-none focus:ring-0 focus:border-gray-400"
+          className="input"
           value={draft?.name ?? ''}
           onChange={(e) => {
             if (!draft) return;
@@ -176,28 +218,35 @@ export default function PromptManager({ storageKey, initialPrompts, onChange }: 
             setIsDirty(true);
           }}
           placeholder="프롬프트 이름"
-          disabled={!draft}
+          disabled={!draft || detailLoading}
         />
 
         <textarea
-          className="w-full min-h-[240px] rounded-md border border-gray-200 px-3 py-2 text-sm leading-6 focus:outline-none focus:ring-0 focus:border-gray-400"
+          className="textarea min-h-[240px]"
           value={draft?.content ?? ''}
           onChange={(e) => {
             if (!draft) return;
-            setDraft((d) => ({ ...(d as Prompt), content: e.target.value }));
+            const content = e.target.value;
+            setDraft((d) => ({
+              ...(d as Prompt),
+              content,
+              description: makeDescription(content),
+              type: d?.type ?? DEFAULT_TYPE,
+            }));
             setIsDirty(true);
           }}
           placeholder="프롬프트 내용을 입력하세요"
-          disabled={!draft}
+          disabled={!draft || detailLoading}
         />
       </div>
+
       <ConfirmModal
         open={openDelete}
-        onClose={() => setOpenDelete(false)}
+        onClose={() => !deleting && setOpenDelete(false)}
         onConfirm={confirmDelete}
-        title="템플릿을 삭제할까요?"
-        message={`"${selected?.name ?? ''}" 템플릿을 \n 삭제하면 되돌릴 수 없습니다.`}
-        confirmText="삭제"
+        title="프롬프트를 삭제할까요?"
+        message={`"${selected?.name ?? ''}" 프롬프트를 삭제하면 되돌릴 수 없습니다.`}
+        confirmText={deleting ? '삭제 중…' : '삭제'}
         cancelText="취소"
         variant="danger"
       />
