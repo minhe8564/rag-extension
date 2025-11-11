@@ -10,6 +10,16 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
 
+    # CORS
+    allowed_origins: str = "http://localhost:5173,http://localhost:3000"
+
+    @property
+    def allowed_origins_list(self) -> list[str]:
+        try:
+            return [origin.strip() for origin in (self.allowed_origins or "").split(",") if origin.strip()]
+        except Exception:
+            return ["*"]
+
     # OpenAI 설정
     openai_api_key: str
 

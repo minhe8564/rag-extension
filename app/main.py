@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from . import __version__, __title__, __description__
-from .config import settings
+from .core.settings import settings
 from .routers import router
 from datetime import datetime
 from .core.openapi import custom_openapi
