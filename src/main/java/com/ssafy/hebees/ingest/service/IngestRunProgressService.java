@@ -2,17 +2,20 @@ package com.ssafy.hebees.ingest.service;
 
 import com.ssafy.hebees.common.exception.BusinessException;
 import com.ssafy.hebees.common.exception.ErrorCode;
-import com.ssafy.hebees.ingest.dto.response.IngestRunProgressResponse;
+import com.ssafy.hebees.ingest.dto.response.*;
+// import removed: IngestProgressSummaryPageResponse no longer used
+import com.ssafy.hebees.common.dto.PageRequest;
+import com.ssafy.hebees.common.dto.PageResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.data.domain.Range;
 import com.ssafy.hebees.common.util.RedisStreamUtils;
+import com.ssafy.hebees.common.util.RedisIngestUtils;
 import org.springframework.data.redis.connection.stream.MapRecord;
 import org.springframework.data.redis.core.*;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.time.Duration;
+import java.util.HashMap;
 
 @Slf4j
 @Service
@@ -26,72 +29,30 @@ public class IngestRunProgressService {
         this.ingestRedisTemplate = ingestRedisTemplate;
     }
 
-    /**
-     * 현재 사용자(UUID)의 진행 중인 최신 수집(run)을 찾아 최신 스냅샷(Hash)과 이벤트 스트림의 마지막 ID를 조합하여 진행 상태를 반환
-     */
-    public IngestRunProgressResponse getLatestProgressForUser(java.util.UUID userUuid) {
-        // 연결된 Redis 정보와 PING 로깅 (DB 인덱스 확인)
-        try {
-            var cf = ingestRedisTemplate.getConnectionFactory();
-            if (cf instanceof org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory lcf) {
-                //log.info("[INGEST] Redis DB={} host={} port={}", lcf.getDatabase(), lcf.getHostName(), lcf.getPort());
-            }
-            String ping = ingestRedisTemplate.execute((RedisCallback<String>) conn -> conn.ping());
-            //log.info("[INGEST] PING => {}", ping);
-        } catch (Exception e) {
-            //log.warn("[INGEST] Redis connectivity check failed: {}", e.getMessage());
-        }
-        log.info("[INGEST] 진행 상황 조회 시작 - userUuid={}", userUuid);
-        String runId = resolveActiveRunId(userUuid);
-        log.info("[INGEST] 후보 선정 완료 - runId={}", runId);
+    // ===== SSE 전용 보조 메서드 =====
 
-        // 문서 정보(meta) 조회
+    public String getActiveRunId(java.util.UUID userUuid) {
+        return resolveActiveRunId(userUuid);
+    }
+
+    public java.util.Map<Object, Object> getMeta(String runId) {
         HashOperations<String, Object, Object> hops = ingestRedisTemplate.opsForHash();
-        String metaKey = metaKey(runId);
-        Object docId = hops.get(metaKey, "docId");
-        Object docName = hops.get(metaKey, "docName");
+        return hops.entries(RedisIngestUtils.runMetaKey(runId));
+    }
 
-        // 진행 상태(latest 스냅샷) 조회
-        String latestKey = latestKey(runId);
-        java.util.Map<Object, Object> latest = hops.entries(latestKey);
-        if (latest == null || latest.isEmpty()) {
-            log.info("[INGEST] latest 스냅샷 비어있음 - key={}", latestKey);
-            // 스냅샷이 없으면 스트림의 마지막 레코드로 대체
-            List<MapRecord<String, Object, Object>> records = RedisStreamUtils.getLatestRecords(
-                ingestRedisTemplate, streamKey(runId), null);
-            int count = (records == null ? 0 : records.size());
-            log.info("[INGEST] 스트림 조회 결과 - key={}, count={}", streamKey(runId), count);
-            if (records == null || records.isEmpty()) {
-                log.warn("[INGEST] 진행률 없음 - userUuid={}, runId={}, snapshot/stream 모두 비어있음",
-                    userUuid, runId);
-                throw new BusinessException(ErrorCode.NOT_FOUND);
-            }
-            MapRecord<String, Object, Object> rec = records.get(0);
-            java.util.Map<?, ?> f = rec.getValue();
-            log.info("[INGEST] 스트림 최신 사용 - id={}, step={}, processed={}, total={}, status={}",
-                rec.getId().getValue(), f.get("step"), f.get("processed"), f.get("total"),
-                f.get("status"));
-            return IngestRunProgressResponse.fromRecordWithMeta(rec, runId, docId, docName);
-        }
-
-        // 선택: 마지막 스트림 ID 조회
-        String id = null;
-        try {
-            id = RedisStreamUtils.getLatestRecordId(ingestRedisTemplate, streamKey(runId));
-        } catch (Exception ignore) {
-        }
-
-        log.info("[INGEST] latest 스냅샷 사용 - key={}, step={}, processed={}, total={}, status={}",
-            latestKey, latest.get("step"), latest.get("processed"), latest.get("total"),
-            latest.get("status"));
-        return IngestRunProgressResponse.fromLatestSnapshot(runId, docId, docName, latest, id);
+    public IngestProgressEventResponse toEventFromRecord(java.util.UUID userUuid,
+        String runId,
+        java.util.Map<Object, Object> meta,
+        org.springframework.data.redis.connection.stream.MapRecord<String, Object, Object> rec) {
+        java.util.Map<?, ?> fields = rec.getValue();
+        return IngestProgressEventResponse.fromMaps(meta, fields, userUuid, null);
     }
 
     /**
      * 사용자 실행 목록(Set)과 각 run의 meta 해시를 확인하여 상태가 RUNNING 이고 createdAt이 가장 최신인 runId를 선택합니다.
      */
     private String resolveActiveRunId(java.util.UUID userUuid) {
-        String setKey = userRunsKey(userUuid.toString());
+        String setKey = RedisIngestUtils.userRunsKey(userUuid.toString());
         SetOperations<String, String> sops = ingestRedisTemplate.opsForSet();
         java.util.Set<String> runIds = sops.members(setKey);
         if (runIds == null || runIds.isEmpty()) {
@@ -103,11 +64,11 @@ public class IngestRunProgressService {
         String selected = null;
         long selectedCreatedAt = Long.MIN_VALUE;
         for (String runId : runIds) {
-            String metaKey = metaKey(runId);
+            String metaKey = RedisIngestUtils.runMetaKey(runId);
             Object status = hops.get(metaKey, "status");
             Object created = hops.get(metaKey, "createdAt");
-            log.info("[INGEST] 후보 run 검사 - runId={}, status={}, createdAt={}", runId, status,
-                created);
+            //log.info("[INGEST] 후보 run 검사 - runId={}, status={}, createdAt={}", runId, status,
+            //    created);
             if (status != null && "RUNNING".equalsIgnoreCase(status.toString())) {
                 long createdAt = 0L;
                 try {
@@ -131,22 +92,8 @@ public class IngestRunProgressService {
     }
 
     // Redis 키 유틸리티
-    private String userRunsKey(String userUuid) {
-        return "ingest:user:" + userUuid + ":runs";
-    }
-
-    private String metaKey(String runId) {
-        return "ingest:run:" + runId + ":meta";
-    }
-
-    private String latestKey(String runId) {
-        return "ingest:run:" + runId + ":latest";
-    }
-
-    // parsing helpers removed; using IngestRunProgressResponse factory methods instead
-
     private String streamKey(String runId) {
-        return "ingest:run:" + runId + ":events";
+        return RedisIngestUtils.runEventsKey(runId);
     }
 
     /**
@@ -161,5 +108,247 @@ public class IngestRunProgressService {
             lastId,
             blockMillis,
             count);
+    }
+
+    // ===== 테스트용 이벤트 푸시 유틸 =====
+
+    public String appendEvent(String runId, java.util.Map<String, String> fields) {
+        return RedisStreamUtils.addRecord(ingestRedisTemplate, streamKey(runId), fields);
+    }
+
+    /**
+     * 연결 검증용 간단 시나리오를 푸시합니다. 순서: EXTRACTION(33.3%) -> EMBEDDING(66.6%) -> VECTOR_STORE(100%,
+     * COMPLETED) 각 단계 progressPct=100으로 설정하고, delayMs 간격으로 푸시합니다.
+     */
+    public java.util.List<String> pushTestSequence(java.util.UUID userUuid, Long delayMs) {
+        String runId = resolveActiveRunId(userUuid);
+        long delay = delayMs == null ? 0L : Math.max(0L, delayMs);
+
+        String[] steps = {"EXTRACTION", "EMBEDDING", "VECTOR_STORE"};
+        double[] overall = {33.3, 66.6, 100.0};
+        java.util.List<String> ids = new java.util.ArrayList<>(steps.length);
+
+        for (int i = 0; i < steps.length; i++) {
+            HashMap<String, String> fields = new HashMap<>();
+            fields.put("eventType", "STEP_UPDATE");
+            fields.put("step", steps[i]);
+            fields.put("status", i < steps.length - 1 ? "RUNNING" : "COMPLETED");
+            fields.put("progressPct", "100");
+            fields.put("overallPct", Double.toString(overall[i]));
+            fields.put("ts", Long.toString(System.currentTimeMillis()));
+
+            String id = appendEvent(runId, fields);
+            ids.add(id);
+
+            if (delay > 0 && i < steps.length - 1) {
+                try {
+                    Thread.sleep(delay);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        }
+        return ids;
+    }
+
+    /**
+     * 진행 중(RUNNING) 메타에 대해 각 run의 이벤트 스트림을 조회하여 단계별 퍼센티지를 포함해 반환합니다.
+     */
+    public PageResponse<IngestProgressMetaWithStepsResponse> getRunningMetaWithStepsPageForUser(
+        java.util.UUID userUuid,
+        PageRequest pageRequest
+    ) {
+        String setKey = RedisIngestUtils.userRunsKey(userUuid.toString());
+        SetOperations<String, String> sops = ingestRedisTemplate.opsForSet();
+        java.util.Set<String> runIds = sops.members(setKey);
+        if (runIds == null || runIds.isEmpty()) {
+            throw new BusinessException(ErrorCode.NOT_FOUND);
+        }
+
+        HashOperations<String, Object, Object> hops = ingestRedisTemplate.opsForHash();
+        java.util.List<IngestProgressMetaWithStepsResponse> items = new java.util.ArrayList<>();
+        for (String runId : runIds) {
+            String metaKey = RedisIngestUtils.runMetaKey(runId);
+            java.util.Map<Object, Object> meta = hops.entries(metaKey);
+            if (meta == null || meta.isEmpty()) {
+                continue;
+            }
+            Object st = meta.get("status");
+            if (st != null && "RUNNING".equalsIgnoreCase(st.toString())) {
+                IngestProgressMetaResponse base = IngestProgressMetaResponse.from(meta,
+                    java.util.Map.of());
+                java.util.List<org.springframework.data.redis.connection.stream.MapRecord<String, Object, Object>> records =
+                    com.ssafy.hebees.common.util.RedisStreamUtils.getLatestRecords(
+                        ingestRedisTemplate, streamKey(runId), 1000L);
+                java.util.List<StepProgressResponse> steps = buildSteps(base, records);
+                items.add(IngestProgressMetaWithStepsResponse.of(base, steps));
+            }
+        }
+
+        if (items.isEmpty()) {
+            throw new BusinessException(ErrorCode.NOT_FOUND);
+        }
+
+        items.sort((a, b) -> {
+            Long at = a.updatedAt() != null ? a.updatedAt() : a.createdAt();
+            Long bt = b.updatedAt() != null ? b.updatedAt() : b.createdAt();
+            long av = at == null ? 0L : at;
+            long bv = bt == null ? 0L : bt;
+            return Long.compare(bv, av);
+        });
+
+        int pageNum = pageRequest == null ? 0 : pageRequest.pageNum();
+        int pageSize = pageRequest == null ? 10 : pageRequest.pageSize();
+        long total = items.size();
+        int from = Math.min(pageNum * pageSize, (int) total);
+        int to = Math.min(from + pageSize, (int) total);
+        java.util.List<IngestProgressMetaWithStepsResponse> data = items.subList(from, to);
+        return PageResponse.of(data, pageNum, pageSize, total);
+    }
+
+    public IngestProgressSummaryListResponse getRunningMetaWithStepsPageForUserWithSummary(
+        java.util.UUID userUuid,
+        PageRequest pageRequest
+    ) {
+        String setKey = RedisIngestUtils.userRunsKey(userUuid.toString());
+        SetOperations<String, String> sops = ingestRedisTemplate.opsForSet();
+        java.util.Set<String> runIds = sops.members(setKey);
+        if (runIds == null || runIds.isEmpty()) {
+            throw new BusinessException(ErrorCode.NOT_FOUND);
+        }
+
+        HashOperations<String, Object, Object> hops = ingestRedisTemplate.opsForHash();
+
+        // Build page items (RUNNING with steps)
+        java.util.List<IngestProgressMetaWithStepsResponse> items = new java.util.ArrayList<>();
+        // Build summary over ALL runs in set
+        int total = 0;
+        int completed = 0;
+
+        for (String runId : runIds) {
+            String metaKey = RedisIngestUtils.runMetaKey(runId);
+            java.util.Map<Object, Object> meta = hops.entries(metaKey);
+            if (meta == null || meta.isEmpty()) {
+                continue;
+            }
+
+            total++;
+            Object statusObj = meta.get("status");
+            String statusStr = statusObj == null ? null : statusObj.toString();
+            if (statusStr != null && "COMPLETED".equalsIgnoreCase(statusStr)) {
+                completed++;
+            }
+            Double overall = safeParseDouble(meta.get("overallPct"));
+
+            // page items: RUNNING only
+            if (statusStr != null && "RUNNING".equalsIgnoreCase(statusStr)) {
+                IngestProgressMetaResponse base = IngestProgressMetaResponse.from(meta,
+                    java.util.Map.of());
+                java.util.List<org.springframework.data.redis.connection.stream.MapRecord<String, Object, Object>> records =
+                    com.ssafy.hebees.common.util.RedisStreamUtils.getLatestRecords(
+                        ingestRedisTemplate, streamKey(runId), 1000L);
+                java.util.List<StepProgressResponse> steps = buildSteps(base, records);
+                items.add(IngestProgressMetaWithStepsResponse.of(base, steps));
+            }
+        }
+
+        if (total == 0) {
+            throw new BusinessException(ErrorCode.NOT_FOUND);
+        }
+
+        IngestProgressSummaryResponse summary = new IngestProgressSummaryResponse(
+            completed,
+            total
+        );
+
+        // sort and paginate items
+        items.sort((a, b) -> {
+            Long at = a.updatedAt() != null ? a.updatedAt() : a.createdAt();
+            Long bt = b.updatedAt() != null ? b.updatedAt() : b.createdAt();
+            long av = at == null ? 0L : at;
+            long bv = bt == null ? 0L : bt;
+            return Long.compare(bv, av);
+        });
+
+        int pageNum = pageRequest == null ? 0 : pageRequest.pageNum();
+        int pageSize = pageRequest == null ? 10 : pageRequest.pageSize();
+        long totalItems = items.size();
+        int from = Math.min(pageNum * pageSize, (int) totalItems);
+        int to = Math.min(from + pageSize, (int) totalItems);
+        java.util.List<IngestProgressMetaWithStepsResponse> data = items.subList(from, to);
+
+        PageResponse<IngestProgressMetaWithStepsResponse> page = PageResponse.of(data, pageNum,
+            pageSize, totalItems);
+        return new IngestProgressSummaryListResponse(data, summary, page.pagination());
+    }
+
+    private static Double safeParseDouble(Object value) {
+        try {
+            return value == null ? null : Double.parseDouble(value.toString());
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private java.util.List<StepProgressResponse> buildSteps(
+        IngestProgressMetaResponse base,
+        java.util.List<org.springframework.data.redis.connection.stream.MapRecord<String, Object, Object>> records
+    ) {
+        java.util.Map<String, Double> map = new java.util.HashMap<>();
+        // 최신 이벤트부터 스캔하여 각 step의 첫 값만 채택
+        if (records != null) {
+            for (var rec : records) {
+                var fields = rec.getValue();
+                Object s = fields.get("currentStep");
+                if (s == null) {
+                    s = fields.get("step");
+                }
+                if (s == null) {
+                    continue;
+                }
+                String step = s.toString().toUpperCase();
+                if ("VECTOR_STORE".equals(step)) {
+                    step = "VECTOR_STORED";
+                }
+                if (map.containsKey(step)) {
+                    continue;
+                }
+                Double pct = parseDouble(fields.get("progressPct"));
+                if (pct == null) {
+                    Object st = fields.get("status");
+                    if (st != null && "COMPLETED".equalsIgnoreCase(st.toString())) {
+                        pct = 100.0;
+                    }
+                }
+                if (pct != null) {
+                    map.put(step, pct);
+                }
+            }
+        }
+        // 메타의 현재 단계 진행률 보강
+        if (base.currentStep() != null && base.progressPct() != null && !map.containsKey(
+            base.currentStep())) {
+            String step = base.currentStep().toUpperCase();
+            if ("VECTOR_STORE".equals(step)) {
+                step = "VECTOR_STORED";
+            }
+            map.put(step, base.progressPct());
+        }
+        // 고정 순서로 반환
+        String[] order = new String[]{"UPLOAD", "EXTRACTION", "EMBEDDING", "VECTOR_STORED"};
+        java.util.List<StepProgressResponse> list = new java.util.ArrayList<>(order.length);
+        for (String key : order) {
+            list.add(new StepProgressResponse(key, map.getOrDefault(key, 0.0)));
+        }
+        return list;
+    }
+
+    private static Double parseDouble(Object value) {
+        try {
+            return value == null ? null : Double.parseDouble(value.toString());
+        } catch (Exception e) {
+            return null;
+        }
     }
 }
