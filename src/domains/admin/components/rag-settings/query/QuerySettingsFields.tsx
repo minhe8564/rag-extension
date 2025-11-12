@@ -2,7 +2,7 @@ import { LabelRow } from '@/domains/admin/components/rag-settings/ui/labelRow';
 import { Slider } from '@/domains/admin/components/rag-settings/ui/Slider';
 import { Toggle } from '@/domains/admin/components/rag-settings/ui/Toggle';
 import { PipelineIcons } from '@/shared/components/rag-pipeline/PipelineIcons';
-import PromptManager from '@/domains/admin/components/rag-settings/query/PromptManager';
+import PromptManager from '@/domains/admin/components/rag-settings/query/prompt/PromptManager';
 import SectionHeader from '@/domains/admin/components/rag-settings/ui/SectionHeader';
 import Select from '@/shared/components/Select';
 import type { QuerySettingsFieldsProps } from '@/domains/admin/types/rag-settings/query/querySettings.types';
