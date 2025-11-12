@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pathlib import Path
+from typing import Optional
 
 BASE_DIR = Path(__file__).parent.parent.parent
 
@@ -12,6 +13,13 @@ class Settings(BaseSettings):
     # Milvus 설정
     milvus_host: str
     milvus_port: int = 19530
+
+    # Redis 설정
+    redis_host: str = "database-redis"
+    redis_port: int = 6379
+    redis_username: Optional[str] = None
+    redis_password: Optional[str] = None
+    redis_db: int = 1
 
     # 로깅 설정
     logging_level: str = "INFO"

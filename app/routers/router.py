@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 from app.schemas.request.searchRequest import SearchProcessRequest
 from app.schemas.response.searchProcessResponse import SearchProcessResponse, SearchProcessResult, CandidateEmbedding, Metadata, MetadataDetail
 from app.schemas.response.errorResponse import ErrorResponse
+from app.middleware.metrics_middleware import with_search_metrics
 from typing import Dict, Any
 import importlib
 from loguru import logger
@@ -62,6 +63,7 @@ def get_strategy(strategy_name: str, parameters: Dict[Any, Any] = None) -> Any:
 
 
 @router.post("/process")
+@with_search_metrics
 async def search_process(request: SearchProcessRequest):
     """
     Search /process 엔드포인트
