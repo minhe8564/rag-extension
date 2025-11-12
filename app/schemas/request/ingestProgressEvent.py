@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 class IngestProgressEvent(BaseModel):
     # Required linkage
-    runId: str = Field(..., description="Ingest run identifier")
+    runId: Optional[str] = Field(None, description="Ingest run identifier")
 
     # Optional context
     userId: Optional[str] = Field(None, description="User UUID")
