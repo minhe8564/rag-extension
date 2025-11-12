@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from . import __version__, __title__, __description__
 from .core.settings import settings
 from datetime import datetime
-from .routers import ingest_router, query_router
+from .routers import ingest_router, ingest_progress_router, query_router
 from .routers import docs_router
 from .core.database import Base, engine
 from .core.openapi import custom_openapi
@@ -25,6 +25,7 @@ app.add_middleware(
 Base.metadata.create_all(bind=engine)
 
 app.include_router(ingest_router)
+app.include_router(ingest_progress_router)
 app.include_router(query_router)
 app.include_router(docs_router)
 Base.metadata.create_all(bind=engine)
