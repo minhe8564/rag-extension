@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Request, HTTPException, status, Query, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 import uuid
 
 from app.core.schemas import BaseResponse
@@ -10,6 +11,7 @@ from ..schemas.response.presigned_url import PresignedUrl
 from ....core.utils.uuid_utils import _get_offer_no_by_user
 from ..services.presign import get_presigned_url
 from ..repositories.file_repository import FileRepository
+from app.domains.collection.models.collection import Collection
 
 
 router = APIRouter(prefix="/files", tags=["File"])
@@ -39,13 +41,24 @@ async def generate_presigned_url_by_file_no(
     if not file_rec:
         raise HTTPException(status_code=404, detail="File not found")
 
-    if x_user_role != "ADMIN":
+    role_upper = (x_user_role or "").upper()
+    if role_upper != "ADMIN":
         try:
             user_no_bytes = uuid.UUID(x_user_uuid).bytes
         except Exception:
             raise HTTPException(status_code=400, detail="Invalid x-user-uuid format (UUID required)")
         offer_no = await _get_offer_no_by_user(session, user_no_bytes)
-        if file_rec.offer_no != offer_no:
+        # Allow when collection is shared (public or hebees)
+        is_shared_collection = False
+        if file_rec.collection_no:
+            res = await session.execute(
+                select(Collection.name).where(Collection.collection_no == file_rec.collection_no)
+            )
+            col_name = res.scalar_one_or_none()
+            if col_name and col_name in ("public"):
+                is_shared_collection = True
+
+        if (not is_shared_collection) and (file_rec.offer_no != offer_no):
             raise HTTPException(status_code=403, detail="Forbidden: file does not belong to your offer")
 
     url = await get_presigned_url(
