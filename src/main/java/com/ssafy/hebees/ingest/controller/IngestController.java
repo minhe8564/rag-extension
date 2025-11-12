@@ -9,6 +9,7 @@ import com.ssafy.hebees.ingest.dto.response.IngestProgressMetaWithStepsResponse;
 // import removed: IngestProgressSummaryPageResponse
 import com.ssafy.hebees.ingest.dto.response.IngestProgressSummaryListResponse;
 import com.ssafy.hebees.ingest.dto.response.IngestProgressEventResponse;
+import com.ssafy.hebees.ingest.dto.response.IngestProgressSummaryResponse;
 import com.ssafy.hebees.ingest.service.IngestRunProgressService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -93,6 +94,8 @@ public class IngestController {
         });
 
         try {
+            IngestProgressSummaryResponse summary = progressService.getSummaryForUser(userUuid);
+            emitter.send(SseEmitter.event().name("summary").data(summary));
             emitter.send(SseEmitter.event().name("initial").data(initial));
         } catch (Exception e) {
             emitter.completeWithError(e);
@@ -124,6 +127,16 @@ public class IngestController {
                                 || "FAILED".equalsIgnoreCase(status)
                                 || "completed".equalsIgnoreCase(status)
                                 || "failed".equalsIgnoreCase(status))) {
+                                // 종료 직전 summary 갱신 전송
+                                try {
+                                    IngestProgressSummaryResponse summary = progressService.getSummaryForUser(
+                                        userUuid);
+                                    emitter.send(SseEmitter.event().name("summary").data(summary));
+                                } catch (Exception sendEx) {
+                                    emitter.completeWithError(sendEx);
+                                    done = true;
+                                    break;
+                                }
                                 done = true;
                                 break;
                             }
