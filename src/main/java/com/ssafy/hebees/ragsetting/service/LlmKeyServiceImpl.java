@@ -8,7 +8,6 @@ import com.ssafy.hebees.ragsetting.dto.request.LlmKeyCreateRequest;
 import com.ssafy.hebees.ragsetting.dto.request.LlmKeySelfCreateRequest;
 import com.ssafy.hebees.ragsetting.dto.request.LlmKeySelfUpdateRequest;
 import com.ssafy.hebees.ragsetting.dto.request.LlmKeyUpdateRequest;
-import com.ssafy.hebees.ragsetting.dto.request.LlmKeySelfUpdateRequest;
 import com.ssafy.hebees.ragsetting.dto.response.LlmKeyResponse;
 import com.ssafy.hebees.ragsetting.entity.LlmKey;
 import com.ssafy.hebees.ragsetting.entity.Strategy;
@@ -42,6 +41,8 @@ public class LlmKeyServiceImpl implements LlmKeyService {
 
         User user = fetchUser(userNo);
         Strategy strategy = fetchStrategy(strategyNo);
+
+        ensureUniqueUserStrategy(user.getUuid(), strategy.getStrategyNo(), null);
 
         String apiKey = request.apiKey().trim();
         if (!StringUtils.hasText(apiKey)) {
@@ -97,6 +98,11 @@ public class LlmKeyServiceImpl implements LlmKeyService {
                 strategyNo = resolveStrategyNo(request.llm());
             }
             Strategy strategy = fetchStrategy(strategyNo);
+            ensureUniqueUserStrategy(
+                llmKey.getUser() != null ? llmKey.getUser().getUuid() : null,
+                strategy.getStrategyNo(),
+                llmKey.getLlmKeyNo()
+            );
             llmKey.updateStrategy(strategy);
         }
 
@@ -137,6 +143,8 @@ public class LlmKeyServiceImpl implements LlmKeyService {
             throw new BusinessException(ErrorCode.BAD_REQUEST);
         }
 
+        ensureUniqueUserStrategy(owner, strategy.getStrategyNo(), null);
+
         User user = fetchUser(owner);
 
         LlmKey saved = llmKeyRepository.save(
@@ -154,12 +162,6 @@ public class LlmKeyServiceImpl implements LlmKeyService {
 
     @Override
     public ListResponse<LlmKeyResponse> listSelf(UUID userNo) {
-//        List<LlmKey> keys = (userNo != null)
-//            ? llmKeyRepository.findAllByUser_Uuid(owner)
-//            : llmKeyRepository.findAll();
-//
-//        return ListResponse.of(keys.stream().map(this::mapToResponse).toList());
-
         UUID owner = UserValidationUtil.requireUser(userNo);
         return ListResponse.of(llmKeyRepository.findAllByUser_Uuid(owner).stream()
             .map(this::mapToResponse).toList());
@@ -286,6 +288,23 @@ public class LlmKeyServiceImpl implements LlmKeyService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.BAD_REQUEST))
                 .getStrategyNo();
         }
+    }
+
+    private void ensureUniqueUserStrategy(UUID userNo, UUID strategyNo, UUID excludeLlmKeyNo) {
+        if (userNo == null || strategyNo == null) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        }
+
+        llmKeyRepository.findByUser_UuidAndStrategy_StrategyNo(userNo, strategyNo)
+            .filter(existing -> excludeLlmKeyNo == null || !existing.getLlmKeyNo()
+                .equals(excludeLlmKeyNo))
+            .ifPresent(existing -> {
+                log.warn(
+                    "LLM Key 중복 - userNo={}, strategyNo={}, existingLlmKeyNo={}",
+                    userNo, strategyNo, existing.getLlmKeyNo()
+                );
+                throw new BusinessException(ErrorCode.ALREADY_EXISTS);
+            });
     }
 
     private LlmKeyResponse mapToResponse(LlmKey llmKey) {

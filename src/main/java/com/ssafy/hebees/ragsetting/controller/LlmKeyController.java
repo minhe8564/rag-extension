@@ -9,7 +9,6 @@ import com.ssafy.hebees.ragsetting.dto.request.LlmKeyCreateRequest;
 import com.ssafy.hebees.ragsetting.dto.request.LlmKeySelfCreateRequest;
 import com.ssafy.hebees.ragsetting.dto.request.LlmKeySelfUpdateRequest;
 import com.ssafy.hebees.ragsetting.dto.request.LlmKeyUpdateRequest;
-import com.ssafy.hebees.ragsetting.dto.request.LlmKeySelfUpdateRequest;
 import com.ssafy.hebees.ragsetting.dto.response.LlmKeyResponse;
 import com.ssafy.hebees.ragsetting.service.LlmKeyService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -25,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -48,9 +48,10 @@ public class LlmKeyController {
     private final LlmKeyService llmKeyService;
 
     @PostMapping
-    @Operation(summary = "LLM Key 생성", description = "새로운 LLM Key를 등록합니다.")
+    @Operation(summary = "[관리자] LLM Key 생성", description = "새로운 LLM Key를 등록합니다.")
     @ApiResponse(responseCode = "201", description = "LLM Key 생성 성공",
         content = @Content(schema = @Schema(implementation = LlmKeyResponse.class)))
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BaseResponse<LlmKeyResponse>> createLlmKey(
         @Valid @RequestBody LlmKeyCreateRequest request) {
         LlmKeyResponse response = llmKeyService.create(request);
@@ -60,9 +61,10 @@ public class LlmKeyController {
     }
 
     @GetMapping("/{llmKeyNo}")
-    @Operation(summary = "LLM Key 단건 조회", description = "LLM Key 상세 정보를 조회합니다.")
+    @Operation(summary = "[관리자]  LLM Key 단건 조회", description = "LLM Key 상세 정보를 조회합니다.")
     @ApiResponse(responseCode = "200", description = "LLM Key 조회 성공",
         content = @Content(schema = @Schema(implementation = LlmKeyResponse.class)))
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BaseResponse<LlmKeyResponse>> getLlmKey(
         @PathVariable UUID llmKeyNo) {
         LlmKeyResponse response = llmKeyService.get(llmKeyNo);
@@ -71,9 +73,10 @@ public class LlmKeyController {
     }
 
     @GetMapping
-    @Operation(summary = "LLM Key 목록 조회", description = "등록된 LLM Key 목록을 조회합니다.")
+    @Operation(summary = "[관리자] LLM Key 목록 조회", description = "등록된 LLM Key 목록을 조회합니다.")
     @ApiResponse(responseCode = "200", description = "LLM Key 목록 조회 성공",
         content = @Content(schema = @Schema(implementation = LlmKeyResponse.class)))
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BaseResponse<ListResponse<LlmKeyResponse>>> listLlmKeys(
         @Parameter(description = "사용자 ID로 필터링", example = "6d3efc39-d052-49a2-8d16-31a8a99f8889")
         @RequestParam(name = "userNo", required = false) UUID userNo) {
@@ -83,9 +86,10 @@ public class LlmKeyController {
     }
 
     @PutMapping("/{llmKeyNo}")
-    @Operation(summary = "LLM Key 수정", description = "LLM Key 정보를 수정합니다.")
+    @Operation(summary = "[관리자] LLM Key 수정", description = "LLM Key 정보를 수정합니다.")
     @ApiResponse(responseCode = "200", description = "LLM Key 수정 성공",
         content = @Content(schema = @Schema(implementation = LlmKeyResponse.class)))
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BaseResponse<LlmKeyResponse>> updateLlmKey(
         @PathVariable UUID llmKeyNo,
         @Valid @RequestBody LlmKeyUpdateRequest request) {
@@ -95,8 +99,9 @@ public class LlmKeyController {
     }
 
     @DeleteMapping("/{llmKeyNo}")
-    @Operation(summary = "LLM Key 삭제", description = "LLM Key를 삭제합니다.")
+    @Operation(summary = "[관리자] LLM Key 삭제", description = "LLM Key를 삭제합니다.")
     @ApiResponse(responseCode = "204", description = "LLM Key 삭제 성공")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteLlmKey(@PathVariable UUID llmKeyNo) {
         llmKeyService.delete(llmKeyNo);
         return ResponseEntity.noContent().build();
