@@ -80,10 +80,13 @@ async def upload_file(
             run_ids = [str(base - (n - 1) + i) for i in range(n)]
 
             pipe = redis.pipeline(transaction=False)
+            now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
             now_iso = datetime.now(timezone.utc).isoformat()
             for idx, fmeta in enumerate(batch_meta.files):
                 run_id = run_ids[idx]
                 meta_key = f"ingest:run:{run_id}:meta"
+                events_key = f"ingest:run:{run_id}:events"
+                
                 pipe.hset(
                     meta_key,
                     mapping={
@@ -110,6 +113,26 @@ async def upload_file(
                 pipe.set(file_latest_key, run_id)
                 if getattr(settings, "ingest_meta_ttl_sec", 0) > 0:
                     pipe.expire(file_latest_key, settings.ingest_meta_ttl_sec)
+                    
+                pipe.xadd(
+                    events_key,
+                    fields={
+                        "type": "STEP_UPDATE",
+                        "runId": run_id,               # Long/숫자 문자열 OK
+                        "docId": "",                   # 없으면 빈값 (또는 fileNo 사용 시 클라이언트 매핑)
+                        "docName": fmeta.fileName,
+                        "step": "UPLOAD",              # DTO의 step 필드명에 맞춤
+                        "processed": "1",              # 있으면 설정, 없으면 "0"
+                        "total": "1",
+                        "progressPct": "100",
+                        "overallPct": "20",
+                        "status": "RUNNING",
+                        "ts": str(now_ms),
+                    },
+                    id="*",                          # 서버에서 ms-time 기반 ID 부여
+                    maxlen=1000,                     # 스트림 길이 관리 (approximate trim)
+                    approximate=True,
+                )
         
             await pipe.execute()
         except Exception:
