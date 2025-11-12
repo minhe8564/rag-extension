@@ -11,9 +11,6 @@ public record MetricResponse(
     @JsonProperty("name")
     String name,
 
-    @JsonProperty("key")
-    String key,
-
     @JsonProperty("averageTimeMs")
     Double averageTimeMs,
 
