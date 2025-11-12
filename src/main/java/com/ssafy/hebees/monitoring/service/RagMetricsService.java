@@ -63,7 +63,6 @@ public class RagMetricsService {
                 log.error("Failed to get metric for key: {}", metricKey, e);
                 // 에러 발생 시 빈 메트릭 추가
                 metrics.add(MetricResponse.builder()
-                    .key(metricKey)
                     .name(getDisplayName(metricKey))
                     .averageTimeMs(0.0)
                     .count(0)
@@ -93,7 +92,6 @@ public class RagMetricsService {
             if (Boolean.FALSE.equals(exists)) {
                 log.warn("Redis key '{}' does not exist", metricKey);
                 return MetricResponse.builder()
-                    .key(metricKey)
                     .name(getDisplayName(metricKey))
                     .averageTimeMs(0.0)
                     .count(0)
@@ -105,18 +103,6 @@ public class RagMetricsService {
             Long totalCount = zSetOps.count(metricKey, Double.NEGATIVE_INFINITY,
                 Double.POSITIVE_INFINITY);
             log.info("Redis key '{}' total count: {}", metricKey, totalCount);
-
-            Set<String> allMembers = zSetOps.range(metricKey, 0, -1);
-            if (allMembers != null && !allMembers.isEmpty()) {
-                log.info("Redis key '{}' has {} total members", metricKey, allMembers.size());
-                Set<ZSetOperations.TypedTuple<String>> allWithScores = zSetOps.rangeWithScores(
-                    metricKey, 0, -1);
-                if (allWithScores != null && !allWithScores.isEmpty()) {
-                    ZSetOperations.TypedTuple<String> first = allWithScores.iterator().next();
-                    log.info("First member score: {}, value: {}", first.getScore(),
-                        first.getValue());
-                }
-            }
 
             // 현재 시간을 초 단위 double로 계산 (Python time.time()과 동일한 형식)
             double currentTime = System.currentTimeMillis() / 1000.0;
@@ -135,23 +121,18 @@ public class RagMetricsService {
             log.info("Found {} members for key: {} in range [{}, {}]",
                 members != null ? members.size() : 0, metricKey, startTime, currentTime);
 
+            // 시간 범위 내에 데이터가 없으면 0 반환
             if (members == null || members.isEmpty()) {
-                log.warn("No members found in time range, trying to get all members for debugging");
-                members = allMembers; // 전체 데이터 사용
-
-                if (members == null || members.isEmpty()) {
-                    log.warn("No members found at all for key: {}", metricKey);
-                    return MetricResponse.builder()
-                        .key(metricKey)
-                        .name(getDisplayName(metricKey))
-                        .averageTimeMs(0.0)
-                        .count(0)
-                        .minTimeMs(0.0)
-                        .maxTimeMs(0.0)
-                        .build();
-                }
-                log.info("Using all {} members for calculation (outside time window)",
-                    members.size());
+                log.info(
+                    "No members found in time range [{} - {}] for key: {}. Returning empty metrics.",
+                    startTime, currentTime, metricKey);
+                return MetricResponse.builder()
+                    .name(getDisplayName(metricKey))
+                    .averageTimeMs(0.0)
+                    .count(0)
+                    .minTimeMs(0.0)
+                    .maxTimeMs(0.0)
+                    .build();
             }
 
             // JSON 파싱 및 time_ms 추출
@@ -171,7 +152,6 @@ public class RagMetricsService {
             if (timesMs.isEmpty()) {
                 log.warn("No valid time_ms found in members for key: {}", metricKey);
                 return MetricResponse.builder()
-                    .key(metricKey)
                     .name(getDisplayName(metricKey))
                     .averageTimeMs(0.0)
                     .count(0)
@@ -190,7 +170,6 @@ public class RagMetricsService {
                 metricKey, timesMs.size(), average);
 
             return MetricResponse.builder()
-                .key(metricKey)
                 .name(getDisplayName(metricKey))
                 .averageTimeMs(Math.round(average * 100.0) / 100.0) // 소수점 2자리
                 .count(timesMs.size())
