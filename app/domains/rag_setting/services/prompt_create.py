@@ -100,7 +100,7 @@ async def create_prompt(
     session: AsyncSession,
     name: str,
     prompt_type: str,
-    description: str,
+    description: str | None,
     content: str
 ) -> str:
     """
@@ -117,7 +117,7 @@ async def create_prompt(
         session: 데이터베이스 세션
         name: 프롬프트명
         prompt_type: 프롬프트 유형 (system 또는 user) - 메타데이터용
-        description: 프롬프트 요약 설명 (최대 255자)
+        description: 프롬프트 요약 설명 (최대 255자, 생략 가능)
         content: 프롬프트 실제 내용 (제한 없음)
 
     Returns:
@@ -140,12 +140,16 @@ async def create_prompt(
     # 3. 프롬프트(전략) 생성
     code_value = PROMPT_TYPE_CODE_MAP[prompt_type]
 
+    description_value = description.strip() if description else ""
+    if not description_value:
+        description_value = content.strip()[:50]
+
     new_strategy = Strategy(
         strategy_no=generate_uuid_binary(),
         strategy_type_no=strategy_type.strategy_type_no,
         name=name,
         code=code_value,
-        description=description,  # 요약 설명 (최대 255자)
+        description=description_value,  # 요약 설명 (최대 255자)
         parameter={
             "content": content,  # 실제 프롬프트 내용 (제한 없음)
             "type": prompt_type  # 메타데이터

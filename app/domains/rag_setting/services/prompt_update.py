@@ -5,11 +5,12 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
 
 from ..models.strategy import Strategy, StrategyType
+from ..models.query_template import QueryGroup
 from .prompt_create import PROMPT_TYPE_CODE_MAP, get_prompting_strategy_type
 
 
@@ -137,6 +138,18 @@ async def update_prompt(
         "content": content,  # 실제 프롬프트 내용 (제한 없음)
         "type": target_type
     }
+
+    await session.execute(
+        update(QueryGroup)
+        .where(QueryGroup.system_prompting_strategy_no == prompt.strategy_no)
+        .values(system_prompting_parameter=prompt.parameter)
+    )
+
+    await session.execute(
+        update(QueryGroup)
+        .where(QueryGroup.user_prompting_strategy_no == prompt.strategy_no)
+        .values(user_prompting_parameter=prompt.parameter)
+    )
 
     await session.commit()
     await session.refresh(prompt)

@@ -19,11 +19,10 @@ class PromptCreateRequest(BaseModel):
         ...,
         description="프롬프트 유형 (system 또는 user)"
     )
-    description: str = Field(
-        ...,
-        min_length=1,
+    description: Optional[str] = Field(
+        None,
         max_length=255,
-        description="프롬프트 요약 설명 (최대 255자)"
+        description="프롬프트 요약 설명 (최대 255자, 생략 시 content 앞 50자를 사용)"
     )
     content: str = Field(
         ...,
@@ -31,11 +30,21 @@ class PromptCreateRequest(BaseModel):
         description="프롬프트 실제 내용 (제한 없음, parameter JSON에 저장)"
     )
 
-    @field_validator('name', 'description', 'content')
+    @field_validator('name', 'content')
     @classmethod
     def validate_not_empty(cls, v: str) -> str:
         """공백 문자열 검증"""
         if not v or not v.strip():
+            raise ValueError('빈 문자열은 허용되지 않습니다.')
+        return v.strip()
+
+    @field_validator('description')
+    @classmethod
+    def validate_optional_description(cls, v: Optional[str]) -> Optional[str]:
+        """설명 검증 (선택 입력)"""
+        if v is None:
+            return v
+        if not v.strip():
             raise ValueError('빈 문자열은 허용되지 않습니다.')
         return v.strip()
 
