@@ -62,6 +62,56 @@ def _calc_pct(processed: Optional[int], total: Optional[int], status: Optional[s
         return None
 
 
+RUN_META_SCAN_BATCH = 200
+
+
+def _normalize_file_no(file_no: Optional[str]) -> Optional[str]:
+    if not file_no:
+        return None
+    cleaned = file_no.replace("-", "").strip().lower()
+    if len(cleaned) != 32:
+        return None
+    try:
+        bytes.fromhex(cleaned)
+    except ValueError:
+        return None
+    return cleaned
+
+
+async def _resolve_run_id_for_file(redis, normalized_file_no: str, raw_file_no: Optional[str] = None) -> Optional[str]:
+    if not normalized_file_no:
+        return None
+    latest_key_candidates: list[str] = []
+    seen_keys = set()
+
+    def _add_latest_candidate(number: Optional[str]) -> None:
+        if not number:
+            return
+        key = f"ingest:file:{number}:latest_run_id"
+        if key in seen_keys:
+            return
+        seen_keys.add(key)
+        latest_key_candidates.append(key)
+
+    _add_latest_candidate(normalized_file_no)
+    if raw_file_no:
+        clean_raw = raw_file_no.strip()
+        lower_raw = clean_raw.lower()
+        _add_latest_candidate(lower_raw)
+        _add_latest_candidate(clean_raw)
+
+    # 1) Try new latest runId key(s) (no SCAN needed)
+    for latest_key in latest_key_candidates:
+        try:
+            latest = await redis.get(latest_key)
+            if latest:
+                return latest
+        except Exception:
+            logger.debug("Failed to read latest runId key for file %s", latest_key)
+
+    return None
+
+
 async def _aggregate_from_events(redis, run_id: str) -> dict:
     key = f"ingest:run:{run_id}:events"
     rows = await redis.xrevrange(key, count=STREAM_MAXLEN_PER_RUN)
@@ -144,6 +194,8 @@ class IngestProgressService:
         try:
             redis = get_redis_client()
 
+            file_no_raw = (ev.fileNo or "").strip()
+            normalized_file_no = _normalize_file_no(file_no_raw)
             run_id = (ev.runId or "").strip()
             step = _normalize_step(ev.currentStep)
             status = _normalize_status(ev.status)
@@ -151,8 +203,15 @@ class IngestProgressService:
             event_type = ev.eventType or _infer_event_type(status)
             ts_ms = ev.ts or int(datetime.now(timezone.utc).timestamp() * 1000)
 
+            if not run_id and normalized_file_no:
+                run_id = await _resolve_run_id_for_file(redis, normalized_file_no, file_no_raw)
+
             if not run_id:
-                raise HTTPException(status_code=400, detail="runId is required")
+                raise HTTPException(
+                    status_code=400,
+                    detail="runId is required (or provide a fileNo that can be resolved to an existing run)",
+                )
+
             if not step:
                 raise HTTPException(status_code=400, detail="currentStep is required and must be valid")
 
@@ -160,7 +219,7 @@ class IngestProgressService:
                 "eventType": event_type,
                 "runId": run_id,
                 "userId": user_id or "",
-                "fileNo": ev.fileNo or "",
+                "fileNo": file_no_raw,
                 "currentStep": step,
                 "status": status or "",
                 "processed": str(ev.processed) if ev.processed is not None else "",
@@ -207,8 +266,8 @@ class IngestProgressService:
                 }
                 if user_id:
                     mapping["userId"] = user_id
-                if ev.fileNo:
-                    mapping["fileNo"] = ev.fileNo
+                if file_no_raw:
+                    mapping["fileNo"] = file_no_raw
                 await redis.hset(meta_key, mapping=mapping)
 
                 derived_fields = dict(fields)
@@ -234,7 +293,7 @@ class IngestProgressService:
                     "eventType": run_event_type,
                     "runId": run_id,
                     "userId": fin_user_id or "",
-                    "fileNo": ev.fileNo or "",
+                    "fileNo": file_no_raw,
                     "currentStep": agg["current_step"] or step,
                     "status": agg["run_status"],
                     "processed": str(ev.processed) if ev.processed is not None else "",

@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     redis_host: str = "database-redis"
     redis_port: int = 6379
     redis_username: Optional[str] = None
-    redis_password: Optional[str] = "1q2w3e4r"
+    redis_password: Optional[str] = None
     redis_db: int = 1
 
     # Gateway 및 내부 서비스 URL (서비스 간 직접 통신용)
