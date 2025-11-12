@@ -1,2 +1,8 @@
 .DS_Store
 *.yml
+backend(rag-press)/
+rago-extractor-deploy/
+s006rag_data_marker-master/
+s006rag_data_yolo-master/
+rag-extractor-deploy/
+rago_embedder-master/
