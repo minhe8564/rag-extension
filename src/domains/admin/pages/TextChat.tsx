@@ -31,6 +31,8 @@ export default function TextChat() {
   const [list, setList] = useState<UiMsg[]>([]);
   const [awaitingAssistant, setAwaitingAssistant] = useState<boolean>(false);
 
+  const [initialLoading, setInitialLoading] = useState<boolean>(Boolean(derivedSessionNo));
+
   const { selectedModel, setSelectedModel } = useChatModelStore();
 
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -40,37 +42,55 @@ export default function TextChat() {
   const ensureSession = useEnsureSession(setCurrentSessionNo);
 
   useEffect(() => {
+    let cancelled = false;
+
     (async () => {
       if (!derivedSessionNo) {
         if (!selectedModel) setSelectedModel('Qwen3-vl:8B');
+        setInitialLoading(false);
         return;
       }
 
+      setInitialLoading(true);
       setCurrentSessionNo(derivedSessionNo);
 
-      const resMsgs = await getMessages(derivedSessionNo);
-      const page = resMsgs.data.result as MessagePage;
+      try {
+        const [resMsgs, resSess] = await Promise.all([
+          getMessages(derivedSessionNo),
+          getSession(derivedSessionNo),
+        ]);
 
-      const resSess = await getSession(derivedSessionNo);
-      const sessionInfo = resSess.data.result as { llmNo?: string; llmName?: string } | undefined;
+        const page = resMsgs.data.result as MessagePage;
+        const sessionInfo = resSess.data.result as { llmNo?: string; llmName?: string } | undefined;
 
-      const llmName: string = sessionInfo?.llmName ?? selectedModel ?? 'Qwen3-vl:8B';
-      setSelectedModel(llmName);
+        const llmName: string = sessionInfo?.llmName ?? selectedModel ?? 'Qwen3-vl:8B';
+        setSelectedModel(llmName);
 
-      const mapped: UiMsg[] =
-        (page.data ?? []).map(
-          (m: MessageItem): UiMsg => ({
-            role: mapRole(m.role),
-            content: m.content,
-            createdAt: m.createdAt,
-            messageNo: m.messageNo,
-            referencedDocuments: m.referencedDocuments,
-          })
-        ) ?? [];
+        const mapped: UiMsg[] =
+          (page.data ?? []).map(
+            (m: MessageItem): UiMsg => ({
+              role: mapRole(m.role),
+              content: m.content,
+              createdAt: m.createdAt,
+              messageNo: m.messageNo,
+              referencedDocuments: m.referencedDocuments,
+            })
+          ) ?? [];
 
-      setList(mapped);
-      requestAnimationFrame(() => bottomRef.current?.scrollIntoView());
+        if (!cancelled) {
+          setList(mapped);
+          requestAnimationFrame(() => bottomRef.current?.scrollIntoView());
+        }
+      } catch {
+        if (!cancelled) setList([]);
+      } finally {
+        if (!cancelled) setInitialLoading(false);
+      }
     })();
+
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [derivedSessionNo, setSelectedModel]);
 
@@ -127,6 +147,19 @@ export default function TextChat() {
   };
 
   const thinkingSubtitle = useThinkingTicker(awaitingAssistant);
+
+  if (initialLoading) {
+    return (
+      <section className="flex flex-col min-h-[calc(100vh-82px)] h-full">
+        <div className="flex-1 flex items-center justify-center px-4">
+          <div className="flex flex-col items-center gap-3 text-gray-500">
+            <div className="w-8 h-8 rounded-full border-2 border-gray-300 border-t-gray-600 animate-spin" />
+            <div className="text-sm">세션 불러오는 중…</div>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="flex flex-col min-h-[calc(100vh-82px)] h-full">
