@@ -17,6 +17,7 @@ public enum ErrorCode {
 
     // 인가 관련 (403)
     PERMISSION_DENIED(HttpStatus.FORBIDDEN, "접근 권한이 없습니다"),
+    OWNER_ACCESS_DENIED(HttpStatus.FORBIDDEN, "소유자가 아닌 대상은 접근할 수 없습니다"),
 
     // 요청 오류 (400)
     BAD_REQUEST(HttpStatus.BAD_REQUEST, "잘못된 요청입니다"),
@@ -35,6 +36,7 @@ public enum ErrorCode {
     USER_ROLE_NOT_FOUND(HttpStatus.NOT_FOUND, "사용자 역할을 찾을 수 없습니다"),
     OFFER_NOT_FOUND(HttpStatus.NOT_FOUND, "가맹점 정보를 찾을 수 없습니다"),
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."),
+    SESSION_NOT_FOUND(HttpStatus.NOT_FOUND, "세션(채팅방)을 찾을 수 없습니다."),
 
     // 서버 오류 (500)
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 내부 오류가 발생했습니다");
