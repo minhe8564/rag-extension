@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 from app.schemas.request.crossEncoderRequest import CrossEncoderProcessRequest
 from app.schemas.response.crossEncoderProcessResponse import CrossEncoderProcessResponse, CrossEncoderProcessResult, RetrievedChunk
 from app.schemas.response.errorResponse import ErrorResponse
+from app.middleware.metrics_middleware import with_cross_encoder_metrics
 from typing import Dict, Any
 import importlib
 from loguru import logger
@@ -53,6 +54,7 @@ def get_strategy(strategy_name: str, parameters: Dict[Any, Any] = None) -> Any:
 
 
 @router.post("/process")
+@with_cross_encoder_metrics
 async def cross_encoder_process(request: CrossEncoderProcessRequest):
     """Cross Encoder /process 엔드포인트"""
     try:
