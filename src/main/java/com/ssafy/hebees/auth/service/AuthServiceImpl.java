@@ -8,21 +8,25 @@ import com.ssafy.hebees.auth.dto.response.TokenRefreshResponse;
 import com.ssafy.hebees.common.exception.BusinessException;
 import com.ssafy.hebees.common.exception.ErrorCode;
 import com.ssafy.hebees.common.util.JwtUtil;
+import com.ssafy.hebees.dashboard.service.DashboardMetricStreamService;
 import com.ssafy.hebees.user.entity.User;
 import com.ssafy.hebees.user.service.UserService;
-import lombok.RequiredArgsConstructor;
+import java.time.Duration;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Objects;
+import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.UUID;
-
 @Slf4j
 @Service
-@RequiredArgsConstructor
+//@RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class AuthServiceImpl implements AuthService {
 
@@ -30,12 +34,27 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final StringRedisTemplate redisTemplate;
+    private final StringRedisTemplate loginHistoryRedisTemplate;
+    private final DashboardMetricStreamService dashboardMetricStreamService;
 
     @Value("${jwt.access-token-expiration}")
     private long accessTokenExpiration;
 
     @Value("${jwt.refresh-token-expiration}")
     private long refreshTokenExpiration;
+
+    public AuthServiceImpl(UserService userService, PasswordEncoder passwordEncoder,
+        JwtUtil jwtUtil, StringRedisTemplate redisTemplate,
+        @Qualifier("loginHistoryRedisTemplate") StringRedisTemplate loginHistoryRedisTemplate,
+        DashboardMetricStreamService dashboardMetricStreamService) {
+
+        this.userService = userService;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtUtil = jwtUtil;
+        this.redisTemplate = redisTemplate;
+        this.loginHistoryRedisTemplate = loginHistoryRedisTemplate;
+        this.dashboardMetricStreamService = dashboardMetricStreamService;
+    }
 
     @Override
     public AccessTokenIssueResponse issueAccessToken(UUID userNo) {
@@ -86,6 +105,8 @@ public class AuthServiceImpl implements AuthService {
         // JWT 토큰 생성
         String accessToken = jwtUtil.generateToken(user.getUuid(), user.getRoleName());
         String refreshToken = jwtUtil.generateRefreshToken(user.getUuid(), user.getRoleName());
+
+        recordLoginHistory(user.getUuid());
 
         log.info("로그인 성공: email={}, userUuid={}", user.getEmail(), user.getUuid());
 
@@ -141,5 +162,32 @@ public class AuthServiceImpl implements AuthService {
         redisTemplate.delete("refresh_token:" + userUuid);
 
         log.info("로그아웃 완료: userUuid={}", userUuid);
+    }
+
+    private void recordLoginHistory(UUID userUuid) {
+        if (userUuid == null) {
+            return;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        LocalDate today = now.toLocalDate();
+        String key = "login:user:%s:%s".formatted(today, userUuid);
+        try {
+            // 최대 2일간 보관
+            LocalDateTime midnight = today.plusDays(2).atStartOfDay();
+            Duration ttl = Duration.between(now, midnight);
+            if (ttl.isNegative() || ttl.isZero()) {
+                ttl = Duration.ofSeconds(1);
+            }
+
+            Boolean isNewLogin = loginHistoryRedisTemplate.opsForValue()
+                .setIfAbsent(key, userUuid.toString(), ttl);
+
+            // 신규 로그인이면 접속자 수 1증가
+            if (Boolean.TRUE.equals(isNewLogin)) {
+                dashboardMetricStreamService.incrementCurrentAccessUsers(1L);
+            }
+        } catch (Exception e) {
+            log.warn("로그인 사용자 기록 실패: userUuid={}, reason={}", userUuid, e.getMessage(), e);
+        }
     }
 }

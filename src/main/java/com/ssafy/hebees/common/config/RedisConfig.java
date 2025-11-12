@@ -103,6 +103,27 @@ public class RedisConfig {
         return new StringRedisTemplate(connectionFactory);
     }
 
+    @Bean(name = "loginHistoryLettuceConnectionFactory")
+    public LettuceConnectionFactory loginHistoryLettuceConnectionFactory(RedisProperties props) {
+        RedisStandaloneConfiguration conf = new RedisStandaloneConfiguration();
+        conf.setHostName(props.getHost());
+        conf.setPort(props.getPort());
+        if (props.getPassword() != null && !props.getPassword().isEmpty()) {
+            conf.setPassword(RedisPassword.of(props.getPassword()));
+        }
+        if (props.getUsername() != null && !props.getUsername().isEmpty()) {
+            conf.setUsername(props.getUsername());
+        }
+        conf.setDatabase(8); // 로그인 사용자 정보는 DB8
+        return new LettuceConnectionFactory(conf);
+    }
+
+    @Bean(name = "loginHistoryRedisTemplate")
+    public StringRedisTemplate loginHistoryRedisTemplate(
+        @Qualifier("loginHistoryLettuceConnectionFactory") LettuceConnectionFactory connectionFactory) {
+        return new StringRedisTemplate(connectionFactory);
+    }
+
     @Bean(name = "metricsLettuceConnectionFactory")
     public LettuceConnectionFactory metricsLettuceConnectionFactory(RedisProperties props) {
         RedisStandaloneConfiguration conf = new RedisStandaloneConfiguration();
@@ -129,6 +150,4 @@ public class RedisConfig {
         template.afterPropertiesSet();
         return template;
     }
-
-
 }
