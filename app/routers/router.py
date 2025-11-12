@@ -9,6 +9,7 @@ import json
 import importlib
 import time
 from loguru import logger
+from app.service.ingest_progress_client import IngestProgressPusher
 
 router = APIRouter(tags=["extract"])
 
@@ -172,12 +173,41 @@ async def extract_process(
 
         # 전략 로드
         logger.info(f"Extraction strategy: {strategy_name}, parameters: {parameters}")
+        # Progress pusher (runId가 없으면 fileNo로 대체)
+        try:
+            run_id_param = None
+            if isinstance(parameters, dict):
+                run_id_param = parameters.get("runId")
+        except Exception:
+            run_id_param = None
+
+        progress_pusher = IngestProgressPusher(
+            user_id=x_user_uuid,
+            file_no=file_no,
+            run_id=run_id_param or file_no,
+            step_name="EXTRACTION",
+        )
+
+        # 전략에 진행률 콜백 주입 (최소 침습)
+        if isinstance(parameters, dict):
+            def _progress_cb(processed: int, total: Optional[int] = None) -> None:
+                try:
+                    progress_pusher.advance(int(processed), int(total) if total is not None else None)
+                except Exception:
+                    # 진행률 전송 실패는 무시
+                    pass
+            parameters["progress_cb"] = _progress_cb
+
         strategy = get_strategy(strategy_name, file_ext, parameters)
         logger.info("strategy: {}", strategy)
         
         # extract() 메서드 호출
         try:
+            # 단계 시작 알림
+            progress_pusher.start()
             result = strategy.extract(file_path)
+            # 단계 완료 알림
+            progress_pusher.complete()
         finally:
             # 임시 파일 정리
             if cleanup_tmp and tmp_path and os.path.exists(tmp_path):
@@ -211,6 +241,23 @@ async def extract_process(
     except HTTPException:
         raise
     except Exception as e:
+        try:
+            # 실패 알림 (가능하면 마지막 진행률 포함)
+            # file_no, user 헤더는 상단 스코프에서만 있으므로 best-effort 처리
+            if 'file_no' in locals():
+                run_id_fallback = None
+                try:
+                    run_id_fallback = parameters.get("runId") if isinstance(parameters, dict) else None
+                except Exception:
+                    run_id_fallback = None
+                IngestProgressPusher(
+                    user_id=locals().get('x_user_uuid'),
+                    file_no=file_no,
+                    run_id=run_id_fallback or file_no,
+                    step_name="EXTRACTION",
+                ).fail()
+        except Exception:
+            pass
         logger.error(f"Error processing file: {str(e)}", exc_info=True)
         error_response = ErrorResponse(
             status=500,

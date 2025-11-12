@@ -15,17 +15,30 @@ class PyMuPDF(BaseExtractionStrategy):
     def extract(self, file_path: str) -> Dict[Any, Any]:
         """PDF 파일 추출 처리"""
         logger.info(f"[BasicPdf] Extracting PDF file: {file_path}")
-        
+
         if fitz is None:
             raise ImportError("PyMuPDF is required for PDF extraction. Install it with: pip install PyMuPDF")
-        
+
         try:
             # PDF 문서 열기
             doc = fitz.open(file_path)
             total_pages = len(doc)
-            
+
             # 전체 텍스트 추출
             text_content = []
+            # 진행률 콜백 (옵션)
+            progress_cb = None
+            try:
+                progress_cb = self.parameters.get("progress_cb") if isinstance(self.parameters, dict) else None
+            except Exception:
+                progress_cb = None
+
+            processed = 0
+            if progress_cb and total_pages:
+                try:
+                    progress_cb(processed, total_pages)
+                except Exception:
+                    pass
             for page_num in range(total_pages):
                 page = doc[page_num]
                 text = page.get_text()
@@ -33,10 +46,16 @@ class PyMuPDF(BaseExtractionStrategy):
                     "page": page_num + 1,
                     "content": text
                 })
-            
+                processed += 1
+                if progress_cb:
+                    try:
+                        progress_cb(processed, total_pages)
+                    except Exception:
+                        pass
+
             # 전체 텍스트 합치기
             full_text = "\n".join([page["content"] for page in text_content])
-            
+
             doc.close()
             
             return {
