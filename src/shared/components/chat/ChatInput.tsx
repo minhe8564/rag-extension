@@ -65,7 +65,6 @@ export default function ChatInput({ onSend, variant = 'retina' }: Props) {
           />
           <button
             type="button"
-            aria-label="메시지 전송"
             disabled={isDisabled}
             className={`w-9 h-9 flex items-center justify-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${buttonColor}`}
             onClick={send}

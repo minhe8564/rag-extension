@@ -40,6 +40,23 @@ export default function TextChat() {
   const forceScrollRef = useRef(false);
 
   const ensureSession = useEnsureSession(setCurrentSessionNo);
+  const sessionPromiseRef = useRef<Promise<string> | null>(null);
+
+  const getOrCreateSessionNo = async (llmName: string, firstMsg: string): Promise<string> => {
+    if (currentSessionNo) return currentSessionNo;
+
+    if (!sessionPromiseRef.current) {
+      sessionPromiseRef.current = ensureSession({ llm: llmName, query: firstMsg })
+        .then((sn) => {
+          setCurrentSessionNo(sn);
+          return sn;
+        })
+        .finally(() => {
+          sessionPromiseRef.current = null;
+        });
+    }
+    return sessionPromiseRef.current;
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -120,7 +137,7 @@ export default function TextChat() {
 
     try {
       const llmName: string = selectedModel ?? 'Qwen3-vl:8B';
-      const sessionNo: string = await ensureSession({ llm: llmName, query: msg });
+      const sessionNo: string = await getOrCreateSessionNo(llmName, msg);
 
       const body: SendMessageRequest = { content: msg, model: llmName };
       const res = await sendMessage(sessionNo, body);
