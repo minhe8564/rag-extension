@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import { UploadCloud } from 'lucide-react';
 import { getCategories } from '@/shared/api/file.api';
-import { useCategoryStore } from '@/shared/store/categoryMap';
+import { useCategoryStore } from '@/shared/store/useCategoryMap';
 
 type Brand = 'hebees' | 'retina';
 type CategoryId = string;

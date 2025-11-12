@@ -3,7 +3,6 @@ import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 import ChatInput from '@/shared/components/chat/ChatInput';
 import ChatMessageItem from '@/shared/components/chat/ChatMessageItem';
 import ScrollToBottomButton from '@/shared/components/chat/ScrollToBottomButton';
-import { useGlobalModelStore } from '@/shared/store/useGlobalModelStore';
 import { getSession, getMessages, sendMessage } from '@/shared/api/chat.api';
 import type { UiMsg, UiRole } from '@/shared/components/chat/ChatMessageItem';
 import type {
@@ -44,8 +43,6 @@ export default function TextChat() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const forceScrollRef = useRef(false);
 
-  const model = useGlobalModelStore((s) => s.model);
-  const setModel = useGlobalModelStore((s) => s.setModel);
   const ensureSession = useEnsureSession(setCurrentSessionNo);
 
   useEffect(() => {
