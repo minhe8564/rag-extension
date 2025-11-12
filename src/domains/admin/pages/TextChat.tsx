@@ -119,10 +119,10 @@ export default function TextChat() {
     ]);
 
     try {
-      const llmId: string = selectedModel ?? 'Qwen3-vl:8B';
-      const sessionNo: string = await ensureSession({ llm: llmId, query: msg });
+      const llmName: string = selectedModel ?? 'Qwen3-vl:8B';
+      const sessionNo: string = await ensureSession({ llm: llmName, query: msg });
 
-      const body: SendMessageRequest = { content: msg, model: llmId };
+      const body: SendMessageRequest = { content: msg, model: llmName };
       const res = await sendMessage(sessionNo, body);
       const result = res.data.result as SendMessageResult;
 
