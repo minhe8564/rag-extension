@@ -104,6 +104,13 @@ async def upload_file(
                 if getattr(settings, "ingest_meta_ttl_sec", 0) > 0:
                     pipe.expire(meta_key, settings.ingest_meta_ttl_sec)
                 pipe.sadd(f"ingest:user:{x_user_uuid}:runs", run_id)
+
+                # 파일번호로 최신 runId 조회용 STRING 키 저장
+                file_latest_key = f"ingest:file:{fmeta.fileNo}:latest_run_id"
+                pipe.set(file_latest_key, run_id)
+                if getattr(settings, "ingest_meta_ttl_sec", 0) > 0:
+                    pipe.expire(file_latest_key, settings.ingest_meta_ttl_sec)
+        
             await pipe.execute()
         except Exception:
             logger.exception("Failed to write ingest run metadata to Redis")
