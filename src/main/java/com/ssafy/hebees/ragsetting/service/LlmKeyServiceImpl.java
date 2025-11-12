@@ -1,10 +1,12 @@
 package com.ssafy.hebees.ragsetting.service;
 
+import com.ssafy.hebees.common.dto.ListResponse;
 import com.ssafy.hebees.common.exception.BusinessException;
 import com.ssafy.hebees.common.exception.ErrorCode;
 import com.ssafy.hebees.common.util.UserValidationUtil;
 import com.ssafy.hebees.ragsetting.dto.request.LlmKeyCreateRequest;
 import com.ssafy.hebees.ragsetting.dto.request.LlmKeySelfCreateRequest;
+import com.ssafy.hebees.ragsetting.dto.request.LlmKeySelfUpdateRequest;
 import com.ssafy.hebees.ragsetting.dto.request.LlmKeyUpdateRequest;
 import com.ssafy.hebees.ragsetting.dto.request.LlmKeySelfUpdateRequest;
 import com.ssafy.hebees.ragsetting.dto.response.LlmKeyResponse;
@@ -16,7 +18,6 @@ import com.ssafy.hebees.user.entity.User;
 import com.ssafy.hebees.user.repository.UserRepository;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -68,15 +69,14 @@ public class LlmKeyServiceImpl implements LlmKeyService {
     }
 
     @Override
-    public List<LlmKeyResponse> list(UUID userNo) {
-        List<LlmKey> keys = userNo != null
-            ? llmKeyRepository.findAllByUser_Uuid(userNo)
+    public ListResponse<LlmKeyResponse> list(UUID userNo) {
+        List<LlmKey> keys = (userNo != null)
+            ? llmKeyRepository.findAllByUser_Uuid(userNo)  // ← 여기만 수정
             : llmKeyRepository.findAll();
 
-        return keys.stream()
-            .map(this::mapToResponse)
-            .collect(Collectors.toList());
+        return ListResponse.of(keys.stream().map(this::mapToResponse).toList());
     }
+
 
     @Override
     @Transactional
@@ -153,16 +153,22 @@ public class LlmKeyServiceImpl implements LlmKeyService {
     }
 
     @Override
-    public List<LlmKeyResponse> listSelf(UUID userNo) {
+    public ListResponse<LlmKeyResponse> listSelf(UUID userNo) {
+//        List<LlmKey> keys = (userNo != null)
+//            ? llmKeyRepository.findAllByUser_Uuid(owner)
+//            : llmKeyRepository.findAll();
+//
+//        return ListResponse.of(keys.stream().map(this::mapToResponse).toList());
+
         UUID owner = UserValidationUtil.requireUser(userNo);
-        return llmKeyRepository.findAllByUser_Uuid(owner).stream()
-            .map(this::mapToResponse)
-            .collect(Collectors.toList());
+        return ListResponse.of(llmKeyRepository.findAllByUser_Uuid(owner).stream()
+            .map(this::mapToResponse).toList());
     }
 
     @Override
     @Transactional
-    public LlmKeyResponse updateSelf(UUID userNo, String llmIdentifier, LlmKeySelfUpdateRequest request) {
+    public LlmKeyResponse updateSelf(UUID userNo, String llmIdentifier,
+        LlmKeySelfUpdateRequest request) {
         UUID owner = UserValidationUtil.requireUser(userNo);
         LlmKey llmKey = fetchLlmKeyOwnedByUser(owner, llmIdentifier);
 

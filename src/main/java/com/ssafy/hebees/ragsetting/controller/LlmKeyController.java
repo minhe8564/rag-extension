@@ -1,11 +1,13 @@
 package com.ssafy.hebees.ragsetting.controller;
 
+import com.ssafy.hebees.common.dto.ListResponse;
 import com.ssafy.hebees.common.exception.BusinessException;
 import com.ssafy.hebees.common.exception.ErrorCode;
 import com.ssafy.hebees.common.response.BaseResponse;
 import com.ssafy.hebees.common.util.SecurityUtil;
 import com.ssafy.hebees.ragsetting.dto.request.LlmKeyCreateRequest;
 import com.ssafy.hebees.ragsetting.dto.request.LlmKeySelfCreateRequest;
+import com.ssafy.hebees.ragsetting.dto.request.LlmKeySelfUpdateRequest;
 import com.ssafy.hebees.ragsetting.dto.request.LlmKeyUpdateRequest;
 import com.ssafy.hebees.ragsetting.dto.request.LlmKeySelfUpdateRequest;
 import com.ssafy.hebees.ragsetting.dto.response.LlmKeyResponse;
@@ -18,7 +20,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
-import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -73,10 +74,10 @@ public class LlmKeyController {
     @Operation(summary = "LLM Key 목록 조회", description = "등록된 LLM Key 목록을 조회합니다.")
     @ApiResponse(responseCode = "200", description = "LLM Key 목록 조회 성공",
         content = @Content(schema = @Schema(implementation = LlmKeyResponse.class)))
-    public ResponseEntity<BaseResponse<List<LlmKeyResponse>>> listLlmKeys(
+    public ResponseEntity<BaseResponse<ListResponse<LlmKeyResponse>>> listLlmKeys(
         @Parameter(description = "사용자 ID로 필터링", example = "6d3efc39-d052-49a2-8d16-31a8a99f8889")
         @RequestParam(name = "userNo", required = false) UUID userNo) {
-        List<LlmKeyResponse> responses = llmKeyService.list(userNo);
+        ListResponse<LlmKeyResponse> responses = llmKeyService.list(userNo);
         return ResponseEntity.ok(
             BaseResponse.of(HttpStatus.OK, responses, "LLM Key 목록 조회에 성공하였습니다."));
     }
@@ -118,9 +119,9 @@ public class LlmKeyController {
     @Operation(summary = "내 LLM Key 목록 조회", description = "현재 사용자의 LLM Key 목록을 조회합니다.")
     @ApiResponse(responseCode = "200", description = "LLM Key 목록 조회 성공",
         content = @Content(schema = @Schema(implementation = LlmKeyResponse.class)))
-    public ResponseEntity<BaseResponse<List<LlmKeyResponse>>> listMyLlmKeys() {
+    public ResponseEntity<BaseResponse<ListResponse<LlmKeyResponse>>> listMyLlmKeys() {
         UUID userNo = currentUser();
-        List<LlmKeyResponse> responses = llmKeyService.listSelf(userNo);
+        ListResponse<LlmKeyResponse> responses = llmKeyService.listSelf(userNo);
         return ResponseEntity.ok(
             BaseResponse.of(HttpStatus.OK, responses, "LLM Key 목록 조회에 성공하였습니다."));
     }
