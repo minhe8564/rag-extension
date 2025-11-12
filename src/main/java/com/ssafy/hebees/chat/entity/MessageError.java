@@ -30,8 +30,11 @@ public class MessageError extends BaseEntity {
     @Column(name = "SESSION_NO", columnDefinition = "BINARY(16)", nullable = false)
     private UUID sessionNo;
 
-    @Column(name = "REQUEST_NO", columnDefinition = "BINARY(16)", nullable = false)
-    private UUID requestNo;
+    @Column(name = "USER_NO", columnDefinition = "BINARY(16)", nullable = false)
+    private UUID userNo;
+
+    @Column(name = "MESSAGE", nullable = false, length = 1023)
+    private String message;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "TYPE", nullable = false, length = 20)

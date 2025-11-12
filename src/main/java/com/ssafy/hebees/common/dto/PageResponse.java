@@ -12,8 +12,6 @@ public record PageResponse<T>(
         int display,
         long totalItems,
         int totalPages,
-        boolean first,
-        boolean last,
         boolean hasNext
     ) {
 
@@ -27,8 +25,6 @@ public record PageResponse<T>(
             pageSize,
             totalItems,
             totalPages,
-            pageNum == 0,
-            pageNum >= totalPages - 1,
             pageNum < totalPages - 1
         );
 

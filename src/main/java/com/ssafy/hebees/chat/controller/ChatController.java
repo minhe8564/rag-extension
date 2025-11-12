@@ -3,11 +3,15 @@ package com.ssafy.hebees.chat.controller;
 import com.ssafy.hebees.chat.dto.request.AskRequest;
 import com.ssafy.hebees.chat.dto.request.MessageCreateRequest;
 import com.ssafy.hebees.chat.dto.request.MessageCursorRequest;
+import com.ssafy.hebees.chat.dto.request.MessageErrorCreateRequest;
+import com.ssafy.hebees.chat.dto.request.MessageErrorSearchRequest;
 import com.ssafy.hebees.chat.dto.request.SessionCreateRequest;
 import com.ssafy.hebees.chat.dto.request.SessionSearchRequest;
 import com.ssafy.hebees.chat.dto.request.SessionUpdateRequest;
 import com.ssafy.hebees.chat.dto.response.AskResponse;
 import com.ssafy.hebees.chat.dto.response.MessageCursorResponse;
+import com.ssafy.hebees.chat.dto.response.MessageErrorCreateResponse;
+import com.ssafy.hebees.chat.dto.response.MessageErrorResponse;
 import com.ssafy.hebees.chat.dto.response.MessageResponse;
 import com.ssafy.hebees.chat.dto.response.ReferencedDocumentListResponse;
 import com.ssafy.hebees.chat.dto.response.ReferencedDocumentResponse;
@@ -15,6 +19,7 @@ import com.ssafy.hebees.chat.dto.response.SessionCreateResponse;
 import com.ssafy.hebees.chat.dto.response.SessionResponse;
 import com.ssafy.hebees.chat.service.ChatAskService;
 import com.ssafy.hebees.chat.service.ChatService;
+import com.ssafy.hebees.chat.service.MessageErrorService;
 import com.ssafy.hebees.chat.service.MessageService;
 import com.ssafy.hebees.common.dto.ListResponse;
 import com.ssafy.hebees.common.dto.PageRequest;
@@ -35,6 +40,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -45,7 +51,6 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.client.HttpClientErrorException.Forbidden;
 
 
 @RestController
@@ -59,6 +64,7 @@ public class ChatController {
     private final ChatService chatService;
     private final MessageService chatMessageService;
     private final ChatAskService chatAskService;
+    private final MessageErrorService messageErrorService;
 
     @GetMapping("/sessions")
     @Operation(summary = "세션 목록 조회", description = "세션 목록을 조회합니다.")
@@ -272,5 +278,55 @@ public class ChatController {
                 response,
                 "질문 요청에 성공하였습니다."
             ));
+    }
+
+    @PostMapping("/error-messages")
+    @Operation(summary = "에러 메시지 등록하기", description = "에러 메시지 로그를 등록합니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "에러 메시지 등록에 성공하였습니다."),
+    })
+    public ResponseEntity<BaseResponse<MessageErrorCreateResponse>> createMessageError(
+        @Valid @RequestBody MessageErrorCreateRequest request) {
+        UUID userNo = SecurityUtil.getCurrentUserUuid()
+            .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_ACCESS_TOKEN));
+
+        MessageErrorCreateResponse response = messageErrorService.createMessageError(userNo,
+            request);
+
+        URI location = URI
+            .create(String.format("/chat/error-messages/%s", response.messageErrorNo()));
+
+        return ResponseEntity.created(location)
+            .body(BaseResponse.of(HttpStatus.CREATED, response, "에러 메시지 등록에 성공하였습니다."));
+    }
+
+    @GetMapping("/error-messages")
+    @Operation(summary = "[관리자] 에러 메시지 목록 조회하기", description = "에러 메시지 목록을 조회합니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "에러 메시지 목록 조회에 성공하였습니다."),
+    })
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BaseResponse<PageResponse<MessageErrorResponse>>> listMessageError(
+        @Valid @ModelAttribute PageRequest pageRequest,
+        @Valid @ModelAttribute MessageErrorSearchRequest searchRequest
+    ) {
+        PageResponse<MessageErrorResponse> errors = messageErrorService.listMessageErrors(
+            pageRequest, searchRequest);
+
+        return ResponseEntity.ok(
+            BaseResponse.of(HttpStatus.OK, errors, "에러 메시지 목록 조회에 성공하였습니다.")
+        );
+    }
+
+    @DeleteMapping("/error-messages/{errorMessageNo}")
+    @Operation(summary = "[관리자] 에러 메시지 삭제하기", description = "에러 메시지를 삭제합니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "204", description = "에러 메시지 삭제에 성공하였습니다."),
+    })
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> deleteMessageError(
+        @PathVariable UUID errorMessageNo) {
+        messageErrorService.deleteMessageError(errorMessageNo);
+        return ResponseEntity.noContent().build();
     }
 }
