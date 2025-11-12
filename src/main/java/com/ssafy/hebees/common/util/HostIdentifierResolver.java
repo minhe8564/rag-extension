@@ -18,8 +18,7 @@ public class HostIdentifierResolver {
     private final MonitoringProperties monitoringProperties;
 
     /**
-     * 호스트 식별자를 해석
-     * 런타임 이름
+     * 호스트 식별자를 해석 런타임 이름
      *
      * @return 호스트 식별자 (없으면 null)
      */
