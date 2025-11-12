@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 from app.schemas.request.queryEmbeddingRequest import QueryEmbeddingProcessRequest
 from app.schemas.response.queryEmbeddingProcessResponse import QueryEmbeddingProcessResponse, QueryEmbeddingProcessResult
 from app.schemas.response.errorResponse import ErrorResponse
+from app.middleware.metrics_middleware import with_query_embedding_metrics
 from typing import Dict, Any
 import importlib
 from loguru import logger
@@ -67,6 +68,7 @@ def get_strategy(strategy_name: str, parameters: Dict[Any, Any] = None) -> Any:
 
 
 @router.post("/process")
+@with_query_embedding_metrics
 async def query_embedding_process(request: QueryEmbeddingProcessRequest):
     """
     Query Embedding /process 엔드포인트
