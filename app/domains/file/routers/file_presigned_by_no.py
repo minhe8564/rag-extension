@@ -2,16 +2,11 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Request, HTTPException, status, Query, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-import uuid
 
 from app.core.schemas import BaseResponse
 from app.core.database import get_db
 from ..schemas.response.presigned_url import PresignedUrl
-from ....core.utils.uuid_utils import _get_offer_no_by_user
-from ..services.presign import get_presigned_url
-from ..repositories.file_repository import FileRepository
-from app.domains.collection.models.collection import Collection
+from ..services.presign import generate_presigned_url_with_auth
 
 
 router = APIRouter(prefix="/files", tags=["File"])
@@ -32,42 +27,17 @@ async def generate_presigned_url_by_file_no(
     if not x_user_role or not x_user_uuid:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="x-user-role/x-user-uuid headers required")
 
-    try:
-        file_no_bytes = uuid.UUID(fileNo).bytes
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid fileNo format (UUID required)")
-
-    file_rec = await FileRepository.find_by_file_no(session, file_no_bytes)
-    if not file_rec:
-        raise HTTPException(status_code=404, detail="File not found")
-
     role_upper = (x_user_role or "").upper()
-    if role_upper != "ADMIN":
-        try:
-            user_no_bytes = uuid.UUID(x_user_uuid).bytes
-        except Exception:
-            raise HTTPException(status_code=400, detail="Invalid x-user-uuid format (UUID required)")
-        offer_no = await _get_offer_no_by_user(session, user_no_bytes)
-        # Allow when collection is shared (public or hebees)
-        is_shared_collection = False
-        if file_rec.collection_no:
-            res = await session.execute(
-                select(Collection.name).where(Collection.collection_no == file_rec.collection_no)
-            )
-            col_name = res.scalar_one_or_none()
-            if col_name and col_name in ("public"):
-                is_shared_collection = True
 
-        if (not is_shared_collection) and (file_rec.offer_no != offer_no):
-            raise HTTPException(status_code=403, detail="Forbidden: file does not belong to your offer")
-
-    url = await get_presigned_url(
-        bucket=file_rec.bucket,
-        object_name=file_rec.path,
-        content_type=contentType,
+    url = await generate_presigned_url_with_auth(
+        session,
+        file_no=fileNo,
+        role=role_upper,
+        user_uuid=x_user_uuid,
         days=days,
-        version_id=versionId,
         inline=inline,
+        content_type=contentType,
+        version_id=versionId,
     )
 
     return BaseResponse[PresignedUrl](
