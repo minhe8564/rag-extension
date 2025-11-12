@@ -3,6 +3,7 @@ from app.schemas.request.generationRequest import GenerationProcessRequest
 from app.schemas.response.generationProcessResponse import GenerationProcessResponse, GenerationProcessResult, Citation
 from app.schemas.response.errorResponse import ErrorResponse
 from app.core.memory_manager import get_memory_manager
+from app.middleware.metrics_middleware import with_generation_metrics
 from typing import Dict, Any, Optional
 import importlib
 from loguru import logger
@@ -53,6 +54,7 @@ def get_strategy(strategy_name: str, parameters: Dict[Any, Any] = None) -> Any:
 
 
 @router.post("/process")
+@with_generation_metrics
 async def generation_process(
     request: GenerationProcessRequest,
     x_user_role: str | None = Header(default=None, alias="x-user-role"),
