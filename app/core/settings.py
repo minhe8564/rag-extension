@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
 from typing import Optional
 from pathlib import Path
 
@@ -29,8 +30,9 @@ class Settings(BaseSettings):
     # Redis 설정
     redis_host: str
     redis_port: int = 16379
-    redis_username: Optional[str] = None
-    redis_password: Optional[str] = None
+    redis_username: Optional[str] = None  # 기본값 None 유지
+    redis_password: Optional[str] = Field(default=None, validation_alias="REDIS_PASSWORD")
+
     redis_db: int = 1
 
     # 로깅 설정
