@@ -2,6 +2,7 @@ package com.ssafy.hebees.ragsetting.service;
 
 import com.ssafy.hebees.ragsetting.dto.request.LlmKeyCreateRequest;
 import com.ssafy.hebees.ragsetting.dto.request.LlmKeySelfCreateRequest;
+import com.ssafy.hebees.ragsetting.dto.request.LlmKeySelfUpdateRequest;
 import com.ssafy.hebees.ragsetting.dto.request.LlmKeyUpdateRequest;
 import com.ssafy.hebees.ragsetting.dto.response.LlmKeyResponse;
 import java.util.List;
@@ -23,9 +24,9 @@ public interface LlmKeyService {
 
     List<LlmKeyResponse> listSelf(UUID userNo);
 
-    LlmKeyResponse updateSelf(UUID userNo, UUID llmKeyNo, LlmKeyUpdateRequest request);
+    LlmKeyResponse updateSelf(UUID userNo, String llmIdentifier, LlmKeySelfUpdateRequest request);
 
-    void deleteSelf(UUID userNo, UUID llmKeyNo);
+    void deleteSelf(UUID userNo, String llmIdentifier);
 
     LlmKeyResponse getSelfByLlm(UUID userNo, String llmIdentifier);
 }

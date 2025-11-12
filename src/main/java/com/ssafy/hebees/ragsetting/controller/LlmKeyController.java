@@ -7,6 +7,7 @@ import com.ssafy.hebees.common.util.SecurityUtil;
 import com.ssafy.hebees.ragsetting.dto.request.LlmKeyCreateRequest;
 import com.ssafy.hebees.ragsetting.dto.request.LlmKeySelfCreateRequest;
 import com.ssafy.hebees.ragsetting.dto.request.LlmKeyUpdateRequest;
+import com.ssafy.hebees.ragsetting.dto.request.LlmKeySelfUpdateRequest;
 import com.ssafy.hebees.ragsetting.dto.response.LlmKeyResponse;
 import com.ssafy.hebees.ragsetting.service.LlmKeyService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -23,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -128,40 +130,59 @@ public class LlmKeyController {
     @ApiResponse(responseCode = "200", description = "LLM Key 조회 성공",
         content = @Content(schema = @Schema(implementation = LlmKeyResponse.class)))
     public ResponseEntity<BaseResponse<LlmKeyResponse>> getMyLlmKeyByLlm(
-        @Parameter(description = "LLM 이름 또는 UUID", example = "gpt-4o", required = true)
+        @Parameter(description = "LLM 이름", example = "gpt-4o", required = true)
         @PathVariable("llmName") String llmName
     ) {
         UUID userNo = currentUser();
-        LlmKeyResponse response = llmKeyService.getSelfByLlm(userNo, llmName);
+        String validated = requireLlmName(llmName);
+        LlmKeyResponse response = llmKeyService.getSelfByLlm(userNo, validated);
         return ResponseEntity.ok(
             BaseResponse.of(HttpStatus.OK, response, "LLM Key 조회에 성공하였습니다."));
     }
 
-    @PutMapping("/me/{llmKeyNo}")
+    @PutMapping("/me/{llmName}")
     @Operation(summary = "내 LLM Key 수정", description = "현재 사용자 계정의 LLM Key를 수정합니다.")
     @ApiResponse(responseCode = "200", description = "LLM Key 수정 성공",
         content = @Content(schema = @Schema(implementation = LlmKeyResponse.class)))
     public ResponseEntity<BaseResponse<LlmKeyResponse>> updateMyLlmKey(
-        @PathVariable UUID llmKeyNo,
-        @Valid @RequestBody LlmKeyUpdateRequest request) {
+        @Parameter(description = "LLM 이름", example = "gpt-4o", required = true)
+        @PathVariable("llmName") String llmName,
+        @Valid @RequestBody LlmKeySelfUpdateRequest request) {
         UUID userNo = currentUser();
-        LlmKeyResponse response = llmKeyService.updateSelf(userNo, llmKeyNo, request);
+        String validated = requireLlmName(llmName);
+        LlmKeyResponse response = llmKeyService.updateSelf(userNo, validated, request);
         return ResponseEntity.ok(
             BaseResponse.of(HttpStatus.OK, response, "LLM Key 수정에 성공하였습니다."));
     }
 
-    @DeleteMapping("/me/{llmKeyNo}")
+    @DeleteMapping("/me/{llmName}")
     @Operation(summary = "내 LLM Key 삭제", description = "현재 사용자 계정의 LLM Key를 삭제합니다.")
     @ApiResponse(responseCode = "204", description = "LLM Key 삭제 성공")
-    public ResponseEntity<Void> deleteMyLlmKey(@PathVariable UUID llmKeyNo) {
+    public ResponseEntity<Void> deleteMyLlmKey(
+        @Parameter(description = "LLM 이름", example = "gpt-4o", required = true)
+        @PathVariable("llmName") String llmName) {
         UUID userNo = currentUser();
-        llmKeyService.deleteSelf(userNo, llmKeyNo);
+        String validated = requireLlmName(llmName);
+        llmKeyService.deleteSelf(userNo, validated);
         return ResponseEntity.noContent().build();
     }
 
     private UUID currentUser() {
         return SecurityUtil.getCurrentUserUuid()
             .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_ACCESS_TOKEN));
+    }
+
+    private String requireLlmName(String llmName) {
+        String trimmed = llmName != null ? llmName.trim() : null;
+        if (!StringUtils.hasText(trimmed)) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST);
+        }
+        try {
+            UUID.fromString(trimmed);
+            throw new BusinessException(ErrorCode.BAD_REQUEST);
+        } catch (IllegalArgumentException ignored) {
+        }
+        return trimmed;
     }
 }
 
