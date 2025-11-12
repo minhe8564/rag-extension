@@ -5,6 +5,8 @@ import com.ssafy.hebees.chat.client.dto.RunpodChatMessage;
 import com.ssafy.hebees.chat.client.dto.RunpodChatResult;
 import com.ssafy.hebees.chat.dto.request.SessionCreateRequest;
 import com.ssafy.hebees.common.exception.BusinessException;
+import com.ssafy.hebees.ragsetting.entity.AgentPrompt;
+import com.ssafy.hebees.ragsetting.repository.AgentPromptRepository;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +20,7 @@ import org.springframework.util.StringUtils;
 public class SessionTitleServiceImpl implements SessionTitleService {
 
     private final RunpodClient runpodClient;
+    private final AgentPromptRepository agentPromptRepository;
 
     @Override
     public String generate(String query) {
@@ -27,9 +30,12 @@ public class SessionTitleServiceImpl implements SessionTitleService {
         }
 
         try {
+            AgentPrompt agentPrompt = agentPromptRepository.findByName("Title Generation").orElse(null);
+            String prompt = agentPrompt != null ? agentPrompt.getContent() :
+                "You are an assistant that reads the user's question and replies only with a concise Korean session title under 15 characters. Do not include punctuation or any extra text.";
+
             RunpodChatResult result = runpodClient.chat(List.of(
-                RunpodChatMessage.of("system",
-                    "You are an assistant that reads the user's question and replies only with a concise Korean session title under 15 characters. Do not include punctuation or any extra text."),
+                RunpodChatMessage.of("system", prompt),
                 RunpodChatMessage.of("user", sanitizedQuery)
             ));
 
