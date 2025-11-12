@@ -11,8 +11,11 @@ public record LlmKeyResponse(
     @Schema(description = "사용자 ID", example = "6d3efc39-d052-49a2-8d16-31a8a99f8889")
     UUID userNo,
 
-    @Schema(description = "LLM 전략 ID", example = "1cb9d767-0a5f-4cda-9be9-7428c9af5c42")
+    @Schema(description = "LLM ID (삭제 예정)", example = "1cb9d767-0a5f-4cda-9be9-7428c9af5c42")
     UUID strategyNo,
+
+    @Schema(description = "LLM ID", example = "1cb9d767-0a5f-4cda-9be9-7428c9af5c42")
+    UUID llmNo,
 
     @Schema(description = "LLM 이름", example = "GPT-4o Mini")
     String llmName,

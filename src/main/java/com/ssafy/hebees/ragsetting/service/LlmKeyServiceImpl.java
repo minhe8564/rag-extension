@@ -322,6 +322,7 @@ public class LlmKeyServiceImpl implements LlmKeyService {
             llmKey.getLlmKeyNo(),
             llmKey.getUser() != null ? llmKey.getUser().getUuid() : null,
             strategy != null ? strategy.getStrategyNo() : null,
+            strategy != null ? strategy.getStrategyNo() : null,
             llmName,
             llmKey.getApiKey()
         );
