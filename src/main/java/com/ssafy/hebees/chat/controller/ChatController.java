@@ -87,9 +87,12 @@ public class ChatController {
     ) {
         String userRole = SecurityUtil.getCurrentUserRole()
             .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_ACCESS_TOKEN));
-        if(!Objects.equals(userRole, "ADMIN")) throw new BusinessException(ErrorCode.PERMISSION_DENIED);
+        if (!Objects.equals(userRole, "ADMIN")) {
+            throw new BusinessException(ErrorCode.PERMISSION_DENIED);
+        }
 
-        PageResponse<SessionResponse> sessions = chatService.getAllSessions(pageRequest, searchRequest);
+        PageResponse<SessionResponse> sessions = chatService.getAllSessions(pageRequest,
+            searchRequest);
 
         return ResponseEntity.ok(BaseResponse.of(HttpStatus.OK, sessions, "세션 목록 전체 조회에 성공하였습니다."));
     }

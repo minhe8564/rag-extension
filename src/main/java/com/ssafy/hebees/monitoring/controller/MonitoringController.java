@@ -3,6 +3,7 @@ package com.ssafy.hebees.monitoring.controller;
 import com.ssafy.hebees.common.response.BaseResponse;
 import com.ssafy.hebees.monitoring.dto.response.CpuUsageResponse;
 import com.ssafy.hebees.monitoring.dto.response.MemoryUsageResponse;
+import com.ssafy.hebees.monitoring.dto.response.MetricsListResponse;
 import com.ssafy.hebees.monitoring.dto.response.NetworkTrafficResponse;
 import com.ssafy.hebees.monitoring.dto.response.RunpodCpuUsageResponse;
 import com.ssafy.hebees.monitoring.dto.response.RunpodGpuUsageResponse;
@@ -10,7 +11,9 @@ import com.ssafy.hebees.monitoring.dto.response.ServicePerformanceListResponse;
 import com.ssafy.hebees.monitoring.dto.response.ServiceStatusListResponse;
 import com.ssafy.hebees.monitoring.dto.response.StorageListResponse;
 import com.ssafy.hebees.monitoring.service.MonitoringService;
+import com.ssafy.hebees.monitoring.service.RagMetricsService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -25,6 +28,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
 
@@ -36,6 +40,7 @@ import reactor.core.publisher.Flux;
 public class MonitoringController {
 
     private final MonitoringService monitoringService;
+    private final RagMetricsService ragMetricsService;
 
     @GetMapping(value = "/cpu/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @PreAuthorize("hasRole('ADMIN')")
@@ -190,6 +195,32 @@ public class MonitoringController {
             HttpStatus.OK,
             response,
             "Runpod CPU 사용량 조회 성공"
+        ));
+    }
+
+    @GetMapping(value = "/metrics/rag", produces = MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "RAG Pipeline 평균 응답시간 조회",
+        description = "RAG Pipeline 단계별 평균 응답시간을 조회합니다. " +
+            "기본적으로 최근 5분간의 데이터를 기준으로 계산합니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "조회 성공"),
+        @ApiResponse(responseCode = "401", description = "인증 실패"),
+        @ApiResponse(responseCode = "403", description = "권한 없음 (ADMIN 접근 가능)")
+    })
+    public ResponseEntity<BaseResponse<MetricsListResponse>> getRagMetrics(
+        @Parameter(description = "조회할 시간 범위 (초), 기본값: 300 (5분)")
+        @RequestParam(required = false) Integer windowSeconds
+    ) {
+        MetricsListResponse response = ragMetricsService.getAllMetrics(windowSeconds);
+        int count = response.metrics().size();
+        String message = count > 0
+            ? String.format("%d개의 RAG Pipeline 메트릭을 조회했습니다.", count)
+            : "메트릭 데이터가 없습니다.";
+        return ResponseEntity.ok(BaseResponse.of(
+            HttpStatus.OK,
+            response,
+            message
         ));
     }
 }

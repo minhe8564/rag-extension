@@ -10,7 +10,9 @@ import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.beans.factory.annotation.Qualifier;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Configuration
 @EnableConfigurationProperties(RedisProperties.class)
 public class RedisConfig {
@@ -100,5 +102,33 @@ public class RedisConfig {
         @Qualifier("activeUserLettuceConnectionFactory") LettuceConnectionFactory connectionFactory) {
         return new StringRedisTemplate(connectionFactory);
     }
+
+    @Bean(name = "metricsLettuceConnectionFactory")
+    public LettuceConnectionFactory metricsLettuceConnectionFactory(RedisProperties props) {
+        RedisStandaloneConfiguration conf = new RedisStandaloneConfiguration();
+        conf.setHostName(props.getHost());
+        conf.setPort(props.getPort());
+        if (props.getPassword() != null && !props.getPassword().isEmpty()) {
+            conf.setPassword(RedisPassword.of(props.getPassword()));
+        }
+        if (props.getUsername() != null && !props.getUsername().isEmpty()) {
+            conf.setUsername(props.getUsername());
+        }
+        conf.setDatabase(4); // 메트릭 정보는 DB4
+
+        LettuceConnectionFactory factory = new LettuceConnectionFactory(conf);
+        factory.afterPropertiesSet();
+        factory.setValidateConnection(true);
+        return factory;
+    }
+
+    @Bean(name = "metricsRedisTemplate")
+    public StringRedisTemplate metricsRedisTemplate(
+        @Qualifier("metricsLettuceConnectionFactory") LettuceConnectionFactory connectionFactory) {
+        StringRedisTemplate template = new StringRedisTemplate(connectionFactory);
+        template.afterPropertiesSet();
+        return template;
+    }
+
 
 }
