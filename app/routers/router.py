@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 from app.schemas.request.chunkingRequest import ChunkingProcessRequest
 from app.schemas.response.chunkingProcessResponse import ChunkingProcessResponse, ChunkingProcessResult, Chunk
 from app.schemas.response.errorResponse import ErrorResponse
+from app.middleware.metrics_middleware import with_chunking_metrics
 from typing import Dict, Any
 import importlib
 from loguru import logger
@@ -67,6 +68,7 @@ def get_strategy(strategy_name: str, parameters: Dict[Any, Any] = None) -> Any:
 
 
 @router.post("/process")
+@with_chunking_metrics
 async def chunking_process(request: ChunkingProcessRequest):
     """
     Chunking /process 엔드포인트
