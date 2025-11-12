@@ -20,6 +20,7 @@ public record LlmKeyResponse(
     @Schema(description = "API Key", example = "sk-live-1234567890")
     String apiKey
 ) {
+
 }
 
 

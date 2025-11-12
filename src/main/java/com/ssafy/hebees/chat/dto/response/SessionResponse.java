@@ -31,6 +31,7 @@ public record SessionResponse(
     @Schema(description = "사용자 이름", example = "강하늘")
     String userName
 ) {
+
     public static SessionResponse of(Session session) {
         return of(session, null, null);
     }

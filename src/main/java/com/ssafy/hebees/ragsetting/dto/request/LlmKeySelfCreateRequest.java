@@ -17,6 +17,7 @@ public record LlmKeySelfCreateRequest(
     @Schema(description = "API Key", example = "sk-live-1234567890", requiredMode = Schema.RequiredMode.REQUIRED)
     String apiKey
 ) {
+
 }
 
 

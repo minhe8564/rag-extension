@@ -21,6 +21,7 @@ public record LlmKeyUpdateRequest(
     @Nullable
     String apiKey
 ) {
+
 }
 
 
