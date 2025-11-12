@@ -31,7 +31,7 @@ class IngestProgressPusher:
 
         self.endpoint = os.getenv(
             "PROGRESS_ENDPOINT",
-            "http://hebees-ingest:8000/api/v1/ingest/progress",
+            "http://hebees-rag-orchestrator:8000/api/v1/ingest/progress",
         )
         try:
             self.min_pct_step = float(os.getenv("PROGRESS_MIN_PERCENT_STEP", "2.0"))
