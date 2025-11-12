@@ -9,6 +9,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -17,7 +18,15 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "LLM_KEY")
+@Table(
+    name = "LLM_KEY",
+    uniqueConstraints = {
+        @UniqueConstraint(
+            name = "UK_LLM_KEY__USER_NO__STRATEGY_NO",
+            columnNames = {"USER_NO", "STRATEGY_NO"}
+        )
+    }
+)
 @Getter
 @Builder(toBuilder = true)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
