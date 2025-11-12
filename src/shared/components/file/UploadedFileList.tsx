@@ -5,7 +5,7 @@ import Tooltip from '@/shared/components/Tooltip';
 import Select from '@/shared/components/Select';
 import Pagination from '@/shared/components/Pagination';
 import { fileTypeOptions } from '@/domains/admin/components/rag-settings/options';
-import { useCategoryStore } from '@/shared/store/categoryMap';
+import { useCategoryStore } from '@/shared/store/useCategoryMap';
 import ConflictBar from '@/shared/components/file/ConflictBar';
 import { ensureUniqueName } from '@/shared/utils/fileName';
 import { useNameGroups } from '@/shared/hooks/useNameGroups';

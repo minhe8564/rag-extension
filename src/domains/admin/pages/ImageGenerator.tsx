@@ -121,6 +121,7 @@ export default function ImageGenerator() {
           onDownload={handleDownload}
           onCopy={handleCopy}
           onRegenerate={(id) => onRegenerate(id)}
+          brand="hebees"
         />
       </section>
     </div>

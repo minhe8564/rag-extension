@@ -1,4 +1,4 @@
-import fastApi from '@/shared/lib/apiInstance';
+import { fastApi } from '@/shared/lib/apiInstance';
 import type { ApiEnvelope } from '@/shared/lib/api.types';
 import type { Option } from '@/shared/components/Select';
 import type {
@@ -25,7 +25,10 @@ export async function getPromptDetail(promptNo: string): Promise<Prompt> {
 
 // 생성
 export async function createPrompt(dto: CreatePromptRequest): Promise<string> {
-  const { data } = await fastApi.post<ApiEnvelope<{ promptNo: string }>>('/api/rag/prompts', dto);
+  const { data } = await fastApi.post<ApiEnvelope<{ promptNo: string }>>(
+    '/api/v1/rag/prompts',
+    dto
+  );
   return data.result.promptNo;
 }
 

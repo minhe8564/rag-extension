@@ -1,7 +1,7 @@
 import { Trash2, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import type { RawMyDoc } from '@/shared/types/file.types';
-import { useCategoryStore } from '@/shared/store/categoryMap';
+import { useCategoryStore } from '@/shared/store/useCategoryMap';
 
 type UploadListProps = {
   files: RawMyDoc[];

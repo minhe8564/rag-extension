@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import VecProcess from './VecProcess';
 import type { RawMyDoc } from '@/shared/types/file.types';
-import { useCategoryStore } from '@/shared/store/categoryMap';
+import { useCategoryStore } from '@/shared/store/useCategoryMap';
 import type { UploadBucket } from '@/shared/types/file.types';
 import { getCollections } from '@/domains/admin/api/documents.api';
 import { uploadFiles } from '@/shared/api/file.api';

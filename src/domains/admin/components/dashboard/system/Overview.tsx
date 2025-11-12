@@ -57,7 +57,7 @@ export default function Overview() {
     {
       key: 'expense',
       title: '예상 비용',
-      subtitle: '모델별 비용',
+      subtitle: '일일 모델 비용',
       status: connected.expense ? (
         <StatusPill ok text="실시간" />
       ) : errors.expense ? (

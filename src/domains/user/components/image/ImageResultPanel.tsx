@@ -1,7 +1,11 @@
 import { useEffect, useRef } from 'react';
 import { Download, Copy, RefreshCw, Loader2, Plus } from 'lucide-react';
+import lottie from 'lottie-web';
+import type { AnimationItem } from 'lottie-web';
 import Tooltip from '@/shared/components/Tooltip';
 import type { StylePreset } from '@/domains/user/types/image.type';
+
+type Brand = 'retina' | 'hebees';
 
 type Props = {
   images: { url: string; image_id: string }[];
@@ -11,6 +15,7 @@ type Props = {
   onDownload: (src: string, idx: number) => void;
   onCopy: (src: string) => void;
   onRegenerate: (imageId: string) => void;
+  brand?: Brand;
 };
 
 export default function ImageResultPane({
@@ -21,8 +26,17 @@ export default function ImageResultPane({
   onDownload,
   onCopy,
   onRegenerate,
+  brand = 'retina',
 }: Props) {
   const rightPaneRef = useRef<HTMLDivElement>(null);
+
+  const lottieContainerRef = useRef<HTMLDivElement>(null);
+  const lottieInstanceRef = useRef<AnimationItem | null>(null);
+
+  const brandColorVar = brand === 'hebees' ? 'var(--color-hebees)' : 'var(--color-retina)';
+  const brandBgClass = `bg-[${brandColorVar}]`;
+  const brandTextClass =
+    brand === 'hebees' ? 'text-[var(--color-hebees)]' : 'text-[var(--color-retina)]';
 
   useEffect(() => {
     if (images.length > 0) {
@@ -30,14 +44,55 @@ export default function ImageResultPane({
     }
   }, [images.length]);
 
+  useEffect(() => {
+    const shouldPlay = loading && images.length === 0 && lottieContainerRef.current;
+
+    if (shouldPlay && lottieContainerRef.current) {
+      if (!lottieInstanceRef.current) {
+        lottieInstanceRef.current = lottie.loadAnimation({
+          container: lottieContainerRef.current,
+          renderer: 'svg',
+          loop: true,
+          autoplay: true,
+          path: '/lotties/image-loading.json',
+          rendererSettings: {
+            preserveAspectRatio: 'xMidYMid meet',
+            progressiveLoad: true,
+          },
+        });
+      } else {
+        lottieInstanceRef.current.play();
+      }
+    } else if (lottieInstanceRef.current) {
+      lottieInstanceRef.current.stop();
+      lottieInstanceRef.current.destroy();
+      lottieInstanceRef.current = null;
+    }
+
+    return () => {
+      if (lottieInstanceRef.current) {
+        lottieInstanceRef.current.destroy();
+        lottieInstanceRef.current = null;
+      }
+    };
+  }, [loading, images.length]);
+
   return (
     <div
       ref={rightPaneRef}
       className="min-h-[60vh] rounded-xl border bg-white p-8 overflow-auto no-scrollbar"
     >
       {loading && images.length === 0 && (
-        <div className="flex items-center justify-center h-full min-h-[400px]">
-          <div className="aspect-square w-96 animate-pulse rounded-lg bg-gray-100" />
+        <div className="flex flex-col items-center justify-center h-full min-h-[400px]">
+          <div
+            ref={lottieContainerRef}
+            className="w-80 h-80 md:w-90 md:h-90"
+            aria-label="이미지 생성 중"
+            role="img"
+          />
+          <div className={`mt-3 text-sm text-gray-500 ${brandTextClass}`}>
+            이미지 생성 중입니다. 잠시만 기다려주세요...
+          </div>
         </div>
       )}
 
@@ -91,7 +146,9 @@ export default function ImageResultPane({
             <Tooltip content="다시 생성" side="bottom">
               <button
                 onClick={() => onRegenerate(images[0].image_id)}
-                className="rounded-md bg-[var(--color-retina)] text-white px-3 py-2 text-xs hover:opacity-90"
+                className={`rounded-md ${brandBgClass} text-white px-3 py-2 text-xs hover:opacity-90`}
+                aria-busy={loading}
+                data-brand={brand}
               >
                 {loading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={16} />}
               </button>

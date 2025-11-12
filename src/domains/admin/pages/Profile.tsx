@@ -4,6 +4,7 @@ import { Loader2, UserCog, Mail, Shield, UserSquare2, Images } from 'lucide-reac
 import ProfileInfoCard from '@/shared/components/ProfileInfoCard';
 import ImageAlbum from '@/domains/user/components/image/ImageAlbum';
 import FooterInfo from '@/shared/components/FooterInfo';
+import KeyCard from '@/shared/components/ApiKey';
 
 type UserInfo = {
   userNo: string;
@@ -37,7 +38,7 @@ export default function Profile() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <main className="flex-1 space-y-8 px-4">
+      <main className="flex-1 px-4 mb-20">
         <div className="flex items-center gap-4">
           <div className="p-3 rounded-xl bg-[var(--color-hebees-bg)] flex items-center justify-center">
             <UserCog size={28} className="text-[var(--color-hebees)]" />
@@ -48,7 +49,7 @@ export default function Profile() {
           </div>
         </div>
 
-        <div className="rounded-xl border bg-white p-6 shadow-sm">
+        <div className="mt-6">
           {loading ? (
             <div className="flex items-center justify-center py-10 text-gray-500">
               <Loader2 size={18} className="animate-spin mr-2" />
@@ -78,6 +79,9 @@ export default function Profile() {
                   </span>
                 }
               />
+              <div className="sm:col-span-1">
+                <KeyCard brand="hebees" />
+              </div>
             </dl>
           ) : (
             <div className="text-center text-gray-500 py-10">
@@ -86,8 +90,8 @@ export default function Profile() {
           )}
         </div>
 
-        <section>
-          <div className="flex items-center gap-4 mb-4">
+        <section className="mb-20">
+          <div className="mt-14 mb-4 flex items-center gap-4">
             <div className="p-3 rounded-xl bg-[var(--color-hebees-bg)] flex items-center justify-center">
               <Images size={28} className="text-[var(--color-hebees)]" />
             </div>

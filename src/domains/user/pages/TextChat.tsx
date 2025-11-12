@@ -3,7 +3,6 @@ import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 import ChatInput from '@/shared/components/chat/ChatInput';
 import ChatMessageItem from '@/shared/components/chat/ChatMessageItem';
 import ScrollToBottomButton from '@/shared/components/chat/ScrollToBottomButton';
-import { useGlobalModelStore } from '@/shared/store/useGlobalModelStore';
 import { getSession, getMessages, sendMessage } from '@/shared/api/chat.api';
 import type { UiMsg, UiRole } from '@/shared/components/chat/ChatMessageItem';
 import type {
@@ -18,15 +17,7 @@ import {
   useEnsureSession,
   useThinkingTicker,
 } from '@/domains/user/hooks/useChatHelpers';
-
-const DEFAULT_LLM = 'qwen3-vl:8b';
-const NAME_TO_ID: Record<string, string> = {
-  'Qwen3-vl:8B': 'qwen3-vl:8b',
-  'GPT-4o': 'gpt-4o',
-  'Gemini 2.5 Flash': 'gemini-2.5 flash',
-  'Claude Sonnet 4': 'claude-sonnet 4',
-};
-const mapNameToId = (name?: string) => (name ? NAME_TO_ID[name] : undefined);
+import { useChatModelStore } from '@/shared/store/useChatModelStore';
 
 const mapRole = (r: ChatRole): UiRole => (r === 'human' ? 'user' : r === 'ai' ? 'assistant' : r);
 
@@ -40,46 +31,68 @@ export default function TextChat() {
   const [list, setList] = useState<UiMsg[]>([]);
   const [awaitingAssistant, setAwaitingAssistant] = useState(false);
 
+  const [initialLoading, setInitialLoading] = useState<boolean>(Boolean(derivedSessionNo));
+
+  const { selectedModel, setSelectedModel } = useChatModelStore();
+
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const forceScrollRef = useRef(false);
 
-  const model = useGlobalModelStore((s) => s.model);
-  const setModel = useGlobalModelStore((s) => s.setModel);
   const ensureSession = useEnsureSession(setCurrentSessionNo);
 
   useEffect(() => {
+    let cancelled = false;
+
     (async () => {
       if (!derivedSessionNo) {
-        if (!model) setModel(DEFAULT_LLM);
+        if (!selectedModel) setSelectedModel('Qwen3-vl:8B');
+        setInitialLoading(false);
         return;
       }
 
+      setInitialLoading(true);
       setCurrentSessionNo(derivedSessionNo);
 
-      const resMsgs = await getMessages(derivedSessionNo);
-      const page: MessagePage = resMsgs.data.result;
+      try {
+        const [resMsgs, resSess] = await Promise.all([
+          getMessages(derivedSessionNo),
+          getSession(derivedSessionNo),
+        ]);
 
-      const resSess = await getSession(derivedSessionNo);
-      const sessionInfo = resSess.data.result as { llm?: string; llmName?: string } | undefined;
+        const page = resMsgs.data.result as MessagePage;
+        const sessionInfo = resSess.data.result as { llmNo?: string; llmName?: string } | undefined;
 
-      const llmId = sessionInfo?.llm || mapNameToId(sessionInfo?.llmName) || DEFAULT_LLM;
-      setModel(llmId);
+        const llmName: string = sessionInfo?.llmName ?? selectedModel ?? 'Qwen3-vl:8B';
+        setSelectedModel(llmName);
 
-      const mapped: UiMsg[] =
-        page.data?.map((m: MessageItem) => ({
-          role: mapRole(m.role),
-          content: m.content,
-          createdAt: m.createdAt,
-          messageNo: m.messageNo,
-          referencedDocuments: m.referencedDocuments,
-        })) ?? [];
+        const mapped: UiMsg[] =
+          (page.data ?? []).map(
+            (m: MessageItem): UiMsg => ({
+              role: mapRole(m.role),
+              content: m.content,
+              createdAt: m.createdAt,
+              messageNo: m.messageNo,
+              referencedDocuments: m.referencedDocuments,
+            })
+          ) ?? [];
 
-      setList(mapped);
-      requestAnimationFrame(() => bottomRef.current?.scrollIntoView());
+        if (!cancelled) {
+          setList(mapped);
+          requestAnimationFrame(() => bottomRef.current?.scrollIntoView());
+        }
+      } catch {
+        if (!cancelled) setList([]);
+      } finally {
+        if (!cancelled) setInitialLoading(false);
+      }
     })();
+
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [derivedSessionNo, setModel]);
+  }, [derivedSessionNo, setSelectedModel]);
 
   const isAtBottom = () => {
     const el = scrollRef.current;
@@ -106,33 +119,47 @@ export default function TextChat() {
     ]);
 
     try {
-      const llmId = model || DEFAULT_LLM;
-      const sessionNo = await ensureSession({ llm: llmId, query: msg });
+      const llmName: string = selectedModel ?? 'Qwen3-vl:8B';
+      const sessionNo: string = await ensureSession({ llm: llmName, query: msg });
 
-      const body: SendMessageRequest = { content: msg, model: llmId };
+      const body: SendMessageRequest = { content: msg, model: llmName };
       const res = await sendMessage(sessionNo, body);
-      const result: SendMessageResult = res.data.result;
+      const result = res.data.result as SendMessageResult;
 
       forceScrollRef.current = true;
-      setList((prev) =>
-        prev.map((m) =>
-          m.messageNo === '__pending__'
-            ? {
-                role: 'assistant',
-                content: result.content ?? '(응답이 없습니다)',
-                createdAt: result.timestamp,
-              }
-            : m
+      setList((prev: UiMsg[]) =>
+        prev.map(
+          (m: UiMsg): UiMsg =>
+            m.messageNo === '__pending__'
+              ? {
+                  role: 'assistant',
+                  content: result.content ?? '(응답이 없습니다)',
+                  createdAt: result.timestamp,
+                }
+              : m
         )
       );
     } catch {
-      setList((prev) => prev.filter((m) => m.messageNo !== '__pending__'));
+      setList((prev: UiMsg[]) => prev.filter((m: UiMsg) => m.messageNo !== '__pending__'));
     } finally {
       setAwaitingAssistant(false);
     }
   };
 
   const thinkingSubtitle = useThinkingTicker(awaitingAssistant);
+
+  if (initialLoading) {
+    return (
+      <section className="flex flex-col min-h-[calc(100vh-82px)] h-full">
+        <div className="flex-1 flex items-center justify-center px-4">
+          <div className="flex flex-col items-center gap-3 text-gray-500">
+            <div className="w-8 h-8 rounded-full border-2 border-gray-300 border-t-gray-600 animate-spin" />
+            <div className="text-sm">세션 불러오는 중…</div>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="flex flex-col min-h-[calc(100vh-82px)] h-full">

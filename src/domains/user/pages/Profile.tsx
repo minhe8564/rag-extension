@@ -4,6 +4,7 @@ import { Loader2, UserCog, Mail, Shield, Building2, Hash, UserSquare2, Images } 
 import ProfileInfoCard from '@/shared/components/ProfileInfoCard';
 import ImageAlbum from '@/domains/user/components/image/ImageAlbum';
 import FooterInfo from '@/shared/components/FooterInfo';
+import KeyCard from '@/shared/components/ApiKey';
 
 type UserInfo = {
   userNo: string;
@@ -40,7 +41,7 @@ export default function Profile() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <main className="flex-1 space-y-8 px-4 mb-20">
+      <main className="flex-1 px-4 mb-20">
         <div className="flex items-center gap-4">
           <div className="p-3 rounded-xl bg-[var(--color-retina-bg)] flex items-center justify-center">
             <UserCog size={28} className="text-[var(--color-retina)]" />
@@ -51,7 +52,7 @@ export default function Profile() {
           </div>
         </div>
 
-        <div className="rounded-xl border bg-white p-6 shadow-sm">
+        <div className="mt-6">
           {loading ? (
             <div className="flex items-center justify-center py-10 text-gray-500">
               <Loader2 size={18} className="animate-spin mr-2" />
@@ -65,12 +66,14 @@ export default function Profile() {
                 label="이름"
                 value={<span className="text-base font-semibold text-gray-900">{user.name}</span>}
               />
+
               <ProfileInfoCard
                 brand="retina"
                 icon={<Mail size={20} strokeWidth={1.8} />}
                 label="이메일"
                 value={<span className="text-base font-medium text-gray-900">{user.email}</span>}
               />
+
               <ProfileInfoCard
                 brand="retina"
                 icon={<Shield size={20} strokeWidth={1.8} />}
@@ -81,6 +84,7 @@ export default function Profile() {
                   </span>
                 }
               />
+
               <ProfileInfoCard
                 brand="retina"
                 icon={<Hash size={20} strokeWidth={1.8} />}
@@ -89,6 +93,7 @@ export default function Profile() {
                   <span className="text-base font-medium text-gray-800">{user.offerNo || '-'}</span>
                 }
               />
+
               <ProfileInfoCard
                 brand="retina"
                 icon={<Building2 size={20} strokeWidth={1.8} />}
@@ -99,6 +104,10 @@ export default function Profile() {
                   </span>
                 }
               />
+
+              <div className="sm:col-span-1">
+                <KeyCard brand="retina" />
+              </div>
             </dl>
           ) : (
             <div className="py-10 text-center text-gray-500">
@@ -107,8 +116,8 @@ export default function Profile() {
           )}
         </div>
 
-        <section>
-          <div className="mb-4 flex items-center gap-4">
+        <section className="mb-20">
+          <div className="mt-14 mb-4 flex items-center gap-4">
             <div className="p-3 rounded-xl bg-[var(--color-retina-bg)] flex items-center justify-center">
               <Images size={28} className="text-[var(--color-retina)]" />
             </div>

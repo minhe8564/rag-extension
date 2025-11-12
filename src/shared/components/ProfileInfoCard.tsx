@@ -19,7 +19,7 @@ export default function ProfileInfoCard({
 
   return (
     <div
-      className={`group flex items-center gap-6 rounded-xl border border-gray-100 bg-gray-50 p-4 transition-all duration-200`}
+      className={`group flex items-center gap-6 rounded-xl border border-gray-200 bg-white p-4 transition-all duration-200`}
     >
       <div
         className="p-2.5 rounded-lg flex items-center justify-center"
