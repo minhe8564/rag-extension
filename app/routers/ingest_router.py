@@ -14,11 +14,13 @@ import httpx
 from loguru import logger
 from sqlalchemy import text
 import uuid
+from datetime import datetime, timezone
 
 router = APIRouter(prefix="/ingest", tags=["ingest"])
 
 ingest_service = IngestService()
 gateway_client = GatewayClient()
+
 
 async def parse_ingest_request_from_form(
     collection_name: Optional[str] = Form(None, description="Collection name"),
