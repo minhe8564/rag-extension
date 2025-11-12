@@ -8,6 +8,7 @@ from app.core.settings import settings
 from app.models.database import get_db
 from app.models.collection import Collection
 from app.models.chunk import Chunk
+from app.middleware.metrics_middleware import with_embedding_metrics
 from typing import Dict, Any, List
 import importlib
 from datetime import datetime
@@ -76,6 +77,7 @@ def get_strategy(strategy_name: str, parameters: Dict[Any, Any] = None) -> Any:
 
 
 @router.post("/process")
+@with_embedding_metrics
 async def embedding_process(
     request: EmbeddingProcessRequest,
     db: AsyncSession = Depends(get_db),
