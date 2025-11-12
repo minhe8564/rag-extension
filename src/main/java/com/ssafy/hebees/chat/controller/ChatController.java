@@ -280,7 +280,7 @@ public class ChatController {
             ));
     }
 
-    @PostMapping("/error-messages")
+    @PostMapping("/message-errors")
     @Operation(summary = "에러 메시지 등록하기", description = "에러 메시지 로그를 등록합니다.")
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "에러 메시지 등록에 성공하였습니다."),
@@ -294,13 +294,13 @@ public class ChatController {
             request);
 
         URI location = URI
-            .create(String.format("/chat/error-messages/%s", response.messageErrorNo()));
+            .create(String.format("/chat/message-errors/%s", response.messageErrorNo()));
 
         return ResponseEntity.created(location)
             .body(BaseResponse.of(HttpStatus.CREATED, response, "에러 메시지 등록에 성공하였습니다."));
     }
 
-    @GetMapping("/error-messages")
+    @GetMapping("/message-errors")
     @Operation(summary = "[관리자] 에러 메시지 목록 조회하기", description = "에러 메시지 목록을 조회합니다.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "에러 메시지 목록 조회에 성공하였습니다."),
@@ -318,7 +318,7 @@ public class ChatController {
         );
     }
 
-    @DeleteMapping("/error-messages/{errorMessageNo}")
+    @DeleteMapping("/message-errors/{errorMessageNo}")
     @Operation(summary = "[관리자] 에러 메시지 삭제하기", description = "에러 메시지를 삭제합니다.")
     @ApiResponses({
         @ApiResponse(responseCode = "204", description = "에러 메시지 삭제에 성공하였습니다."),

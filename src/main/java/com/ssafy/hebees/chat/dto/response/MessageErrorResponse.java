@@ -25,7 +25,10 @@ public record MessageErrorResponse(
     String userName,
 
     @Schema(description = "메시지 에러 유형", example = "system")
-    String type
+    String type,
+
+    @Schema(description = "메시지")
+    String message
 ) {
 
 }

@@ -6,6 +6,7 @@ import com.ssafy.hebees.chat.dto.response.MessageErrorCreateResponse;
 import com.ssafy.hebees.chat.dto.response.MessageErrorResponse;
 import com.ssafy.hebees.chat.entity.MessageError;
 import com.ssafy.hebees.chat.entity.Session;
+import com.ssafy.hebees.chat.event.MessageErrorCreatedEvent;
 import com.ssafy.hebees.chat.repository.MessageErrorRepository;
 import com.ssafy.hebees.chat.repository.SessionRepository;
 import com.ssafy.hebees.common.dto.PageRequest;
@@ -24,9 +25,9 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,6 +40,7 @@ public class MessageErrorServiceImpl implements MessageErrorService {
     private final MessageErrorRepository messageErrorRepository;
     private final SessionRepository sessionRepository;
     private final UserRepository userRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -56,13 +58,15 @@ public class MessageErrorServiceImpl implements MessageErrorService {
             throw new BusinessException(ErrorCode.OWNER_ACCESS_DENIED);
         }
 
-        String message = sanitizeMessage(request.message());
+        String message = request.message();
 
         MessageError error = toMessageError(request, session, message);
-
         MessageError saved = messageErrorRepository.save(error);
+
         log.info("메시지 에러 로그 생성: userNo={}, sessionNo={}, errorNo={}", requester, sessionId,
             saved.getMessageErrorNo());
+
+        eventPublisher.publishEvent(new MessageErrorCreatedEvent(saved.getType()));
 
         return MessageErrorCreateResponse.of(saved);
     }
@@ -78,8 +82,7 @@ public class MessageErrorServiceImpl implements MessageErrorService {
 
         Pageable pageable = org.springframework.data.domain.PageRequest.of(
             effectivePage.pageNum(),
-            effectivePage.pageSize(),
-            Sort.by(Sort.Direction.DESC, "createdAt")
+            effectivePage.pageSize()
         );
 
         Page<MessageError> page = messageErrorRepository.search(
@@ -118,10 +121,12 @@ public class MessageErrorServiceImpl implements MessageErrorService {
                 return MessageErrorResponse.builder()
                     .messageErrorNo(error.getMessageErrorNo())
                     .sessionNo(error.getSessionNo())
-                    .sessionTitle(session == null || session.getTitle().isBlank() ? "-" : session.getTitle())
+                    .sessionTitle(
+                        session == null || session.getTitle().isBlank() ? "-" : session.getTitle())
                     .userNo(error.getUserNo())
                     .userName(owner == null || owner.getName().isBlank() ? "-" : owner.getName())
                     .type(error.getType() != null ? error.getType().toValue() : "-")
+                    .message(error.getMessage())
                     .build();
 
             })
@@ -143,19 +148,10 @@ public class MessageErrorServiceImpl implements MessageErrorService {
         MessageError error = messageErrorRepository.findById(targetId)
             .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
 
-        messageErrorRepository.delete(Objects.requireNonNull(error));
+        messageErrorRepository.delete(error);
         log.info("메시지 에러 로그 삭제: errorNo={}, sessionNo={}, userNo={}", targetId,
             error.getSessionNo(), error.getUserNo());
     }
-
-    private String sanitizeMessage(String message) {
-        if (message == null) {
-            return "-";
-        }
-        String trimmed = message.strip();
-        return trimmed.isEmpty() ? "-" : trimmed;
-    }
-
 
     private static MessageError toMessageError(MessageErrorCreateRequest request, Session session,
         String message) {

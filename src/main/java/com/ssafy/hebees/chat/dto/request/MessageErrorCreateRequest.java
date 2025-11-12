@@ -23,4 +23,15 @@ public record MessageErrorCreateRequest(
     String message
 ) {
 
+    public MessageErrorCreateRequest{
+        message = sanitizeMessage(message());
+    }
+
+    private String sanitizeMessage(String message) {
+        if (message == null) {
+            return "-";
+        }
+        String trimmed = message.strip();
+        return trimmed.isEmpty() ? "-" : trimmed;
+    }
 }
