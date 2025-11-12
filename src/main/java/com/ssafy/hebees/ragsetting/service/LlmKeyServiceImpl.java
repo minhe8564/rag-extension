@@ -6,6 +6,7 @@ import com.ssafy.hebees.common.util.UserValidationUtil;
 import com.ssafy.hebees.ragsetting.dto.request.LlmKeyCreateRequest;
 import com.ssafy.hebees.ragsetting.dto.request.LlmKeySelfCreateRequest;
 import com.ssafy.hebees.ragsetting.dto.request.LlmKeyUpdateRequest;
+import com.ssafy.hebees.ragsetting.dto.request.LlmKeySelfUpdateRequest;
 import com.ssafy.hebees.ragsetting.dto.response.LlmKeyResponse;
 import com.ssafy.hebees.ragsetting.entity.LlmKey;
 import com.ssafy.hebees.ragsetting.entity.Strategy;
@@ -82,16 +83,24 @@ public class LlmKeyServiceImpl implements LlmKeyService {
     public LlmKeyResponse update(UUID llmKeyNo, LlmKeyUpdateRequest request) {
         LlmKey llmKey = fetchLlmKey(llmKeyNo);
 
-        if (request.strategyNo() == null && request.apiKey() == null) {
+        boolean hasStrategyIdentifier = request.strategyNo() != null
+            || StringUtils.hasText(request.llm());
+        boolean hasApiKey = request.apiKey() != null;
+
+        if (!hasStrategyIdentifier && !hasApiKey) {
             throw new BusinessException(ErrorCode.BAD_REQUEST);
         }
 
-        if (request.strategyNo() != null) {
-            Strategy strategy = fetchStrategy(request.strategyNo());
+        if (hasStrategyIdentifier) {
+            UUID strategyNo = request.strategyNo();
+            if (strategyNo == null) {
+                strategyNo = resolveStrategyNo(request.llm());
+            }
+            Strategy strategy = fetchStrategy(strategyNo);
             llmKey.updateStrategy(strategy);
         }
 
-        if (request.apiKey() != null) {
+        if (hasApiKey) {
             String apiKey = request.apiKey().trim();
             if (!StringUtils.hasText(apiKey)) {
                 throw new BusinessException(ErrorCode.BAD_REQUEST);
@@ -101,8 +110,8 @@ public class LlmKeyServiceImpl implements LlmKeyService {
 
         LlmKey saved = llmKeyRepository.save(llmKey);
 
-        log.info("LLM Key 수정: llmKeyNo={}, strategyNo={}, apiKeyChanged={}", llmKeyNo,
-            request.strategyNo(), request.apiKey() != null);
+        log.info("LLM Key 수정: llmKeyNo={}, strategyChanged={}, apiKeyChanged={}", llmKeyNo,
+            hasStrategyIdentifier, hasApiKey);
 
         return mapToResponse(saved);
     }
@@ -153,20 +162,17 @@ public class LlmKeyServiceImpl implements LlmKeyService {
 
     @Override
     @Transactional
-    public LlmKeyResponse updateSelf(UUID userNo, UUID llmKeyNo, LlmKeyUpdateRequest request) {
+    public LlmKeyResponse updateSelf(UUID userNo, String llmIdentifier, LlmKeySelfUpdateRequest request) {
         UUID owner = UserValidationUtil.requireUser(userNo);
-        LlmKey llmKey = fetchLlmKeyOwnedByUser(llmKeyNo, owner);
+        LlmKey llmKey = fetchLlmKeyOwnedByUser(owner, llmIdentifier);
 
-        if (request.strategyNo() == null && request.apiKey() == null) {
+        boolean hasApiKey = request.apiKey() != null;
+
+        if (!hasApiKey) {
             throw new BusinessException(ErrorCode.BAD_REQUEST);
         }
 
-        if (request.strategyNo() != null) {
-            Strategy strategy = fetchStrategy(request.strategyNo());
-            llmKey.updateStrategy(strategy);
-        }
-
-        if (request.apiKey() != null) {
+        if (hasApiKey) {
             String apiKey = request.apiKey().trim();
             if (!StringUtils.hasText(apiKey)) {
                 throw new BusinessException(ErrorCode.BAD_REQUEST);
@@ -176,18 +182,19 @@ public class LlmKeyServiceImpl implements LlmKeyService {
 
         LlmKey saved = llmKeyRepository.save(llmKey);
 
-        log.info("LLM Key 수정(사용자): userNo={}, llmKeyNo={}", owner, llmKeyNo);
+        log.info("LLM Key 수정(사용자): userNo={}, llmIdentifier={}, apiKeyChanged={}",
+            owner, llmIdentifier, hasApiKey);
 
         return mapToResponse(saved);
     }
 
     @Override
     @Transactional
-    public void deleteSelf(UUID userNo, UUID llmKeyNo) {
+    public void deleteSelf(UUID userNo, String llmIdentifier) {
         UUID owner = UserValidationUtil.requireUser(userNo);
-        LlmKey llmKey = fetchLlmKeyOwnedByUser(llmKeyNo, owner);
+        LlmKey llmKey = fetchLlmKeyOwnedByUser(owner, llmIdentifier);
         llmKeyRepository.delete(llmKey);
-        log.info("LLM Key 삭제(사용자): userNo={}, llmKeyNo={}", owner, llmKeyNo);
+        log.info("LLM Key 삭제(사용자): userNo={}, llmIdentifier={}", owner, llmIdentifier);
     }
 
     @Override
@@ -222,6 +229,16 @@ public class LlmKeyServiceImpl implements LlmKeyService {
             .orElseThrow(() -> {
                 log.warn("LLM Key 조회 실패 - 소유자 불일치: llmKeyNo={}, userNo={}", llmKeyNo, userNo);
                 return new BusinessException(ErrorCode.PERMISSION_DENIED);
+            });
+    }
+
+    private LlmKey fetchLlmKeyOwnedByUser(UUID userNo, String llmIdentifier) {
+        UUID strategyNo = resolveStrategyNo(llmIdentifier);
+        return llmKeyRepository.findByUser_UuidAndStrategy_StrategyNo(userNo, strategyNo)
+            .orElseThrow(() -> {
+                log.warn("LLM Key 조회 실패 - 존재하지 않음: userNo={}, llmIdentifier={}", userNo,
+                    llmIdentifier);
+                return new BusinessException(ErrorCode.NOT_FOUND);
             });
     }
 
