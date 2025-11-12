@@ -6,6 +6,7 @@ import com.ssafy.hebees.chat.dto.request.SessionUpdateRequest;
 import com.ssafy.hebees.chat.dto.response.SessionCreateResponse;
 import com.ssafy.hebees.chat.dto.response.SessionResponse;
 import com.ssafy.hebees.chat.entity.Session;
+import com.ssafy.hebees.chat.event.SessionTitleGenerationEvent;
 import com.ssafy.hebees.chat.repository.SessionRepository;
 import com.ssafy.hebees.common.dto.ListResponse;
 import com.ssafy.hebees.common.dto.PageRequest;
@@ -26,6 +27,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -40,7 +42,7 @@ public class ChatServiceImpl implements ChatService {
     private final UserRepository userRepository;
     private final StrategyRepository strategyRepository;
     private final QueryGroupRepository queryGroupRepository;
-    private final SessionTitleAsyncService sessionTitleAsyncService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public ListResponse<SessionResponse> getSessions(UUID userNo, SessionSearchRequest request) {
@@ -130,7 +132,8 @@ public class ChatServiceImpl implements ChatService {
         log.info("세션 생성 성공: userNo={}, sessionNo={}", owner, saved.getSessionNo());
 
         if (shouldGenerateTitleAsync) {
-            sessionTitleAsyncService.generateSessionTitle(saved.getSessionNo(), sanitizedQuery);
+            eventPublisher.publishEvent(
+                new SessionTitleGenerationEvent(saved.getSessionNo(), sanitizedQuery));
         }
 
         return new SessionCreateResponse(saved.getSessionNo(), title);
