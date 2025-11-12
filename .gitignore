@@ -9,3 +9,4 @@ __pycache__/
 *.pyc
 
 # Do commit: pyproject.toml, uv.lock
+.env

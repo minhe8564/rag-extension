@@ -3,9 +3,11 @@ from app.schemas.request.extractRequest import ExtractProcessRequest
 from app.schemas.response.extractProcessResponse import ExtractProcessResponse, ExtractProcessResult, Page
 from app.schemas.response.extractTestResponse import ExtractTestResponse, ExtractTestResult
 from app.schemas.response.errorResponse import ErrorResponse
+from app.middleware.metrics_middleware import with_extract_metrics
 from typing import Optional, Dict, Any
 import json
 import importlib
+import time
 from loguru import logger
 
 router = APIRouter(tags=["extract"])
@@ -70,7 +72,13 @@ def get_strategy(strategy_name: str, file_type: str, parameters: Dict[Any, Any] 
 
 
 @router.post("/process")
-async def extract_process(request: ExtractProcessRequest, x_user_role: str | None = Header(default=None, alias="x-user-role"), x_user_uuid: str | None = Header(default=None, alias="x-user-uuid"), authorization: str | None = Header(default=None, alias="Authorization")):
+@with_extract_metrics
+async def extract_process(
+    request: ExtractProcessRequest, 
+    x_user_role: str | None = Header(default=None, alias="x-user-role"), 
+    x_user_uuid: str | None = Header(default=None, alias="x-user-uuid"), 
+    authorization: str | None = Header(default=None, alias="Authorization")
+):
     """
     Extract /process 엔드포인트
     - path로 파일 접근
@@ -89,18 +97,16 @@ async def extract_process(request: ExtractProcessRequest, x_user_role: str | Non
         tmp_path = None
         cleanup_tmp = False
 
-
         # 1) presigned URL 획득
         file_no = request.fileNo
-        presigned_endpoint = f"http://hebees-python-backend:8000/api/v1/files/{file_no}/presigned"  # 내부통신용 (주석)
+        presigned_endpoint = f"http://hebees-python-backend:8000/api/v1/files/{file_no}/presigned"
         logger.info(f"Fetching presigned URL: {presigned_endpoint}")
         async with httpx.AsyncClient(timeout=3600.0) as client:
-            # 전달받은 헤더를 그대로 /be 호출에 포함
             forward_headers = {}
             if x_user_role: 
-                forward_headers["x-user-role"] = x_user_role   # 내부통신 시 사용 (주석)
+                forward_headers["x-user-role"] = x_user_role
             if x_user_uuid: 
-                forward_headers["x-user-uuid"] = x_user_uuid   # 내부통신 시 사용 (주석)
+                forward_headers["x-user-uuid"] = x_user_uuid
             presigned_resp = await client.get(presigned_endpoint, headers=forward_headers)
             presigned_resp.raise_for_status()
             presigned_url = None
@@ -164,10 +170,11 @@ async def extract_process(request: ExtractProcessRequest, x_user_role: str | Non
             )
             raise HTTPException(status_code=400, detail=error_response.dict())
 
-        # 전략 로드 (전략 이름 + 파일 타입 조합)
+        # 전략 로드
         logger.info(f"Extraction strategy: {strategy_name}, parameters: {parameters}")
         strategy = get_strategy(strategy_name, file_ext, parameters)
         logger.info("strategy: {}", strategy)
+        
         # extract() 메서드 호출
         try:
             result = strategy.extract(file_path)
@@ -216,6 +223,7 @@ async def extract_process(request: ExtractProcessRequest, x_user_role: str | Non
 
 
 @router.post("/test")
+@with_extract_metrics
 async def extract_test(
     file: UploadFile = File(..., description="업로드할 파일"),
     extractionStrategy: str = Form(..., description="추출 전략"),
@@ -264,7 +272,7 @@ async def extract_test(
         # 파일 내용 읽기
         file_content = await file.read()
         
-        # 전략 로드 (전략 이름 + 파일 타입 조합)
+        # 전략 로드
         strategy = get_strategy(extractionStrategy, file_ext, parameters)
         
         # 임시 파일로 저장 후 extract() 호출
@@ -303,7 +311,7 @@ async def extract_test(
                 fileType=file_ext,
                 pages=pages,
                 total_pages=result.get("total_pages", len(pages)),
-                strategy=extractionStrategy,  # 확장자에 따라 선택된 전략
+                strategy=extractionStrategy,
                 strategyParameter=parameters
             )
         )
