@@ -8,6 +8,7 @@ export interface MyLlmKeyResponse {
   userNo: string;
   strategyNo: string;
   llmName: string;
+  llmNo: string;
   apiKey: string;
 }
 

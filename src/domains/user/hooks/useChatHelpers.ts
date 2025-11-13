@@ -10,12 +10,14 @@ import type {
 import type { ApiEnvelope } from '@/shared/lib/api.types';
 
 const PAGE_SIZE = 20;
-const key = (pageNum = 0, pageSize = PAGE_SIZE) => ['sessions', pageNum, pageSize] as const;
 
-type ChatOwner = 'user' | 'admin';
+export type ChatOwner = 'user' | 'admin';
+
+const key = (owner: ChatOwner, pageNum = 0, pageSize = PAGE_SIZE) =>
+  ['sessions', owner, pageNum, pageSize] as const;
 
 const buildChatPath = (owner: ChatOwner, sessionNo: string) =>
-  owner === 'admin' ? `/admin/rag/chat/${sessionNo}` : `/user/chat/text/${sessionNo}`;
+  owner === 'admin' ? `/admin/chat/text/${sessionNo}` : `/user/chat/text/${sessionNo}`;
 
 const derive = (pathname: string, searchParams: URLSearchParams, paramsSessionNo?: string) => {
   if (paramsSessionNo) return paramsSessionNo;
@@ -73,7 +75,7 @@ export function useEnsureSession(
       userName: '' as unknown as SessionItem['userName'],
     };
 
-    qc.setQueryData<ApiEnvelope<ListSessionsResult>>(key(0, PAGE_SIZE), (old) => {
+    qc.setQueryData<ApiEnvelope<ListSessionsResult>>(key(owner, 0, PAGE_SIZE), (old) => {
       const base: ApiEnvelope<ListSessionsResult> = old ?? {
         status: 200,
         code: 'OK',
@@ -125,7 +127,7 @@ export function useEnsureSession(
       title: realTitle,
     };
 
-    qc.setQueryData<ApiEnvelope<ListSessionsResult>>(key(0, PAGE_SIZE), (old) => {
+    qc.setQueryData<ApiEnvelope<ListSessionsResult>>(key(owner, 0, PAGE_SIZE), (old) => {
       if (!old) return old;
       const env = old.result;
 
@@ -151,7 +153,7 @@ export function useEnsureSession(
       };
     });
 
-    qc.invalidateQueries({ queryKey: ['sessions'] });
+    qc.invalidateQueries({ queryKey: ['sessions', owner] });
 
     setCurrentSessionNo(realId);
     const nextPath = buildChatPath(owner, realId);

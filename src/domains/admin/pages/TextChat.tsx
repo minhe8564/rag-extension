@@ -21,6 +21,7 @@ import {
 import { useChatModelStore } from '@/shared/store/useChatModelStore';
 import type { RagQueryProcessResult } from '@/shared/types/chat.rag.types';
 import { postRagQuery } from '@/shared/api/chat.rag.api';
+import { toast } from 'react-toastify';
 
 const mapRole = (r: ChatRole): UiRole => (r === 'human' ? 'user' : r === 'ai' ? 'assistant' : r);
 
@@ -35,9 +36,6 @@ export default function TextChat() {
   const [awaitingAssistant, setAwaitingAssistant] = useState<boolean>(false);
 
   const [initialLoading, setInitialLoading] = useState<boolean>(Boolean(derivedSessionNo));
-  const [llmNo, setLlmNo] = useState<string | null>(null);
-
-  const { selectedModel, setSelectedModel } = useChatModelStore();
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -62,12 +60,15 @@ export default function TextChat() {
     return sessionPromiseRef.current;
   };
 
+  const { selectedModel, selectedLlmNo, setSelectedModel } = useChatModelStore();
+  const [llmNo, setLlmNo] = useState<string | null>(null);
+
   useEffect(() => {
     let cancelled = false;
 
     (async () => {
       if (!derivedSessionNo) {
-        if (!selectedModel) setSelectedModel('Qwen3-vl:8B');
+        if (!selectedModel) setSelectedModel('Qwen3-vl:8B', selectedLlmNo);
         setInitialLoading(false);
         return;
       }
@@ -83,12 +84,11 @@ export default function TextChat() {
 
         const page = resMsgs.data.result as MessagePage;
         const sessionInfo = resSess.data.result as { llmNo?: string; llmName?: string } | undefined;
-
         const llmName: string = sessionInfo?.llmName ?? selectedModel ?? 'Qwen3-vl:8B';
-        setSelectedModel(llmName);
-        if (sessionInfo?.llmNo) {
-          setLlmNo(sessionInfo.llmNo);
-        }
+        const llmNoFromSession = sessionInfo?.llmNo ?? selectedLlmNo;
+
+        setSelectedModel(llmName, llmNoFromSession);
+        setLlmNo(llmNoFromSession ?? null);
 
         const mapped: UiMsg[] =
           (page.data ?? []).map(
@@ -149,11 +149,14 @@ export default function TextChat() {
       // const body: SendMessageRequest = { content: msg, model: llmName };
       // const res = await sendMessage(sessionNo, body);
       // const result = res.data.result as SendMessageResult;
-      if (!llmNo) {
-        throw new Error('LLM 정보가 없습니다. 세션 정보를 다시 불러와 주세요.');
+      const effectiveLlmNo = llmNo ?? selectedLlmNo;
+
+      if (!effectiveLlmNo) {
+        toast.error('LLM 정보가 없습니다. 세션 정보를 다시 불러와 주세요.');
+        throw new Error('LLM 정보가 없습니다.');
       }
       const res = await postRagQuery({
-        llmNo,
+        llmNo: effectiveLlmNo,
         sessionNo,
         query: msg,
       });
