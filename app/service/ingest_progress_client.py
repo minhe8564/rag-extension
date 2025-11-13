@@ -31,7 +31,7 @@ class IngestProgressPusher:
 
         self.endpoint = os.getenv(
             "PROGRESS_ENDPOINT",
-            "http://hebees-rag-orchestrator:8000/api/v1/ingest/progress",
+            "http://hebees-rag-orchestrator:8000/ingest/progress",
         )
         try:
             self.min_pct_step = float(os.getenv("PROGRESS_MIN_PERCENT_STEP", "2.0"))
@@ -81,6 +81,7 @@ class IngestProgressPusher:
         now_ms = self._now_ms()
         pct = self._calc_pct(processed, total)
         if status == "RUNNING" and not self._should_send(pct, now_ms):
+            logger.debug(f"[PROGRESS] 전송 스킵 (throttling) - status={status}, processed={processed}, total={total}, pct={pct}")
             return
 
         body = {
@@ -96,12 +97,16 @@ class IngestProgressPusher:
 
         headers = {"x-user-uuid": self.user_id}
 
+        logger.info(f"[PROGRESS] 진행률 전송 시도 - endpoint={self.endpoint}, body={body}, headers={headers}")
+
         try:
             client = self._client_get()
-            client.post(self.endpoint, json=body, headers=headers)
+            response = client.post(self.endpoint, json=body, headers=headers)
+            response.raise_for_status()
+            logger.info(f"[PROGRESS] 진행률 전송 성공 - status_code={response.status_code}, runId={self.run_id}")
         except Exception as e:
             # Non-fatal: log and continue
-            logger.debug(f"Progress push failed (ignored): {e}")
+            logger.warning(f"[PROGRESS] 진행률 전송 실패 (무시됨) - endpoint={self.endpoint}, error={e}")
         finally:
             self._last_sent_ts = now_ms
             if pct is not None:
