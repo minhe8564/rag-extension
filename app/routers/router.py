@@ -4,12 +4,13 @@ from app.schemas.request.embeddingRequest import EmbeddingProcessRequest
 from app.schemas.response.embeddingProcessResponse import EmbeddingProcessResponse, EmbeddingProcessResult
 from app.schemas.response.errorResponse import ErrorResponse
 from app.service.milvus_service import MilvusService
+from app.service.ingest_progress_client import IngestProgressClient
 from app.core.settings import settings
 from app.models.database import get_db
 from app.models.collection import Collection
 from app.models.chunk import Chunk
 from app.middleware.metrics_middleware import with_embedding_metrics
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 import importlib
 from datetime import datetime
 from loguru import logger
@@ -81,7 +82,8 @@ def get_strategy(strategy_name: str, parameters: Dict[Any, Any] = None) -> Any:
 async def embedding_process(
     request: EmbeddingProcessRequest,
     db: AsyncSession = Depends(get_db),
-    x_user_role: str | None = Header(default=None, alias="x-user-role")
+    x_user_role: str | None = Header(default=None, alias="x-user-role"),
+    x_user_uuid: str | None = Header(default=None, alias="x-user-uuid")
 ):
     """
     Embedding /process 엔드포인트
@@ -98,6 +100,19 @@ async def embedding_process(
         bucket = (getattr(request, "bucket", None) or "").strip().lower() if hasattr(request, "bucket") else None
         file_name = request.fileName or "unknown"
         file_no = request.fileNo
+        user_id = x_user_uuid
+
+        # 진행률 전송 클라이언트 초기화
+        progress_client = None
+        if file_no:
+            try:
+                progress_client = IngestProgressClient(
+                    user_id=user_id,
+                    file_no=file_no,
+                    run_id=file_no  # fileNo를 runId로 사용
+                )
+            except Exception as e:
+                logger.warning(f"Failed to initialize progress client: {e}")
 
         logger.info(f"Processing embedding: {len(chunks)} chunks with strategy: {strategy_name}")
         logger.info(f"Embedding parameters: {parameters}")
@@ -134,6 +149,13 @@ async def embedding_process(
                 )
                 raise HTTPException(status_code=400, detail=error_response.dict())
 
+        # EMBEDDING 단계 시작
+        if progress_client:
+            try:
+                await progress_client.embedding_start(total=len(chunks))
+            except Exception as e:
+                logger.debug(f"Failed to send embedding start progress: {e}")
+
         # 외부 임베딩 API 호출로 embeddings 생성
         documents = [str(chunk.get("text", "")) for chunk in chunks]
         logger.info(f"Documents: {documents}")
@@ -161,6 +183,12 @@ async def embedding_process(
                     logger.warning(f"Embeddings count mismatch: got {len(vectors)} for {len(documents)} documents")
         except Exception as e:
             logger.error(f"External embedding request failed: {str(e)}", exc_info=True)
+            # EMBEDDING 실패 알림
+            if progress_client:
+                try:
+                    await progress_client.embedding_fail(processed=0, total=len(chunks))
+                except Exception as pe:
+                    logger.debug(f"Failed to send embedding fail progress: {pe}")
             # 실패 시 기존 전략으로 폴백
             strategy = get_strategy(strategy_name, parameters)
             result = strategy.embed(chunks)
@@ -171,8 +199,22 @@ async def embedding_process(
                     embedded_chunks = result["chunks"]
             elif isinstance(result, list):
                 vectors = result
+        
+        # EMBEDDING 단계 완료
+        if progress_client:
+            try:
+                await progress_client.embedding_complete(processed=len(vectors) if vectors else len(chunks), total=len(chunks))
+            except Exception as e:
+                logger.debug(f"Failed to send embedding complete progress: {e}")
         # Milvus에 저장 (collection_name이 제공된 경우)
         if collection_name and vectors:
+            # VECTOR_STORE 단계 시작
+            if progress_client:
+                try:
+                    await progress_client.vector_store_start(total=len(vectors))
+                except Exception as e:
+                    logger.debug(f"Failed to send vector_store start progress: {e}")
+            
             try:
                 milvus_service = MilvusService(
                     host=settings.milvus_host,
@@ -247,8 +289,21 @@ async def embedding_process(
                 
                 logger.info(f"Inserted {len(milvus_data)} embeddings into Milvus collection '{collection_name}'")
                 
+                # VECTOR_STORE 단계 완료
+                if progress_client:
+                    try:
+                        await progress_client.vector_store_complete(processed=len(milvus_data), total=len(milvus_data))
+                    except Exception as e:
+                        logger.debug(f"Failed to send vector_store complete progress: {e}")
+                
             except Exception as e:
                 logger.error(f"Failed to insert embeddings into Milvus: {str(e)}", exc_info=True)
+                # VECTOR_STORE 실패 알림
+                if progress_client:
+                    try:
+                        await progress_client.vector_store_fail(processed=0, total=len(vectors))
+                    except Exception as pe:
+                        logger.debug(f"Failed to send vector_store fail progress: {pe}")
                 # Milvus 저장 실패해도 임베딩 결과는 반환
             
             # Milvus 처리 성공/실패와 상관없이 MySQL CHUNK 저장 시도
