@@ -212,7 +212,7 @@ async def extract_process(
         progress_pusher = IngestProgressPusher(
             user_id=x_user_uuid,
             file_no=file_no,
-            run_id=run_id_param or file_no,
+            run_id=None,
             step_name="EXTRACTION",
         )
         
@@ -260,7 +260,7 @@ async def extract_process(
             )
             for i, page in enumerate(result.get("pages", []))
         ]
-        
+
         response = ExtractProcessResponse(
             status=200,
             code="OK",
