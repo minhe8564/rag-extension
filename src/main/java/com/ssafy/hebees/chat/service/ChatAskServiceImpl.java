@@ -9,6 +9,7 @@ import com.ssafy.hebees.chat.dto.response.MessageResponse;
 import com.ssafy.hebees.chat.entity.MessageRole;
 import com.ssafy.hebees.chat.entity.Session;
 import com.ssafy.hebees.chat.repository.SessionRepository;
+import com.ssafy.hebees.dashboard.service.ChatbotUsageStreamService;
 import com.ssafy.hebees.common.exception.BusinessException;
 import com.ssafy.hebees.common.exception.ErrorCode;
 import com.ssafy.hebees.common.util.UserValidationUtil;
@@ -31,6 +32,7 @@ public class ChatAskServiceImpl implements ChatAskService {
     private final SessionRepository sessionRepository;
     private final MessageService messageService;
     private final RunpodClient runpodClient;
+    private final ChatbotUsageStreamService chatbotUsageStreamService;
 
     @Override
     public AskResponse ask(UUID userNo, UUID sessionNo, String question) {
@@ -48,6 +50,8 @@ public class ChatAskServiceImpl implements ChatAskService {
         }
 
         session.updateLastRequestedAt(LocalDateTime.now());
+
+        chatbotUsageStreamService.recordChatbotRequest(owner, sessionId);
 
         // 사용자 메시지 저장
         messageService.createMessage(owner, sessionId,

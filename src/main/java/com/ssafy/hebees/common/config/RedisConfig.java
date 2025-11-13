@@ -1,5 +1,7 @@
 package com.ssafy.hebees.common.config;
 
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.data.redis.RedisProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -9,8 +11,6 @@ import org.springframework.data.redis.connection.RedisPassword;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.beans.factory.annotation.Qualifier;
-import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Configuration
@@ -135,7 +135,7 @@ public class RedisConfig {
         if (props.getUsername() != null && !props.getUsername().isEmpty()) {
             conf.setUsername(props.getUsername());
         }
-        conf.setDatabase(4); // 메트릭 정보는 DB4
+        conf.setDatabase(8); // 메트릭 정보는 DB4
 
         LettuceConnectionFactory factory = new LettuceConnectionFactory(conf);
         factory.afterPropertiesSet();
