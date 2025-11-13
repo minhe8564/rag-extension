@@ -1,7 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import Highcharts from 'highcharts';
 import _wordcloudInit from 'highcharts/modules/wordcloud';
-import Card from '@/shared/components/Card';
 import type { frequentKeywords, keywordItem } from '@/domains/admin/types/rag.dashboard.types';
 import { getKeywords } from '@/domains/admin/api/rag.dashboard.api';
 import { Keyboard } from 'lucide-react';

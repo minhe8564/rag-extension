@@ -3,15 +3,15 @@ import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 import ChatInput from '@/shared/components/chat/ChatInput';
 import ChatMessageItem from '@/shared/components/chat/ChatMessageItem';
 import ScrollToBottomButton from '@/shared/components/chat/ScrollToBottomButton';
-// import { getSession, getMessages, sendMessage } from '@/shared/api/chat.api';
-import { getSession, getMessages } from '@/shared/api/chat.api';
+import { getSession, getMessages, sendMessage } from '@/shared/api/chat.api';
+// import { getSession, getMessages } from '@/shared/api/chat.api';
 import type { UiMsg, UiRole } from '@/shared/components/chat/ChatMessageItem';
 import type {
   ChatRole,
   MessageItem,
   MessagePage,
-  // SendMessageRequest,
-  // SendMessageResult,
+  SendMessageRequest,
+  SendMessageResult,
 } from '@/shared/types/chat.types';
 import {
   useDerivedSessionNo,
@@ -19,9 +19,9 @@ import {
   useThinkingTicker,
 } from '@/domains/user/hooks/useChatHelpers';
 import { useChatModelStore } from '@/shared/store/useChatModelStore';
-import type { RagQueryProcessResult } from '@/shared/types/chat.rag.types';
-import { postRagQuery } from '@/shared/api/chat.rag.api';
-import { toast } from 'react-toastify';
+// import type { RagQueryProcessResult } from '@/shared/types/chat.rag.types';
+// import { postRagQuery } from '@/shared/api/chat.rag.api';
+// import { toast } from 'react-toastify';
 
 const mapRole = (r: ChatRole): UiRole => (r === 'human' ? 'user' : r === 'ai' ? 'assistant' : r);
 
@@ -33,16 +33,22 @@ export default function TextChat() {
 
   const [currentSessionNo, setCurrentSessionNo] = useState<string | null>(derivedSessionNo);
   const [list, setList] = useState<UiMsg[]>([]);
-  const [awaitingAssistant, setAwaitingAssistant] = useState<boolean>(false);
-
+  const [awaitingAssistant, setAwaitingAssistant] = useState(false);
   const [initialLoading, setInitialLoading] = useState<boolean>(Boolean(derivedSessionNo));
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const forceScrollRef = useRef<boolean>(false);
+  const forceScrollRef = useRef(false);
 
   const ensureSession = useEnsureSession(setCurrentSessionNo, 'admin');
   const sessionPromiseRef = useRef<Promise<string> | null>(null);
+
+  const { selectedModel, selectedLlmNo, setSelectedModel } = useChatModelStore();
+  // const [llmNo, setLlmNo] = useState<string | null>(null);
+
+  const [historyCursor, setHistoryCursor] = useState<string | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [hasMoreHistory, setHasMoreHistory] = useState(true);
 
   const getOrCreateSessionNo = async (llmName: string, firstMsg: string): Promise<string> => {
     if (currentSessionNo) return currentSessionNo;
@@ -60,9 +66,6 @@ export default function TextChat() {
     return sessionPromiseRef.current;
   };
 
-  const { selectedModel, selectedLlmNo, setSelectedModel } = useChatModelStore();
-  const [llmNo, setLlmNo] = useState<string | null>(null);
-
   useEffect(() => {
     let cancelled = false;
 
@@ -75,6 +78,9 @@ export default function TextChat() {
 
       setInitialLoading(true);
       setCurrentSessionNo(derivedSessionNo);
+      setHistoryCursor(null);
+      setHasMoreHistory(true);
+      setHistoryLoading(false);
 
       try {
         const [resMsgs, resSess] = await Promise.all([
@@ -88,7 +94,7 @@ export default function TextChat() {
         const llmNoFromSession = sessionInfo?.llmNo ?? selectedLlmNo;
 
         setSelectedModel(llmName, llmNoFromSession);
-        setLlmNo(llmNoFromSession ?? null);
+        // setLlmNo(llmNoFromSession ?? null);
 
         const mapped: UiMsg[] =
           (page.data ?? []).map(
@@ -103,10 +109,19 @@ export default function TextChat() {
 
         if (!cancelled) {
           setList(mapped);
+
+          // 다음 페이지용 커서 저장
+          const nextCursor = page.pagination.nextCursor ?? null;
+          setHistoryCursor(nextCursor);
+          setHasMoreHistory(Boolean(nextCursor));
+
           requestAnimationFrame(() => bottomRef.current?.scrollIntoView());
         }
       } catch {
-        if (!cancelled) setList([]);
+        if (!cancelled) {
+          setList([]);
+          setHasMoreHistory(false);
+        }
       } finally {
         if (!cancelled) setInitialLoading(false);
       }
@@ -118,7 +133,54 @@ export default function TextChat() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [derivedSessionNo, setSelectedModel]);
 
-  const isAtBottom = (): boolean => {
+  const loadOlderMessages = async () => {
+    if (!currentSessionNo) return;
+    if (historyLoading) return;
+    if (!historyCursor) return;
+    if (!hasMoreHistory) return;
+
+    const el = scrollRef.current;
+    const prevScrollHeight = el?.scrollHeight ?? 0;
+
+    setHistoryLoading(true);
+    try {
+      const res = await getMessages(currentSessionNo, {
+        cursor: historyCursor,
+        limit: 20,
+      });
+
+      const page = res.data.result as MessagePage;
+
+      const mapped: UiMsg[] =
+        (page.data ?? []).map(
+          (m: MessageItem): UiMsg => ({
+            role: mapRole(m.role),
+            content: m.content,
+            createdAt: m.createdAt,
+            messageNo: m.messageNo,
+            referencedDocuments: m.referencedDocuments,
+          })
+        ) ?? [];
+
+      setList((prev) => [...mapped, ...prev]);
+
+      const nextCursor = page.pagination?.nextCursor ?? null;
+      setHistoryCursor(nextCursor);
+      setHasMoreHistory(Boolean(nextCursor) && mapped.length > 0);
+
+      requestAnimationFrame(() => {
+        if (!el) return;
+        const newScrollHeight = el.scrollHeight;
+        el.scrollTop = newScrollHeight - prevScrollHeight;
+      });
+    } catch {
+      // 에러 시에는 상태만 되돌려두고, hasMoreHistory는 그대로 둠
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const isAtBottom = () => {
     const el = scrollRef.current;
     return !el || el.scrollTop + el.clientHeight >= el.scrollHeight - 50;
   };
@@ -132,11 +194,26 @@ export default function TextChat() {
     if (isAtBottom()) bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [list.length]);
 
-  const handleSend = async (msg: string): Promise<void> => {
+  const handleScroll: React.UIEventHandler<HTMLDivElement> = (e) => {
+    const el = e.currentTarget;
+    if (historyLoading) {
+      return;
+    }
+    // if (!hasMoreHistory) {
+    //   console.log('[scroll] blocked: hasMoreHistory = false');
+    //   return;
+    // }
+    if (el.scrollTop <= 30) {
+      console.log('[scroll] top reached → loadOlderMessages() 호출');
+      void loadOlderMessages();
+    }
+  };
+
+  const handleSend = async (msg: string) => {
     forceScrollRef.current = true;
     setAwaitingAssistant(true);
 
-    setList((prev: UiMsg[]) => [
+    setList((prev) => [
       ...prev,
       { role: 'user', content: msg },
       { role: 'assistant', content: '', messageNo: '__pending__' },
@@ -146,21 +223,22 @@ export default function TextChat() {
       const llmName: string = selectedModel ?? 'Qwen3-vl:8B';
       const sessionNo: string = await getOrCreateSessionNo(llmName, msg);
 
-      // const body: SendMessageRequest = { content: msg, model: llmName };
-      // const res = await sendMessage(sessionNo, body);
-      // const result = res.data.result as SendMessageResult;
-      const effectiveLlmNo = llmNo ?? selectedLlmNo;
+      const body: SendMessageRequest = { content: msg, model: llmName };
+      const res = await sendMessage(sessionNo, body);
+      const result = res.data.result as SendMessageResult;
+      // const effectiveLlmNo = llmNo ?? selectedLlmNo;
 
-      if (!effectiveLlmNo) {
-        toast.error('LLM 정보가 없습니다. 세션 정보를 다시 불러와 주세요.');
-        throw new Error('LLM 정보가 없습니다.');
-      }
-      const res = await postRagQuery({
-        llmNo: effectiveLlmNo,
-        sessionNo,
-        query: msg,
-      });
-      const result = res.data.result as RagQueryProcessResult;
+      // if (!effectiveLlmNo) {
+      //   toast.error('LLM 정보가 없습니다. 세션 정보를 다시 불러와 주세요.');
+      //   throw new Error('LLM 정보가 없습니다.');
+      // }
+
+      // const res = await postRagQuery({
+      //   llmNo: effectiveLlmNo,
+      //   sessionNo,
+      //   query: msg,
+      // });
+      // const result = res.data.result as RagQueryProcessResult;
 
       forceScrollRef.current = true;
       setList((prev: UiMsg[]) =>
@@ -170,8 +248,8 @@ export default function TextChat() {
               ? {
                   role: 'assistant',
                   content: result.content ?? '(응답이 없습니다)',
-                  // createdAt: result.timestamp,
-                  createdAt: result.createdAt,
+                  createdAt: result.timestamp,
+                  // createdAt: result.createdAt,
                   messageNo: result.messageNo,
                 }
               : m
@@ -190,9 +268,10 @@ export default function TextChat() {
     return (
       <section className="flex flex-col min-h-[calc(100vh-82px)] h-[calc(100vh-82px)]">
         <div className="flex-1 flex items-center justify-center px-4">
-          <div className="flex flex-col items-center gap-3 text-gray-500">
-            <div className="w-8 h-8 rounded-full border-2 border-gray-300 border-t-gray-600 animate-spin" />
-            <div className="text-sm">채팅 불러오는 중…</div>
+          <div className="bg-gray-100 px-4 py-3 rounded-2xl shadow-sm flex items-center gap-2">
+            <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.2s]" />
+            <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.1s]" />
+            <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
           </div>
         </div>
       </section>
@@ -205,10 +284,21 @@ export default function TextChat() {
         <>
           <div
             ref={scrollRef}
+            onScroll={handleScroll}
             className="relative flex-1 min-h-0 w-full flex justify-center overflow-y-auto no-scrollbar"
           >
-            <div className="w-full max-w-[75%] space-y-10 px-12 py-4">
-              {list.map((m: UiMsg, i: number) => (
+            <div className="w-full h-full max-w-[75%] space-y-10 px-12 py-4">
+              {historyLoading && (
+                <div className="flex justify-center py-3">
+                  <div className="bg-gray-100 px-4 py-2 rounded-2xl shadow-sm flex items-center gap-2">
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.2s]" />
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.1s]" />
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
+                  </div>
+                </div>
+              )}
+
+              {list.map((m, i) => (
                 <ChatMessageItem
                   key={`${m.messageNo ?? 'pending'}-${i}`}
                   msg={m}
@@ -224,7 +314,7 @@ export default function TextChat() {
                   brand="hebees"
                 />
               ))}
-              <div ref={bottomRef} />
+              <div ref={bottomRef} className="h-4" />
             </div>
           </div>
 

@@ -11,6 +11,8 @@ export default function ChatInput({ onSend, variant = 'retina' }: Props) {
   const composingRef = useRef(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  const [isTall, setIsTall] = useState(false);
+
   const send = () => {
     const content = text.trim();
     if (!content) return;
@@ -21,18 +23,15 @@ export default function ChatInput({ onSend, variant = 'retina' }: Props) {
       if (!el) return;
       el.style.height = 'auto';
       el.style.height = `${el.scrollHeight}px`;
+      setIsTall(el.scrollHeight > 60);
     });
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key !== 'Enter') return;
 
-    const native = e.nativeEvent as unknown as { isComposing?: boolean } & KeyboardEvent;
-    if (
-      native.isComposing ||
-      composingRef.current ||
-      (typeof native.keyCode === 'number' && native.keyCode === 229)
-    ) {
+    const native = e.nativeEvent;
+    if (native.isComposing || composingRef.current || native.keyCode === 229) {
       return;
     }
 
@@ -53,8 +52,11 @@ export default function ChatInput({ onSend, variant = 'retina' }: Props) {
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
+
     el.style.height = 'auto';
     el.style.height = `${el.scrollHeight}px`;
+
+    setIsTall(el.scrollHeight > 60);
   }, [text]);
 
   const buttonColor =
@@ -67,12 +69,17 @@ export default function ChatInput({ onSend, variant = 'retina' }: Props) {
   return (
     <div className="flex flex-col items-center w-full gap-4">
       <div className="w-full">
-        <div className="border border-gray-300 px-4 py-3 shadow-sm rounded-full transition-all">
+        <div
+          className={`
+            border border-gray-300 px-4 py-3 shadow-sm transition-all
+            ${isTall ? 'rounded-xl' : 'rounded-full'}
+          `}
+        >
           <div className="flex items-end gap-2">
             <textarea
               ref={textareaRef}
               className="flex-1 w-full text-base border-none text-black placeholder-gray-400
-                         resize-none overflow-hidden leading-[1.4] min-h-[40px] max-h-[40vh]
+                         resize-none overflow-hidden leading-[1.4] min-h-[32px] max-h-[40vh]
                          focus:outline-none focus:ring-0"
               placeholder="레티나 챗봇에게 무엇이든 물어보세요."
               value={text}
