@@ -189,7 +189,7 @@ export default function TextChat() {
         <div className="flex-1 flex items-center justify-center px-4">
           <div className="flex flex-col items-center gap-3 text-gray-500">
             <div className="w-8 h-8 rounded-full border-2 border-gray-300 border-t-gray-600 animate-spin" />
-            <div className="text-sm">세션 불러오는 중…</div>
+            <div className="text-sm">채팅 불러오는 중…</div>
           </div>
         </div>
       </section>

@@ -3,14 +3,15 @@ import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 import ChatInput from '@/shared/components/chat/ChatInput';
 import ChatMessageItem from '@/shared/components/chat/ChatMessageItem';
 import ScrollToBottomButton from '@/shared/components/chat/ScrollToBottomButton';
-import { getSession, getMessages, sendMessage } from '@/shared/api/chat.api';
+// import { getSession, getMessages, sendMessage } from '@/shared/api/chat.api';
+import { getSession, getMessages } from '@/shared/api/chat.api';
 import type { UiMsg, UiRole } from '@/shared/components/chat/ChatMessageItem';
 import type {
   ChatRole,
   MessageItem,
   MessagePage,
-  SendMessageRequest,
-  SendMessageResult,
+  // SendMessageRequest,
+  // SendMessageResult,
 } from '@/shared/types/chat.types';
 import {
   useDerivedSessionNo,
@@ -18,6 +19,9 @@ import {
   useThinkingTicker,
 } from '@/domains/user/hooks/useChatHelpers';
 import { useChatModelStore } from '@/shared/store/useChatModelStore';
+import type { RagQueryProcessResult } from '@/shared/types/chat.rag.types';
+import { postRagQuery } from '@/shared/api/chat.rag.api';
+import { toast } from 'react-toastify';
 
 const mapRole = (r: ChatRole): UiRole => (r === 'human' ? 'user' : r === 'ai' ? 'assistant' : r);
 
@@ -32,6 +36,7 @@ export default function TextChat() {
   const [awaitingAssistant, setAwaitingAssistant] = useState(false);
 
   const [initialLoading, setInitialLoading] = useState<boolean>(Boolean(derivedSessionNo));
+  const [llmNo, setLlmNo] = useState<string | null>(null);
 
   const { selectedModel, setSelectedModel } = useChatModelStore();
 
@@ -82,6 +87,9 @@ export default function TextChat() {
 
         const llmName: string = sessionInfo?.llmName ?? selectedModel ?? 'Qwen3-vl:8B';
         setSelectedModel(llmName);
+        if (sessionInfo?.llmNo) {
+          setLlmNo(sessionInfo.llmNo);
+        }
 
         const mapped: UiMsg[] =
           (page.data ?? []).map(
@@ -139,9 +147,20 @@ export default function TextChat() {
       const llmName: string = selectedModel ?? 'Qwen3-vl:8B';
       const sessionNo: string = await getOrCreateSessionNo(llmName, msg);
 
-      const body: SendMessageRequest = { content: msg, model: llmName };
-      const res = await sendMessage(sessionNo, body);
-      const result = res.data.result as SendMessageResult;
+      // const body: SendMessageRequest = { content: msg, model: llmName };
+      // const res = await sendMessage(sessionNo, body);
+      // const result = res.data.result as SendMessageResult;
+      if (!llmNo) {
+        toast.error('LLM 정보가 없습니다. 세션 정보를 다시 불러와 주세요.');
+        throw new Error('LLM 정보가 없습니다. 세션 정보를 다시 불러와 주세요.');
+      }
+      const res = await postRagQuery({
+        llmNo,
+        sessionNo,
+        query: msg,
+      });
+      console.log(res);
+      const result = res.data.result as RagQueryProcessResult;
 
       forceScrollRef.current = true;
       setList((prev: UiMsg[]) =>
@@ -151,7 +170,9 @@ export default function TextChat() {
               ? {
                   role: 'assistant',
                   content: result.content ?? '(응답이 없습니다)',
-                  createdAt: result.timestamp,
+                  // createdAt: result.timestamp,
+                  createdAt: result.createdAt,
+                  messageNo: result.messageNo,
                 }
               : m
         )
@@ -171,7 +192,7 @@ export default function TextChat() {
         <div className="flex-1 flex items-center justify-center px-4">
           <div className="flex flex-col items-center gap-3 text-gray-500">
             <div className="w-8 h-8 rounded-full border-2 border-gray-300 border-t-gray-600 animate-spin" />
-            <div className="text-sm">세션 불러오는 중…</div>
+            <div className="text-sm">채팅 불러오는 중…</div>
           </div>
         </div>
       </section>

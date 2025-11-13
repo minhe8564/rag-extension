@@ -40,12 +40,14 @@ export const useAuthStore = create<AuthState>()(
         return result.roleName;
       },
 
-      logout: () =>
+      logout: () => {
+        localStorage.clear();
         set({
           user: null,
           accessToken: null,
           role: null,
-        }),
+        });
+      },
 
       setAccessToken: (token) => set({ accessToken: token }),
     }),
