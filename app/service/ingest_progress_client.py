@@ -26,7 +26,7 @@ class IngestProgressPusher:
     ) -> None:
         self.user_id = user_id or ""
         self.file_no = file_no or ""
-        self.run_id = (run_id or self.file_no or "").strip()
+        self.run_id = None
         self.step_name = step_name
 
         self.endpoint = os.getenv(
@@ -85,7 +85,6 @@ class IngestProgressPusher:
             return
 
         body = {
-            "runId": self.run_id,
             "userId": self.user_id,
             "fileNo": self.file_no,
             "currentStep": self.step_name,
@@ -94,6 +93,10 @@ class IngestProgressPusher:
             "total": int(total) if total is not None else 0,
             "ts": now_ms,
         }
+        
+        # runId가 None이 아닐 때만 body에 포함
+        if self.run_id is not None:
+            body["runId"] = self.run_id
 
         headers = {"x-user-uuid": self.user_id}
 
