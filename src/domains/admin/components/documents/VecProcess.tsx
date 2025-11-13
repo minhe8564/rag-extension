@@ -44,7 +44,7 @@ export default function VecProcess({
     if (!initialData) return;
 
     const init: Record<string, FileState> = {};
-    initialData.items.forEach((item) => {
+    initialData.items.forEach((item: VectorizationItem) => {
       init[item.docName] = {
         progress: item.overallPct ?? 0,
         status: item.status,
@@ -68,7 +68,7 @@ export default function VecProcess({
         const items = data.items ?? [];
 
         const updated: Record<string, FileState> = {};
-        items.forEach((item) => {
+        items.forEach((item: VectorizationItem) => {
           updated[item.docName] = {
             progress: item.overallPct ?? 0,
             status: item.status,
@@ -78,7 +78,7 @@ export default function VecProcess({
 
         setFileStates((prev) => ({ ...prev, ...updated }));
 
-        const allDone = items.every((i) => i.status === 'COMPLETED');
+        const allDone = items.every((i: VectorizationItem) => i.status === 'COMPLETED');
         if (allDone) {
           setOverallStatus('DONE');
           onVectorizationComplete?.();
@@ -96,7 +96,7 @@ export default function VecProcess({
     };
 
     return () => eventSource.close();
-  }, [isVectorizingDone, selectedFiles]);
+  }, []);
 
   const handlePageChange = (newIndex: number) => {
     setCurrentIndex(newIndex - 1);

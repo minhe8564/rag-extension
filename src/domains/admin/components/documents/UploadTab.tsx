@@ -35,6 +35,7 @@ export default function UploadTab() {
       type: f.type,
       bucket: '',
       path: '',
+      status: 'PENDING',
       categoryNo: category,
       collectionNo: '',
       createdAt: new Date().toISOString(),

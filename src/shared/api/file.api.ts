@@ -8,9 +8,7 @@ import type {
   FilesResponse,
   FetchMyDocsNormalized,
   DeleteFileData,
-  DownloadResult,
 } from '@/shared/types/file.types';
-import { data } from 'react-router-dom';
 
 // 업로드
 export function uploadFiles({
@@ -100,28 +98,4 @@ export async function deleteFile(fileNo: string): Promise<DeleteFileData> {
     `/api/v1/files/${fileNo}`
   );
   return res.data.result.data;
-}
-
-// 파일 다운로드
-export async function downloadFile(
-  fileNo: string,
-  options?: {
-    days?: number;
-    inline?: boolean;
-    contentType?: string;
-    versionId?: string;
-  }
-): Promise<DownloadResult> {
-  const params = {
-    days: options?.days ?? 7,
-    inline: options?.inline ?? false,
-    contentType: options?.contentType,
-    versionId: options?.versionId,
-  };
-
-  const res = await fastApi.get<ApiEnvelope<DownloadResult>>(`/api/v1/files/${fileNo}/presigned`, {
-    params,
-  });
-
-  return res.data.result;
 }

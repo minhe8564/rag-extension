@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { deleteFile, downloadFile } from '@/shared/api/file.api';
+import { deleteFile, getPresignedUrl } from '@/shared/api/file.api';
 import { toast } from 'react-toastify';
 import ColList from '@/domains/admin/components/documents/ColList';
 import type { DocItem } from '@/domains/admin/components/rag-test/CollectionDocuments';
@@ -13,22 +13,29 @@ export default function CollectionTab() {
   const queryClient = useQueryClient();
 
   // 문서 다운로드
-  const handleDownload = async (id: string) => {
-    const doc = selectedDocs.find((d) => d.id === id);
-    if (!doc) return;
+  const handleDownload = async (fileNo: string) => {
+    const doc = selectedDocs.find((m) => m.id === fileNo);
+    const fallbackName = doc?.name || `${fileNo}.bin`;
 
     try {
-      const result = await downloadFile(id, {
-        inline: false,
-      });
-      const url = result.data.url;
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = doc.name;
-      link.click();
+      const signedUrl = await getPresignedUrl(fileNo, { inline: false });
+      const res = await fetch(signedUrl);
+      if (!res.ok) throw new Error('Failed to fetch file');
+
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = fallbackName;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(blobUrl);
     } catch (error) {
-      toast.error('문서 다운로드 중 오류가 발생했습니다.');
-      console.log(error);
+      console.error('File download failed:', error);
+      const signedUrl = await getPresignedUrl(fileNo, { inline: false });
+      window.open(signedUrl, '_blank');
     }
   };
 
