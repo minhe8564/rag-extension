@@ -74,6 +74,7 @@ class Settings(BaseSettings):
     # Redis
     redis_url: str = "redis://localhost:6379/1"
     redis_db: int = 1
+    redis_metrics_db: int = 8
     ingest_meta_ttl_sec: int = 0  # 0 or less disables TTL
 
     # Milvus settings (direct access)

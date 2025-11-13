@@ -1,20 +1,32 @@
 ﻿from __future__ import annotations
-import asyncio
 
-from fastapi import APIRouter, Depends, File as FFile, UploadFile, Request, HTTPException, status, Query, BackgroundTasks
-from typing import List
-from sqlalchemy.ext.asyncio import AsyncSession
 import logging
+from importlib import import_module
 from datetime import datetime, timezone
 
+from fastapi import APIRouter, Depends, File as FFile, UploadFile, Request, HTTPException, status, Query, BackgroundTasks
+from sqlalchemy.ext.asyncio import AsyncSession
+from typing import List, Tuple
+
+try:
+    _redis_exceptions = import_module("redis.exceptions")
+    REDIS_ERROR_TYPES: Tuple[type[BaseException], ...] = (_redis_exceptions.RedisError,)
+except ModuleNotFoundError:
+    class _RedisErrorFallback(Exception):
+        """Fallback used when redis.exceptions is unavailable."""
+
+    REDIS_ERROR_TYPES = (_RedisErrorFallback,)
 from app.core.database import get_db
 from app.core.schemas import BaseResponse
 from ..schemas.response.upload_files import FileUploadBatchResult
 from ..services.call_ingest import call_ingest
 from ..schemas.request.upload_files import FileUploadRequest
 from ..services.upload import upload_files as upload_files_service
-from app.core.clients.redis_client import get_redis_client
+from app.core.clients.redis_client import get_metrics_redis_client, get_redis_client
 from app.core.config.settings import settings
+
+
+UPLOAD_COUNT_KEY = "metrics:uploads:total_count"
 
 
 router = APIRouter(prefix="/files", tags=["File"])
@@ -71,8 +83,22 @@ async def upload_file(
         logger.exception("Upload failed")
         raise
 
+    uploaded_files_count = len(batch_meta.files)
+    metrics_redis = None
+    try:
+        metrics_redis = get_metrics_redis_client()
+    except RuntimeError:
+        logger.exception("Failed to acquire Redis client for upload metrics")
+
+    if metrics_redis is not None and uploaded_files_count:
+        try:
+            await metrics_redis.incrby(UPLOAD_COUNT_KEY, uploaded_files_count)
+        except REDIS_ERROR_TYPES:
+            logger.exception("Failed to increment upload metrics in Redis")
+
     # ingest 옵션이 true일 때만 수행
     if autoIngest:
+        redis = None
         try:
             redis = get_redis_client()
             n = len(batch_meta.files)
@@ -135,7 +161,9 @@ async def upload_file(
                 )
         
             await pipe.execute()
-        except Exception:
+        except RuntimeError:
+            logger.exception("Failed to acquire Redis client for ingest metadata")
+        except REDIS_ERROR_TYPES:
             logger.exception("Failed to write ingest run metadata to Redis")
 
         # ingest 비동기 호출
@@ -147,7 +175,7 @@ async def upload_file(
                     user_uuid=x_user_uuid,
                     batch_meta=batch_meta,
                 )
-            except Exception:
+            except RuntimeError:
                 logger.exception("Failed to register background ingest task")
 
     return BaseResponse[FileUploadBatchResult](
