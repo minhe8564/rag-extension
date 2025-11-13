@@ -143,7 +143,7 @@ export type errorItem = {
   userName: string;
   chatRoomId: string;
   errorType: string;
-  occurredAt: string;
+  occuredAt: string;
 };
 
 ////////////////////////////
@@ -157,7 +157,7 @@ export type chatroomTimeframe = {
   end: string;
 };
 export type chatroomItem = {
-  chatTitle: string;
+  title: string;
   userType: string;
   userName: string;
   chatRoomId: string;

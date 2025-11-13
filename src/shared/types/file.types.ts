@@ -49,6 +49,7 @@ export interface RawMyDoc {
   createdAt: string;
   originalFile?: File;
 }
+
 export interface MyDoc {
   fileNo: string;
   name: string;

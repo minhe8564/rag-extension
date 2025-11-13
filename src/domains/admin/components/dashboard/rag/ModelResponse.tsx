@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import Highcharts from 'highcharts';
-import Card from '@/shared/components/Card';
 import Select from '@/shared/components/Select';
 import type { modelData, modelTokenTime } from '@/domains/admin/types/rag.dashboard.types';
 import { getModelTokenUsageTimeSeries } from '@/domains/admin/api/rag.dashboard.api';
+import { Clock } from 'lucide-react';
 
 export default function ModelResponseTimeChart() {
   const chartRef = useRef<Highcharts.Chart | null>(null);
@@ -101,11 +101,12 @@ export default function ModelResponseTimeChart() {
   };
 
   return (
-    <Card
-      title="모델별 평균 응답 시간"
-      subtitle="일별, 주별, 월별 평균 응답 시간 추이"
-      className="p-4"
-    >
+    <div className="flex h-full flex-col rounded-2xl border bg-white p-8 shadow-sm">
+      <div className="flex items-start gap-3">
+        <Clock size={20} className="text-red-500 mt-1" />
+        <h3 className="text-xl font-semibold text-gray-900">모델별 평균 응답 시간</h3>
+      </div>
+      <p className="mt-0.5 mb-4 text-sm text-gray-500">일별, 주별, 월별 사용량 추이</p>
       <div className="flex items-center justify-between mb-3">
         <div className="ml-auto w-40">
           <Select
@@ -121,6 +122,6 @@ export default function ModelResponseTimeChart() {
       </div>
 
       <div id="model-response-chart" className="w-full" />
-    </Card>
+    </div>
   );
 }
