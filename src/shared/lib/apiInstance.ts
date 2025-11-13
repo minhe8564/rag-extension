@@ -23,7 +23,7 @@ export const springApi = axios.create({
 export const ragApi = axios.create({
   baseURL: RAG_API_BASE_URL,
   withCredentials: true,
-  timeout: 180000,
+  timeout: 300000,
 });
 
 export const fastApi = axios.create({
