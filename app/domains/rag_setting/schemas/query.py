@@ -186,60 +186,6 @@ class QueryTemplateDetailResponse(BaseModel):
                 query_group.generation_parameter
             ),
         )
-
-
-class QueryTemplateUpdateRequest(BaseModel):
-    """Query 템플릿 수정 요청"""
-    name: str = Field(..., description="템플릿 이름", min_length=1, max_length=50)
-    transformation: StrategyWithParameter = Field(..., description="변환 전략")
-    retrieval: StrategyWithParameter = Field(..., description="검색 전략")
-    reranking: StrategyWithParameter = Field(..., description="재순위화 전략")
-    systemPrompt: StrategyWithParameter = Field(..., description="시스템 프롬프트 전략")
-    userPrompt: StrategyWithParameter = Field(..., description="사용자 프롬프트 전략")
-    generation: StrategyWithParameter = Field(..., description="생성 전략")
-    isDefault: Optional[bool] = Field(None, description="기본 템플릿 여부")
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "isDefault": False,
-                "name": "기본 Query 템플릿",
-                "transformation": {
-                    "no": "4b7c93a9-ca03-4caf-94e1-2ad5a4a64be1"
-                },
-                "retrieval": {
-                    "no": "e9d321a3-98f2-4917-879b-d5407f14c44d",
-                    "type": "semantic",
-                    "parameters": {
-                        "sematic": {
-                            "threshold": 0.4,
-                            "topK": 30
-                        }
-                    }
-                },
-                "reranking": {
-                    "no": "ab4754a9-36b7-42b5-a0fe-64bc3de94596",
-                    "parameters": {
-                        "topK": 5
-                    }
-                },
-                "systemPrompt": {
-                    "no": "6bff6262-90a6-4eb1-bfc1-78bdd342c317"
-                },
-                "userPrompt": {
-                    "no": "9c6a37bc-ef9b-4776-928c-f45c9eb65934"
-                },
-                "generation": {
-                    "no": "bd3b754c-fd66-4a79-9cd9-3a13cebb17a1",
-                    "parameters": {
-                        "max_retries": 2,
-                        "max_tokens": 512,
-                        "temperature": 0.2,
-                        "timeout": 30
-                    }
-                }
-            }
-        }
         
 
 class QueryTemplatePartialUpdateRequest(BaseModel):

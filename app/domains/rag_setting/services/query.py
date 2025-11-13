@@ -11,7 +11,7 @@ from fastapi import HTTPException, status
 
 from ..models.query_template import QueryGroup, uuid_to_binary, binary_to_uuid
 from ..models.strategy import Strategy
-from ..schemas.query import QueryTemplateUpdateRequest, QueryTemplatePartialUpdateRequest
+from ..schemas.query import QueryTemplatePartialUpdateRequest
 
 
 async def verify_strategy_exists(
@@ -210,7 +210,6 @@ async def list_query_templates(
     session: AsyncSession,
     page_num: int = 1,
     page_size: int = 20,
-    sort_by: str = "name",
 ) -> Tuple[List[QueryGroup], int]:
     """
     Query 템플릿 목록 조회 (윈도우 함수를 사용한 최적화 버전)
@@ -219,7 +218,6 @@ async def list_query_templates(
         session: 데이터베이스 세션
         page_num: 페이지 번호
         page_size: 페이지 크기
-        sort_by: 정렬 기준
 
     Returns:
         (Query 템플릿 목록, 전체 항목 수)
@@ -235,13 +233,8 @@ async def list_query_templates(
         total_count_window
     )
 
-    # 정렬
-    if sort_by == "name":
-        subquery = subquery.order_by(QueryGroup.name.asc())
-    elif sort_by == "created_at":
-        subquery = subquery.order_by(QueryGroup.created_at.desc())
-    else:
-        subquery = subquery.order_by(QueryGroup.name.asc())
+    # 정렬 (이름 오름차 순)
+    subquery = subquery.order_by(QueryGroup.name.asc())
 
     # 페이지네이션 적용
     offset = (page_num - 1) * page_size
@@ -328,176 +321,6 @@ async def get_query_template(
         )
 
     return query_group
-
-
-async def update_query_template(
-    session: AsyncSession,
-    query_no: str,
-    name: str,
-    transformation_no: str,
-    transformation_parameters: dict,
-    retrieval_no: str,
-    retrieval_parameters: dict,
-    reranking_no: str,
-    reranking_parameters: dict,
-    system_prompt_no: str,
-    system_prompt_parameters: dict,
-    user_prompt_no: str,
-    user_prompt_parameters: dict,
-    generation_no: str,
-    generation_parameters: dict,
-    is_default: Optional[bool] = None,
-) -> QueryGroup:
-    """
-    Query 템플릿 수정
-
-    Args:
-        session: 데이터베이스 세션
-        query_no: Query 템플릿 ID (UUID 문자열)
-        name: 템플릿 이름
-        transformation_no: 변환 전략 ID
-        transformation_parameters: 변환 전략 파라미터
-        retrieval_no: 검색 전략 ID
-        retrieval_parameters: 검색 전략 파라미터
-        reranking_no: 재순위화 전략 ID
-        reranking_parameters: 재순위화 전략 파라미터
-        system_prompt_no: 시스템 프롬프트 전략 ID
-        system_prompt_parameters: 시스템 프롬프트 전략 파라미터
-        user_prompt_no: 사용자 프롬프트 전략 ID
-        user_prompt_parameters: 사용자 프롬프트 전략 파라미터
-        generation_no: 생성 전략 ID
-        generation_parameters: 생성 전략 파라미터
-
-    Returns:
-        수정된 QueryGroup 객체 (전략들과 함께 로딩됨)
-
-    Raises:
-        HTTPException: UUID 형식 오류, 템플릿 또는 전략을 찾을 수 없는 경우
-    """
-    # UUID 변환
-    try:
-        query_binary = uuid_to_binary(query_no)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="올바르지 않은 Query 템플릿 ID 형식입니다."
-        )
-
-    # Query 템플릿 조회
-    query = select(QueryGroup).where(QueryGroup.query_group_no == query_binary)
-    result = await session.execute(query)
-    query_group = result.scalar_one_or_none()
-
-    if not query_group:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="대상을 찾을 수 없습니다."
-        )
-
-    # 전략 존재 여부 확인
-    transformation_strategy = await verify_strategy_exists(session, transformation_no)
-    if not transformation_strategy:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"변환 전략을 찾을 수 없습니다: {transformation_no}"
-        )
-
-    retrieval_strategy = await verify_strategy_exists(session, retrieval_no)
-    if not retrieval_strategy:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"검색 전략을 찾을 수 없습니다: {retrieval_no}"
-        )
-
-    reranking_strategy = await verify_strategy_exists(session, reranking_no)
-    if not reranking_strategy:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"재순위화 전략을 찾을 수 없습니다: {reranking_no}"
-        )
-
-    system_prompt_strategy = await verify_strategy_exists(session, system_prompt_no)
-    if not system_prompt_strategy:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"시스템 프롬프트 전략을 찾을 수 없습니다: {system_prompt_no}"
-        )
-
-    user_prompt_strategy = await verify_strategy_exists(session, user_prompt_no)
-    if not user_prompt_strategy:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"사용자 프롬프트 전략을 찾을 수 없습니다: {user_prompt_no}"
-        )
-
-    generation_strategy = await verify_strategy_exists(session, generation_no)
-    if not generation_strategy:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"생성 전략을 찾을 수 없습니다: {generation_no}"
-        )
-
-    # 기본 템플릿 설정 여부 처리
-    if is_default is True:
-        await session.execute(
-            update(QueryGroup)
-            .where(
-                QueryGroup.is_default.is_(True),
-                QueryGroup.query_group_no != query_binary,
-            )
-            .values(is_default=False)
-        )
-        query_group.is_default = True
-    elif is_default is False:
-        query_group.is_default = False
-
-    # Query 템플릿 업데이트
-    query_group.name = name
-    query_group.transformation_strategy_no = uuid_to_binary(transformation_no)
-    query_group.retrieval_strategy_no = uuid_to_binary(retrieval_no)
-    query_group.reranking_strategy_no = uuid_to_binary(reranking_no)
-    query_group.system_prompting_strategy_no = uuid_to_binary(system_prompt_no)
-    query_group.user_prompting_strategy_no = uuid_to_binary(user_prompt_no)
-    query_group.generation_strategy_no = uuid_to_binary(generation_no)
-    query_group.transformation_parameter = build_strategy_parameters(
-        transformation_strategy, transformation_parameters
-    )
-    query_group.retrieval_parameter = build_strategy_parameters(
-        retrieval_strategy, retrieval_parameters
-    )
-    query_group.reranking_parameter = build_strategy_parameters(
-        reranking_strategy, reranking_parameters
-    )
-    query_group.system_prompting_parameter = build_strategy_parameters(
-        system_prompt_strategy, system_prompt_parameters
-    )
-    query_group.user_prompting_parameter = build_strategy_parameters(
-        user_prompt_strategy, user_prompt_parameters
-    )
-    query_group.generation_parameter = build_strategy_parameters(
-        generation_strategy, generation_parameters
-    )
-
-    await session.commit()
-    await session.refresh(query_group)
-
-    # 전략들을 eager loading하여 반환
-    query = (
-        select(QueryGroup)
-        .where(QueryGroup.query_group_no == query_binary)
-        .options(
-            selectinload(QueryGroup.transformation_strategy),
-            selectinload(QueryGroup.retrieval_strategy),
-            selectinload(QueryGroup.reranking_strategy),
-            selectinload(QueryGroup.system_prompting_strategy),
-            selectinload(QueryGroup.user_prompting_strategy),
-            selectinload(QueryGroup.generation_strategy),
-        )
-    )
-    result = await session.execute(query)
-    updated_query_group = result.scalar_one()
-
-    return updated_query_group
 
 
 async def partial_update_query_template(
