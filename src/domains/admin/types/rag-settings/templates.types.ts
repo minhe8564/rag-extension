@@ -49,7 +49,7 @@ export interface QueryTemplateDetailResult {
   queryNo: string;
   name: string;
   isDefault: boolean;
-  transformations: StrategyRef[]; // 다중 (HyDE/Buffer 등)
+  transformation: StrategyRef; // 단일
   retrieval: StrategyRef; // 단일 (semantic/hybrid)
   reranking?: StrategyRef; // 단일 (optional)
   promptingSystem?: StrategyRef[]; // 다중 (optional)
@@ -77,10 +77,10 @@ export interface UpsertIngestTemplateDto {
 export interface UpsertQueryTemplateDto {
   name: string;
   isDefault: boolean;
-  transformations: StrategyRefInput[];
+  transformation: StrategyRefInput;
   retrieval: StrategyRefInput;
   reranking?: StrategyRefInput;
-  promptingSystem?: StrategyRefInput[];
-  promptingUser?: StrategyRefInput[];
+  systemPrompt?: StrategyRefInput[];
+  userPrompt?: StrategyRefInput[];
   generation: StrategyRefInput;
 }

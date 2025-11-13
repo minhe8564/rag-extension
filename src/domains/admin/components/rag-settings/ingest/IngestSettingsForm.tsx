@@ -185,8 +185,7 @@ export function IngestSettingsForm({
         'disabled:cursor-not-allowed disabled:opacity-60',
         dirty && !loading && !saving
           ? 'bg-[var(--color-hebees)] text-white border-[var(--color-hebees)] hover:opacity-90'
-          : 'bg-white text-gray-700 border hover:bg-gray-50',
-        saved && 'bg-emerald-500 border-emerald-500 text-white'
+          : 'bg-white text-gray-700 border hover:bg-gray-50'
       )}
     >
       {saved ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />}
@@ -199,11 +198,7 @@ export function IngestSettingsForm({
       <div className="rounded-2xl border bg-white p-8 shadow-sm">
         <div className="mb-6">
           <h3 className="text-lg font-semibold text-gray-900">Ingest 파이프라인 템플릿</h3>
-          <p
-            className="mt-2 inline-flex items-center gap-2 rounded-md bg-[var(--color-hebees-bg)] px-3 py-1 text-sm font-normal text-[var(--color-hebees)]"
-            role="status"
-            aria-live="polite"
-          >
+          <p className="mt-2 inline-flex items-center gap-2 rounded-md bg-[var(--color-hebees-bg)] px-3 py-1 text-sm font-normal text-[var(--color-hebees)]">
             <span className="font-bold">TIP</span>
             자주 사용하는 설정을 템플릿으로 저장해 빠르게 불러올 수 있어요.
           </p>

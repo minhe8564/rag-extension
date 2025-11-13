@@ -140,6 +140,7 @@ export default function UploadTab() {
         onRename={handleRename}
         brand="retina"
         onSelectChange={setSelectedIds}
+        showStatus={false}
       />
 
       {selectedIds.length > 0 && (

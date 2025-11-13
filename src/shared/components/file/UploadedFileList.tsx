@@ -22,6 +22,7 @@ type Props = {
   hideFooter?: boolean;
   onRename?: (id: string, nextName: string) => void;
   autoResolve?: 'none' | 'overwrite' | 'rename';
+  showStatus?: boolean;
 };
 
 export default function UploadedFileList({
@@ -34,6 +35,7 @@ export default function UploadedFileList({
   hideFooter = false,
   onRename,
   autoResolve = 'none',
+  showStatus = true,
 }: Props) {
   const [fileType, setFileType] = useState<'all' | UploadedDoc['type']>('all');
   const [page, setPage] = useState(1);
@@ -174,7 +176,7 @@ export default function UploadedFileList({
               <th className="px-4 py-2 text-right">크기</th>
               <th className="px-4 py-2 text-right">업로드 시간</th>
               <th className="px-4 py-2 text-right">카테고리</th>
-              <th className="px-4 py-2 text-right">상태</th>
+              {showStatus && <th className="px-4 py-2 text-right">상태</th>}
               <th className="px-4 py-2 text-right">작업</th>
             </tr>
           </thead>
@@ -210,6 +212,7 @@ export default function UploadedFileList({
                     onDelete={onDelete}
                     onRename={onRename}
                     existingNames={existingNames}
+                    showStatus={showStatus}
                   />
                 );
               })

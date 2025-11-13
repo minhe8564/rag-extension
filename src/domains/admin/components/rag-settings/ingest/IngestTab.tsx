@@ -14,17 +14,7 @@ import {
 } from '@/domains/admin/api/rag-settings/ingest-templates.api';
 import type { IngestTemplateDetailResult } from '@/domains/admin/types/rag-settings/templates.types';
 import { isChunkingParams, num } from '@/domains/admin/utils/ragParsers';
-
-export type IngestPreset = {
-  template: string;
-  extractEngine: string;
-  chunkStrategy: string;
-  chunkSize: number;
-  overlap: number;
-  embedModel: string;
-  embedSparse: string;
-  isDefault?: boolean;
-};
+import type { IngestPreset } from '@/domains/admin/types/rag-settings/ingest/ingestSettings.types';
 
 type Props = {
   anchors: Partial<Record<FlowStepId, React.RefObject<HTMLDivElement>>>;
@@ -74,7 +64,8 @@ export default function IngestTab({
       chunkSize = num(d.chunking.parameters?.token, chunkSize);
       overlap = num(d.chunking.parameters?.overlap, overlap);
     }
-    setPreset({
+
+    const nextPreset: IngestPreset = {
       template: id,
       extractEngine,
       chunkStrategy,
@@ -83,7 +74,9 @@ export default function IngestTab({
       embedModel,
       embedSparse,
       isDefault: !!d.isDefault,
-    });
+    };
+
+    setPreset(nextPreset);
   };
 
   useEffect(() => {
@@ -128,7 +121,7 @@ export default function IngestTab({
         no: payload.chunkStrategy,
         parameters: { token: payload.chunkSize, overlap: payload.overlap },
       },
-      denseEmbeddings: payload.embedModel ? [{ no: payload.embedModel }] : [], // 배열이라면 이렇게
+      denseEmbeddings: payload.embedModel ? [{ no: payload.embedModel }] : [],
       sparseEmbedding: payload.embedSparse ? { no: payload.embedSparse } : undefined,
       isDefault: payload.isDefault,
     };

@@ -13,7 +13,6 @@ import {
   createQueryTemplate,
 } from '@/domains/admin/api/rag-settings/query-templates.api';
 import type { QueryTemplateDetailResult } from '@/domains/admin/types/rag-settings/templates.types';
-
 import {
   bool,
   isGenerationParams,
@@ -21,19 +20,7 @@ import {
   isSemanticParams,
   num,
 } from '@/domains/admin/utils/ragParsers';
-
-export type QueryPreset = {
-  template: string;
-  queryEngine: string;
-  searchAlgorithm: string;
-  topK: number;
-  threshold: number;
-  reranking: string;
-  llmModel: string;
-  temperature: number;
-  multimodal: boolean;
-  isDefault: boolean;
-};
+import type { QueryPreset } from '@/domains/admin/types/rag-settings/query/querySettings.types';
 
 type Props = {
   anchors: Partial<Record<FlowStepId, React.RefObject<HTMLDivElement>>>;
@@ -64,7 +51,9 @@ export default function QueryTab({
         const data = list.data ?? [];
         setTplOpts(mapQueryTemplatesToOptions(data));
         const def = data.find((t) => t.isDefault)?.queryNo ?? data[0]?.queryNo ?? '';
-        if (!isCreateMode && !templateId && def) setTemplateId(def);
+        if (!isCreateMode && !templateId && def) {
+          setTemplateId(def);
+        }
       } finally {
         setTplLoading(false);
       }
@@ -73,18 +62,30 @@ export default function QueryTab({
   }, [templateId, isCreateMode]);
 
   const applyDetailToPreset = (d: QueryTemplateDetailResult, id: string) => {
-    const queryEngine = d.transformations?.[0]?.no ?? '';
+    const transformation = d.transformation?.no ?? '';
     const searchAlgorithm = d.retrieval?.no ?? '';
 
-    let topK = 5;
-    let threshold = 0.2;
+    let semanticTopK = 30;
+    let semanticThreshold = 0.4;
+    let keywordTopK = 30;
+    let rerankerTopK = 10;
+    let rerankerType = 'weighted';
+    let rerankerWeight = 0.4;
+
     const rp = d.retrieval?.parameters;
+
     if (isSemanticParams(rp)) {
-      topK = num(rp.semantic?.topK, topK);
-      threshold = num(rp.semantic?.threshold, threshold);
+      // { type: 'semantic', semantic: { topK, threshold } }
+      semanticTopK = num(rp.semantic?.topK, semanticTopK);
+      semanticThreshold = num(rp.semantic?.threshold, semanticThreshold);
     } else if (isHybridParams(rp)) {
-      topK = num(rp.semantic?.topK, num(rp.keyword?.topK, num(rp.reranker?.topK, topK)));
-      threshold = num(rp.semantic?.threshold, threshold);
+      // { type: 'hybrid', semantic, keyword, reranker }
+      semanticTopK = num(rp.semantic?.topK, semanticTopK);
+      semanticThreshold = num(rp.semantic?.threshold, semanticThreshold);
+      keywordTopK = num(rp.keyword?.topK, keywordTopK);
+      rerankerTopK = num(rp.reranker?.topK, rerankerTopK);
+      rerankerType = rp.reranker?.type ?? rerankerType;
+      rerankerWeight = num(rp.reranker?.weight, rerankerWeight);
     }
 
     const reranking = d.reranking?.no ?? '';
@@ -92,23 +93,30 @@ export default function QueryTab({
 
     let temperature = 0.2;
     let multimodal = false;
+
     if (isGenerationParams(d.generation?.parameters)) {
       temperature = num(d.generation.parameters?.temperature, temperature);
       multimodal = bool(d.generation.parameters?.multimodal, multimodal);
     }
 
-    setPreset({
+    const nextPreset: QueryPreset = {
       template: id,
-      queryEngine,
+      transformation,
       searchAlgorithm,
-      topK,
-      threshold,
       reranking,
       llmModel,
       temperature,
       multimodal,
       isDefault: !!d.isDefault,
-    });
+      semanticTopK,
+      semanticThreshold,
+      keywordTopK,
+      rerankerTopK,
+      rerankerType,
+      rerankerWeight,
+    };
+
+    setPreset(nextPreset);
   };
 
   useEffect(() => {
@@ -117,8 +125,8 @@ export default function QueryTab({
         setPreset(null);
         return;
       }
-      const d = await getQueryTemplateDetail(templateId);
-      applyDetailToPreset(d, templateId);
+      const detail = await getQueryTemplateDetail(templateId);
+      applyDetailToPreset(detail, templateId);
     };
     void run();
   }, [templateId, isCreateMode]);
@@ -137,36 +145,59 @@ export default function QueryTab({
   const handleQuerySave = async (payload: {
     template: string;
     templateName: string;
-    queryEngine: string;
+    transformation: string;
     searchAlgorithm: string;
-    topK: number;
-    threshold: number;
     reranking: string;
     llmModel: string;
     temperature: number;
     multimodal: boolean;
     isDefault: boolean;
     isCreateMode?: boolean;
+    semanticTopK: number;
+    semanticThreshold: number;
+    keywordTopK: number;
+    rerankerTopK: number;
+    rerankerType: string;
+    rerankerWeight: number;
   }) => {
     const isHybrid = !!ragOptions?.searchHybrid?.some((o) => o.value === payload.searchAlgorithm);
 
     const dto = {
       name: payload.templateName,
-      transformations: payload.queryEngine ? [{ no: payload.queryEngine }] : [],
+      transformation: { no: payload.transformation },
       retrieval: {
         no: payload.searchAlgorithm,
         parameters: isHybrid
           ? {
-              semantic: { topK: payload.topK, threshold: payload.threshold },
-              keyword: { topK: payload.topK },
-              reranker: { topK: payload.topK },
+              type: 'hybrid',
+              semantic: {
+                topK: payload.semanticTopK,
+                threshold: payload.semanticThreshold,
+              },
+              keyword: {
+                topK: payload.keywordTopK,
+              },
+              reranker: {
+                topK: payload.rerankerTopK,
+                type: payload.rerankerType,
+                weight: payload.rerankerWeight,
+              },
             }
-          : { semantic: { topK: payload.topK, threshold: payload.threshold } },
+          : {
+              type: 'semantic',
+              semantic: {
+                topK: payload.semanticTopK,
+                threshold: payload.semanticThreshold,
+              },
+            },
       },
       reranking: payload.reranking ? { no: payload.reranking } : undefined,
       generation: {
         no: payload.llmModel,
-        parameters: { temperature: payload.temperature, multimodal: payload.multimodal },
+        parameters: {
+          temperature: payload.temperature,
+          multimodal: payload.multimodal,
+        },
       },
       isDefault: payload.isDefault,
     };
@@ -177,6 +208,7 @@ export default function QueryTab({
         getQueryTemplateDetail(created.queryNo),
         getQueryTemplates({ pageNum: 1, pageSize: 100 }),
       ]);
+
       setTplOpts(mapQueryTemplatesToOptions(list.data ?? []));
       setTemplateId(created.queryNo);
       setIsCreateMode(false);

@@ -16,6 +16,7 @@ export type SavePayload = {
 };
 
 export type IngestPreset = {
+  template: string;
   extractEngine?: string;
   chunkStrategy?: string;
   chunkSize?: number;
