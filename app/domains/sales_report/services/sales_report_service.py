@@ -3,8 +3,12 @@ from typing import Optional, List, Dict
 from decimal import Decimal
 from datetime import datetime, date
 from collections import defaultdict
+import random
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domains.sales_report.services.adminschool_client import AdminSchoolClient
+from app.domains.sales_report.services.llm_client import LLMClient
+from app.domains.runpod.repositories.runpod_repository import RunpodRepository
 from app.domains.sales_report.schemas.response.sales_report import (
     SalesReportResponse,
     DailySalesReport,
@@ -19,14 +23,16 @@ from app.domains.sales_report.schemas.response.sales_report import (
 class SalesReportService:
     """매출 리포트 생성 서비스"""
 
-    def __init__(self):
+    def __init__(self, db: Optional[AsyncSession] = None):
         self.client = AdminSchoolClient()
+        self.db = db
 
     async def generate_report(
         self,
         store_id: str,
         report_date: Optional[date] = None,
-        year_month: Optional[str] = None
+        year_month: Optional[str] = None,
+        include_ai_summary: bool = False
     ) -> SalesReportResponse:
         """
         매출 리포트 생성
@@ -35,6 +41,7 @@ class SalesReportService:
             store_id: 안경원 ID
             report_date: 일별 리포트 기준일 (None이면 생략)
             year_month: 월별 리포트 기준 년월 (None이면 생략)
+            include_ai_summary: AI 요약 포함 여부 (기본값: False)
 
         Returns:
             SalesReportResponse: 통합 리포트
@@ -55,11 +62,16 @@ class SalesReportService:
         if year_month:
             monthly_report = self._generate_monthly_report(raw_data["data"], year_month)
 
+        # AI 요약 생성 (요청 시에만)
+        ai_summary = None
+        if include_ai_summary and monthly_report and self.db:
+            ai_summary = await self._generate_ai_summary(store_info, monthly_report)
+
         return SalesReportResponse(
             store_info=store_info,
             daily_report=daily_report,
             monthly_report=monthly_report,
-            ai_summary=None  # AI 요약은 추후 구현
+            ai_summary=ai_summary
         )
 
     def _extract_store_info(self, info_data: dict) -> StoreInfo:
@@ -175,14 +187,18 @@ class SalesReportService:
         # 📅 매출 피크일
         peak_date, peak_amount = self._find_peak_sales_date(monthly_transactions)
 
+        # 📈 전월/전년 대비 증감률 (임시 더미 데이터)
+        month_over_month_growth = self._generate_dummy_growth_rate("month")
+        year_over_year_growth = self._generate_dummy_growth_rate("year")
+
         return MonthlySalesReport(
             year_month=year_month,
             total_sales=total_sales,
             payment_breakdown=payment_breakdown,
             returning_customer_rate=returning_rate,
             new_customers_count=new_customers_count,
-            month_over_month_growth=None,  # 전월 데이터 필요 (추후 구현)
-            year_over_year_growth=None,  # 전년 데이터 필요 (추후 구현)
+            month_over_month_growth=month_over_month_growth,
+            year_over_year_growth=year_over_year_growth,
             avg_transaction_amount=avg_amount,
             total_receivables=total_receivables,
             receivable_customers=receivable_customers,
@@ -338,3 +354,89 @@ class SalesReportService:
             peak_sales_date=date.today(),
             peak_sales_amount=Decimal("0")
         )
+
+    def _generate_dummy_growth_rate(self, period_type: str) -> Decimal:
+        """
+        더미 증감률 생성 (임시)
+
+        Args:
+            period_type: "month" 또는 "year"
+
+        Returns:
+            Decimal: -0.2 ~ 0.3 범위의 증감률
+        """
+        # 전월 대비: -5% ~ +15%
+        # 전년 대비: -10% ~ +30%
+        if period_type == "month":
+            growth = random.uniform(-0.05, 0.15)
+        else:  # year
+            growth = random.uniform(-0.10, 0.30)
+
+        return Decimal(str(round(growth, 4)))
+
+    async def _generate_ai_summary(
+        self,
+        store_info: StoreInfo,
+        monthly_report: MonthlySalesReport
+    ) -> Optional[str]:
+        """
+        AI 요약 리포트 생성
+
+        Args:
+            store_info: 매장 정보
+            monthly_report: 월별 리포트
+
+        Returns:
+            Optional[str]: AI 생성 요약 (실패 시 None)
+        """
+        try:
+            # Runpod에서 qwen3 LLM 주소 조회
+            runpod = await RunpodRepository.find_by_name(self.db, "qwen3")
+
+            if not runpod or not runpod.address:
+                print("AI 요약 생성 실패: LLM 서버를 찾을 수 없습니다.")
+                return None
+
+            # LLM 클라이언트 생성
+            llm_client = LLMClient(runpod.address)
+
+            # Top 고객 데이터 변환 (Pydantic 모델 → dict)
+            top_customers_dict = [
+                {
+                    "customer_name": customer.customer_name,
+                    "total_amount": customer.total_amount,
+                    "transaction_count": customer.transaction_count
+                }
+                for customer in monthly_report.top_customers
+            ]
+
+            # 결제 수단 비율 변환
+            payment_breakdown_dict = {
+                "card": monthly_report.payment_breakdown.card,
+                "cash": monthly_report.payment_breakdown.cash,
+                "cash_receipt": monthly_report.payment_breakdown.cash_receipt,
+                "voucher": monthly_report.payment_breakdown.voucher
+            }
+
+            # AI 요약 생성
+            summary = await llm_client.generate_sales_summary(
+                store_name=store_info.store_name,
+                total_sales=monthly_report.total_sales,
+                payment_breakdown=payment_breakdown_dict,
+                returning_customer_rate=monthly_report.returning_customer_rate,
+                new_customers_count=monthly_report.new_customers_count,
+                month_over_month_growth=monthly_report.month_over_month_growth,
+                year_over_year_growth=monthly_report.year_over_year_growth,
+                avg_transaction_amount=monthly_report.avg_transaction_amount,
+                total_receivables=monthly_report.total_receivables,
+                top_customers=top_customers_dict,
+                peak_sales_date=str(monthly_report.peak_sales_date),
+                peak_sales_amount=monthly_report.peak_sales_amount
+            )
+
+            return summary
+
+        except Exception as e:
+            # 에러 발생 시 로그 남기고 None 반환
+            print(f"AI 요약 생성 실패: {str(e)}")
+            return None
