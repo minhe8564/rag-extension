@@ -4,7 +4,7 @@ import Tooltip from '@/shared/components/Tooltip';
 import clsx from 'clsx';
 import { toast } from 'react-toastify';
 import type { SessionItem } from '@/shared/types/chat.types';
-import { formatIsoDatetime } from '@/shared/utils/iso';
+import { formatCreatedAt } from '@/shared/utils/date';
 
 type Brand = 'retina' | 'hebees';
 
@@ -93,7 +93,7 @@ export default function ChatListItem({
             </div>
             <div className="inline-flex items-center text-xs text-gray-500 gap-1 transition-opacity">
               <Clock size={12} />
-              {formatIsoDatetime(session.updatedAt || session.createdAt)}
+              {formatCreatedAt(session.updatedAt || session.createdAt)}
             </div>
           </>
         )}

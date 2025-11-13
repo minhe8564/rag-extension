@@ -20,7 +20,6 @@ function msLabel(v?: number) {
   return `${Math.round(v)} ms`;
 }
 
-// metric.name 매칭용 normalize 함수
 const normalizeKey = (s: string) => s.toLowerCase().replace(/\s+/g, '').replace(/-/g, '');
 
 export default function RagResponseTime() {

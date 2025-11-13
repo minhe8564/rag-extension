@@ -28,7 +28,7 @@ export default function TextChat() {
   const { sessionNo: paramsSessionNo } = useParams<{ sessionNo: string }>();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const derivedSessionNo = useDerivedSessionNo(location, searchParams, paramsSessionNo);
+  const derivedSessionNo = useDerivedSessionNo(location, searchParams, paramsSessionNo, 'admin');
 
   const [currentSessionNo, setCurrentSessionNo] = useState<string | null>(derivedSessionNo);
   const [list, setList] = useState<UiMsg[]>([]);
@@ -43,7 +43,7 @@ export default function TextChat() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const forceScrollRef = useRef<boolean>(false);
 
-  const ensureSession = useEnsureSession(setCurrentSessionNo);
+  const ensureSession = useEnsureSession(setCurrentSessionNo, 'admin');
   const sessionPromiseRef = useRef<Promise<string> | null>(null);
 
   const getOrCreateSessionNo = async (llmName: string, firstMsg: string): Promise<string> => {

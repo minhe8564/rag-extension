@@ -1,5 +1,6 @@
 import { createElement, lazy, Suspense } from 'react';
 import type { RouteObject } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import RequireAuth from '@/guards/RequireAuth';
 import RequireAdmin from '@/guards/RequireAdmin';
 import AdminLayout from '@/layouts/AdminLayout';
@@ -29,12 +30,12 @@ export const adminRoutes: RouteObject = {
         {
           element: createElement(Suspense, { fallback: FallbackDiv }, createElement(AdminLayout)),
           children: [
-            { index: true, element: createElement(AdminDashboard) },
+            { index: true, element: createElement(Navigate, { to: 'dashboard', replace: true }) },
             { path: 'dashboard', element: createElement(AdminDashboard) },
             { path: 'rag/settings', element: createElement(AdminRagSettings) },
             { path: 'rag/test', element: createElement(AdminRagTest) },
-            { path: 'chat/text', element: createElement(AdminChat) },
-            { path: 'chat/text/:sessionNo', element: createElement(AdminChat) },
+            { path: 'rag/text', element: createElement(AdminChat) },
+            { path: 'rag/text/:sessionNo', element: createElement(AdminChat) },
             { path: 'chat/image', element: createElement(AdminImageChat) },
             { path: 'documents', element: createElement(AdminDocuments) },
             { path: 'users', element: createElement(AdminUsers) },

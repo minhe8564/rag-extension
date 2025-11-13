@@ -149,7 +149,7 @@ export default function AdminLayout() {
             </div>
           </NavLink>
 
-          <NavLink to="/admin/chat/text" className={linkCls}>
+          <NavLink to="/admin/rag/text" className={linkCls}>
             <MessageSquare size={18} className="flex-shrink-0" />
             <div className={labelCls(isOpen)}>
               <span className="inline-block">RAG 채팅</span>

@@ -11,12 +11,14 @@ import clsx from 'clsx';
 import ChatListItem from '@/shared/components/chat/list/ChatListItem';
 
 type Brand = 'retina' | 'hebees';
+type Variant = 'user' | 'admin';
 
 type ChatListProps = {
   activeSessionNo?: string;
   onSelect?: (session: SessionItem) => void;
   pageSize?: number;
   brand?: Brand;
+  variant?: Variant;
 };
 
 export default function ChatList({
@@ -24,6 +26,7 @@ export default function ChatList({
   onSelect,
   pageSize = 20,
   brand = 'retina',
+  variant = 'user',
 }: ChatListProps) {
   const qc = useQueryClient();
   const [pageNum, setPageNum] = useState(0);
@@ -45,8 +48,10 @@ export default function ChatList({
     });
   };
 
+  const baseKey = ['sessions', variant] as const;
+
   const { data, isFetching, isError, refetch } = useQuery<ApiEnvelope<ListSessionsResult>>({
-    queryKey: ['sessions', pageNum, pageSize],
+    queryKey: [...baseKey, pageNum, pageSize],
     queryFn: async () => {
       const res = await getSessions({ pageNum, pageSize });
       return res.data as ApiEnvelope<ListSessionsResult>;
@@ -112,7 +117,6 @@ export default function ChatList({
     }
   };
 
-  // 삭제
   const { mutate: mutateDelete, isPending: deleting } = useMutation({
     mutationFn: async (sessionNo: string) => (await deleteSession(sessionNo)).data,
     onSuccess: (_data, sessionNo) => {
@@ -122,12 +126,11 @@ export default function ChatList({
       if (localActiveNo === sessionNo) setLocalActiveNo(null);
       setConfirmOpen(false);
       setPageNum(0);
-      qc.invalidateQueries({ queryKey: ['sessions'] });
+      qc.invalidateQueries({ queryKey: baseKey });
       refetch();
     },
   });
 
-  // 제목 변경
   const { mutate: mutateRename, isPending: renaming } = useMutation({
     mutationFn: async ({ sessionNo, title }: { sessionNo: string; title: string }) =>
       (await updateSession(sessionNo, { title })).data,
@@ -138,7 +141,7 @@ export default function ChatList({
           s.sessionNo === variables.sessionNo ? { ...s, title: variables.title } : s
         )
       );
-      qc.invalidateQueries({ queryKey: ['sessions'] });
+      qc.invalidateQueries({ queryKey: baseKey });
     },
   });
 

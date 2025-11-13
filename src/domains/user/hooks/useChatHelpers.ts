@@ -12,6 +12,11 @@ import type { ApiEnvelope } from '@/shared/lib/api.types';
 const PAGE_SIZE = 20;
 const key = (pageNum = 0, pageSize = PAGE_SIZE) => ['sessions', pageNum, pageSize] as const;
 
+type ChatOwner = 'user' | 'admin';
+
+const buildChatPath = (owner: ChatOwner, sessionNo: string) =>
+  owner === 'admin' ? `/admin/rag/chat/${sessionNo}` : `/user/chat/text/${sessionNo}`;
+
 const derive = (pathname: string, searchParams: URLSearchParams, paramsSessionNo?: string) => {
   if (paramsSessionNo) return paramsSessionNo;
   const byQuery = searchParams.get('session');
@@ -23,7 +28,8 @@ const derive = (pathname: string, searchParams: URLSearchParams, paramsSessionNo
 export function useDerivedSessionNo(
   location: Location,
   searchParams: URLSearchParams,
-  paramsSessionNo?: string
+  paramsSessionNo?: string,
+  owner: ChatOwner = 'user'
 ) {
   const derived = useMemo(
     () => derive(location.pathname, searchParams, paramsSessionNo),
@@ -32,19 +38,25 @@ export function useDerivedSessionNo(
 
   useEffect(() => {
     if (!derived) return;
+
     const needNormalize =
       location.pathname.includes('text:session=') || location.search.includes('session=');
-    const targetPath = `/user/chat/text/${derived}`;
+
+    const targetPath = buildChatPath(owner, derived);
     const currentFull = location.pathname + location.search;
+
     if (needNormalize && currentFull !== targetPath) {
       window.history.replaceState(history.state, '', targetPath);
     }
-  }, [derived, location.pathname, location.search]);
+  }, [derived, location.pathname, location.search, owner]);
 
   return derived;
 }
 
-export function useEnsureSession(setCurrentSessionNo: (v: string) => void) {
+export function useEnsureSession(
+  setCurrentSessionNo: (v: string) => void,
+  owner: ChatOwner = 'user'
+) {
   const qc = useQueryClient();
 
   return async (opts?: { llm?: string; query?: string }) => {
@@ -142,7 +154,8 @@ export function useEnsureSession(setCurrentSessionNo: (v: string) => void) {
     qc.invalidateQueries({ queryKey: ['sessions'] });
 
     setCurrentSessionNo(realId);
-    window.history.replaceState(history.state, '', `/user/chat/text/${realId}`);
+    const nextPath = buildChatPath(owner, realId);
+    window.history.replaceState(history.state, '', nextPath);
     document.title = realTitle;
 
     return realId;

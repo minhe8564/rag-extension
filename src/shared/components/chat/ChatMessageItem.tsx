@@ -3,7 +3,7 @@ import Tooltip from '@/shared/components/Tooltip';
 import ChatMarkdown from '@/shared/components/chat/ChatMarkdown';
 import InlineReaskInput from '@/shared/components/chat/InlineReaskInput';
 import ReferencedDocsPanel from '@/shared/components/chat/ReferencedDocs';
-import { formatIsoDatetime } from '@/shared/utils/iso';
+import { formatCreatedAt } from '@/shared/utils/date';
 import type { ReferencedDocument } from '@/shared/types/chat.types';
 
 type Brand = 'retina' | 'hebees';
@@ -102,7 +102,7 @@ export default function ChatMessageItem({
       )}
 
       {!isUser && msg.createdAt && !isPendingAssistant && (
-        <div className="mt-1 text-xs text-gray-400">{formatIsoDatetime(msg.createdAt)}</div>
+        <div className="mt-1 text-xs text-gray-400">{formatCreatedAt(msg.createdAt)}</div>
       )}
 
       <div
