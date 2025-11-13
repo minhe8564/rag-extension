@@ -49,15 +49,15 @@ export default function CategorySelect({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return options;
-    return options.filter(o => o.label.toLowerCase().includes(q));
+    return options.filter((o) => o.label.toLowerCase().includes(q));
   }, [query, options]);
 
   const existsExact = useMemo(() => {
     const q = query.trim();
-    return q.length > 0 && options.some(o => o.label === q || o.value === q);
+    return q.length > 0 && options.some((o) => o.label === q || o.value === q);
   }, [query, options]);
 
-  const current = options.find(o => o.value === value);
+  const current = options.find((o) => o.value === value);
 
   const select = (v: string) => {
     onChange(v);
@@ -78,7 +78,7 @@ export default function CategorySelect({
       <button
         type="button"
         disabled={disabled}
-        onClick={() => setOpen(o => !o)}
+        onClick={() => setOpen((o) => !o)}
         className={`group inline-flex max-w-[220px] items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs
                     ${disabled ? 'cursor-not-allowed bg-gray-50 text-gray-400' : 'hover:bg-gray-50'} `}
       >
@@ -95,7 +95,7 @@ export default function CategorySelect({
         )}
         {value && !disabled && (
           <span
-            onClick={e => {
+            onClick={(e) => {
               e.stopPropagation();
               onChange('');
             }}
@@ -117,8 +117,8 @@ export default function CategorySelect({
             <input
               ref={inputRef}
               value={query}
-              onChange={e => setQuery(e.target.value)}
-              onKeyDown={e => {
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   if (filtered.length > 0 && query.trim().length === 0) {
                     select(filtered[0].value);
@@ -137,7 +137,7 @@ export default function CategorySelect({
           </div>
 
           <div className="max-h-64 overflow-auto p-1">
-            {filtered.map(o => (
+            {filtered.map((o) => (
               <div
                 key={o.value}
                 onClick={() => select(o.value)}
@@ -155,7 +155,7 @@ export default function CategorySelect({
                 {!!onDeleteOption && (
                   <button
                     title="옵션 삭제"
-                    onClick={e => {
+                    onClick={(e) => {
                       e.stopPropagation();
                       onDeleteOption(o.value);
                     }}

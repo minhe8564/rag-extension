@@ -1,4 +1,3 @@
-// RagStrategyCompare.tsx
 import { useMemo, useState } from 'react';
 import { CompareControls } from './CompareControls';
 import { CompareResults } from './CompareResults';
@@ -56,8 +55,8 @@ export function RagStrategyCompare({ initialIngest, initialQueries, onRunCompare
   const [leftResult, setLeftResult] = useState<string | null>(null);
   const [rightResult, setRightResult] = useState<string | null>(null);
 
-  const ingestMap = useMemo(() => new Map(ingest.map(i => [i.id, i] as const)), [ingest]);
-  const queryMap = useMemo(() => new Map(queries.map(q => [q.id, q] as const)), [queries]);
+  const ingestMap = useMemo(() => new Map(ingest.map((i) => [i.id, i] as const)), [ingest]);
+  const queryMap = useMemo(() => new Map(queries.map((q) => [q.id, q] as const)), [queries]);
 
   const buildSides = (): { left: CompareSide; right: CompareSide } => {
     if (mode === 'query-2') {
@@ -67,7 +66,6 @@ export function RagStrategyCompare({ initialIngest, initialQueries, onRunCompare
         right: { ingest: fixedIngest, query: rightQueryId ? queryMap.get(rightQueryId) : null },
       };
     }
-    // mode === 'ingest-2'
     const fixedQuery = fixedQueryId ? queryMap.get(fixedQueryId) : null;
     return {
       left: { ingest: leftIngestId ? ingestMap.get(leftIngestId) : null, query: fixedQuery },
@@ -90,7 +88,7 @@ export function RagStrategyCompare({ initialIngest, initialQueries, onRunCompare
         setRightResult(res.right ?? '');
       } else {
         // 데모 모드
-        await new Promise(r => setTimeout(r, 300));
+        await new Promise((r) => setTimeout(r, 300));
         setLeftResult(
           `LEFT\n[${mode}] ${left.ingest?.name ?? '-'} × ${left.query?.name ?? '-'}\nQ: ${question}`
         );

@@ -5,12 +5,27 @@
 @tailwind components;
 @tailwind utilities;
 
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
 /* 알림 애니메이션 */
 @keyframes shake {
-  0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(10deg); }
-  50% { transform: rotate(-10deg); }
-  75% { transform: rotate(10deg); }
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(10deg);
+  }
+  50% {
+    transform: rotate(-10deg);
+  }
+  75% {
+    transform: rotate(10deg);
+  }
 }
 
 .shake-hover:hover {
@@ -66,3 +81,35 @@
   box-shadow: 0 0 4px rgba(0, 0, 0, 0.15);
 }
 
+@keyframes popbubble {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.95);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(0) scale(1.03);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.animate-popbubble {
+  animation: popbubble 0.35s cubic-bezier(0.3, 0.9, 0.4, 1.2);
+}
+
+@keyframes gradientMove {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+.animate-gradientMove {
+  animation: gradientMove 2.2s ease-in-out infinite;
+}

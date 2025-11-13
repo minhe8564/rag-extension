@@ -1,53 +1,71 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import Card from '@/shared/components/Card';
 import Select from '@/shared/components/Select';
-import { ingestTemplateOptions } from '@/domains/admin/components/rag-settings/options';
-import FileDropzone from '@/shared/components/FileUploader';
-import UploadedFileList from '@/shared/components/UploadedFileList';
-import type { UploadedDoc as UDoc } from '@/shared/components/UploadedFileList';
+import FileDropzone from '@/shared/components/file/FileUploader';
+import UploadedFileList from '@/shared/components/file/UploadedFileList';
+import type { UploadedDoc as UDoc } from '@/shared/types/file.types';
 import type { Collection } from '@/domains/admin/components/rag-test/types';
+import type { RagOptions } from '@/domains/admin/components/rag-settings/options';
 
 type Props = {
   onCancel: () => void;
   onCreate: (c: Collection) => void;
+  options?: RagOptions | null;
+  loadingOptions?: boolean;
+  optionsError?: boolean;
 };
 
-export function CreateCollectionForm({}: Props) {
+export function CreateCollectionForm({
+  // onCancel,
+  // onCreate,
+  options,
+  loadingOptions,
+  optionsError,
+}: Props) {
   const navigate = useNavigate();
 
-  const defaultTemplate = (ingestTemplateOptions as any)?.[0]?.value ?? '';
+  const defaultTemplate = useMemo(
+    () => options?.ingestTemplate?.[0]?.value ?? '',
+    [options?.ingestTemplate]
+  );
+
   const [name, setName] = useState('');
   const [template, setTemplate] = useState<string>(defaultTemplate);
   const [uploadedDocs, setUploadedDocs] = useState<UDoc[]>([]);
 
+  useEffect(() => {
+    if (!template && defaultTemplate) setTemplate(defaultTemplate);
+  }, [defaultTemplate, template]);
+
   const detectType = (f: File): UDoc['type'] => {
-    const t = f.type;
-    if (t.includes('pdf')) return 'pdf';
-    if (t.includes('presentation') || /\.pptx?$/i.test(f.name)) return 'pptx';
-    if (t.includes('sheet') || /\.xlsx?$/i.test(f.name)) return 'xlsx';
-    if (t.includes('word') || /\.docx?$/i.test(f.name)) return 'docx';
-    if (t.startsWith('image/')) return 'image';
+    const name = f.name.toLowerCase();
+    if (name.endsWith('.pdf')) return 'pdf';
+    if (name.endsWith('.md')) return 'md';
+    if (name.endsWith('.doc') || name.endsWith('.docx')) return 'docx';
+    if (name.endsWith('.xlsx')) return 'xlsx';
     return 'txt';
   };
 
-  const handleUpload = async (files: File[]) => {
+  const handleUpload = ({ files, category }: { files: File[]; category: string }): void => {
     const now = new Date().toLocaleString();
-    const mapped: UDoc[] = files.map(f => ({
+
+    const mapped: UDoc[] = files.map((f) => ({
       id: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}_${f.name}`,
       name: f.name,
       sizeKB: f.size / 1024,
       uploadedAt: now,
-      category: '없음',
+      category,
       type: detectType(f),
       file: f,
     }));
-    setUploadedDocs(prev => [...mapped, ...prev]);
+
+    setUploadedDocs((prev) => [...mapped, ...prev]);
   };
 
   const handleDownload = (id: string) => {
-    const doc = uploadedDocs.find(d => d.id === id);
+    const doc = uploadedDocs.find((d) => d.id === id);
     if (!doc?.file) return;
     const url = URL.createObjectURL(doc.file);
     const a = document.createElement('a');
@@ -58,11 +76,7 @@ export function CreateCollectionForm({}: Props) {
   };
 
   const handleDelete = (ids: string[]) => {
-    setUploadedDocs(prev => prev.filter(d => !ids.includes(d.id)));
-  };
-
-  const handleCategoryChange = (id: string, category: string) => {
-    setUploadedDocs(prev => prev.map(d => (d.id === id ? { ...d, category } : d)));
+    setUploadedDocs((prev) => prev.filter((d) => !ids.includes(d.id)));
   };
 
   return (
@@ -77,22 +91,28 @@ export function CreateCollectionForm({}: Props) {
               <Select
                 value={template}
                 onChange={setTemplate}
-                options={ingestTemplateOptions as any}
-                placeholder="선택하세요"
+                options={options?.ingestTemplate ?? []}
+                placeholder={loadingOptions ? '불러오는 중…' : '선택하세요'}
                 aria-label="Ingest 템플릿 선택"
+                disabled={loadingOptions || !!optionsError}
               />
             </div>
 
             <button
               type="button"
               onClick={() => navigate('/admin/rag/settings')}
-              className="inline-flex items-center gap-2 rounded-lg border bg-white px-3 py-2 text-sm font-medium
-                         text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-lg border bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Plus className="size-4" />
               <span className="hidden sm:inline">템플릿 추가하기</span>
             </button>
           </div>
+
+          {optionsError && (
+            <p className="mt-2 text-sm text-red-500">
+              옵션을 불러오지 못했습니다. 설정 화면에서 확인하세요.
+            </p>
+          )}
         </Card>
 
         <Card title="Collection 이름 지정" tip="새 컬렉션 이름을 입력해 등록하세요.">
@@ -100,10 +120,9 @@ export function CreateCollectionForm({}: Props) {
             <input
               type="text"
               value={name}
-              onChange={e => setName(e.target.value)}
+              onChange={(e) => setName(e.target.value)}
               placeholder="예: HEBEES Test"
-              className="w-full rounded-md border border-gray-200 px-3 py-2 text-base
-                         focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-transparent"
+              className="w-full rounded-md border border-gray-200 px-3 py-2 text-base focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-transparent"
             />
           </div>
         </Card>
@@ -111,18 +130,18 @@ export function CreateCollectionForm({}: Props) {
 
       <Card title="테스트 문서 업로드">
         <FileDropzone
-          onFiles={handleUpload}
-          accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.txt,.png,.jpg,.jpeg"
-          maxSizeMB={50}
+          onUpload={handleUpload}
+          accept=".pdf,.md,.doc,.docx,.xlsx"
+          maxSizeMB={100}
           className="mt-4"
           brand="hebees"
+          defaultCategory="기타"
         />
 
         <UploadedFileList
           docs={uploadedDocs}
           onDownload={handleDownload}
           onDelete={handleDelete}
-          onCategoryChange={handleCategoryChange}
           brand="hebees"
         />
       </Card>

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 
-type Option = { label: string; value: string; desc?: string };
+export type Option = { label: string; value: string; desc?: string };
 
 type SelectMenuProps = {
   value?: string | null;
@@ -23,7 +23,7 @@ export default function Select({
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
-  const selected = useMemo(() => options.find(o => o.value === value), [options, value]);
+  const selected = useMemo(() => options.find((o) => o.value === value), [options, value]);
 
   // 외부 클릭 닫기
   useEffect(() => {
@@ -39,7 +39,7 @@ export default function Select({
       <button
         type="button"
         disabled={disabled}
-        onClick={() => !disabled && setOpen(o => !o)}
+        onClick={() => !disabled && setOpen((o) => !o)}
         aria-haspopup="listbox"
         aria-expanded={open}
         className={
@@ -63,7 +63,7 @@ export default function Select({
           className="absolute z-50 mt-2 w-full overflow-hidden rounded-xl border bg-white p-2 shadow-xl"
         >
           <ul className="max-h-72 overflow-auto">
-            {options.map(o => {
+            {options.map((o) => {
               const isSelected = o.value === value;
               return (
                 <li

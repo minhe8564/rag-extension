@@ -9,7 +9,7 @@ import TermsModal from '@/domains/auth/components/TermsModal';
 import { toast } from 'react-toastify';
 
 const PW_RULE = /^(?=.*[A-Za-z])(?=.*[~`!@#$%^&*()_\-+={}[\]|\\:;"'<>,.?/]).{8,}$/;
-const NAME_RULE = /^[A-Za-z가-힣]+$/;
+const NAME_RULE = /^[A-Za-z가-힣 ]+$/;
 const onlyDigits = (v: string) => v.replace(/\D/g, '').slice(0, 10);
 const fmtBiz = (d: string) =>
   d.length <= 3
@@ -81,7 +81,7 @@ export default function Signup() {
           <FormInput
             type="email"
             value={email}
-            onChange={e => setEmail(e.target.value)}
+            onChange={(e) => setEmail(e.target.value)}
             placeholder="이메일을 입력하세요."
             required
           />
@@ -89,7 +89,7 @@ export default function Signup() {
           <FormInput
             type="password"
             value={password}
-            onChange={e => setPassword(e.target.value)}
+            onChange={(e) => setPassword(e.target.value)}
             placeholder="비밀번호를 입력하세요."
             required
           />
@@ -97,7 +97,7 @@ export default function Signup() {
           <FormInput
             type="password"
             value={confirm}
-            onChange={e => setConfirm(e.target.value)}
+            onChange={(e) => setConfirm(e.target.value)}
             placeholder="비밀번호를 다시 입력하세요."
             required
           />
@@ -107,8 +107,8 @@ export default function Signup() {
             inputMode="numeric"
             maxLength={12}
             value={fmtBiz(bizDigits)}
-            onChange={e => setBizDigits(onlyDigits(e.target.value))}
-            onPaste={e => {
+            onChange={(e) => setBizDigits(onlyDigits(e.target.value))}
+            onPaste={(e) => {
               e.preventDefault();
               setBizDigits(onlyDigits(e.clipboardData.getData('text')));
             }}
@@ -119,7 +119,7 @@ export default function Signup() {
           <FormInput
             type="text"
             value={serviceName}
-            onChange={e => setServiceName(e.target.value)}
+            onChange={(e) => setServiceName(e.target.value)}
             placeholder="서비스 사용 이름을 입력하세요."
             required
           />
@@ -132,7 +132,7 @@ export default function Signup() {
               id="agreeTerms"
               className="h-4 w-4 text-[var(--color-hebees-blue)] rounded-sm focus:ring-[var(--color-hebees-blue)] border-gray-300"
               checked={agree}
-              onChange={e => (e.target.checked ? setModal(true) : setAgree(false))}
+              onChange={(e) => (e.target.checked ? setModal(true) : setAgree(false))}
             />
             <label
               htmlFor="agreeTerms"

@@ -23,8 +23,12 @@ export default defineConfig([
       globals: globals.browser,
     },
     rules: {
-      'no-unused-vars': 'warn',
+      '@typescript-eslint/no-unused-vars': [
+        'warn',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+      ],
       'react/react-in-jsx-scope': 'off',
+      '@typescript-eslint/no-unused-expressions': 'off',
     },
   },
 ]);

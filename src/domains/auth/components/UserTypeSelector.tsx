@@ -12,7 +12,7 @@ interface UserTypeSelectorProps {
 export default function UserTypeSelector({ userType, setUserType }: UserTypeSelectorProps) {
   return (
     <div className="flex justify-between space-x-2 text-sm">
-      {USER_TYPES.map(type => (
+      {USER_TYPES.map((type) => (
         <button
           key={type.value}
           type="button"

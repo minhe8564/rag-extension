@@ -1,15 +1,15 @@
-import api from '@/shared/lib/apiInstance';
+import { springApi } from '@/shared/lib/apiInstance';
 import type { ApiEnvelope } from '@/shared/lib/api.types';
 
 export type LoginResult = {
-  accessToken: string;
-  userNo: string;
   name: string;
-  role: number;
+  roleName: 'ADMIN' | 'USER';
+  businessType: number;
+  accessToken: string;
 };
 
 export const login = async (email: string, password: string) => {
-  const { data } = await api.post<ApiEnvelope<LoginResult>>('/api/v1/auth/login', {
+  const { data } = await springApi.post<ApiEnvelope<LoginResult>>('/api/v1/auth/login', {
     email,
     password,
   });
@@ -17,5 +17,5 @@ export const login = async (email: string, password: string) => {
 };
 
 export const logout = async () => {
-  await api.post('/api/v1/auth/logout');
+  await springApi.post('/api/v1/auth/logout');
 };

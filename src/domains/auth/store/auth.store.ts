@@ -1,56 +1,62 @@
 import { create } from 'zustand';
-import apiInstance from '@/shared/lib/apiInstance';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { login as apiLogin } from '@/domains/auth/api/auth.api';
 
-type Role = 'ADMIN' | 'USER';
-interface User {
-  email: string;
-  nickname?: string;
-  role: Role;
+interface AuthUser {
+  name: string;
+  roleName: string;
+  businessType: number;
 }
 
 interface AuthState {
-  user: User | null;
+  user: AuthUser | null;
   accessToken: string | null;
-  role: Role | null;
-  initializing: boolean;
+  role: string | null;
 
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<string>;
   logout: () => void;
-  setRole: (role: Role) => void;
+  setAccessToken: (token: string) => void;
 }
 
-export const useAuthStore = create<AuthState>(set => ({
-  user: null,
-  accessToken: null,
-  role: null,
-  initializing: false,
-
-  // 로그인
-  login: async (email, password) => {
-    try {
-      const res = await apiInstance.post('/auth/login', { email, password });
-      const { accessToken, user } = res.data;
-
-      set({
-        accessToken,
-        user,
-        role: user.role,
-      });
-    } catch (err) {
-      alert('로그인에 실패했습니다.');
-      throw err;
-    }
-  },
-
-  // 로그아웃
-  logout: () => {
-    set({
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set) => ({
       user: null,
       accessToken: null,
       role: null,
-    });
-  },
 
-  // 테스트용: 역할 설정
-  setRole: role => set({ role }),
-}));
+      login: async (email, password) => {
+        const result = await apiLogin(email, password);
+        set({
+          user: {
+            name: result.name,
+            roleName: result.roleName,
+            businessType: result.businessType,
+          },
+          accessToken: result.accessToken,
+          role: result.roleName,
+        });
+
+        return result.roleName;
+      },
+
+      logout: () =>
+        set({
+          user: null,
+          accessToken: null,
+          role: null,
+        }),
+
+      setAccessToken: (token) => set({ accessToken: token }),
+    }),
+    {
+      name: 'auth-store',
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        user: state.user,
+        accessToken: state.accessToken,
+        role: state.role,
+      }),
+    }
+  )
+);

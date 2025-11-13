@@ -5,3 +5,11 @@ export type ApiEnvelope<T> = {
   isSuccess: boolean;
   result: T;
 };
+
+export type Pagination = {
+  pageNum: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+  hasNext: boolean;
+};
