@@ -20,6 +20,7 @@ import com.ssafy.hebees.dashboard.dto.response.TotalUsersResponse;
 import com.ssafy.hebees.dashboard.dto.response.TrendKeywordCreateResponse;
 import com.ssafy.hebees.dashboard.dto.response.TrendKeywordsResponse;
 import com.ssafy.hebees.dashboard.service.AnalyticsExpenseStreamService;
+import com.ssafy.hebees.dashboard.service.ChatbotUsageStreamService;
 import com.ssafy.hebees.dashboard.service.DashboardMetricStreamService;
 import com.ssafy.hebees.dashboard.service.DashboardService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -52,6 +53,7 @@ public class DashboardController {
 
     private final DashboardService dashboardService;
     private final DashboardMetricStreamService dashboardMetricStreamService;
+    private final ChatbotUsageStreamService chatbotUsageStreamService;
     private final AnalyticsExpenseStreamService analyticsExpenseStreamService;
 
     @GetMapping("/metrics/access-users/change-24h")
@@ -227,6 +229,33 @@ public class DashboardController {
             request.systemCount(), request.responseCount());
         return ResponseEntity.ok(
             BaseResponse.of(HttpStatus.OK, updated, "현재 시간대 에러 수가 업데이트되었습니다."));
+    }
+
+    @PostMapping("/metrics/chatbot/increment")
+    @Operation(summary = "챗봇 요청 수 증가 기록",
+        description = "10초 버킷에 챗봇 요청 횟수를 지정한 만큼 증가시킵니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "증분 기록 성공")
+    })
+    public ResponseEntity<BaseResponse<Void>> incrementChatbotRequests(
+        @Valid @RequestBody MetricIncrementRequest request
+    ) {
+        chatbotUsageStreamService.recordChatbotRequests(request.amount());
+
+        return ResponseEntity.ok(
+            BaseResponse.of(HttpStatus.OK, null, "챗봇 요청 수가 업데이트되었습니다."));
+    }
+
+    @GetMapping(value = "/metrics/chatbot/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @Operation(summary = "실시간 챗봇 요청 수",
+        description = "실시간 챗봇 요청 수를 10초 마다 SSE로 스트리밍합니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "SSE 연결 성공")
+    })
+    public SseEmitter subscribeChatbotStream(
+        @RequestHeader(name = "Last-Event-ID", required = false) String lastEventId
+    ) {
+        return chatbotUsageStreamService.subscribeChatbotStream(lastEventId);
     }
 
     @GetMapping("/metrics/chatbot/timeseries")
