@@ -309,8 +309,8 @@ async def ingest_process(
                     extraction_strategy=extraction_strategy,
                     extraction_params=extraction_params,
                     extra_headers={
-                        "x-user-role": user_role,      # 내부통신 시 사용 (주석)
-                        "x-user-uuid": user_uuid       # 내부통신 시 사용 (주석)
+                        "x-user-role": user_role,
+                        "x-user-uuid": user_uuid
                     }
                 )
                 
