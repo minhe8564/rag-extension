@@ -11,143 +11,129 @@ import org.springframework.data.redis.connection.RedisPassword;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.util.StringUtils;
 
 @Slf4j
 @Configuration
 @EnableConfigurationProperties(RedisProperties.class)
 public class RedisConfig {
 
+    private static final int DB_AUTH = 0; // 로그인 인증 정보
+    private static final int DB_INGEST = 1; // ingest 정보
+    private static final int DB_MONITORING = 2; // 모니터링 정보
+    private static final int DB_ACTIVE_USER = 3; // 활성 사용자 정보
+    private static final int DB_LOGIN_HISTORY = 8; // 로그인 사용자 정보
+    private static final int DB_METRICS = 8; // 메트릭 정보
+
     @Bean(name = "authLettuceConnectionFactory")
     @Primary
     public LettuceConnectionFactory authLettuceConnectionFactory(RedisProperties props) {
-        RedisStandaloneConfiguration conf = new RedisStandaloneConfiguration();
-        conf.setHostName(props.getHost());
-        conf.setPort(props.getPort());
-        if (props.getPassword() != null && !props.getPassword().isEmpty()) {
-            conf.setPassword(RedisPassword.of(props.getPassword()));
-        }
-        if (props.getUsername() != null && !props.getUsername().isEmpty()) {
-            conf.setUsername(props.getUsername());
-        }
-        conf.setDatabase(0); // 로그인 정보는 DB0
-        return new LettuceConnectionFactory(conf);
+        return createLettuceConnectionFactory(props, DB_AUTH);
     }
 
     @Bean(name = "ingestLettuceConnectionFactory")
     public LettuceConnectionFactory ingestLettuceConnectionFactory(RedisProperties props) {
-        RedisStandaloneConfiguration conf = new RedisStandaloneConfiguration();
-        conf.setHostName(props.getHost());
-        conf.setPort(props.getPort());
-        if (props.getPassword() != null && !props.getPassword().isEmpty()) {
-            conf.setPassword(RedisPassword.of(props.getPassword()));
-        }
-        if (props.getUsername() != null && !props.getUsername().isEmpty()) {
-            conf.setUsername(props.getUsername());
-        }
-        conf.setDatabase(1); // ingest 정보는 DB1
-        return new LettuceConnectionFactory(conf);
+        return createLettuceConnectionFactory(props, DB_INGEST);
+    }
+
+    @Bean(name = "monitoringLettuceConnectionFactory")
+    public LettuceConnectionFactory monitoringLettuceConnectionFactory(RedisProperties props) {
+        return createLettuceConnectionFactory(props, DB_MONITORING);
+    }
+
+    @Bean(name = "activeUserLettuceConnectionFactory")
+    public LettuceConnectionFactory activeUserLettuceConnectionFactory(RedisProperties props) {
+        return createLettuceConnectionFactory(props, DB_ACTIVE_USER);
+    }
+
+    @Bean(name = "loginHistoryLettuceConnectionFactory")
+    public LettuceConnectionFactory loginHistoryLettuceConnectionFactory(RedisProperties props) {
+        return createLettuceConnectionFactory(props, DB_LOGIN_HISTORY);
+    }
+
+    @Bean(name = "metricsLettuceConnectionFactory")
+    public LettuceConnectionFactory metricsLettuceConnectionFactory(RedisProperties props) {
+        return createLettuceConnectionFactory(props, DB_METRICS, true);
     }
 
     @Bean(name = "authRedisTemplate")
     @Primary
     public StringRedisTemplate authRedisTemplate(
         @Qualifier("authLettuceConnectionFactory") LettuceConnectionFactory connectionFactory) {
-        return new StringRedisTemplate(connectionFactory);
+        return createRedisTemplate(connectionFactory);
     }
 
     @Bean(name = "ingestRedisTemplate")
     public StringRedisTemplate ingestRedisTemplate(
         @Qualifier("ingestLettuceConnectionFactory") LettuceConnectionFactory connectionFactory) {
-        return new StringRedisTemplate(connectionFactory);
-    }
-
-    @Bean(name = "monitoringLettuceConnectionFactory")
-    public LettuceConnectionFactory monitoringLettuceConnectionFactory(RedisProperties props) {
-        RedisStandaloneConfiguration conf = new RedisStandaloneConfiguration();
-        conf.setHostName(props.getHost());
-        conf.setPort(props.getPort());
-        if (props.getPassword() != null && !props.getPassword().isEmpty()) {
-            conf.setPassword(RedisPassword.of(props.getPassword()));
-        }
-        if (props.getUsername() != null && !props.getUsername().isEmpty()) {
-            conf.setUsername(props.getUsername());
-        }
-        conf.setDatabase(2); // 모니터링 정보는 DB2
-        return new LettuceConnectionFactory(conf);
+        return createRedisTemplate(connectionFactory);
     }
 
     @Bean(name = "monitoringRedisTemplate")
     public StringRedisTemplate monitoringRedisTemplate(
         @Qualifier("monitoringLettuceConnectionFactory") LettuceConnectionFactory connectionFactory) {
-        return new StringRedisTemplate(connectionFactory);
-    }
-
-    @Bean(name = "activeUserLettuceConnectionFactory")
-    public LettuceConnectionFactory activeUserLettuceConnectionFactory(RedisProperties props) {
-        RedisStandaloneConfiguration conf = new RedisStandaloneConfiguration();
-        conf.setHostName(props.getHost());
-        conf.setPort(props.getPort());
-        if (props.getPassword() != null && !props.getPassword().isEmpty()) {
-            conf.setPassword(RedisPassword.of(props.getPassword()));
-        }
-        if (props.getUsername() != null && !props.getUsername().isEmpty()) {
-            conf.setUsername(props.getUsername());
-        }
-        conf.setDatabase(3); // 활성 사용자 정보는 DB3
-        return new LettuceConnectionFactory(conf);
+        return createRedisTemplate(connectionFactory);
     }
 
     @Bean(name = "activeUserRedisTemplate")
     public StringRedisTemplate activeUserRedisTemplate(
         @Qualifier("activeUserLettuceConnectionFactory") LettuceConnectionFactory connectionFactory) {
-        return new StringRedisTemplate(connectionFactory);
-    }
-
-    @Bean(name = "loginHistoryLettuceConnectionFactory")
-    public LettuceConnectionFactory loginHistoryLettuceConnectionFactory(RedisProperties props) {
-        RedisStandaloneConfiguration conf = new RedisStandaloneConfiguration();
-        conf.setHostName(props.getHost());
-        conf.setPort(props.getPort());
-        if (props.getPassword() != null && !props.getPassword().isEmpty()) {
-            conf.setPassword(RedisPassword.of(props.getPassword()));
-        }
-        if (props.getUsername() != null && !props.getUsername().isEmpty()) {
-            conf.setUsername(props.getUsername());
-        }
-        conf.setDatabase(8); // 로그인 사용자 정보는 DB8
-        return new LettuceConnectionFactory(conf);
+        return createRedisTemplate(connectionFactory);
     }
 
     @Bean(name = "loginHistoryRedisTemplate")
     public StringRedisTemplate loginHistoryRedisTemplate(
         @Qualifier("loginHistoryLettuceConnectionFactory") LettuceConnectionFactory connectionFactory) {
-        return new StringRedisTemplate(connectionFactory);
-    }
-
-    @Bean(name = "metricsLettuceConnectionFactory")
-    public LettuceConnectionFactory metricsLettuceConnectionFactory(RedisProperties props) {
-        RedisStandaloneConfiguration conf = new RedisStandaloneConfiguration();
-        conf.setHostName(props.getHost());
-        conf.setPort(props.getPort());
-        if (props.getPassword() != null && !props.getPassword().isEmpty()) {
-            conf.setPassword(RedisPassword.of(props.getPassword()));
-        }
-        if (props.getUsername() != null && !props.getUsername().isEmpty()) {
-            conf.setUsername(props.getUsername());
-        }
-        conf.setDatabase(8); // 메트릭 정보는 DB4
-
-        LettuceConnectionFactory factory = new LettuceConnectionFactory(conf);
-        factory.afterPropertiesSet();
-        factory.setValidateConnection(true);
-        return factory;
+        return createRedisTemplate(connectionFactory);
     }
 
     @Bean(name = "metricsRedisTemplate")
     public StringRedisTemplate metricsRedisTemplate(
         @Qualifier("metricsLettuceConnectionFactory") LettuceConnectionFactory connectionFactory) {
+        return createRedisTemplate(connectionFactory, true);
+    }
+
+    private LettuceConnectionFactory createLettuceConnectionFactory(RedisProperties props,
+        int database) {
+        return createLettuceConnectionFactory(props, database, false);
+    }
+
+    private LettuceConnectionFactory createLettuceConnectionFactory(
+        RedisProperties props,
+        int database,
+        boolean validateConnection
+    ) {
+        RedisStandaloneConfiguration configuration = new RedisStandaloneConfiguration();
+        configuration.setHostName(props.getHost());
+        configuration.setPort(props.getPort());
+        if (StringUtils.hasText(props.getPassword())) {
+            configuration.setPassword(RedisPassword.of(props.getPassword()));
+        }
+        if (StringUtils.hasText(props.getUsername())) {
+            configuration.setUsername(props.getUsername());
+        }
+        configuration.setDatabase(database);
+
+        LettuceConnectionFactory factory = new LettuceConnectionFactory(configuration);
+        if (validateConnection) {
+            factory.afterPropertiesSet();
+            factory.setValidateConnection(true);
+        }
+        return factory;
+    }
+
+    private StringRedisTemplate createRedisTemplate(LettuceConnectionFactory connectionFactory) {
+        return createRedisTemplate(connectionFactory, false);
+    }
+
+    private StringRedisTemplate createRedisTemplate(
+        LettuceConnectionFactory connectionFactory,
+        boolean initialize
+    ) {
         StringRedisTemplate template = new StringRedisTemplate(connectionFactory);
-        template.afterPropertiesSet();
+        if (initialize) {
+            template.afterPropertiesSet();
+        }
         return template;
     }
 }

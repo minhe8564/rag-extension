@@ -27,7 +27,6 @@ public class AgentPromptServiceImpl implements AgentPromptService {
 
     @Override
     @Transactional
-    @SuppressWarnings("null")
     public AgentPromptResponse create(AgentPromptCreateRequest request) {
         String name = normalizeName(request.name());
         String description = trimToNull(request.description());

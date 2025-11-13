@@ -18,14 +18,14 @@ public record TrendKeywordRequest(
 ) {
 
     public static final int DEFAULT_SCALE = 7;
-    public static final int DEFAULT_TOPK = 50;
+    public static final int DEFAULT_TOP_K = 50;
 
     public TrendKeywordRequest {
         if (scale == null) {
             scale = DEFAULT_SCALE;
         }
         if (topK == null) {
-            topK = DEFAULT_TOPK;
+            topK = DEFAULT_TOP_K;
         }
     }
 }
