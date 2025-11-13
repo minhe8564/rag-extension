@@ -68,6 +68,10 @@ class Settings(BaseSettings):
     environment: str = "production"
     debug: bool = False
 
+    # Ingest progress TTL (seconds) - completed runs expire after this time
+    # 0 or negative disables TTL
+    ingest_completed_ttl_sec: int = 60  # 1 minute
+
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",
         env_file_encoding="utf-8",
