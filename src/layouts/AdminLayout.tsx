@@ -6,7 +6,7 @@ import {
   Monitor,
   FolderCog,
   MessageSquare,
-  Bot,
+  // Bot,
   Bell,
   LogOut,
   UserCog,
@@ -146,12 +146,12 @@ export default function AdminLayout() {
             </div>
           </NavLink>
 
-          <NavLink to="/admin/rag/test" className={linkCls}>
+          {/* <NavLink to="/admin/rag/test" className={linkCls}>
             <Bot size={18} className="flex-shrink-0" />
             <div className={labelCls(isOpen)}>
               <span className="inline-block">RAG 모델 테스트</span>
             </div>
-          </NavLink>
+          </NavLink> */}
 
           <NavLink to="/admin/chat/text" className={linkCls}>
             <MessageSquare size={18} className="flex-shrink-0" />

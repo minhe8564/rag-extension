@@ -45,7 +45,7 @@ export default function ScrollToBottomButton({
       if (atBottom) setHasUnseen(false);
     };
 
-    onScroll();
+    onScroll(); // 초기 상태 한 번 계산
     el.addEventListener('scroll', onScroll, { passive: true });
     return () => el.removeEventListener('scroll', onScroll);
     // eslint-disable-next-line react-hooks/exhaustive-deps

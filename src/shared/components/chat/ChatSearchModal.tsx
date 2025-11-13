@@ -224,7 +224,7 @@ function EmptyState({ query }: { query: string }) {
         <Search size={20} className="text-gray-400" />
       </div>
       <p className="text-sm font-medium text-gray-800">결과가 없어요</p>
-      <p className="mt-1 text-xs text-gray-500">'{query}'에 대한 세션을 찾지 못했습니다.</p>
+      <p className="mt-1 text-xs text-gray-500">'{query}'에 대한 채팅을 찾지 못했습니다.</p>
     </div>
   );
 }

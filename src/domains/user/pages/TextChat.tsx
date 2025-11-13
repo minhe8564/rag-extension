@@ -200,7 +200,7 @@ export default function TextChat() {
   }
 
   return (
-    <section className="flex flex-col min-h-[calc(100vh-82px)] h-full">
+    <section className="flex flex-col min-h-[calc(100vh-82px)]">
       {list.length > 0 ? (
         <>
           <div
