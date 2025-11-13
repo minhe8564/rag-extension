@@ -17,17 +17,23 @@ import com.ssafy.hebees.dashboard.dto.response.TrendKeywordsResponse;
 
 public interface DashboardService {
 
+    // 변화량
+
     Change24hResponse getAccessUsersChange24h();
 
     Change24hResponse getUploadDocumentsChange24h();
 
-    TotalDocumentsResponse getTotalUploadDocuments();
+    Change24hResponse getErrorsChange24h();
+
+    // 총합
 
     TotalUsersResponse getTotalUsers();
 
-    Change24hResponse getErrorsChange24h();
+    TotalDocumentsResponse getTotalUploadDocuments();
 
     TotalErrorsResponse getTotalErrors();
+
+    // 챗봇 사용량
 
     ChatbotTimeSeriesResponse getChatbotTimeSeries(TimeSeriesRequest request);
 
@@ -35,12 +41,16 @@ public interface DashboardService {
 
     HeatmapResponse getChatbotHeatmap();
 
+    // 키워드
+
     TrendKeywordsResponse getTrendKeywords(TrendKeywordRequest request);
+
+    TrendKeywordCreateResponse recordTrendKeyword(TrendKeywordCreateRequest request);
+
+    // 채팅
 
     ChatroomsTodayResponse getChatroomsToday();
 
     ErrorsTodayResponse getErrorsToday();
-
-    TrendKeywordCreateResponse recordTrendKeyword(TrendKeywordCreateRequest request);
 }
 

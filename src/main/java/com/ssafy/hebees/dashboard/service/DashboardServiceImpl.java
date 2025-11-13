@@ -41,6 +41,8 @@ import com.ssafy.hebees.dashboard.repository.KeywordAggregateDailyRepository;
 import com.ssafy.hebees.dashboard.repository.ModelAggregateHourlyRepository;
 import com.ssafy.hebees.dashboard.repository.UsageAggregateHourlyRepository;
 import com.ssafy.hebees.dashboard.repository.UserAggregateHourlyRepository;
+import com.ssafy.hebees.ragsetting.entity.AgentPrompt;
+import com.ssafy.hebees.ragsetting.repository.AgentPromptRepository;
 import com.ssafy.hebees.ragsetting.repository.StrategyRepository;
 import com.ssafy.hebees.user.entity.User;
 import com.ssafy.hebees.user.repository.UserRepository;
@@ -92,6 +94,7 @@ public class DashboardServiceImpl implements DashboardService {
     private final RunpodClient runpodClient;
     private final ObjectMapper objectMapper;
     private final StrategyRepository strategyRepository;
+    private final AgentPromptRepository agentPromptRepository;
 
     @Override
     public Change24hResponse getAccessUsersChange24h() {
@@ -104,22 +107,8 @@ public class DashboardServiceImpl implements DashboardService {
     }
 
     @Override
-    public TotalDocumentsResponse getTotalUploadDocuments() {
-        LocalDateTime asOf = LocalDateTime.now();
-        long total = documentAggregateHourlyRepository.sumUploadCount();
-        return TotalDocumentsResponse.of(total, asOf);
-    }
-
-    @Override
     public Change24hResponse getErrorsChange24h() {
         return buildChange24hResponse(errorAggregateHourlyRepository::sumTotalErrorCountBetween);
-    }
-
-    @Override
-    public TotalErrorsResponse getTotalErrors() {
-        LocalDateTime asOf = LocalDateTime.now();
-        long total = errorAggregateHourlyRepository.sumTotalErrorCount();
-        return TotalErrorsResponse.of(total, asOf);
     }
 
     @Override
@@ -127,6 +116,20 @@ public class DashboardServiceImpl implements DashboardService {
         LocalDateTime asOf = LocalDateTime.now();
         long total = userAggregateHourlyRepository.sumAccessUserCount();
         return TotalUsersResponse.of(total, asOf);
+    }
+
+    @Override
+    public TotalDocumentsResponse getTotalUploadDocuments() {
+        LocalDateTime asOf = LocalDateTime.now();
+        long total = documentAggregateHourlyRepository.sumUploadCount();
+        return TotalDocumentsResponse.of(total, asOf);
+    }
+
+    @Override
+    public TotalErrorsResponse getTotalErrors() {
+        LocalDateTime asOf = LocalDateTime.now();
+        long total = errorAggregateHourlyRepository.sumTotalErrorCount();
+        return TotalErrorsResponse.of(total, asOf);
     }
 
     @Override
@@ -222,7 +225,7 @@ public class DashboardServiceImpl implements DashboardService {
 
     @Override
     public HeatmapResponse getChatbotHeatmap() {
-        LocalDate today = LocalDate.now(MonitoringUtils.KST);
+        LocalDate today = LocalDate.now();
         LocalDate weekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
         LocalDate weekEnd = weekStart.plusDays(7);
 
@@ -285,6 +288,51 @@ public class DashboardServiceImpl implements DashboardService {
             .toList();
 
         return new TrendKeywordsResponse(new Timeframe(start, end), normalized);
+    }
+
+    @Override
+    @Transactional
+    public TrendKeywordCreateResponse recordTrendKeyword(TrendKeywordCreateRequest request) {
+        String query = request.query();
+        if (!StringUtils.hasText(query)) {
+            return TrendKeywordCreateResponse.of(List.of());
+        }
+
+        LocalDate today = LocalDate.now(MonitoringUtils.KST);
+        Set<String> extracted = extractKeywords(query);
+        Set<String> normalizedKeywords = new LinkedHashSet<>();
+
+        if (extracted.isEmpty()) {
+            String fallback = normalizeKeyword(query);
+            if (StringUtils.hasText(fallback)) {
+                normalizedKeywords.add(fallback);
+            }
+        } else {
+            for (String raw : extracted) {
+                String keyword = normalizeKeyword(raw);
+                if (StringUtils.hasText(keyword)) {
+                    normalizedKeywords.add(keyword);
+                }
+            }
+        }
+
+        for (String keyword : normalizedKeywords) {
+            keywordAggregateDailyRepository.findByAggregateDateAndKeyword(today, keyword)
+                .ifPresentOrElse(
+                    aggregate -> aggregate.increaseFrequency(1L),
+                    () -> {
+                        KeywordAggregateDaily created = KeywordAggregateDaily.builder()
+                            .aggregateNo(UUID.randomUUID())
+                            .aggregateDate(today)
+                            .keyword(keyword)
+                            .frequency(1L)
+                            .build();
+                        keywordAggregateDailyRepository.save(created);
+                    }
+                );
+        }
+
+        return TrendKeywordCreateResponse.of(List.copyOf(normalizedKeywords));
     }
 
     @Override
@@ -381,60 +429,23 @@ public class DashboardServiceImpl implements DashboardService {
         return new ErrorsTodayResponse(new Timeframe(today, today), errorItems);
     }
 
-    @Override
-    @Transactional
-    public TrendKeywordCreateResponse recordTrendKeyword(TrendKeywordCreateRequest request) {
-        String query = request.query();
-        if (!StringUtils.hasText(query)) {
-            return TrendKeywordCreateResponse.of(List.of());
-        }
-
-        LocalDate today = LocalDate.now(MonitoringUtils.KST);
-        Set<String> extracted = extractKeywords(query);
-        Set<String> normalizedKeywords = new LinkedHashSet<>();
-
-        if (extracted.isEmpty()) {
-            String fallback = normalizeKeyword(query);
-            if (StringUtils.hasText(fallback)) {
-                normalizedKeywords.add(fallback);
-            }
-        } else {
-            for (String raw : extracted) {
-                String keyword = normalizeKeyword(raw);
-                if (StringUtils.hasText(keyword)) {
-                    normalizedKeywords.add(keyword);
-                }
-            }
-        }
-
-        for (String keyword : normalizedKeywords) {
-            keywordAggregateDailyRepository.findByAggregateDateAndKeyword(today, keyword)
-                .ifPresentOrElse(
-                    aggregate -> aggregate.increaseFrequency(1L),
-                    () -> {
-                        KeywordAggregateDaily created = KeywordAggregateDaily.builder()
-                            .aggregateNo(UUID.randomUUID())
-                            .aggregateDate(today)
-                            .keyword(keyword)
-                            .frequency(1L)
-                            .build();
-                        keywordAggregateDailyRepository.save(created);
-                    }
-                );
-        }
-
-        return TrendKeywordCreateResponse.of(List.copyOf(normalizedKeywords));
-    }
-
     private Set<String> extractKeywords(String query) {
+        String prompt = "You are a Korean keyword extractor. Read the user's sentence and return only the core keywords in a JSON array with 1 to 7 items. Example: [\"keyword1\", \"keyword2\"]. Do not include any unnecessary explanations.";
+
+        AgentPrompt agentPrompt = agentPromptRepository.findByName("KeywordExtraction")
+            .orElse(null);
+        if (agentPrompt != null && StringUtils.hasText(agentPrompt.getContent())) {
+            prompt = agentPrompt.getContent();
+        }
+
         try {
             RunpodChatResult result = runpodClient.chat(List.of(
-                RunpodChatMessage.of("system",
-                    "당신은 한국어 키워드 추출기입니다. 사용자의 문장을 읽고 핵심 키워드만 1~7개 사이로 JSON 배열 형식으로 반환하세요. 예: [\"키워드1\", \"키워드2\"]. 불필요한 설명은 넣지 마세요."),
+                RunpodChatMessage.of("system", prompt),
                 RunpodChatMessage.of("user", query)
             ));
 
             String content = result != null ? result.content() : null;
+            log.info("키워드 추출 에이전트 답변: content={}", content);
             return parseKeywordContent(content);
         } catch (Exception e) {
             log.warn("Runpod 키워드 추출 실패: {}", e.getMessage());

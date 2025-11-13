@@ -1,6 +1,5 @@
 package com.ssafy.hebees.dashboard.service;
 
-import com.ssafy.hebees.common.util.MonitoringUtils;
 import com.ssafy.hebees.dashboard.dto.response.ModelPriceResponse;
 import com.ssafy.hebees.dashboard.entity.ModelAggregateHourly;
 import com.ssafy.hebees.dashboard.repository.ModelAggregateHourlyRepository;
@@ -28,8 +27,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import org.springframework.util.StringUtils;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @Slf4j
 @Service
@@ -76,7 +75,7 @@ public class AnalyticsExpenseStreamServiceImpl implements AnalyticsExpenseStream
         long safeOutputTokens = Math.max(outputTokens, 0L);
         long safeResponseTimeMs = Math.max(responseTimeMs, 0L);
 
-        LocalDateTime bucket = LocalDateTime.now(MonitoringUtils.KST).truncatedTo(ChronoUnit.HOURS);
+        LocalDateTime bucket = LocalDateTime.now().truncatedTo(ChronoUnit.HOURS);
 
         ModelAggregateHourly aggregate = modelAggregateHourlyRepository
             .findByLlmNoAndAggregateDateTime(modelId, bucket)
@@ -157,7 +156,7 @@ public class AnalyticsExpenseStreamServiceImpl implements AnalyticsExpenseStream
     }
 
     private ModelPriceResponse loadCurrentExpenseSnapshot() {
-        LocalDateTime now = LocalDateTime.now(MonitoringUtils.KST);
+        LocalDateTime now = LocalDateTime.now();
         LocalDate today = now.toLocalDate();
         LocalDateTime startOfDay = today.atStartOfDay();
 
