@@ -61,34 +61,38 @@ export default function AdminLayout() {
     let active = true;
 
     (async () => {
-      try {
-        const res = await getMyLlmKeys();
-        const result = res.data.result as MyLlmKeyListResponse;
-        const list: MyLlmKeyResponse[] = result?.data ?? [];
+      const res = await getMyLlmKeys();
+      const result = res.data.result as MyLlmKeyListResponse;
+      const list: MyLlmKeyResponse[] = result?.data ?? [];
 
-        const options: Option[] = list.map((k) => ({
-          value: k.llmName,
-          label: k.llmName,
-          desc: MODEL_DESCRIPTIONS[k.llmName] ?? '모델 설명 없음',
-        }));
+      if (!active) return;
 
-        if (!active) return;
+      const options = list.map((k) => ({
+        value: k.llmName,
+        label: k.llmName,
+        desc: MODEL_DESCRIPTIONS[k.llmName] ?? '모델 설명 없음',
+      }));
+      setModelOptions(options);
 
-        setModelOptions(options);
-        if (!selectedModel && options[0]?.value) {
-          setSelectedModel(options[0].value);
-        }
-      } catch {
-        if (!active) return;
-        setModelOptions([]);
-        setSelectedModel(undefined);
+      let final = selectedModel;
+      const found = list.find((k) => k.llmName === final);
+
+      if (!found) {
+        final = list[0]?.llmName;
+      }
+
+      if (final) {
+        const matched = list.find((k) => k.llmName === final);
+        setSelectedModel(final, matched?.llmNo);
+      } else {
+        setSelectedModel(undefined, undefined);
       }
     })();
 
     return () => {
       active = false;
     };
-  }, [setSelectedModel, selectedModel]);
+  }, [selectedModel, setSelectedModel]);
 
   return (
     <div className="flex min-h-screen bg-transparent">
@@ -149,7 +153,7 @@ export default function AdminLayout() {
             </div>
           </NavLink>
 
-          <NavLink to="/admin/rag/text" className={linkCls}>
+          <NavLink to="/admin/chat/text" className={linkCls}>
             <MessageSquare size={18} className="flex-shrink-0" />
             <div className={labelCls(isOpen)}>
               <span className="inline-block">RAG 채팅</span>
