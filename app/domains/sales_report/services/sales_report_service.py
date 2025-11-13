@@ -4,11 +4,20 @@ from decimal import Decimal
 from datetime import datetime, date
 from collections import defaultdict
 import random
+import logging
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 from app.domains.sales_report.services.adminschool_client import AdminSchoolClient
 from app.domains.sales_report.services.llm_client import LLMClient
 from app.domains.runpod.repositories.runpod_repository import RunpodRepository
+from app.domains.sales_report.exceptions import (
+    ExternalAPIError,
+    DataValidationError,
+    LLMServiceError,
+    RunpodNotFoundError
+)
 from app.domains.sales_report.schemas.response.sales_report import (
     SalesReportResponse,
     DailySalesReport,
@@ -394,8 +403,8 @@ class SalesReportService:
             runpod = await RunpodRepository.find_by_name(self.db, "qwen3")
 
             if not runpod or not runpod.address:
-                print("AI 요약 생성 실패: LLM 서버를 찾을 수 없습니다.")
-                return None
+                logger.warning("AI 요약 생성 실패: LLM 서버를 찾을 수 없습니다.")
+                raise RunpodNotFoundError("qwen3 LLM 서버를 찾을 수 없습니다.")
 
             # LLM 클라이언트 생성
             llm_client = LLMClient(runpod.address)
@@ -436,7 +445,10 @@ class SalesReportService:
 
             return summary
 
-        except Exception as e:
-            # 에러 발생 시 로그 남기고 None 반환
-            print(f"AI 요약 생성 실패: {str(e)}")
+        except RunpodNotFoundError:
+            # Runpod 서버를 찾을 수 없는 경우 - None 반환 (AI 요약 선택적 기능)
             return None
+        except Exception as e:
+            # 기타 에러 발생 시 로그 남기고 LLMServiceError 발생
+            logger.error(f"AI 요약 생성 실패: {str(e)}", exc_info=True)
+            raise LLMServiceError(f"AI 요약 생성 중 오류 발생: {str(e)}")

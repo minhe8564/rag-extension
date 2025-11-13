@@ -1,7 +1,11 @@
 """AdminSchool API Client - 외부 안경원 데이터 API 클라이언트"""
 import httpx
+import logging
 from typing import Optional
 from app.core.config import settings
+from app.domains.sales_report.exceptions import ExternalAPIError
+
+logger = logging.getLogger(__name__)
 
 
 class AdminSchoolClient:
@@ -22,14 +26,27 @@ class AdminSchoolClient:
             dict: 판매 데이터 (info, data 포함)
 
         Raises:
-            httpx.HTTPError: API 호출 실패 시
+            ExternalAPIError: API 호출 실패 시
         """
         url = f"{self.base_url}/ssafy/opt_stat/{store_id}"
 
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.get(url)
-            response.raise_for_status()
-            return response.json()
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                return response.json()
+        except httpx.TimeoutException as e:
+            logger.error(f"AdminSchool API 타임아웃: {store_id}", exc_info=True)
+            raise ExternalAPIError(f"외부 API 응답 시간 초과 (30초): {str(e)}")
+        except httpx.HTTPStatusError as e:
+            logger.error(f"AdminSchool API HTTP 오류: {e.response.status_code}", exc_info=True)
+            raise ExternalAPIError(f"외부 API 호출 실패 (상태 코드: {e.response.status_code}): {str(e)}")
+        except httpx.RequestError as e:
+            logger.error(f"AdminSchool API 요청 오류: {str(e)}", exc_info=True)
+            raise ExternalAPIError(f"외부 API 연결 실패: {str(e)}")
+        except Exception as e:
+            logger.error(f"AdminSchool API 예상치 못한 오류: {str(e)}", exc_info=True)
+            raise ExternalAPIError(f"외부 API 호출 중 오류 발생: {str(e)}")
 
     async def fetch_sales_data_by_period(
         self,

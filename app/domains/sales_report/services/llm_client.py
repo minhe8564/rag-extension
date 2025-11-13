@@ -1,7 +1,10 @@
 """LLM Client - Qwen3 모델을 사용한 AI 요약 생성"""
 import httpx
+import logging
 from typing import Optional
 from decimal import Decimal
+
+logger = logging.getLogger(__name__)
 
 
 class LLMClient:
@@ -189,17 +192,17 @@ class LLMClient:
 
                 result = response.json()
 
-                # 디버깅: 응답 전체 출력
-                print(f"[LLM API Response] {result}")
+                # 응답 로깅
+                logger.debug(f"LLM API Response: {result}")
 
                 # Ollama chat API 응답 파싱
                 if "message" in result:
                     message = result["message"]
                     content = message.get("content", "")
 
-                    # 디버깅
-                    print(f"[LLM Content Length] {len(content)}")
-                    print(f"[LLM Content Preview] {content[:200] if content else 'EMPTY'}")
+                    # 응답 내용 로깅
+                    logger.debug(f"LLM Content Length: {len(content)}")
+                    logger.debug(f"LLM Content Preview: {content[:200] if content else 'EMPTY'}")
 
                     # content에 답변이 있으면 바로 반환
                     if content and content.strip():
@@ -209,7 +212,7 @@ class LLMClient:
                 raise ValueError("LLM 응답이 비어있습니다.")
 
         except Exception as e:
-            print(f"[LLM Chat API Failed] {e}, trying generate API...")
+            logger.warning(f"LLM Chat API Failed: {e}, trying generate API...")
 
             # 폴백: /api/generate 시도
             return await self._call_llm_api_generate(prompt)
@@ -242,19 +245,20 @@ class LLMClient:
 
             result = response.json()
 
-            # 디버깅: 응답 전체 출력
-            print(f"[LLM Generate API Response] {result}")
+            # 응답 로깅
+            logger.debug(f"LLM Generate API Response: {result}")
 
             # Ollama generate API 응답 파싱
             if "response" in result:
                 content = result["response"]
 
-                # 디버깅: content 확인
-                print(f"[LLM Generate Content Length] {len(content)}")
-                print(f"[LLM Generate Content Preview] {content[:200] if content else 'EMPTY'}")
+                # 응답 내용 로깅
+                logger.debug(f"LLM Generate Content Length: {len(content)}")
+                logger.debug(f"LLM Generate Content Preview: {content[:200] if content else 'EMPTY'}")
 
                 if content and content.strip():
                     return content.strip()
 
             # 둘 다 실패하면 기본 메시지
+            logger.warning("LLM 응답을 파싱할 수 없어 기본 메시지를 반환합니다.")
             return "매출 데이터 분석이 완료되었습니다. LLM 응답을 생성할 수 없어 기본 요약을 제공합니다."
