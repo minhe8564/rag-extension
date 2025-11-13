@@ -9,7 +9,7 @@ import com.ssafy.hebees.chat.dto.response.MessageResponse;
 import com.ssafy.hebees.chat.entity.MessageRole;
 import com.ssafy.hebees.chat.entity.Session;
 import com.ssafy.hebees.chat.repository.SessionRepository;
-import com.ssafy.hebees.dashboard.service.ChatbotUsageStreamService;
+import com.ssafy.hebees.dashboard.model.service.ChatbotUsageStreamService;
 import com.ssafy.hebees.common.exception.BusinessException;
 import com.ssafy.hebees.common.exception.ErrorCode;
 import com.ssafy.hebees.common.util.UserValidationUtil;
