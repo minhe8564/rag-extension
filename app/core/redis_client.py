@@ -17,7 +17,7 @@ def get_redis_client() -> Redis:
 
         host = getattr(settings, "redis_host", None)
         port = getattr(settings, "redis_port", None)
-        username = getattr(settings, "redis_username", None)
+        username = getattr(settings, "redis_username", default="default")
         password = getattr(settings, "redis_password", None)
 
         if not host or not port:
