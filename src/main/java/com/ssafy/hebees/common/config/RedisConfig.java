@@ -1,7 +1,9 @@
 package com.ssafy.hebees.common.config;
 
+import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.data.redis.RedisProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -104,7 +106,7 @@ public class RedisConfig {
         boolean validateConnection
     ) {
         RedisStandaloneConfiguration configuration = new RedisStandaloneConfiguration();
-        configuration.setHostName(props.getHost());
+        configuration.setHostName(Objects.requireNonNull(props.getHost()));
         configuration.setPort(props.getPort());
         if (StringUtils.hasText(props.getPassword())) {
             configuration.setPassword(RedisPassword.of(props.getPassword()));
@@ -130,7 +132,8 @@ public class RedisConfig {
         LettuceConnectionFactory connectionFactory,
         boolean initialize
     ) {
-        StringRedisTemplate template = new StringRedisTemplate(connectionFactory);
+        StringRedisTemplate template =
+            new StringRedisTemplate(Objects.requireNonNull(connectionFactory));
         if (initialize) {
             template.afterPropertiesSet();
         }
