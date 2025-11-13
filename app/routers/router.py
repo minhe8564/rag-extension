@@ -100,16 +100,29 @@ async def extract_process(
 
         # 1) presigned URL 획득
         file_no = request.fileNo
+        if not file_no:
+            raise HTTPException(status_code=400, detail="fileNo is required")
+        
         presigned_endpoint = f"http://hebees-python-backend:8000/api/v1/files/{file_no}/presigned"
         logger.info(f"Fetching presigned URL: {presigned_endpoint}")
+        
         async with httpx.AsyncClient(timeout=3600.0) as client:
             forward_headers = {}
             if x_user_role: 
                 forward_headers["x-user-role"] = x_user_role
             if x_user_uuid: 
                 forward_headers["x-user-uuid"] = x_user_uuid
-            presigned_resp = await client.get(presigned_endpoint, headers=forward_headers)
-            presigned_resp.raise_for_status()
+            
+            try:
+                presigned_resp = await client.get(presigned_endpoint, headers=forward_headers)
+                presigned_resp.raise_for_status()
+            except httpx.HTTPStatusError as e:
+                logger.error(f"Failed to get presigned URL: {e}")
+                raise HTTPException(status_code=e.response.status_code, detail=f"Failed to get presigned URL: {str(e)}")
+            except Exception as e:
+                logger.error(f"Error getting presigned URL: {e}", exc_info=True)
+                raise HTTPException(status_code=500, detail=f"Error getting presigned URL: {str(e)}")
+            
             presigned_url = None
             try:
                 data = presigned_resp.json()
@@ -118,16 +131,23 @@ async def extract_process(
                 )
             except Exception:
                 presigned_url = presigned_resp.text.strip().strip('"')
+            
             if not presigned_url:
                 raise HTTPException(status_code=500, detail="Failed to resolve presigned URL")
+            
             logger.info("presigned URL fetched")
             logger.info(f"presigned URL: {presigned_url}")
             
             # 2) 파일 다운로드
-            dl_resp = await client.get(presigned_url)
-            logger.info(f"file download started")
-            dl_resp.raise_for_status()
-            logger.info(f"file download completed")
+            try:
+                dl_resp = await client.get(presigned_url)
+                logger.info(f"file download started")
+                dl_resp.raise_for_status()
+                logger.info(f"file download completed")
+            except Exception as e:
+                logger.error(f"Failed to download file: {e}", exc_info=True)
+                raise HTTPException(status_code=500, detail=f"Failed to download file: {str(e)}")
+            
             # 파일명/확장자 결정
             file_name = None
             content_disp = dl_resp.headers.get("content-disposition") or dl_resp.headers.get("Content-Disposition")
@@ -158,7 +178,7 @@ async def extract_process(
             )
             raise HTTPException(status_code=400, detail=error_response.dict())
 
-        logger.info(f"Processing file: {file_name} (type: {file_ext}, path: {file_path}, strategy: {strategy_name})")
+        logger.info(f"Processing file: {file_name} (type: {file_ext}, path: {file_path}, strategy: {strategy_name}")
 
         # 지원되는 파일 타입 확인
         if file_ext not in ["txt", "xlsx", "xls", "pdf", "docs", "doc", "docx"]:
@@ -173,6 +193,14 @@ async def extract_process(
 
         # 전략 로드
         logger.info(f"Extraction strategy: {strategy_name}, parameters: {parameters}")
+        
+        try:
+            strategy = get_strategy(strategy_name, file_ext, parameters)
+            logger.info("strategy: {}", strategy)
+        except Exception as e:
+            logger.error(f"Failed to load strategy: {e}", exc_info=True)
+            raise
+        
         # Progress pusher (runId가 없으면 fileNo로 대체)
         try:
             run_id_param = None
@@ -187,33 +215,44 @@ async def extract_process(
             run_id=run_id_param or file_no,
             step_name="EXTRACTION",
         )
-
-        # 전략에 진행률 콜백 주입 (최소 침습)
-        if isinstance(parameters, dict):
-            def _progress_cb(processed: int, total: Optional[int] = None) -> None:
-                try:
-                    progress_pusher.advance(int(processed), int(total) if total is not None else None)
-                except Exception:
-                    # 진행률 전송 실패는 무시
-                    pass
-            parameters["progress_cb"] = _progress_cb
-
-        strategy = get_strategy(strategy_name, file_ext, parameters)
-        logger.info("strategy: {}", strategy)
         
+        logger.info(f"[PROGRESS] Progress pusher 초기화 - runId={progress_pusher.run_id}, fileNo={file_no}, userId={x_user_uuid}")
+
+        # 전략에 전달할 parameters 복사 (progress_cb 추가용)
+        strategy_params = dict(parameters) if isinstance(parameters, dict) else {}
+        
+        # 전략에 진행률 콜백 주입 (최소 침습)
+        def _progress_cb(processed: int, total: Optional[int] = None) -> None:
+            try:
+                logger.info(f"[PROGRESS] Progress callback 호출 - processed={processed}, total={total}")
+                progress_pusher.advance(int(processed), int(total) if total is not None else None)
+            except Exception:
+                # 진행률 전송 실패는 무시
+                pass
+
         # extract() 메서드 호출
         try:
             # 단계 시작 알림
+            logger.info(f"[PROGRESS] EXTRACTION 단계 시작 - runId={progress_pusher.run_id}")
             progress_pusher.start()
             result = strategy.extract(file_path)
             # 단계 완료 알림
+            logger.info(f"[PROGRESS] EXTRACTION 단계 완료 - runId={progress_pusher.run_id}, pages={len(result.get('pages', []))}")
             progress_pusher.complete()
+        except Exception as e:
+            logger.error(f"Failed to extract: {e}", exc_info=True)
+            logger.error(f"[PROGRESS] EXTRACTION 단계 실패 - runId={progress_pusher.run_id}, error={e}")
+            try:
+                progress_pusher.fail()
+            except Exception:
+                pass
+            raise
         finally:
             # 임시 파일 정리
             if cleanup_tmp and tmp_path and os.path.exists(tmp_path):
                 os.unlink(tmp_path)
 
-        # Response 생성
+        # Response 생성 (원본 parameters 사용 - progress_cb 없음)
         pages = [
             Page(
                 page=page.get("page", i + 1),
@@ -233,32 +272,17 @@ async def extract_process(
                 pages=pages,
                 total_pages=result.get("total_pages", len(pages)),
                 strategy=strategy_name,
-                strategyParameter=parameters
+                strategyParameter=parameters  # 원본 parameters 사용 (progress_cb 없음)
             )
         )
-        return response
         
+        logger.info("Extract process completed successfully")
+        return response
+
     except HTTPException:
         raise
     except Exception as e:
-        try:
-            # 실패 알림 (가능하면 마지막 진행률 포함)
-            # file_no, user 헤더는 상단 스코프에서만 있으므로 best-effort 처리
-            if 'file_no' in locals():
-                run_id_fallback = None
-                try:
-                    run_id_fallback = parameters.get("runId") if isinstance(parameters, dict) else None
-                except Exception:
-                    run_id_fallback = None
-                IngestProgressPusher(
-                    user_id=locals().get('x_user_uuid'),
-                    file_no=file_no,
-                    run_id=run_id_fallback or file_no,
-                    step_name="EXTRACTION",
-                ).fail()
-        except Exception:
-            pass
-        logger.error(f"Error processing file: {str(e)}", exc_info=True)
+        logger.error(f"Unexpected error in extract_process: {type(e).__name__}: {str(e)}", exc_info=True)
         error_response = ErrorResponse(
             status=500,
             code="INTERNAL_ERROR",
