@@ -204,10 +204,44 @@ pipeline {
                     echo "REF: ${env.REF}"
                     echo "======================"
                     
+                    String branch = ''
                     if (env.GITLAB_OBJECT_KIND == 'push') {
+                        branch = (env.REF ?: '').replaceAll('refs/heads/', '').trim()
                         echo "📝 Push 이벤트 감지 - 현재 브랜치로 배포"
                     } else if (params.BUILD_BACKEND == true) {
+                        branch = (params.BRANCH_TO_BUILD ?: '').trim()
                         echo "📝 수동 빌드 실행"
+                    }
+
+                    env.PIPELINE_BRANCH = branch ?: ''
+                    env.PIPELINE_COMMIT_MSG = ''
+                    env.PIPELINE_MENTION = ''
+
+                    if (fileExists('.git')) {
+                        try {
+                            env.PIPELINE_COMMIT_MSG = sh(script: "git log -1 --pretty=%s", returnStdout: true).trim()
+                        } catch (Exception e) {
+                            echo "⚠️ 커밋 메시지를 가져오지 못했습니다: ${e.message}"
+                            env.PIPELINE_COMMIT_MSG = ''
+                        }
+
+                        def pusherUsername = env.GIT_PUSHER_USERNAME?.trim()
+                        if (pusherUsername) {
+                            env.PIPELINE_MENTION = "@${pusherUsername}"
+                        } else {
+                            try {
+                                env.PIPELINE_MENTION = sh(script: "git --no-pager show -s --format='%an <%ae>' HEAD", returnStdout: true).trim()
+                            } catch (Exception e) {
+                                echo "⚠️ 커밋 작성자 정보를 가져오지 못했습니다: ${e.message}"
+                                env.PIPELINE_MENTION = ''
+                            }
+                        }
+                    } else {
+                        echo "⚠️ Git 저장소를 찾지 못해 커밋 메타데이터 캐싱을 건너뜁니다."
+                        def pusherUsername = env.GIT_PUSHER_USERNAME?.trim()
+                        if (pusherUsername) {
+                            env.PIPELINE_MENTION = "@${pusherUsername}"
+                        }
                     }
                 }
             }
@@ -492,7 +526,10 @@ pipeline {
                         // 공통 정보 수집 (한 번만 실행)
                         def branch    = resolveBranch()
                         def mention   = resolvePusherMention()
-                        def commitMsg = sh(script: "git log -1 --pretty=%s", returnStdout: true).trim()
+                        def commitMsg = env.PIPELINE_COMMIT_MSG?.trim()
+                        if (!commitMsg) {
+                            commitMsg = "N/A"
+                        }
                         def commitUrl = env.GIT_COMMIT_URL ?: ""
                         
                         def buildInfo = [
@@ -553,26 +590,41 @@ pipeline {
 
 // 브랜치 해석: BRANCH_NAME → GIT_REF → git
 def resolveBranch() {
+    def cached = env.PIPELINE_BRANCH?.trim()
+    if (cached) return cached
     if (env.BRANCH_NAME) return env.BRANCH_NAME
     if (env.REF) return env.REF.replaceFirst(/^refs\/heads\//, '')
+    if (params?.BRANCH_TO_BUILD?.trim()) return params.BRANCH_TO_BUILD.trim()
     try {
-        return sh(script: "git name-rev --name-only HEAD || git rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
+        if (fileExists('.git')) {
+            return sh(script: "git name-rev --name-only HEAD || git rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
+        }
     } catch (Exception e) {
         echo "⚠️ Git 브랜치 정보를 가져올 수 없습니다: ${e.message}"
-        return "unknown"
     }
+    return "unknown"
 }
 
 // @username (웹훅의 user_username) 우선, 없으면 커밋 작성자 표시
 def resolvePusherMention() {
+    def cached = env.PIPELINE_MENTION?.trim()
+    if (cached) return cached
     def u = env.GIT_PUSHER_USERNAME?.trim()
-    if (u) return "@${u}"
+    if (u) {
+        def mention = "@${u}"
+        env.PIPELINE_MENTION = mention
+        return mention
+    }
     try {
-        return sh(script: "git --no-pager show -s --format='%an <%ae>' HEAD", returnStdout: true).trim()
+        if (fileExists('.git')) {
+            def author = sh(script: "git --no-pager show -s --format='%an <%ae>' HEAD", returnStdout: true).trim()
+            env.PIPELINE_MENTION = author
+            return author
+        }
     } catch (Exception e) {
         echo "⚠️ Git 커밋 작성자 정보를 가져올 수 없습니다: ${e.message}"
-        return "Unknown"
     }
+    return "Unknown"
 }
 
 // 매터모스트 알림 전송
