@@ -17,7 +17,7 @@ export default function ModelUsageChart() {
       const result = await getModelTokenUsageTimeSeries({ granularity: period });
       console.log('✅ 모델 토큰 사용량 시계열 데이터:', result);
       setData(result);
-      setModelsData(result.models);
+      setModelsData(result.model);
     };
     fetchData();
   }, [period]);
@@ -52,7 +52,7 @@ export default function ModelUsageChart() {
       legend: {
         align: 'center',
         verticalAlign: 'bottom',
-        itemStyle: { color: '#374151', fontSize: '12px' },
+        itemStyle: { color: '#374151', fontSize: '10px' },
       },
       plotOptions: {
         series: {
@@ -69,6 +69,20 @@ export default function ModelUsageChart() {
 
     handlePeriodChange('day');
   }, []);
+
+  useEffect(() => {
+    if (!modelsData || !chartRef.current) return;
+
+    const newSeries: Highcharts.SeriesOptionsType[] = modelsData.map((m) => ({
+      name: m.modelName,
+      type: 'line',
+      data: m.usageTokens.map((p) => [p.x, p.y]),
+    }));
+
+    setTimeout(() => {
+      chartRef.current?.update({ series: newSeries as Highcharts.SeriesOptionsType[] }, true, true);
+    }, 0);
+  }, [modelsData, chartRef.current]);
 
   // 기간 변경 핸들러
   const handlePeriodChange = (type: (typeof periods)[number]) => {
@@ -93,15 +107,6 @@ export default function ModelUsageChart() {
         labels: { format: '{value:%m}월', style: { fontSize: '11px', color: '#6B7280' } },
       });
     }
-
-    // 모델별 누적 면적 그래프 시리즈 생성
-    const newSeries = modelsData?.map((model) => ({
-      name: model.modelName,
-      type: 'areaspline' as const,
-      data: model.usageTokens.map((point) => [point.x, point.y]),
-    }));
-
-    chart.update({ series: newSeries }, true, true);
   };
 
   return (

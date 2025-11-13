@@ -16,7 +16,7 @@ export default function UploadList({
   onSelectFiles,
   selectedFiles,
 }: UploadListProps) {
-  const FILES_PER_PAGE = 8;
+  const FILES_PER_PAGE = 5;
   const [currentPage, setCurrentPage] = useState(1);
   const totalPages = Math.ceil(files.length / FILES_PER_PAGE);
   const startIndex = (currentPage - 1) * FILES_PER_PAGE;
@@ -51,10 +51,10 @@ export default function UploadList({
 
   // 카테고리 매핑
   return (
-    <section className="flex flex-col w-full p-5 border border-gray-200 rounded-xl bg-white shadow-sm">
+    <section className="flex flex-col w-full p-5 min-h-[475px] border border-gray-200 rounded-xl bg-white shadow-sm">
       {/* 헤더 */}
       <h3 className="text-xl font-extrabold bg-[linear-gradient(90deg,#BE7DB1_10%,#81BAFF_100%)] bg-clip-text text-transparent w-fit mb-3">
-        업로드된 문서
+        업로드 할 문서
       </h3>
 
       {/* 상단 컨트롤 */}
@@ -80,7 +80,7 @@ export default function UploadList({
       </div>
 
       {/* 파일 리스트 */}
-      <div className="border-t border-gray-100 pt-2 min-h-[320px]">
+      <div className="border-t border-gray-100 pt-2 min-h-[260px]">
         {visibleFiles.length > 0 ? (
           <ul className="space-y-1">
             {visibleFiles.map((file) => {
@@ -101,7 +101,7 @@ export default function UploadList({
                   {/* 왼쪽: 아이콘 + 파일명 */}
                   <div className="flex items-center gap-3 flex-1">
                     <div className="w-8 h-8 bg-[var(--color-hebees)] rounded-md flex items-center justify-center shrink-0">
-                      <FileText size={17} className="text-white" />
+                      <FileText size={20} className="text-white" />
                     </div>
 
                     <div className="flex items-center justify-between w-full">

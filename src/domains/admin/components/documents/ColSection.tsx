@@ -57,9 +57,9 @@ export default function ColSection({ selectedCollection, onCollectionSelect }: C
   };
 
   return (
-    <section className="flex flex-col w-full h-full p-4 border border-gray-200 rounded-xl bg-white">
-      <h3 className="text-xl mb-1 font-bold bg-[linear-gradient(90deg,#BE7DB1_10%,#81BAFF_100%)] bg-clip-text text-transparent w-fit">
-        저장 위치
+    <section className="flex flex-col min-h-[475px] w-full h-full p-4 border border-gray-200 rounded-xl bg-white">
+      <h3 className="text-xl mb-3 font-bold bg-[linear-gradient(90deg,#BE7DB1_10%,#81BAFF_100%)] bg-clip-text text-transparent w-fit">
+        저장할 컬렉션 선택
       </h3>
 
       <div className="space-y-4">

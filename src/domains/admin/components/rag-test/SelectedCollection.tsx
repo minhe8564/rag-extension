@@ -23,24 +23,24 @@ export function SelectedCollection({ collection }: Props) {
             id: '1',
             name: '히비스_안내문서.pdf',
             sizeKB: 162.6,
-            embeddedAt: '2025.10.21 01:27',
-            category: '업무 매뉴얼',
+            createdAt: '2025.10.21 01:27',
+            categoryNo: '업무 매뉴얼',
             type: 'pdf',
           },
           {
             id: '2',
             name: '프로세스_가이드.pdf',
             sizeKB: 98.2,
-            embeddedAt: '2025.10.21 01:27',
-            category: '업무 매뉴얼',
+            createdAt: '2025.10.21 01:27',
+            categoryNo: '업무 매뉴얼',
             type: 'pdf',
           },
         ]}
-        onUpload={files => console.log('upload', files)}
-        onDownload={id => console.log('download', id)}
-        onReindex={id => console.log('reindex', id)}
-        onDelete={ids => console.log('delete', ids)}
-        onRefresh={() => setRefreshKey(k => k + 1)}
+        onUpload={(files) => console.log('upload', files)}
+        onDownload={(id) => console.log('download', id)}
+        onReindex={(id) => console.log('reindex', id)}
+        onDelete={(ids) => console.log('delete', ids)}
+        onRefresh={() => setRefreshKey((k) => k + 1)}
       />
     </div>
   );

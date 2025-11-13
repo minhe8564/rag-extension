@@ -11,8 +11,8 @@ export type DocItem = {
   id: string;
   name: string;
   sizeKB: number;
-  embeddedAt?: string;
-  category?: string;
+  createdAt?: string;
+  categoryNo?: string;
   type: string;
 };
 
@@ -166,10 +166,10 @@ export default function CollectionDocuments({
                   </div>
                 </td>
                 <td className="px-4 py-2 text-right text-gray-600">{doc.sizeKB.toFixed(1)} KB</td>
-                <td className="px-4 py-2 text-right text-gray-600">{doc.embeddedAt ?? '-'}</td>
+                <td className="px-4 py-2 text-right text-gray-600">{doc.createdAt ?? '-'}</td>
                 <td className="px-4 py-2 text-right">
                   <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-1 text-xs text-gray-700">
-                    {doc.category ?? '없음'}
+                    {doc.categoryNo ?? '없음'}
                   </span>
                 </td>
                 <td className="px-4 py-2">

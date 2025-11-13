@@ -17,7 +17,7 @@ export default function ModelResponseTimeChart() {
       const result = await getModelTokenUsageTimeSeries({ granularity: period });
       console.log('✅ 모델 토큰 응답 시간 시계열 데이터:', result);
       setData(result);
-      setModelsData(result.models);
+      setModelsData(result.model);
     };
     fetchData();
   }, [period]);
@@ -52,7 +52,7 @@ export default function ModelResponseTimeChart() {
       legend: {
         align: 'center',
         verticalAlign: 'bottom',
-        itemStyle: { color: '#374151', fontSize: '12px' },
+        itemStyle: { color: '#374151', fontSize: '10px' },
       },
       plotOptions: {
         line: {
@@ -62,9 +62,21 @@ export default function ModelResponseTimeChart() {
       },
       series: [],
     });
-
-    handlePeriodChange('day');
   }, []);
+
+  useEffect(() => {
+    if (!modelsData || !chartRef.current) return;
+
+    const newSeries: Highcharts.SeriesOptionsType[] = modelsData.map((m) => ({
+      name: m.modelName,
+      type: 'line',
+      data: m.averageResponseTimeMs.map((p) => [p.x, p.y]),
+    }));
+
+    setTimeout(() => {
+      chartRef.current?.update({ series: newSeries as Highcharts.SeriesOptionsType[] }, true, true);
+    }, 0);
+  }, [modelsData, chartRef.current]);
 
   // 기간 변경 핸들러
   const handlePeriodChange = (type: (typeof periods)[number]) => {
@@ -89,15 +101,6 @@ export default function ModelResponseTimeChart() {
         labels: { format: '{value:%m}월', style: { fontSize: '11px', color: '#6B7280' } },
       });
     }
-
-    // 모델별 응답 시간 시계열 데이터 반영
-    const newSeries = modelsData?.map((model) => ({
-      name: model.modelName,
-      type: 'line' as const,
-      data: model.averageResponseTimesMs.map((point) => [point.x, point.y]),
-    }));
-
-    chart.update({ series: newSeries }, true, true);
   };
 
   return (

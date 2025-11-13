@@ -97,5 +97,5 @@ export async function deleteFile(fileNo: string): Promise<DeleteFileData> {
   const res = await fastApi.delete<ApiEnvelope<{ data: DeleteFileData }>>(
     `/api/v1/files/${fileNo}`
   );
-  return res.data?.result?.data;
+  return res.data.result.data;
 }

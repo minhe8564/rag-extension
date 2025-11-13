@@ -1,4 +1,4 @@
-import { fastApi } from '@/shared/lib/apiInstance';
+import { fastApi, springApi } from '@/shared/lib/apiInstance';
 import type { ApiEnvelope } from '@/shared/lib/api.types';
 import type { collectionType } from '@/domains/admin/types/documents.types';
 
@@ -32,5 +32,11 @@ export const getDocInCollections = async (
       ...(params?.pageSize ? { pageSize: params.pageSize } : {}),
     },
   });
+  return data.result;
+};
+
+// 진행률 최초 조회
+export const getVectorizationProgress = async () => {
+  const { data } = await springApi.get<ApiEnvelope<any>>('/api/v1/ingest/progress/init');
   return data.result;
 };
