@@ -34,19 +34,24 @@ export function QuerySettingsForm({
 
   const selectedTemplateLabel =
     templateOpts.find((o) => o.value === template)?.label ?? '템플릿 없음';
+
   const safe = (opts: Option[], v?: string) =>
     v && opts.some((o) => o.value === v) ? v : (opts[0]?.value ?? '');
 
   const [templateName, setTemplateName] = useState(isCreateMode ? '' : selectedTemplateLabel);
-  const [queryEngine, setQueryEngine] = useState(safe(transformOpts));
+  const [transformation, setTransformation] = useState(safe(transformOpts));
   const [searchAlgorithm, setSearchAlgorithm] = useState(safe(searchAlgoOpts));
-  const [topK, setTopK] = useState(5);
-  const [threshold, setThreshold] = useState(0.2);
   const [reranking, setReranking] = useState(safe(rerankOpts));
   const [llmModel, setLlmModel] = useState(safe(llmOpts));
   const [temperature, setTemperature] = useState(0.2);
   const [multimodal, setMultimodal] = useState(false);
   const [isDefault, setIsDefault] = useState<boolean>(!!preset?.isDefault);
+  const [semanticTopK, setSemanticTopK] = useState(30);
+  const [semanticThreshold, setSemanticThreshold] = useState(0.4);
+  const [keywordTopK, setKeywordTopK] = useState(30);
+  const [rerankerTopK, setRerankerTopK] = useState(10);
+  const [rerankerWeight, setRerankerWeight] = useState(0.4);
+  const [rerankerType, setRerankerType] = useState<'weighted' | 'rank_fusion' | string>('weighted');
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -56,17 +61,31 @@ export function QuerySettingsForm({
     setTemplateName(isCreateMode ? '' : selectedTemplateLabel);
   }, [isCreateMode, selectedTemplateLabel, template]);
 
+  const isHybridSelected = useMemo(
+    () => !!options?.searchHybrid?.some((o) => o.value === searchAlgorithm),
+    [options?.searchHybrid, searchAlgorithm]
+  );
+
+  const searchAlgoType: 'semantic' | 'hybrid' | null = useMemo(() => {
+    if (!searchAlgorithm) return null;
+    return isHybridSelected ? 'hybrid' : 'semantic';
+  }, [isHybridSelected, searchAlgorithm]);
+
   const [baseline, setBaseline] = useState<Omit<SavePayload, 'isCreateMode' | 'template'>>({
     templateName: selectedTemplateLabel,
-    queryEngine,
+    transformation,
     searchAlgorithm,
-    topK,
-    threshold,
     reranking,
     llmModel,
     temperature,
     multimodal,
     isDefault,
+    semanticTopK,
+    semanticThreshold,
+    keywordTopK,
+    rerankerTopK,
+    rerankerType,
+    rerankerWeight,
   });
 
   useEffect(() => {
@@ -74,38 +93,64 @@ export function QuerySettingsForm({
       transformOpts.length || searchAlgoOpts.length || rerankOpts.length || llmOpts.length;
     if (!ready) return;
 
+    const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
+
     const next = {
-      queryEngine: safe(transformOpts, preset?.queryEngine),
+      transformation: safe(transformOpts, preset?.transformation),
       searchAlgorithm: safe(searchAlgoOpts, preset?.searchAlgorithm),
-      topK: typeof preset?.topK === 'number' ? Math.max(1, preset.topK) : 5,
-      threshold:
-        typeof preset?.threshold === 'number' ? Math.min(1, Math.max(0, preset.threshold)) : 0.2,
       reranking: safe(rerankOpts, preset?.reranking),
       llmModel: safe(llmOpts, preset?.llmModel),
-      temperature:
-        typeof preset?.temperature === 'number'
-          ? Math.min(1, Math.max(0, preset.temperature))
-          : 0.2,
+
+      temperature: typeof preset?.temperature === 'number' ? clamp01(preset.temperature) : 0.2,
       multimodal: typeof preset?.multimodal === 'boolean' ? preset.multimodal : false,
       isDefault: !!preset?.isDefault,
+
+      semanticTopK:
+        typeof preset?.semanticTopK === 'number' ? Math.max(1, preset.semanticTopK) : 30,
+      semanticThreshold:
+        typeof preset?.semanticThreshold === 'number' ? clamp01(preset.semanticThreshold) : 0.4,
+      keywordTopK: typeof preset?.keywordTopK === 'number' ? Math.max(1, preset.keywordTopK) : 30,
+      rerankerTopK:
+        typeof preset?.rerankerTopK === 'number' ? Math.max(1, preset.rerankerTopK) : 10,
+      rerankerWeight:
+        typeof preset?.rerankerWeight === 'number' ? clamp01(preset.rerankerWeight) : 0.4,
+      rerankerType: preset?.rerankerType ?? 'weighted',
     };
 
-    setQueryEngine(next.queryEngine);
+    setTransformation(next.transformation);
     setSearchAlgorithm(next.searchAlgorithm);
-    setTopK(next.topK);
-    setThreshold(next.threshold);
     setReranking(next.reranking);
     setLlmModel(next.llmModel);
     setTemperature(next.temperature);
     setMultimodal(next.multimodal);
     setIsDefault(next.isDefault);
 
+    setSemanticTopK(next.semanticTopK);
+    setSemanticThreshold(next.semanticThreshold);
+    setKeywordTopK(next.keywordTopK);
+    setRerankerTopK(next.rerankerTopK);
+    setRerankerWeight(next.rerankerWeight);
+    setRerankerType(next.rerankerType);
+
     setBaseline({
       templateName: isCreateMode ? '' : selectedTemplateLabel,
-      ...next,
+      transformation: next.transformation,
+      searchAlgorithm: next.searchAlgorithm,
+      reranking: next.reranking,
+      llmModel: next.llmModel,
+      temperature: next.temperature,
+      multimodal: next.multimodal,
+      isDefault: next.isDefault,
+      semanticTopK: next.semanticTopK,
+      semanticThreshold: next.semanticThreshold,
+      keywordTopK: next.keywordTopK,
+      rerankerTopK: next.rerankerTopK,
+      rerankerWeight: next.rerankerWeight,
+      rerankerType: next.rerankerType,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
+    template,
     isCreateMode,
     preset,
     transformOpts.length,
@@ -116,38 +161,51 @@ export function QuerySettingsForm({
   ]);
 
   const dirty = useMemo(() => {
-    const current = {
+    const current: Omit<SavePayload, 'isCreateMode' | 'template'> = {
       templateName,
-      queryEngine,
+      transformation,
       searchAlgorithm,
-      topK,
-      threshold,
       reranking,
       llmModel,
       temperature,
       multimodal,
       isDefault,
+      semanticTopK,
+      semanticThreshold,
+      keywordTopK,
+      rerankerTopK,
+      rerankerWeight,
+      rerankerType,
     };
+
     return isCreateMode
       ? templateName.trim().length > 0
       : JSON.stringify(current) !== JSON.stringify(baseline);
   }, [
     isCreateMode,
     templateName,
-    queryEngine,
+    transformation,
     searchAlgorithm,
-    topK,
-    threshold,
     reranking,
     llmModel,
     temperature,
     multimodal,
     isDefault,
+    semanticTopK,
+    semanticThreshold,
+    keywordTopK,
+    rerankerTopK,
+    rerankerWeight,
+    rerankerType,
     baseline,
   ]);
 
-  const scrollTo = (id: FlowStepId) =>
-    anchors?.[id]?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const scrollTo = (id: FlowStepId) => {
+    anchors?.[id]?.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
+  };
 
   const invalidateAllQueryQueries = async () => {
     await Promise.all([
@@ -163,15 +221,19 @@ export function QuerySettingsForm({
     const payload: SavePayload = {
       template,
       templateName,
-      queryEngine,
+      transformation,
       searchAlgorithm,
-      topK,
-      threshold,
       reranking,
       llmModel,
       temperature,
       multimodal,
       isDefault,
+      semanticTopK,
+      semanticThreshold,
+      keywordTopK,
+      rerankerTopK,
+      rerankerType,
+      rerankerWeight,
       isCreateMode,
     };
 
@@ -181,15 +243,19 @@ export function QuerySettingsForm({
 
     setBaseline({
       templateName,
-      queryEngine,
+      transformation,
       searchAlgorithm,
-      topK,
-      threshold,
       reranking,
       llmModel,
       temperature,
       multimodal,
       isDefault,
+      semanticTopK,
+      semanticThreshold,
+      keywordTopK,
+      rerankerTopK,
+      rerankerWeight,
+      rerankerType,
     });
 
     toast.success(isCreateMode ? '템플릿이 생성되었습니다.' : '설정이 저장되었습니다.');
@@ -208,8 +274,7 @@ export function QuerySettingsForm({
         'disabled:cursor-not-allowed disabled:opacity-60',
         dirty && !loading && !saving
           ? 'bg-[var(--color-hebees)] text-white border-[var(--color-hebees)] hover:opacity-90'
-          : 'bg-white text-gray-700 border hover:bg-gray-50',
-        saved && 'bg-emerald-500 border-emerald-500 text-white'
+          : 'bg-white text-gray-700 border hover:bg-gray-50'
       )}
     >
       {saved ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />}
@@ -228,7 +293,7 @@ export function QuerySettingsForm({
           </p>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4">
           <div className="max-w-xs w-full">
             <input
               ref={nameInputRef}
@@ -288,19 +353,15 @@ export function QuerySettingsForm({
         loading={loading || saving}
         scrollTo={scrollTo}
         // values
-        queryEngine={queryEngine}
+        transformation={transformation}
         searchAlgorithm={searchAlgorithm}
-        topK={topK}
-        threshold={threshold}
         reranking={reranking}
         llmModel={llmModel}
         temperature={temperature}
         multimodal={multimodal}
         // handlers
-        setQueryEngine={setQueryEngine}
+        setTransformation={setTransformation}
         setSearchAlgorithm={setSearchAlgorithm}
-        setTopK={setTopK}
-        setThreshold={setThreshold}
         setReranking={setReranking}
         setLlmModel={setLlmModel}
         setTemperature={setTemperature}
@@ -310,6 +371,22 @@ export function QuerySettingsForm({
         searchAlgoOpts={searchAlgoOpts}
         rerankOpts={rerankOpts}
         llmOpts={llmOpts}
+        // semantic / hybrid 구분 정보
+        searchAlgoType={searchAlgoType}
+        // search parameters
+        semanticTopK={semanticTopK}
+        semanticThreshold={semanticThreshold}
+        keywordTopK={keywordTopK}
+        rerankerTopK={rerankerTopK}
+        rerankerWeight={rerankerWeight}
+        rerankerType={rerankerType}
+        // setters
+        setSemanticTopK={setSemanticTopK}
+        setSemanticThreshold={setSemanticThreshold}
+        setKeywordTopK={setKeywordTopK}
+        setRerankerTopK={setRerankerTopK}
+        setRerankerWeight={setRerankerWeight}
+        setRerankerType={setRerankerType}
       />
     </div>
   );

@@ -19,7 +19,7 @@ export type HybridParams = {
   type: 'hybrid';
   keyword?: { topK?: number };
   semantic?: { topK?: number; threshold?: number };
-  reranker?: { topK?: number };
+  reranker?: { topK?: number; type?: string; weight?: number };
 };
 
 export const isSemanticParams = (p: unknown): p is SemanticParams =>
@@ -42,7 +42,9 @@ export const isHybridParams = (p: unknown): p is HybridParams =>
       (typeof p.semantic.threshold === 'number' || typeof p.semantic.threshold === 'undefined'))) &&
   (p.reranker === undefined ||
     (isRecord(p.reranker) &&
-      (typeof p.reranker.topK === 'number' || typeof p.reranker.topK === 'undefined')));
+      (typeof p.reranker.topK === 'number' || typeof p.reranker.topK === 'undefined') &&
+      (typeof p.reranker.type === 'string' || typeof p.reranker.type === 'undefined') &&
+      (typeof p.reranker.weight === 'number' || typeof p.reranker.weight === 'undefined')));
 
 // Query: generation.parameters { temperature, multimodal }
 export const isGenerationParams = (

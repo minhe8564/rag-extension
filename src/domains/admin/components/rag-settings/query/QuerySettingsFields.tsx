@@ -1,6 +1,5 @@
 import { LabelRow } from '@/domains/admin/components/rag-settings/ui/labelRow';
 import { Slider } from '@/domains/admin/components/rag-settings/ui/Slider';
-import { Toggle } from '@/domains/admin/components/rag-settings/ui/Toggle';
 import { PipelineIcons } from '@/shared/components/rag-pipeline/PipelineIcons';
 import PromptManager from '@/domains/admin/components/rag-settings/query/prompt/PromptManager';
 import SectionHeader from '@/domains/admin/components/rag-settings/ui/SectionHeader';
@@ -12,28 +11,36 @@ export default function QuerySettingsFields({
   loading,
   scrollTo,
 
-  queryEngine,
+  transformation,
   searchAlgorithm,
-  topK,
-  threshold,
   reranking,
   llmModel,
   temperature,
-  multimodal,
 
-  setQueryEngine,
+  setTransformation,
   setSearchAlgorithm,
-  setTopK,
-  setThreshold,
   setReranking,
   setLlmModel,
   setTemperature,
-  setMultimodal,
 
   transformOpts,
   searchAlgoOpts,
   rerankOpts,
   llmOpts,
+
+  searchAlgoType,
+
+  semanticTopK,
+  semanticThreshold,
+  keywordTopK,
+  rerankerTopK,
+  rerankerWeight,
+
+  setSemanticTopK,
+  setSemanticThreshold,
+  setKeywordTopK,
+  setRerankerTopK,
+  setRerankerWeight,
 }: QuerySettingsFieldsProps) {
   return (
     <>
@@ -49,8 +56,8 @@ export default function QuerySettingsFields({
           <LabelRow label="질의 변환" hint="HyDE / Buffer 등 변환 전략을 선택하세요." />
           <div className="max-w-xs w-full">
             <Select
-              value={queryEngine}
-              onChange={setQueryEngine}
+              value={transformation}
+              onChange={setTransformation}
               options={transformOpts}
               disabled={loading || transformOpts.length === 0}
             />
@@ -62,12 +69,24 @@ export default function QuerySettingsFields({
         <SectionHeader
           id="searching"
           title="Searching · 검색"
-          subtitle="관련 텍스트 청크를 검색할 알고리즘과 파라미터를 설정합니다."
+          subtitle={
+            searchAlgoType === 'hybrid'
+              ? '시맨틱 + 키워드 + 리랭커 조합으로 관련 텍스트 청크를 검색합니다.'
+              : '시맨틱 임베딩 기반으로 관련 텍스트 청크를 검색합니다.'
+          }
           icon={PipelineIcons.Searching}
           onClick={scrollTo}
         />
+
         <div className="mb-6 flex items-center justify-between gap-4">
-          <LabelRow label="검색 알고리즘" hint="Semantic 또는 Hybrid 검색 전략을 고르세요." />
+          <LabelRow
+            label="검색 알고리즘"
+            hint={
+              searchAlgoType === 'hybrid'
+                ? '하이브리드(semantic + keyword + reranker) 전략을 사용합니다.'
+                : '시맨틱 임베딩 기반 검색 전략을 사용합니다.'
+            }
+          />
           <div className="max-w-xs w-full">
             <Select
               value={searchAlgorithm}
@@ -77,25 +96,137 @@ export default function QuerySettingsFields({
             />
           </div>
         </div>
-        <div className="mb-6 flex items-center justify-between gap-4">
-          <LabelRow label="Top-K" hint="쿼리와 가장 유사한 K개의 후보를 검색합니다." />
-          <div className="max-w-xs w-full">
-            <input
-              type="number"
-              value={topK}
-              onChange={(e) => setTopK(Math.max(1, Number(e.target.value) || 1))}
-              min={1}
-              className="w-full rounded-md border border-gray-200 px-3 py-2 text-base focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-transparent text-right"
-              disabled={loading}
-            />
+
+        {searchAlgoType === 'hybrid' ? (
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-xl border bg-white p-4">
+              <p className="mb-2 text-sm font-semibold text-gray-900">
+                시맨틱
+                <span className="ml-1 text-[11px] font-normal text-gray-500">
+                  의미 기반 임베딩 검색
+                </span>
+              </p>
+              <div className="space-y-3 text-sm">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-700">TopK</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={semanticTopK}
+                    onChange={(e) => setSemanticTopK(Math.max(1, Number(e.target.value) || 1))}
+                    disabled={loading}
+                    className="w-full rounded-md border border-gray-200 px-3 py-2 text-right text-sm focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-700">
+                    유사도 임계값
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <div className="w-full">
+                      <Slider
+                        value={semanticThreshold}
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        onChange={setSemanticThreshold}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-xl border bg-white p-4">
+              <p className="mb-2 text-sm font-semibold text-gray-900">
+                키워드
+                <span className="ml-1 text-[11px] font-normal text-gray-500">키워드 기반 검색</span>
+              </p>
+              <div className="space-y-3 text-sm">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-700">TopK</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={keywordTopK}
+                    onChange={(e) => setKeywordTopK(Math.max(1, Number(e.target.value) || 1))}
+                    disabled={loading}
+                    className="w-full rounded-md border border-gray-200 px-3 py-2 text-right text-sm focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-transparent"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-xl border bg-white p-4">
+              <p className="mb-2 text-sm font-semibold text-gray-900">
+                Reranker
+                <span className="ml-1 text-[11px] font-normal text-gray-500">상위 후보 재정렬</span>
+              </p>
+              <div className="space-y-3 text-sm">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-700">TopK</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={rerankerTopK}
+                    onChange={(e) => setRerankerTopK(Math.max(1, Number(e.target.value) || 1))}
+                    disabled={loading}
+                    className="w-full rounded-md border border-gray-200 px-3 py-2 text-right text-sm focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-700">가중치</label>
+                  <div className="flex items-center gap-3">
+                    <div className="w-full">
+                      <Slider
+                        value={rerankerWeight}
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        onChange={setRerankerWeight}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-        <div className="flex items-center justify-between gap-4">
-          <LabelRow label="유사도 임계값" hint="결과 필터링을 위한 임계값을 설정합니다." />
-          <div className="max-w-sm w-full">
-            <Slider value={threshold} min={0} max={1} step={0.1} onChange={setThreshold} />
-          </div>
-        </div>
+        ) : (
+          <>
+            <div className="mb-6 flex items-center justify-between gap-4">
+              <LabelRow label="TopK" hint="쿼리와 가장 유사한 시맨틱 후보 개수입니다." />
+              <div className="max-w-xs w-full">
+                <input
+                  type="number"
+                  min={1}
+                  value={semanticTopK}
+                  onChange={(e) => setSemanticTopK(Math.max(1, Number(e.target.value) || 1))}
+                  disabled={loading}
+                  className="w-full rounded-md border border-gray-200 px-3 py-2 text-base focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-transparent text-right"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-4">
+              <LabelRow
+                label="유사도 임계값"
+                hint="시맨틱 검색 결과 필터링에 사용할 유사도 임계값입니다."
+              />
+              <div className="max-w-sm w-full flex items-center gap-3">
+                <div className="w-full">
+                  <Slider
+                    value={semanticThreshold}
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    onChange={setSemanticThreshold}
+                  />
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       <div ref={anchors?.reranker} className="rounded-2xl border bg-white p-8 shadow-sm">
@@ -152,16 +283,7 @@ export default function QuerySettingsFields({
         <div className="mb-6 flex items-center justify-between gap-4">
           <LabelRow label="Temperature" hint="모델의 응답 다양성·창의성 정도입니다." />
           <div className="max-w-xs w-full">
-            <Slider value={temperature} min={0} max={1} step={0.1} onChange={setTemperature} />
-          </div>
-        </div>
-        <div className="flex items-center justify-between gap-4">
-          <LabelRow
-            label="멀티모달 활성화"
-            hint="이미지·차트 등 비텍스트 입력을 이해해야 할 때만 활성화하세요."
-          />
-          <div className="flex-shrink-0">
-            <Toggle checked={multimodal} onChange={setMultimodal} />
+            <Slider value={temperature} min={0} max={1} step={0.05} onChange={setTemperature} />
           </div>
         </div>
       </div>

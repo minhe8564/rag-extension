@@ -187,6 +187,7 @@ export default function MyDocsTab() {
             hideFooter
             onDownload={handleDownload}
             onDelete={requestDelete}
+            showStatus={true}
           />
         )}
 
