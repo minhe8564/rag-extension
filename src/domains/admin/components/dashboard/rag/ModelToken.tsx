@@ -116,7 +116,7 @@ export default function ModelUsageChart() {
         <h3 className="text-xl font-semibold text-gray-900">모델별 토큰 사용량</h3>
       </div>
       <p className="mt-0.5 mb-4 text-sm text-gray-500">일별, 주별, 월별 토큰 사용량 추이</p>
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-6">
         <div className="ml-auto w-40">
           <Select
             value={period}
