@@ -107,7 +107,10 @@ public class MessageServiceImpl implements MessageService {
             .map(MessageServiceImpl::toMessageResponse)
             .toList();
 
-        return new MessageCursorResponse(data, nextCursor, hasNext, data.size());
+        return new MessageCursorResponse(
+            data,
+            new MessageCursorResponse.Pagination(nextCursor, hasNext, data.size())
+        );
     }
 
     @Override
