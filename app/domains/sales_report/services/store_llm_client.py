@@ -1,13 +1,15 @@
-"""LLM Client - Qwen3 모델을 사용한 AI 요약 생성"""
+"""Store LLM Client - Qwen3 모델을 사용한 AI 요약 생성"""
 import httpx
 import logging
-from typing import Optional
+import json
+import re
+from typing import Optional, Dict
 from decimal import Decimal
 
 logger = logging.getLogger(__name__)
 
 
-class LLMClient:
+class StoreLLMClient:
     """Qwen3 LLM 클라이언트 - AI 매출 요약 생성"""
 
     def __init__(self, runpod_address: str):
@@ -16,7 +18,7 @@ class LLMClient:
             runpod_address: Runpod 서버 주소 (예: "https://xxx.runpod.net")
         """
         self.base_url = runpod_address.rstrip("/")
-        self.timeout = 60.0  # LLM 응답은 시간이 걸릴 수 있음
+        self.timeout = 120.0  # LLM 응답은 시간이 걸릴 수 있음 (구조화된 응답 생성에 더 오래 걸림)
 
     async def generate_sales_summary(
         self,
@@ -26,8 +28,6 @@ class LLMClient:
         cash_receipt_amount: Decimal,
         returning_customer_rate: Decimal,
         new_customers_count: int,
-        month_over_month_growth: Optional[Decimal],
-        year_over_year_growth: Optional[Decimal],
         avg_transaction_amount: Decimal,
         total_receivables: Decimal,
         top_customers: list,
@@ -44,8 +44,6 @@ class LLMClient:
             cash_receipt_amount: 현금영수증 발급 금액
             returning_customer_rate: 재방문 고객 비율
             new_customers_count: 신규 고객 수
-            month_over_month_growth: 전월 대비 증감률
-            year_over_year_growth: 전년 대비 증감률
             avg_transaction_amount: 평균 판매금액
             total_receivables: 총 미수금액
             top_customers: Top 고객 리스트
@@ -53,7 +51,7 @@ class LLMClient:
             peak_sales_amount: 피크일 판매금액
 
         Returns:
-            str: AI 생성 요약 리포트
+            Dict: AI 생성 구조화된 인사이트
         """
         # 프롬프트 생성
         prompt = self._create_prompt(
@@ -63,8 +61,6 @@ class LLMClient:
             cash_receipt_amount=cash_receipt_amount,
             returning_customer_rate=returning_customer_rate,
             new_customers_count=new_customers_count,
-            month_over_month_growth=month_over_month_growth,
-            year_over_year_growth=year_over_year_growth,
             avg_transaction_amount=avg_transaction_amount,
             total_receivables=total_receivables,
             top_customers=top_customers,
@@ -74,11 +70,20 @@ class LLMClient:
 
         # LLM API 호출
         try:
-            summary = await self._call_llm_api(prompt)
-            return summary
+            response_text = await self._call_llm_api(prompt)
+            # 구조화된 응답 파싱 (JSON 우선, 텍스트 파싱 fallback)
+            insights = self._parse_insights(response_text)
+            return insights
         except Exception as e:
-            # LLM 호출 실패 시 기본 메시지 반환
-            return f"AI 요약 생성에 실패했습니다: {str(e)}"
+            error_type = type(e).__name__
+            error_msg = str(e) if str(e) else "알 수 없는 오류"
+            logger.error(f"LLM 요약 생성 실패 [{error_type}]: {error_msg}", exc_info=True)
+            # LLM 호출 실패 시 기본 구조 반환
+            return {
+                "sales_summary": f"AI 요약 생성에 실패했습니다 ({error_type}: {error_msg})",
+                "sales_strategies": ["데이터를 분석하여 전략을 수립해주세요."],
+                "marketing_strategies": ["고객 데이터를 기반으로 마케팅을 계획해주세요."]
+            }
 
     def _create_prompt(
         self,
@@ -88,8 +93,6 @@ class LLMClient:
         cash_receipt_amount: Decimal,
         returning_customer_rate: Decimal,
         new_customers_count: int,
-        month_over_month_growth: Optional[Decimal],
-        year_over_year_growth: Optional[Decimal],
         avg_transaction_amount: Decimal,
         total_receivables: Decimal,
         top_customers: list,
@@ -97,18 +100,6 @@ class LLMClient:
         peak_sales_amount: Decimal
     ) -> str:
         """AI 요약 생성을 위한 프롬프트 작성"""
-
-        # 증감률 텍스트 생성
-        growth_text = ""
-        if month_over_month_growth is not None:
-            mom_percent = float(month_over_month_growth) * 100
-            mom_direction = "증가" if mom_percent > 0 else "감소"
-            growth_text += f"- 전월 대비: {abs(mom_percent):.1f}% {mom_direction}\n"
-
-        if year_over_year_growth is not None:
-            yoy_percent = float(year_over_year_growth) * 100
-            yoy_direction = "증가" if yoy_percent > 0 else "감소"
-            growth_text += f"- 전년 대비: {abs(yoy_percent):.1f}% {yoy_direction}\n"
 
         # Top 고객 텍스트 생성 (상위 3명만)
         top_customers_text = ""
@@ -135,25 +126,48 @@ class LLMClient:
 - 총 미수금액: {int(total_receivables):,}원
 - 매출 피크일: {peak_sales_date} ({int(peak_sales_amount):,}원)
 
-# 매출 증감률
-{growth_text}
-
 # 구매 Top 고객 (상위 3명)
 {top_customers_text}
 
 # 요청사항
-아래 형식으로 **바로** 한국어로만 작성해주세요. 영어 사고 과정은 절대 쓰지 마세요.
+아래 두 가지 형식 중 하나로 **바로** 한국어로만 작성해주세요. 영어 사고 과정은 절대 쓰지 마세요.
 
-매출 요약: 이번 달 매출의 주요 특징과 인사이트를 2-3문장으로 요약
-추천 매출 전략: 매출을 증대시키기 위한 구체적인 전략 1-2가지
-추천 마케팅 전략: 고객 유치 및 재방문 유도를 위한 마케팅 방안 1-2가지
+**형식 1 (JSON - 권장)**:
+```json
+{{
+  "sales_summary": "이번 달 매출의 주요 특징과 인사이트를 2-3문장으로 요약",
+  "sales_strategies": [
+    "구체적인 매출 증대 전략 1",
+    "구체적인 매출 증대 전략 2",
+    "구체적인 매출 증대 전략 3"
+  ],
+  "marketing_strategies": [
+    "고객 유치 및 재방문 유도 마케팅 방안 1",
+    "고객 유치 및 재방문 유도 마케팅 방안 2",
+    "고객 유치 및 재방문 유도 마케팅 방안 3"
+  ]
+}}
+```
+
+**형식 2 (텍스트)**:
+매출 요약:
+(이번 달 매출의 주요 특징과 인사이트를 2-3문장으로 요약)
+
+추천 매출 전략:
+1. (구체적인 매출 증대 전략 1)
+2. (구체적인 매출 증대 전략 2)
+3. (구체적인 매출 증대 전략 3)
+
+추천 마케팅 전략:
+1. (고객 유치 및 재방문 유도 마케팅 방안 1)
+2. (고객 유치 및 재방문 유도 마케팅 방안 2)
+3. (고객 유치 및 재방문 유도 마케팅 방안 3)
 
 **필수 규칙**:
-1. 반드시 "매출 요약:", "추천 매출 전략:", "추천 마케팅 전략:" 레이블 사용
-2. 영어 설명이나 사고 과정 절대 포함하지 마세요 (예: "Let me...", "Wait...", "Check..." 등 금지)
-3. 글자수나 메타 정보 포함하지 마세요
-4. 친절하고 실용적인 톤으로 500자 이내로 간결하게 작성
-5. 바로 답변만 작성하세요
+1. 영어 설명이나 사고 과정 절대 포함하지 마세요
+2. JSON 형식을 우선 사용하되, 텍스트 형식도 가능
+3. 전략은 각각 3개씩 작성
+4. 친절하고 실용적인 톤으로 작성
 """
         return prompt
 
@@ -266,3 +280,100 @@ class LLMClient:
             # 둘 다 실패하면 기본 메시지
             logger.warning("LLM 응답을 파싱할 수 없어 기본 메시지를 반환합니다.")
             return "매출 데이터 분석이 완료되었습니다. LLM 응답을 생성할 수 없어 기본 요약을 제공합니다."
+
+    def _parse_insights(self, response_text: str) -> Dict:
+        """
+        LLM 응답을 구조화된 인사이트로 파싱 (Hybrid: JSON 우선, 텍스트 파싱 fallback)
+
+        Args:
+            response_text: LLM 원본 응답 텍스트
+
+        Returns:
+            Dict: 구조화된 인사이트 (sales_summary, sales_strategies, marketing_strategies)
+        """
+        # 1단계: JSON 파싱 시도
+        try:
+            # JSON 코드 블록 추출 (```json ... ``` 또는 ``` ... ```)
+            json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', response_text, re.DOTALL)
+            if json_match:
+                json_str = json_match.group(1)
+                parsed = json.loads(json_str)
+
+                # 필수 키 검증
+                if all(k in parsed for k in ["sales_summary", "sales_strategies", "marketing_strategies"]):
+                    logger.info("JSON 파싱 성공")
+                    return parsed
+
+            # JSON 코드 블록 없이 직접 JSON 파싱 시도
+            parsed = json.loads(response_text)
+            if all(k in parsed for k in ["sales_summary", "sales_strategies", "marketing_strategies"]):
+                logger.info("직접 JSON 파싱 성공")
+                return parsed
+
+        except json.JSONDecodeError:
+            logger.info("JSON 파싱 실패, 텍스트 파싱으로 전환")
+
+        # 2단계: 텍스트 파싱 fallback
+        return self._parse_text_format(response_text)
+
+    def _parse_text_format(self, text: str) -> Dict:
+        """
+        텍스트 형식 응답 파싱
+
+        형식:
+        매출 요약:
+        (내용)
+
+        추천 매출 전략:
+        1. (전략1)
+        2. (전략2)
+
+        추천 마케팅 전략:
+        1. (전략1)
+        2. (전략2)
+        """
+        # 매출 요약 추출
+        summary_match = re.search(r'매출\s*요약\s*[:：]\s*(.+?)(?=추천|$)', text, re.DOTALL)
+        sales_summary = summary_match.group(1).strip() if summary_match else "매출 데이터 분석이 완료되었습니다."
+
+        # 추천 매출 전략 추출
+        sales_strategies_match = re.search(r'추천\s*매출\s*전략\s*[:：]\s*(.+?)(?=추천\s*마케팅|$)', text, re.DOTALL)
+        sales_strategies = []
+        if sales_strategies_match:
+            strategies_text = sales_strategies_match.group(1)
+            # 번호가 있는 항목 추출 (1. , 2. , 3. 등)
+            strategies = re.findall(r'\d+\.\s*(.+?)(?=\d+\.|$)', strategies_text, re.DOTALL)
+            sales_strategies = [s.strip() for s in strategies if s.strip()]
+
+        # 번호 없이 줄바꿈으로 구분된 경우
+        if not sales_strategies and sales_strategies_match:
+            lines = [line.strip() for line in sales_strategies_match.group(1).strip().split('\n') if line.strip()]
+            sales_strategies = [line.lstrip('- ').strip() for line in lines if line]
+
+        # 추천 마케팅 전략 추출
+        marketing_strategies_match = re.search(r'추천\s*마케팅\s*전략\s*[:：]\s*(.+?)$', text, re.DOTALL)
+        marketing_strategies = []
+        if marketing_strategies_match:
+            strategies_text = marketing_strategies_match.group(1)
+            # 번호가 있는 항목 추출
+            strategies = re.findall(r'\d+\.\s*(.+?)(?=\d+\.|$)', strategies_text, re.DOTALL)
+            marketing_strategies = [s.strip() for s in strategies if s.strip()]
+
+        # 번호 없이 줄바꿈으로 구분된 경우
+        if not marketing_strategies and marketing_strategies_match:
+            lines = [line.strip() for line in marketing_strategies_match.group(1).strip().split('\n') if line.strip()]
+            marketing_strategies = [line.lstrip('- ').strip() for line in lines if line]
+
+        # 기본값 설정 (전략이 없으면)
+        if not sales_strategies:
+            sales_strategies = ["데이터를 분석하여 매출 전략을 수립해주세요."]
+        if not marketing_strategies:
+            marketing_strategies = ["고객 데이터를 기반으로 마케팅을 계획해주세요."]
+
+        logger.info(f"텍스트 파싱 완료: summary={len(sales_summary)}, sales={len(sales_strategies)}, marketing={len(marketing_strategies)}")
+
+        return {
+            "sales_summary": sales_summary,
+            "sales_strategies": sales_strategies,
+            "marketing_strategies": marketing_strategies
+        }

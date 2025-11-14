@@ -1,4 +1,4 @@
-"""Sales Report Request Schemas"""
+"""Store Summary Request Schemas"""
 from pydantic import BaseModel, Field, model_validator
 from typing import List, Any, Optional
 from datetime import datetime
@@ -28,9 +28,9 @@ class TransactionRequest(BaseModel):
         extra = "allow"  # 추가 필드 허용
 
 
-class GenerateReportRequest(BaseModel):
+class StoreSummaryRequest(BaseModel):
     """
-    매출 리포트 생성 요청 스키마
+    개별 안경원 매출 요약 리포트 생성 요청 스키마
 
     AdminSchool API에서 가져온 전체 데이터를 그대로 전달
     year_month가 없으면 data 배열의 첫 번째 거래 날짜에서 자동 추출

@@ -1,16 +1,16 @@
-"""Sales Report Service - 매출 데이터 집계 및 분석"""
+"""Store Summary Service - 매출 데이터 집계 및 분석"""
 from typing import Optional, List, Dict
 from decimal import Decimal
 from datetime import datetime, date
 from collections import defaultdict
-import random
 import logging
+import time
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
 from app.domains.sales_report.services.adminschool_client import AdminSchoolClient
-from app.domains.sales_report.services.llm_client import LLMClient
+from app.domains.sales_report.services.store_llm_client import StoreLLMClient
 from app.domains.runpod.repositories.runpod_repository import RunpodRepository
 from app.domains.sales_report.exceptions import (
     ExternalAPIError,
@@ -18,19 +18,21 @@ from app.domains.sales_report.exceptions import (
     LLMServiceError,
     RunpodNotFoundError
 )
-from app.domains.sales_report.schemas.response.sales_report import (
-    SalesReportResponse,
+from app.domains.sales_report.schemas.response.store_summary_response import (
+    StoreSummaryResponse,
     DailySalesReport,
     MonthlySalesReport,
     StoreInfo,
     PaymentBreakdown,
     TopCustomer,
     ReceivableCustomer,
+    LLMInsights,
+    Metadata,
 )
-from app.domains.sales_report.schemas.request.sales_report import StoreInfoRequest
+from app.domains.sales_report.schemas.request.store_summary_request import StoreInfoRequest
 
 
-class SalesReportService:
+class StoreSummaryService:
     """매출 리포트 생성 서비스"""
 
     def __init__(self, db: Optional[AsyncSession] = None):
@@ -43,7 +45,7 @@ class SalesReportService:
         report_date: Optional[date] = None,
         year_month: Optional[str] = None,
         include_ai_summary: bool = False
-    ) -> SalesReportResponse:
+    ) -> StoreSummaryResponse:
         """
         매출 리포트 생성
 
@@ -54,7 +56,7 @@ class SalesReportService:
             include_ai_summary: AI 요약 포함 여부 (기본값: False)
 
         Returns:
-            SalesReportResponse: 통합 리포트
+            StoreSummaryResponse: 통합 리포트
         """
         # 외부 API 데이터 조회
         raw_data = await self.client.fetch_sales_data(store_id)
@@ -72,16 +74,26 @@ class SalesReportService:
         if year_month:
             monthly_report = self._generate_monthly_report(raw_data["data"], year_month)
 
-        # AI 요약 생성 (요청 시에만)
-        ai_summary = None
+        # AI 인사이트 및 메타데이터 생성 (요청 시에만)
+        llm_insights = None
+        metadata = None
         if include_ai_summary and monthly_report and self.db:
-            ai_summary = await self._generate_ai_summary(store_info, monthly_report)
+            start_time = time.time()
+            llm_insights = await self._generate_ai_summary(store_info, monthly_report)
+            generation_time_ms = int((time.time() - start_time) * 1000)
 
-        return SalesReportResponse(
+            if llm_insights:
+                metadata = Metadata(
+                    ai_model="qwen3-vl:8b",
+                    generation_time_ms=generation_time_ms
+                )
+
+        return StoreSummaryResponse(
             store_info=store_info,
             daily_report=daily_report,
             monthly_report=monthly_report,
-            ai_summary=ai_summary
+            llm_insights=llm_insights,
+            metadata=metadata
         )
 
     async def generate_report_from_data(
@@ -91,7 +103,7 @@ class SalesReportService:
         report_date: Optional[date] = None,
         year_month: Optional[str] = None,
         include_ai_summary: bool = False
-    ) -> SalesReportResponse:
+    ) -> StoreSummaryResponse:
         """
         전달받은 데이터로 매출 리포트 생성 (외부 API 호출 없음)
 
@@ -103,7 +115,7 @@ class SalesReportService:
             include_ai_summary: AI 요약 포함 여부 (기본값: False)
 
         Returns:
-            SalesReportResponse: 통합 리포트
+            StoreSummaryResponse: 통합 리포트
         """
         # 매장 정보 변환 (Pydantic → Response 모델)
         store_info_response = self._convert_store_info(store_info)
@@ -118,16 +130,26 @@ class SalesReportService:
         if year_month:
             monthly_report = self._generate_monthly_report(transactions, year_month)
 
-        # AI 요약 생성 (요청 시에만)
-        ai_summary = None
+        # AI 인사이트 및 메타데이터 생성 (요청 시에만)
+        llm_insights = None
+        metadata = None
         if include_ai_summary and monthly_report and self.db:
-            ai_summary = await self._generate_ai_summary(store_info_response, monthly_report)
+            start_time = time.time()
+            llm_insights = await self._generate_ai_summary(store_info_response, monthly_report)
+            generation_time_ms = int((time.time() - start_time) * 1000)
 
-        return SalesReportResponse(
+            if llm_insights:
+                metadata = Metadata(
+                    ai_model="qwen3-vl:8b",
+                    generation_time_ms=generation_time_ms
+                )
+
+        return StoreSummaryResponse(
             store_info=store_info_response,
             daily_report=daily_report,
             monthly_report=monthly_report,
-            ai_summary=ai_summary
+            llm_insights=llm_insights,
+            metadata=metadata
         )
 
     def _extract_store_info(self, info_data: dict) -> StoreInfo:
@@ -254,10 +276,6 @@ class SalesReportService:
         # 📅 매출 피크일
         peak_date, peak_amount = self._find_peak_sales_date(monthly_transactions)
 
-        # 📈 전월/전년 대비 증감률 (임시 더미 데이터)
-        month_over_month_growth = self._generate_dummy_growth_rate("month")
-        year_over_year_growth = self._generate_dummy_growth_rate("year")
-
         return MonthlySalesReport(
             year_month=year_month,
             total_sales=total_sales,
@@ -265,8 +283,6 @@ class SalesReportService:
             cash_receipt_amount=cash_receipt_amount,
             returning_customer_rate=returning_rate,
             new_customers_count=new_customers_count,
-            month_over_month_growth=month_over_month_growth,
-            year_over_year_growth=year_over_year_growth,
             avg_transaction_amount=avg_amount,
             total_receivables=total_receivables,
             receivable_customers=receivable_customers,
@@ -416,8 +432,6 @@ class SalesReportService:
             cash_receipt_amount=Decimal("0"),
             returning_customer_rate=Decimal("0"),
             new_customers_count=0,
-            month_over_month_growth=None,
-            year_over_year_growth=None,
             avg_transaction_amount=Decimal("0"),
             total_receivables=Decimal("0"),
             receivable_customers=[],
@@ -426,39 +440,20 @@ class SalesReportService:
             peak_sales_amount=Decimal("0")
         )
 
-    def _generate_dummy_growth_rate(self, period_type: str) -> Decimal:
-        """
-        더미 증감률 생성 (임시)
-
-        Args:
-            period_type: "month" 또는 "year"
-
-        Returns:
-            Decimal: -0.2 ~ 0.3 범위의 증감률
-        """
-        # 전월 대비: -5% ~ +15%
-        # 전년 대비: -10% ~ +30%
-        if period_type == "month":
-            growth = random.uniform(-0.05, 0.15)
-        else:  # year
-            growth = random.uniform(-0.10, 0.30)
-
-        return Decimal(str(round(growth, 4)))
-
     async def _generate_ai_summary(
         self,
         store_info: StoreInfo,
         monthly_report: MonthlySalesReport
-    ) -> Optional[str]:
+    ) -> Optional[LLMInsights]:
         """
-        AI 요약 리포트 생성
+        AI 요약 리포트 생성 (구조화된 인사이트)
 
         Args:
             store_info: 매장 정보
             monthly_report: 월별 리포트
 
         Returns:
-            Optional[str]: AI 생성 요약 (실패 시 None)
+            Optional[LLMInsights]: AI 생성 구조화된 인사이트 (실패 시 None)
         """
         try:
             # Runpod에서 qwen3 LLM 주소 조회
@@ -469,7 +464,7 @@ class SalesReportService:
                 raise RunpodNotFoundError("qwen3 LLM 서버를 찾을 수 없습니다.")
 
             # LLM 클라이언트 생성
-            llm_client = LLMClient(runpod.address)
+            llm_client = StoreLLMClient(runpod.address)
 
             # Top 고객 데이터 변환 (Pydantic 모델 → dict)
             top_customers_dict = [
@@ -488,16 +483,14 @@ class SalesReportService:
                 "voucher": monthly_report.payment_breakdown.voucher
             }
 
-            # AI 요약 생성
-            summary = await llm_client.generate_sales_summary(
+            # AI 인사이트 생성 (구조화된 형식)
+            insights_dict = await llm_client.generate_sales_summary(
                 store_name=store_info.store_name,
                 total_sales=monthly_report.total_sales,
                 payment_breakdown=payment_breakdown_dict,
                 cash_receipt_amount=monthly_report.cash_receipt_amount,
                 returning_customer_rate=monthly_report.returning_customer_rate,
                 new_customers_count=monthly_report.new_customers_count,
-                month_over_month_growth=monthly_report.month_over_month_growth,
-                year_over_year_growth=monthly_report.year_over_year_growth,
                 avg_transaction_amount=monthly_report.avg_transaction_amount,
                 total_receivables=monthly_report.total_receivables,
                 top_customers=top_customers_dict,
@@ -505,7 +498,8 @@ class SalesReportService:
                 peak_sales_amount=monthly_report.peak_sales_amount
             )
 
-            return summary
+            # Dict를 Pydantic 모델로 변환
+            return LLMInsights(**insights_dict)
 
         except RunpodNotFoundError:
             # Runpod 서버를 찾을 수 없는 경우 - None 반환 (AI 요약 선택적 기능)
