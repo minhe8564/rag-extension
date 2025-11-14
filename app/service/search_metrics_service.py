@@ -16,7 +16,7 @@ class SearchMetricsService:
     def __init__(self):
         self.redis_client: Optional[Redis] = None
         self.metrics_key: str = "search:metrics:response_time"
-        self.ttl_seconds = 300  # 5분
+        self.ttl_seconds = 86400  # 1일 (기존: 300 = 5분)
         self.metrics_redis_db = 4  # DB 4 사용
 
     async def _get_redis_client(self) -> Redis:
@@ -63,7 +63,7 @@ class SearchMetricsService:
             if ttl == -1:
                 await redis.expire(self.metrics_key, self.ttl_seconds)
 
-            # 오래된 데이터 자동 정리 (5분 이전 데이터 삭제)
+            # 오래된 데이터 자동 정리 (1일 이전 데이터 삭제)
             cutoff_time = timestamp - self.ttl_seconds
             await redis.zremrangebyscore(self.metrics_key, 0, cutoff_time)
             
