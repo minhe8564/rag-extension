@@ -6,7 +6,7 @@ import java.time.LocalDateTime;
 @Schema(description = "질문 응답 DTO")
 public record AskResponse(
     String content,
-    LocalDateTime timestamp
+    LocalDateTime createdAt
 ) {
 
 }
