@@ -36,6 +36,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ghostscript libglib2.0-0 libsm6 libxext6 libxrender1 \
     && rm -rf /var/lib/apt/lists/*
 
+# LibreOffice 설치 (PDF 변환용)
+RUN apt-get update && apt-get install -y \
+    libreoffice \
+    libreoffice-writer \
+    libreoffice-calc \
+    libreoffice-impress \
+    && rm -rf /var/lib/apt/lists/*
+
 # 빌더에서 준비한 venv 및 메타데이터 복사
 COPY --from=builder /app/.venv /app/.venv
 COPY --from=builder /app/pyproject.toml /app/uv.lock ./

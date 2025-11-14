@@ -10,6 +10,9 @@ from .base import BaseProcessor
 from .pdf_processor import PDFProcessor
 from .txt_processor import TXTProcessor
 from .excel_processor import ExcelProcessor
+from .word_processor import WordProcessor
+from .ppt_processor import PPTProcessor
+from .html_processor import HTMLProcessor
 
 class ProcessorFactory:
     """
@@ -20,6 +23,9 @@ class ProcessorFactory:
         PDFProcessor(),
         TXTProcessor(),
         ExcelProcessor(),
+        WordProcessor(),
+        PPTProcessor(),
+        HTMLProcessor(),
     ]
 
     @classmethod
