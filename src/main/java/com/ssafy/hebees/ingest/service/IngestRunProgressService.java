@@ -93,6 +93,19 @@ public class IngestRunProgressService {
     }
 
     /**
+     * summary 전용 스트림(ingest:summary)에서 SUMMARY/기타 이벤트를 읽어옵니다.
+     */
+    public List<MapRecord<String, Object, Object>> readSummaryEvents(String lastId,
+        long blockMillis, Long count) {
+        return RedisStreamUtils.readEvents(
+            ingestRedisTemplate,
+            "ingest:summary",
+            lastId,
+            blockMillis,
+            count);
+    }
+
+    /**
      * 연결 검증용 간단 시나리오를 푸시합니다. 순서: EXTRACTION(33.3%) -> EMBEDDING(66.6%) -> VECTOR_STORE(100%,
      * COMPLETED) 각 단계 progressPct=100으로 설정하고, delayMs 간격으로 푸시합니다.
      */
