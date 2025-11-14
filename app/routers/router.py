@@ -16,6 +16,8 @@ from datetime import datetime
 from loguru import logger
 import uuid
 import httpx
+import asyncio
+import math
 
 router = APIRouter(tags=["embedding"])
 
@@ -150,11 +152,44 @@ async def embedding_process(
                 raise HTTPException(status_code=400, detail=error_response.dict())
 
         # EMBEDDING 단계 시작
+        progress_task: Optional[asyncio.Task] = None
+        total_chunks = len(chunks)
         if progress_client:
             try:
-                await progress_client.embedding_start(total=len(chunks))
+                await progress_client.embedding_start(total=total_chunks)
             except Exception as e:
                 logger.debug(f"Failed to send embedding start progress: {e}")
+
+            # UI용 fake 진행률 타이머 (20% 단위)
+            # embedding 은 외부 api 호출로 0~100% 진행률을 알 수 없으므로
+            # UI 용 fake 진행률로 대체합니다 !! 주의
+            async def _embedding_progress_spinner() -> None:
+                try:
+                    if total_chunks <= 0:
+                        return
+                    processed = 0
+                    # 10% 단위로 processed 증가 (조금 더 큼직하게)
+                    step = max(1, math.ceil(total_chunks * 0.20))
+                    while True:
+                        await asyncio.sleep(1.0)
+                        processed = min(total_chunks - 1, processed + step)
+                        try:
+                            await progress_client.embedding_advance(
+                                processed=processed,
+                                total=total_chunks,
+                            )
+                        except Exception as pe:
+                            logger.debug(f"Failed to send embedding spinner progress: {pe}")
+                        if processed >= total_chunks - 1:
+                            break
+                except asyncio.CancelledError:
+                    # 태스크 취소 시 조용히 종료
+                    return
+                except Exception as e:
+                    logger.debug(f"Embedding spinner task error (ignored): {e}")
+
+            if total_chunks > 0:
+                progress_task = asyncio.create_task(_embedding_progress_spinner())
 
         # 외부 임베딩 API 호출로 embeddings 생성
         documents = [str(chunk.get("text", "")) for chunk in chunks]
@@ -166,7 +201,7 @@ async def embedding_process(
         try:
             payload = {
                 "documents": documents,
-                "models": [model_name]
+                "models": [model_name],
             }
             provider_url = settings.embedding_provider_url.rstrip("/") + "/api/v1/embedding/documents"
             logger.info(f"Requesting external embeddings: url={provider_url}, model={model_name}, docs={len(documents)}")
@@ -183,14 +218,42 @@ async def embedding_process(
                     logger.warning(f"Embeddings count mismatch: got {len(vectors)} for {len(documents)} documents")
         except Exception as e:
             logger.error(f"External embedding request failed: {str(e)}", exc_info=True)
+
+            # fake 진행률 타이머 중단
+            if progress_task is not None:
+                progress_task.cancel()
+                try:
+                    await progress_task
+                except Exception:
+                    pass
+
             # EMBEDDING 실패 알림
             if progress_client:
                 try:
-                    await progress_client.embedding_fail(processed=0, total=len(chunks))
+                    await progress_client.embedding_fail(processed=0, total=total_chunks)
                 except Exception as pe:
                     logger.debug(f"Failed to send embedding fail progress: {pe}")
-            # 실패 시 기존 전략으로 폴백
-            strategy = get_strategy(strategy_name, parameters)
+
+            # 실패 시 기존 전략으로 폴백 (progress 콜백 주입)
+            strategy_params = dict(parameters) if isinstance(parameters, dict) else {}
+            if progress_client:
+                # 동기 embed()에서 사용할 진행률 콜백
+                def _embedding_progress_cb(processed: int, total: Optional[int] = None) -> None:
+                    try:
+                        loop = asyncio.get_running_loop()
+                        loop.create_task(
+                            progress_client.embedding_advance(
+                                processed=processed,
+                                total=total if total is not None else total_chunks,
+                            )
+                        )
+                    except Exception:
+                        # 진행률 전송 실패는 무시
+                        pass
+
+                strategy_params["progress_cb"] = _embedding_progress_cb
+
+            strategy = get_strategy(strategy_name, strategy_params)
             result = strategy.embed(chunks)
             if isinstance(result, dict):
                 if "embeddings" in result:
@@ -199,32 +262,47 @@ async def embedding_process(
                     embedded_chunks = result["chunks"]
             elif isinstance(result, list):
                 vectors = result
-        
+
         # EMBEDDING 단계 완료
         if progress_client:
+            # fake 진행률 타이머 중단
+            if progress_task is not None:
+                progress_task.cancel()
+                try:
+                    await progress_task
+                except Exception:
+                    pass
+
             try:
-                await progress_client.embedding_complete(processed=len(vectors) if vectors else len(chunks), total=len(chunks))
+                await progress_client.embedding_complete(
+                    processed=len(vectors) if vectors else total_chunks,
+                    total=total_chunks,
+                )
             except Exception as e:
                 logger.debug(f"Failed to send embedding complete progress: {e}")
+
         # Milvus에 저장 (collection_name이 제공된 경우)
         if collection_name and vectors:
+            total_vectors = len(embedded_chunks) if embedded_chunks else len(vectors)
+
             # VECTOR_STORE 단계 시작
             if progress_client:
                 try:
-                    await progress_client.vector_store_start(total=len(vectors))
+                    await progress_client.vector_store_start(total=total_vectors)
                 except Exception as e:
                     logger.debug(f"Failed to send vector_store start progress: {e}")
             
             try:
                 milvus_service = MilvusService(
                     host=settings.milvus_host,
-                    port=settings.milvus_port
+                    port=settings.milvus_port,
                 )
-                
+
                 # 임베딩 데이터 준비
                 now = datetime.utcnow().isoformat()
                 milvus_data = []
-                
+                processed_vectors = 0
+
                 # embedded_chunks가 있으면 그것을 사용, 없으면 원본 chunks와 vectors를 조합
                 if embedded_chunks:
                     # embedded_chunks는 이미 embedding이 포함되어 있음
@@ -237,13 +315,24 @@ async def embedding_process(
                             "CREATED_AT": chunk.get("CREATED_AT", now),
                             "UPDATED_AT": chunk.get("UPDATED_AT", now)
                         }
-                        
-                        milvus_data.append({
-                            "file_no": file_no,
-                            "text": chunk.get("text", ""),
-                            "vector": chunk.get("embedding", []),
-                            "metadata": metadata
-                        })
+                        milvus_data.append(
+                            {
+                                "file_no": file_no,
+                                "text": chunk.get("text", ""),
+                                "vector": chunk.get("embedding", []),
+                                "metadata": metadata,
+                            }
+                        )
+
+                        processed_vectors += 1
+                        if progress_client:
+                            try:
+                                await progress_client.vector_store_advance(
+                                    processed=processed_vectors,
+                                    total=total_vectors,
+                                )
+                            except Exception as pe:
+                                logger.debug(f"Failed to send vector_store advance progress: {pe}")
                 else:
                     # 원본 chunks와 vectors를 조합
                     for idx, (chunk, vector) in enumerate(zip(chunks, vectors)):
@@ -255,13 +344,24 @@ async def embedding_process(
                             "CREATED_AT": chunk.get("CREATED_AT", now),
                             "UPDATED_AT": chunk.get("UPDATED_AT", now)
                         }
-                        
-                        milvus_data.append({
-                            "file_no": file_no,
-                            "text": chunk.get("text", ""),
-                            "vector": vector,
-                            "metadata": metadata
-                        })
+                        milvus_data.append(
+                            {
+                                "file_no": file_no,
+                                "text": chunk.get("text", ""),
+                                "vector": vector,
+                                "metadata": metadata,
+                            }
+                        )
+
+                        processed_vectors += 1
+                        if progress_client:
+                            try:
+                                await progress_client.vector_store_advance(
+                                    processed=processed_vectors,
+                                    total=total_vectors,
+                                )
+                            except Exception as pe:
+                                logger.debug(f"Failed to send vector_store advance progress: {pe}")
                 
                 # 벡터 차원 확인 (첫 번째 벡터의 길이 사용)
                 if milvus_data and milvus_data[0]["vector"]:

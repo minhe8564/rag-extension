@@ -74,15 +74,17 @@ class Dense(BaseEmbeddingStrategy):
         # 청크에서 텍스트 추출
         texts = []
         chunk_metadata = []
-        
+
         for chunk in chunks:
             text = chunk.get("text", "")
             if text and text.strip():
                 texts.append(text.strip())
-                chunk_metadata.append({
-                    "page": chunk.get("page", 0),
-                    "chunk_id": chunk.get("chunk_id", 0)
-                })
+                chunk_metadata.append(
+                    {
+                        "page": chunk.get("page", 0),
+                        "chunk_id": chunk.get("chunk_id", 0),
+                    }
+                )
         
         if not texts:
             logger.warning("[E5Large] No valid texts found in chunks")
@@ -94,40 +96,77 @@ class Dense(BaseEmbeddingStrategy):
         
         logger.info(f"[E5Large] Embedding {len(texts)} chunks")
         t0 = time.time()
-        
+
+        # 진행률 콜백 (옵션)
+        progress_cb = None
+        try:
+            progress_cb = self.parameters.get("progress_cb") if isinstance(self.parameters, dict) else None
+        except Exception:
+            progress_cb = None
+
         # 텍스트에 접두사 추가
         prepared_texts = self._prepare(texts)
-        
-        # 임베딩 수행
+
+        # 임베딩 수행 (배치 단위로 진행률 업데이트)
         try:
-            embeddings = self.model.encode(
-                prepared_texts,
-                convert_to_numpy=True,
-                show_progress_bar=False
-            )
-            
+            total_units = len(prepared_texts)
+            processed_units = 0
+            if progress_cb and total_units:
+                try:
+                    progress_cb(processed_units, total_units)
+                except Exception:
+                    pass
+
+            batch_size = int(self.parameters.get("batch_size", 32)) if isinstance(self.parameters, dict) else 32
+            all_embeddings: list[np.ndarray] = []
+
+            for start in range(0, total_units, batch_size):
+                end = min(start + batch_size, total_units)
+                batch_texts = prepared_texts[start:end]
+
+                embeddings_batch = self.model.encode(
+                    batch_texts,
+                    convert_to_numpy=True,
+                    show_progress_bar=False,
+                )
+                if isinstance(embeddings_batch, np.ndarray):
+                    all_embeddings.append(embeddings_batch)
+                else:
+                    all_embeddings.append(np.asarray(embeddings_batch))
+
+                processed_units = end
+                if progress_cb and total_units:
+                    try:
+                        progress_cb(processed_units, total_units)
+                    except Exception:
+                        pass
+
+            embeddings = np.concatenate(all_embeddings, axis=0) if all_embeddings else np.zeros((0, 0), dtype=float)
+
             dt = time.time() - t0
             logger.info(f"[E5Large] Done. Shape={embeddings.shape}, elapsed={dt:.2f}s")
-            
+
             # 결과 반환 (numpy array를 리스트로 변환)
             embeddings_list = embeddings.tolist()
-            
+
             # 각 청크에 임베딩 추가
             embedded_chunks = []
             for i, chunk_meta in enumerate(chunk_metadata):
-                embedded_chunks.append({
-                    **chunk_meta,
-                    "text": texts[i],
-                    "embedding": embeddings_list[i]
-                })
-            
+                embedded_chunks.append(
+                    {
+                        **chunk_meta,
+                        "text": texts[i],
+                        "embedding": embeddings_list[i],
+                    }
+                )
+
             return {
                 "chunks": embedded_chunks,
                 "embeddings": embeddings_list,
                 "count": len(embedded_chunks),
-                "embedding_dimension": len(embeddings_list[0]) if embeddings_list else 0
+                "embedding_dimension": len(embeddings_list[0]) if embeddings_list else 0,
             }
-            
+
         except Exception as e:
             logger.error(f"[E5Large] Error during embedding: {str(e)}")
             raise
