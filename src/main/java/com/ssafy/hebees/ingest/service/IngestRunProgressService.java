@@ -106,6 +106,14 @@ public class IngestRunProgressService {
     }
 
     /**
+     * summary 스트림(ingest:summary)의 최신 레코드 ID를 조회합니다.
+     * 없으면 null 반환.
+     */
+    public String getLatestSummaryId() {
+        return RedisStreamUtils.getLatestRecordId(ingestRedisTemplate, "ingest:summary");
+    }
+
+    /**
      * 연결 검증용 간단 시나리오를 푸시합니다. 순서: EXTRACTION(33.3%) -> EMBEDDING(66.6%) -> VECTOR_STORE(100%,
      * COMPLETED) 각 단계 progressPct=100으로 설정하고, delayMs 간격으로 푸시합니다.
      */
