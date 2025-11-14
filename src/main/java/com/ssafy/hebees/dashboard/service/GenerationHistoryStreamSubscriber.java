@@ -159,7 +159,8 @@ public class GenerationHistoryStreamSubscriber {
                     responseTimeMs
                 );
             } catch (Exception e) {
-                log.warn("[CHAT] Failed to record model usage for llm {}: {}", llmNo, e.getMessage(),
+                log.warn("[CHAT] Failed to record model usage for llm {}: {}", llmNo,
+                    e.getMessage(),
                     e);
             }
         }

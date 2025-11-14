@@ -19,5 +19,6 @@ public record AgentPromptUpdateRequest(
     @Schema(description = "프롬프트 내용", example = "상담 응답 시 고객의 감정을 고려하세요...")
     String content
 ) {
+
 }
 

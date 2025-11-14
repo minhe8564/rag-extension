@@ -23,7 +23,7 @@ public record MessageErrorCreateRequest(
     String message
 ) {
 
-    public MessageErrorCreateRequest{
+    public MessageErrorCreateRequest {
         message = sanitizeMessage(message());
     }
 

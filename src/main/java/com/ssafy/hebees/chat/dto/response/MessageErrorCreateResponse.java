@@ -10,7 +10,7 @@ public record MessageErrorCreateResponse(
     UUID messageErrorNo
 ) {
 
-    public static MessageErrorCreateResponse of(MessageError messageError){
+    public static MessageErrorCreateResponse of(MessageError messageError) {
         return new MessageErrorCreateResponse(messageError.getMessageErrorNo());
     }
 }

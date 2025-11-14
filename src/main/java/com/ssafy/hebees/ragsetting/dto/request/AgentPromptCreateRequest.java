@@ -19,5 +19,6 @@ public record AgentPromptCreateRequest(
     @Schema(description = "프롬프트 내용", example = "당신은 친절한 상담원입니다...")
     String content
 ) {
+
 }
 

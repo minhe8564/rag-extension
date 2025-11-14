@@ -9,7 +9,7 @@ public final class ValidationUtil {
     private ValidationUtil() {
     }
 
-    public static <T> T require(@Nullable  T value) {
+    public static <T> T require(@Nullable T value) {
         if (value == null) {
             throw new BusinessException(ErrorCode.INPUT_NULL);
         }

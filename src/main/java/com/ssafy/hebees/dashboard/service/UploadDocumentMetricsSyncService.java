@@ -38,12 +38,14 @@ public class UploadDocumentMetricsSyncService {
 
             long processedCount = readLongValue(PROCESSED_COUNT_KEY);
             if (processedCount > totalCount) {
-                log.warn("Processed upload count ({}) exceeded total count ({}). Resetting.", processedCount,
+                log.warn("Processed upload count ({}) exceeded total count ({}). Resetting.",
+                    processedCount,
                     totalCount);
-            ValueOperations<String, String> valueOps =
-                Objects.requireNonNull(redisTemplate.opsForValue());
-            String latestTotal = Long.toString(totalCount);
-            valueOps.set(Objects.requireNonNull(PROCESSED_COUNT_KEY), Objects.requireNonNull(latestTotal));
+                ValueOperations<String, String> valueOps =
+                    Objects.requireNonNull(redisTemplate.opsForValue());
+                String latestTotal = Long.toString(totalCount);
+                valueOps.set(Objects.requireNonNull(PROCESSED_COUNT_KEY),
+                    Objects.requireNonNull(latestTotal));
                 return;
             }
 
@@ -56,9 +58,11 @@ public class UploadDocumentMetricsSyncService {
             ValueOperations<String, String> valueOps =
                 Objects.requireNonNull(redisTemplate.opsForValue());
             String latestTotal = Long.toString(totalCount);
-            valueOps.set(Objects.requireNonNull(PROCESSED_COUNT_KEY), Objects.requireNonNull(latestTotal));
+            valueOps.set(Objects.requireNonNull(PROCESSED_COUNT_KEY),
+                Objects.requireNonNull(latestTotal));
         } catch (Exception e) {
-            log.warn("Failed to synchronize uploaded document metrics from Redis: {}", e.getMessage(), e);
+            log.warn("Failed to synchronize uploaded document metrics from Redis: {}",
+                e.getMessage(), e);
         }
     }
 

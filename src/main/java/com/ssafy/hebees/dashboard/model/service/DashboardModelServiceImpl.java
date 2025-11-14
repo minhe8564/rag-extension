@@ -201,7 +201,8 @@ public class DashboardModelServiceImpl implements DashboardModelService {
     @Transactional
     public ModelPriceResponse recordExpenseUsage(ModelExpenseUsageRequest request) {
         return analyticsExpenseStreamService.recordModelUsage(
-            request.modelNo(), request.inputTokens(), request.outputTokens(), request.responseTimeMs());
+            request.modelNo(), request.inputTokens(), request.outputTokens(),
+            request.responseTimeMs());
     }
 
     private TimeSeriesContext buildTimeSeriesContext(TimeSeriesRequest request) {
