@@ -30,6 +30,7 @@ type Props = {
   isPendingAssistant?: boolean;
   pendingSubtitle: string;
   brand: Brand;
+  enableDocuments?: boolean;
 };
 
 const brandBgClass: Record<Brand, string> = {
@@ -49,6 +50,7 @@ export default function ChatMessageItem({
   isPendingAssistant = false,
   pendingSubtitle,
   brand = 'retina',
+  enableDocuments = true,
 }: Props) {
   const [copied, setCopied] = useState(false);
 
@@ -165,14 +167,13 @@ export default function ChatMessageItem({
           </Tooltip>
         )}
       </div>
-
-      {!isUser && msg.messageNo && currentSessionNo && !isPendingAssistant ? (
+      {!isUser && msg.messageNo && currentSessionNo && !isPendingAssistant && enableDocuments && (
         <ReferencedDocsPanel
           sessionNo={currentSessionNo}
           messageNo={msg.messageNo}
           collapsedByDefault={false}
         />
-      ) : null}
+      )}
     </div>
   );
 }

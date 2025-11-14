@@ -3,15 +3,14 @@ import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 import ChatInput from '@/shared/components/chat/ChatInput';
 import ChatMessageItem from '@/shared/components/chat/ChatMessageItem';
 import ScrollToBottomButton from '@/shared/components/chat/ScrollToBottomButton';
-// import { getSession, getMessages, sendMessage } from '@/shared/api/chat.api';
-import { getSession, getMessages } from '@/shared/api/chat.api';
+import { getSession, getMessages, sendMessage } from '@/shared/api/chat.api';
 import type { UiMsg, UiRole } from '@/shared/components/chat/ChatMessageItem';
 import type {
   ChatRole,
   MessageItem,
   MessagePage,
-  // SendMessageRequest,
-  // SendMessageResult,
+  SendMessageRequest,
+  SendMessageResult,
 } from '@/shared/types/chat.types';
 import {
   useDerivedSessionNo,
@@ -25,6 +24,8 @@ import { toast } from 'react-toastify';
 import ChatEmptyState from '@/shared/components/chat/ChatEmptyState';
 
 const mapRole = (r: ChatRole): UiRole => (r === 'human' ? 'user' : r === 'ai' ? 'assistant' : r);
+
+type ChatMode = 'llm' | 'rag';
 
 export default function TextChat() {
   const { sessionNo: paramsSessionNo } = useParams<{ sessionNo: string }>();
@@ -53,6 +54,7 @@ export default function TextChat() {
 
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [editingDraft, setEditingDraft] = useState<string>('');
+  const [mode, setMode] = useState<ChatMode>('llm');
 
   const startReask = (idx: number, content: string) => {
     setEditingIdx(idx);
@@ -224,6 +226,22 @@ export default function TextChat() {
     }
   };
 
+  const fillPendingAssistant = (content: string, createdAt?: string, messageNo?: string) => {
+    setList((prev: UiMsg[]) =>
+      prev.map(
+        (m: UiMsg): UiMsg =>
+          m.messageNo === '__pending__'
+            ? {
+                role: 'assistant',
+                content: content || '(응답이 없습니다)',
+                createdAt: createdAt ?? m.createdAt,
+                messageNo: messageNo ?? m.messageNo,
+              }
+            : m
+      )
+    );
+  };
+
   const handleSend = async (msg: string) => {
     forceScrollRef.current = true;
     setAwaitingAssistant(true);
@@ -238,39 +256,40 @@ export default function TextChat() {
       const llmName: string = selectedModel ?? 'Qwen3-vl:8B';
       const sessionNo: string = await getOrCreateSessionNo(llmName, msg);
 
-      // const body: SendMessageRequest = { content: msg, model: llmName };
-      // const res = await sendMessage(sessionNo, body);
-      // const result = res.data.result as SendMessageResult;
-      const effectiveLlmNo = llmNo ?? selectedLlmNo;
+      if (mode === 'rag') {
+        const effectiveLlmNo = llmNo ?? selectedLlmNo;
+        if (!effectiveLlmNo) {
+          toast.error('LLM 정보가 없습니다. 세션 정보를 다시 불러와 주세요.');
+          throw new Error('LLM 정보가 없습니다.');
+        }
 
-      if (!effectiveLlmNo) {
-        toast.error('LLM 정보가 없습니다. 세션 정보를 다시 불러와 주세요.');
-        throw new Error('LLM 정보가 없습니다.');
+        const res = await postRagQuery({
+          llmNo: effectiveLlmNo,
+          sessionNo,
+          query: msg,
+        });
+        const result = res.data.result as RagQueryProcessResult;
+
+        forceScrollRef.current = true;
+        fillPendingAssistant(
+          result.content ?? '(응답이 없습니다)',
+          result.createdAt,
+          result.messageNo
+        );
+      } else {
+        const body: SendMessageRequest = { content: msg, model: llmName };
+        const res = await sendMessage(sessionNo, body);
+        const result = res.data.result as SendMessageResult;
+
+        const content = result.content ?? '(응답이 없습니다)';
+        const createdAt = result?.createdAt ?? undefined;
+        const messageNo = result?.messageNo ?? undefined;
+
+        forceScrollRef.current = true;
+        fillPendingAssistant(content, createdAt, messageNo);
       }
-
-      const res = await postRagQuery({
-        llmNo: effectiveLlmNo,
-        sessionNo,
-        query: msg,
-      });
-      const result = res.data.result as RagQueryProcessResult;
-
-      forceScrollRef.current = true;
-      setList((prev: UiMsg[]) =>
-        prev.map(
-          (m: UiMsg): UiMsg =>
-            m.messageNo === '__pending__'
-              ? {
-                  role: 'assistant',
-                  content: result.content ?? '(응답이 없습니다)',
-                  // createdAt: result.timestamp,
-                  createdAt: result.createdAt,
-                  messageNo: result.messageNo,
-                }
-              : m
-        )
-      );
-    } catch {
+    } catch (e) {
+      console.error(e);
       setList((prev: UiMsg[]) => prev.filter((m: UiMsg) => m.messageNo !== '__pending__'));
     } finally {
       setAwaitingAssistant(false);
@@ -295,6 +314,33 @@ export default function TextChat() {
 
   return (
     <section className="flex flex-col min-h-[calc(100vh-82px)] h-[calc(100vh-82px)]">
+      <div className="flex justify-center">
+        <div className="inline-flex items-center gap-1 rounded-full bg-gray-100 p-1 text-xs">
+          <button
+            type="button"
+            onClick={() => setMode('llm')}
+            className={`px-3 py-1 rounded-full transition ${
+              mode === 'llm'
+                ? 'bg-white shadow-sm text-gray-900'
+                : 'text-gray-500 hover:text-gray-800'
+            }`}
+          >
+            일반 LLM
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('rag')}
+            className={`px-3 py-1 rounded-full transition ${
+              mode === 'rag'
+                ? 'bg-white shadow-sm text-gray-900'
+                : 'text-gray-500 hover:text-gray-800'
+            }`}
+          >
+            RAG 모드
+          </button>
+        </div>
+      </div>
+
       {list.length > 0 ? (
         <>
           <div
@@ -327,8 +373,10 @@ export default function TextChat() {
                   isPendingAssistant={awaitingAssistant && m.role === 'assistant' && !m.content}
                   pendingSubtitle={thinkingSubtitle}
                   brand="retina"
+                  enableDocuments={mode === 'rag'}
                 />
               ))}
+
               <div ref={bottomRef} className="h-6" />
             </div>
           </div>
@@ -342,6 +390,9 @@ export default function TextChat() {
               />
             </div>
             <div className="w-full max-w-[75%] pb-6 bg-white">
+              <div className="mb-1 text-xs text-gray-400 flex justify-end pr-6">
+                현재 모드: {mode === 'rag' ? 'RAG 기반 검색 + 생성' : '일반 LLM 대화'}
+              </div>
               <ChatInput onSend={handleSend} variant="retina" />
             </div>
           </div>

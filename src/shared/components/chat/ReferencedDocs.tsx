@@ -167,23 +167,11 @@ export default function ReferencedDocsPanel({
                               )}
                             >
                               {isExpanded && (
-                                <div className="mb-3 flex items-center justify-between">
+                                <div className="mb-3 flex items-center justify-between gap-10">
                                   <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
                                     문서 미리보기
                                   </div>
-                                  <div
-                                    className="
-    text-[11px] 
-    text-gray-700
-    bg-gray-100 
-    px-2.5 
-    py-1 
-    rounded-full 
-    border 
-    border-gray-200 
-    shadow-sm
-  "
-                                  >
+                                  <div className="text-[11px] text-gray-700 bg-gray-100 px-2.5 py-1 rounded-full border border-gray-200 shadow-sm">
                                     텍스트를 드래그하면 하이라이트해서 볼 수 있어요
                                   </div>
                                 </div>
