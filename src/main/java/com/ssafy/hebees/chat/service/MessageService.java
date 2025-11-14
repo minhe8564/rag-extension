@@ -11,7 +11,7 @@ import java.util.UUID;
 
 public interface MessageService {
 
-    MessageResponse createMessage(UUID userNo, UUID sessionNo, MessageCreateRequest request);
+    MessageResponse createMessage(UUID sessionNo, MessageCreateRequest request);
 
     MessageCursorResponse listMessages(UUID userNo, UUID sessionNo, MessageCursorRequest request);
 

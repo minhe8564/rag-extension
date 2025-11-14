@@ -6,9 +6,11 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import lombok.Builder;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @Schema(description = "채팅 메시지 응답")
+@Builder(toBuilder = true)
 public record MessageResponse(
     @Schema(description = "메시지 ID", format = "uuid")
     UUID messageNo,

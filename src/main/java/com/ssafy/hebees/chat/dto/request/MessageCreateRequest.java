@@ -6,8 +6,10 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.UUID;
+import lombok.Builder;
 
 @Schema(description = "메시지 생성 요청")
+@Builder(toBuilder = true)
 public record MessageCreateRequest(
     @NotNull(message = "메시지 유형은 필수입니다.")
     @Schema(description = "메시지 유형", requiredMode = Schema.RequiredMode.REQUIRED)
