@@ -1,24 +1,28 @@
 package com.ssafy.hebees.ingest.controller;
 
+
 import com.ssafy.hebees.common.dto.PageRequest;
+import com.ssafy.hebees.common.dto.PageResponse;
 import com.ssafy.hebees.common.response.BaseResponse;
 import com.ssafy.hebees.common.util.SecurityUtil;
-import com.ssafy.hebees.ingest.dto.response.IngestProgressEventResponse;
+import com.ssafy.hebees.ingest.dto.response.IngestProgressMetaWithStepsResponse;
+// import removed: IngestProgressSummaryPageResponse
 import com.ssafy.hebees.ingest.dto.response.IngestProgressSummaryListResponse;
+import com.ssafy.hebees.ingest.dto.response.IngestProgressEventResponse;
+import com.ssafy.hebees.ingest.dto.response.IngestProgressSummaryResponse;
 import com.ssafy.hebees.ingest.service.IngestRunProgressService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
-import jakarta.servlet.http.HttpServletRequest;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -42,11 +46,12 @@ public class IngestController {
         @ApiResponse(responseCode = "404", description = "진행 중인 run 없음")
     })
     public ResponseEntity<BaseResponse<IngestProgressSummaryListResponse>> getMyRunProgress(
-        PageRequest pageRequest) {
+        PageRequest pageRequest
+    ) {
         var userUuid = SecurityUtil.getCurrentUserUuid()
             .orElseThrow(() -> new RuntimeException("인증된 사용자 없음"));
-        IngestProgressSummaryListResponse result = progressService
-            .getRunningMetaWithStepsPageForUserWithSummary(userUuid, pageRequest);
+        IngestProgressSummaryListResponse result =
+            progressService.getRunningMetaWithStepsPageForUserWithSummary(userUuid, pageRequest);
         return ResponseEntity.ok(BaseResponse.success(result));
     }
 
@@ -93,6 +98,9 @@ public class IngestController {
         });
 
         try {
+            // summary + 초기 스냅샷을 함께 전송
+            IngestProgressSummaryResponse summary = progressService.getSummaryForUser(userUuid);
+            emitter.send(SseEmitter.event().name("summary").data(summary));
             // 2) 초기 스냅샷에도 id를 넣어두면 클라가 일관되게 처리 가능
             emitter.send(SseEmitter.event().name("initial").id(lastId).data(initial));
         } catch (Exception e) {
@@ -128,7 +136,7 @@ public class IngestController {
                         log.debug("[INGEST] 활성 runId 조회 결과 - newRunId={}", newRunId);
                     } catch (Exception e) {
                         // 활성 run이 없으면 null로 유지
-                        log.warn("[INGEST] 활성 runId 조회 실패 - userUuid={}, error={}", userUuid,
+                        log.debug("[INGEST] 활성 runId 조회 실패 - userUuid={}, error={}", userUuid,
                             e.getMessage());
                     }
 
@@ -206,9 +214,41 @@ public class IngestController {
                             String status = dto.status();
                             if (status != null && ("COMPLETED".equalsIgnoreCase(status)
                                 || "FAILED".equalsIgnoreCase(status))) {
-                                // 여기서 바로 done=true로 끝내지 말고, 다음 루프에서 새 run 감지
-                                log.info("[INGEST] 현재 run 완료 - runId={}, status={}", currentRunId,
-                                    status);
+                                // 이벤트 status가 완료일 때, 메타의 run 상태를 확인해
+                                // run 단위가 실제로 끝났다면 summary 전송 후 스트림 종료
+                                try {
+                                    Map<Object, Object> latestMeta = progressService.getMeta(
+                                        currentRunId);
+                                    Object runStatusObj =
+                                        latestMeta != null ? latestMeta.get("status") : null;
+                                    String runStatus =
+                                        runStatusObj != null ? runStatusObj.toString() : null;
+
+                                    if (runStatus != null && ("COMPLETED".equalsIgnoreCase(
+                                        runStatus) || "FAILED".equalsIgnoreCase(runStatus))) {
+                                        log.info(
+                                            "[INGEST] run 전체 완료 감지 - runId={}, runStatus={}",
+                                            currentRunId, runStatus);
+                                        try {
+                                            IngestProgressSummaryResponse summary =
+                                                progressService.getSummaryForUser(userUuid);
+                                            emitter.send(SseEmitter.event().name("summary")
+                                                .data(summary));
+                                        } catch (Exception summaryEx) {
+                                            log.warn("[INGEST] summary 전송 중 오류 - userUuid={}",
+                                                userUuid, summaryEx);
+                                        }
+                                        done = true;
+                                        break;
+                                    } else {
+                                        log.info(
+                                            "[INGEST] step 완료 이벤트 수신 - runId={}, eventStatus={}, metaStatus={}",
+                                            currentRunId, status, runStatus);
+                                    }
+                                } catch (Exception checkEx) {
+                                    log.warn("[INGEST] run 완료 여부 확인 중 오류 - runId={}",
+                                        currentRunId, checkEx);
+                                }
                             }
                         }
                     } else {
@@ -248,13 +288,14 @@ public class IngestController {
         @ApiResponse(responseCode = "401", description = "인증 필요"),
         @ApiResponse(responseCode = "404", description = "활성 run 없음")
     })
-    public ResponseEntity<BaseResponse<Map<String, Object>>> pushTestEvents(
-        @RequestParam(name = "delayMs", required = false, defaultValue = "0") Long delayMs) {
+    public ResponseEntity<BaseResponse<java.util.Map<String, Object>>> pushTestEvents(
+        @RequestParam(name = "delayMs", required = false, defaultValue = "0") Long delayMs
+    ) {
         var userUuid = SecurityUtil.getCurrentUserUuid()
             .orElseThrow(() -> new RuntimeException("인증된 사용자 없음"));
 
         var ids = progressService.pushTestSequence(userUuid, delayMs);
-        Map<String, Object> result = new HashMap<>();
+        java.util.Map<String, Object> result = new java.util.HashMap<>();
         result.put("count", ids.size());
         result.put("ids", ids);
         return ResponseEntity.ok(BaseResponse.success(result));
