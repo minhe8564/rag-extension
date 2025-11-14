@@ -3,7 +3,6 @@ package com.ssafy.hebees.common.config;
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.data.redis.RedisProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -24,8 +23,9 @@ public class RedisConfig {
     private static final int DB_INGEST = 1; // ingest 정보
     private static final int DB_MONITORING = 2; // 모니터링 정보
     private static final int DB_ACTIVE_USER = 3; // 활성 사용자 정보
-    private static final int DB_LOGIN_HISTORY = 8; // 로그인 사용자 정보
     private static final int DB_METRICS = 4; // 메트릭 정보
+    private static final int DB_LOGIN_HISTORY = 8; // 로그인 사용자 정보
+    private static final int DB_CHATBOT_USAGE = 8; // 챗봇 사용량 정보
 
     @Bean(name = "authLettuceConnectionFactory")
     @Primary
@@ -56,6 +56,11 @@ public class RedisConfig {
     @Bean(name = "metricsLettuceConnectionFactory")
     public LettuceConnectionFactory metricsLettuceConnectionFactory(RedisProperties props) {
         return createLettuceConnectionFactory(props, DB_METRICS, true);
+    }
+
+    @Bean(name = "chatbotUsageLettuceConnectionFactory")
+    public LettuceConnectionFactory chatbotUsageLettuceConnectionFactory(RedisProperties props) {
+        return createLettuceConnectionFactory(props, DB_CHATBOT_USAGE, true);
     }
 
     @Bean(name = "authRedisTemplate")
@@ -92,6 +97,12 @@ public class RedisConfig {
     @Bean(name = "metricsRedisTemplate")
     public StringRedisTemplate metricsRedisTemplate(
         @Qualifier("metricsLettuceConnectionFactory") LettuceConnectionFactory connectionFactory) {
+        return createRedisTemplate(connectionFactory, true);
+    }
+
+    @Bean(name = "chatbotUsageRedisTemplate")
+    public StringRedisTemplate chatbotUsageRedisTemplate(
+        @Qualifier("chatbotUsageLettuceConnectionFactory") LettuceConnectionFactory connectionFactory) {
         return createRedisTemplate(connectionFactory, true);
     }
 

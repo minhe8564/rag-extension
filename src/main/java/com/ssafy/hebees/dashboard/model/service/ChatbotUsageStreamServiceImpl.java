@@ -41,7 +41,7 @@ public class ChatbotUsageStreamServiceImpl implements ChatbotUsageStreamService 
     private final AtomicLong lastProcessedBucket = new AtomicLong(-1L);
 
     public ChatbotUsageStreamServiceImpl(
-        @Qualifier("metricsRedisTemplate") StringRedisTemplate redisTemplate) {
+        @Qualifier("chatbotUsageRedisTemplate") StringRedisTemplate redisTemplate) {
         this.redisTemplate = redisTemplate;
     }
 
