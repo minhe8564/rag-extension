@@ -21,7 +21,7 @@ public class UploadDocumentMetricsSyncService {
 
     public UploadDocumentMetricsSyncService(
         DashboardMetricStreamService dashboardMetricStreamService,
-        @Qualifier("metricsRedisTemplate") StringRedisTemplate redisTemplate
+        @Qualifier("dashboardRedisTemplate") StringRedisTemplate redisTemplate
     ) {
         this.dashboardMetricStreamService = dashboardMetricStreamService;
         this.redisTemplate = redisTemplate;
