@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import Highcharts from 'highcharts';
-import Card from '@/shared/components/Card';
 import Select from '@/shared/components/Select';
 import type { modelTokenTime, modelData } from '@/domains/admin/types/rag.dashboard.types';
 import { getModelTokenUsageTimeSeries } from '@/domains/admin/api/rag.dashboard.api';
+import { Braces } from 'lucide-react';
 
 export default function ModelUsageChart() {
   const chartRef = useRef<Highcharts.Chart | null>(null);
@@ -110,8 +110,13 @@ export default function ModelUsageChart() {
   };
 
   return (
-    <Card title="모델별 토큰 사용량" subtitle="일별, 주별, 월별 토큰 사용량 추이" className="p-4">
-      <div className="flex items-center justify-between mb-3">
+    <div className="flex h-full flex-col rounded-2xl border bg-white p-8 shadow-sm">
+      <div className="flex items-start gap-3">
+        <Braces size={18} className="text-blue-500 mt-1" />
+        <h3 className="text-xl font-semibold text-gray-900">모델별 토큰 사용량</h3>
+      </div>
+      <p className="mt-0.5 mb-4 text-sm text-gray-500">일별, 주별, 월별 토큰 사용량 추이</p>
+      <div className="flex items-center justify-between mb-6">
         <div className="ml-auto w-40">
           <Select
             value={period}
@@ -126,6 +131,6 @@ export default function ModelUsageChart() {
       </div>
 
       <div id="model-usage-chart" className="w-full" />
-    </Card>
+    </div>
   );
 }

@@ -1,5 +1,6 @@
 import gitlabLogo from '@/assets/logos/gitlab-logo.png';
 import notionLogo from '@/assets/logos/notion-logo.png';
+import ragExtensionLogo from '@/assets/logos/rag-extension-logo.png';
 
 type Brand = 'retina' | 'hebees';
 
@@ -42,26 +43,40 @@ export default function FooterInfo({
   ];
 
   return (
-    <footer className="w-full bg-white">
-      <div className="relative mx-auto max-w-[960px] px-5 py-8">
-        <div className="mb-5 text-center flex items-center justify-center gap-2">
-          <span className="inline-flex items-center rounded-full border border-neutral-200 bg-white px-3 py-1 text-[11px] font-medium text-neutral-500">
-            SSAFY 13기 · S407 RAG Extension
-          </span>
-          <span className="inline-flex items-center rounded-full border border-neutral-200 bg-white px-3 py-1 text-[11px] font-medium text-neutral-500">
-            HEBEES
-          </span>
+    <footer className="w-full px-4 py-16">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex items-center gap-4">
+          <div className="flex h-[80px] w-[80px] items-center justify-center rounded-xl bg-white border border-gray-200 overflow-hidden">
+            <img
+              src={ragExtensionLogo}
+              alt="RAG Extension 로고"
+              className="h-full w-full object-contain"
+              loading="lazy"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <p className="text-sm font-semibold text-neutral-900">RAG Extension</p>
+            <p className="text-xs text-neutral-500">
+              SSAFY 13기 · S407
+              <span className="mx-1 text-neutral-300">•</span>
+              HEBEES
+            </p>
+            <p className="text-[11px] text-neutral-400">
+              made by <span className="font-medium text-neutral-500">예리 코치님</span>
+            </p>
+          </div>
         </div>
 
-        <nav className="mb-4">
-          <ul className="flex flex-wrap items-center justify-center gap-3">
+        <nav>
+          <ul className="flex flex-wrap items-center justify-start gap-4 md:justify-end">
             {links.map((l) => (
               <li key={l.href}>
                 <a
                   href={l.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-[13px] font-medium text-neutral-700 hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-neutral-300 rounded-sm px-1"
+                  className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50 hover:border-neutral-300 transition-colors"
                 >
                   {l.iconSrc && <img src={l.iconSrc} alt="" className="h-4 w-4 opacity-80" />}
                   <span>{l.label}</span>
@@ -71,21 +86,29 @@ export default function FooterInfo({
             ))}
           </ul>
         </nav>
+      </div>
 
-        <div className="mx-auto my-8 w-full">
-          <ul className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-[13px] text-neutral-700">
-            {team.map((m) => (
-              <li key={m.name} className="flex items-center gap-2 leading-none">
-                <span className="font-medium text-neutral-900">{m.name}</span>
-                <span className="inline-block h-[3px] w-[3px] rounded-full bg-neutral-300"></span>
-                <span className="text-[11px] text-neutral-500">{m.role}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+      <div className="mt-4 h-px w-full" />
 
-        <p className="text-center text-xs text-neutral-400">
-          © {year} <span style={{ color: accent }}>Hebees</span>. All rights reserved.
+      <div className="mt-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <ul className="flex flex-wrap gap-x-7 gap-y-1 text-[12px] text-neutral-700">
+          {team.map((m) => (
+            <li key={m.name} className="flex items-center gap-1 leading-none">
+              <span className="font-medium text-neutral-900">{m.name}</span>
+              <span className="text-neutral-300">•</span>
+              <span className="text-xs" style={{ color: accent }}>
+                {m.role}
+              </span>
+            </li>
+          ))}
+        </ul>
+
+        <p className="text-[11px] text-neutral-400">
+          © {year}{' '}
+          <span style={{ color: accent }} className="font-medium">
+            Hebees
+          </span>
+          . All rights reserved.
         </p>
       </div>
     </footer>

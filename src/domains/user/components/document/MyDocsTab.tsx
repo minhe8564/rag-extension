@@ -187,7 +187,7 @@ export default function MyDocsTab() {
             docs={uploadedDocs}
             pageSize={Math.max(1, uploadedDocs.length || 1)}
             brand="retina"
-            hideFooter
+            // hideFooter
             onDownload={handleDownload}
             onDelete={requestDelete}
             showStatus={true}

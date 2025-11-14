@@ -38,7 +38,7 @@ export default function UserLayout() {
   const activeSessionNo = sp.get('session') || undefined;
   const navigate = useNavigate();
 
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const isChatRoute = pathname.startsWith('/user/chat/text');
 
   const [modelOptions, setModelOptions] = useState<Option[]>([]);
@@ -95,7 +95,7 @@ export default function UserLayout() {
             </div>
           ) : (
             <div className="w-full flex justify-center">
-              <Tooltip content="사이드바 열기" side="bottom" shiftX={15}>
+              <Tooltip content="사이드바 열기" side="right" shiftX={12}>
                 <button
                   onClick={() => setIsOpen((prev) => !prev)}
                   className="text-[var(--color-retina)] hover:text-[var(--color-retina-dark)]"
@@ -107,7 +107,7 @@ export default function UserLayout() {
           )}
 
           {isOpen && (
-            <Tooltip content="사이드바 닫기" side="bottom" shiftX={15}>
+            <Tooltip content="사이드바 닫기" side="right" shiftX={12}>
               <button
                 onClick={() => setIsOpen(false)}
                 className="text-[var(--color-retina)] hover:text-[var(--color-retina-dark)]"
@@ -118,34 +118,63 @@ export default function UserLayout() {
           )}
         </div>
 
-        <nav className="flex flex-col gap-1 px-2 mt-1 overflow-hidden">
+        <nav className="flex flex-col gap-1 px-2 mt-1">
           <NavLink to="/user/chat/text" className={linkCls}>
-            <MessageSquare size={18} className="flex-shrink-0" />
+            {!isOpen ? (
+              <Tooltip content="RAG 채팅" side="right" shiftX={12}>
+                <span>
+                  <MessageSquare size={18} className="flex-shrink-0" />
+                </span>
+              </Tooltip>
+            ) : (
+              <MessageSquare size={18} className="flex-shrink-0" />
+            )}
             <div className={labelCls(isOpen)}>
               <span className="inline-block">RAG 채팅</span>
             </div>
           </NavLink>
-
           <NavLink to="/user/chat/image" className={linkCls}>
-            <Image size={18} className="flex-shrink-0" />
+            {!isOpen ? (
+              <Tooltip content="이미지 생성" side="right" shiftX={12}>
+                <span>
+                  <Image size={18} className="flex-shrink-0" />
+                </span>
+              </Tooltip>
+            ) : (
+              <Image size={18} className="flex-shrink-0" />
+            )}
             <div className={labelCls(isOpen)}>
               <span className="inline-block">이미지 생성</span>
             </div>
           </NavLink>
-
           <NavLink to="/user/documents" className={linkCls}>
-            <FolderCog size={18} className="flex-shrink-0" />
+            {!isOpen ? (
+              <Tooltip content="내 문서 관리" side="right" shiftX={12}>
+                <span>
+                  <FolderCog size={18} className="flex-shrink-0" />
+                </span>
+              </Tooltip>
+            ) : (
+              <FolderCog size={18} className="flex-shrink-0" />
+            )}
             <div className={labelCls(isOpen)}>
               <span className="inline-block">내 문서 관리</span>
             </div>
           </NavLink>
-
           <button
             type="button"
             className="flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors text-gray-700 hover:bg-[var(--color-retina)] hover:text-white"
             onClick={() => setOpen(true)}
           >
-            <Search size={18} className="flex-shrink-0" />
+            {!isOpen ? (
+              <Tooltip content="채팅 검색" side="right" shiftX={12}>
+                <span>
+                  <Search size={18} className="flex-shrink-0" />
+                </span>
+              </Tooltip>
+            ) : (
+              <Search size={18} className="flex-shrink-0" />
+            )}
             <div className={labelCls(isOpen)}>
               <span className="inline-block">채팅 검색</span>
             </div>
@@ -168,16 +197,33 @@ export default function UserLayout() {
             to="/user/profile"
             className="flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors text-gray-700 hover:bg-[var(--color-retina-bg)] hover:text-[var(--color-retina)]"
           >
-            <UserCog size={18} className="flex-shrink-0" />
+            {!isOpen ? (
+              <Tooltip content="내 정보 관리" side="right" shiftX={12}>
+                <span>
+                  <UserCog size={18} className="flex-shrink-0" />
+                </span>
+              </Tooltip>
+            ) : (
+              <UserCog size={18} className="flex-shrink-0" />
+            )}
             <div className={labelCls(isOpen)}>
               <span className="inline-block">내 정보 관리</span>
             </div>
           </NavLink>
+
           <NavLink
             to="/logout"
             className="flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors text-gray-700 hover:bg-[var(--color-retina-bg)] hover:text-[var(--color-retina)]"
           >
-            <LogOut size={18} className="flex-shrink-0" />
+            {!isOpen ? (
+              <Tooltip content="로그아웃" side="right" shiftX={12}>
+                <span>
+                  <LogOut size={18} className="flex-shrink-0" />
+                </span>
+              </Tooltip>
+            ) : (
+              <LogOut size={18} className="flex-shrink-0" />
+            )}
             <div className={labelCls(isOpen)}>
               <span className="inline-block">로그아웃</span>
             </div>
@@ -208,7 +254,7 @@ export default function UserLayout() {
         </div>
 
         <div className="flex w-full flex-col gap-3 px-8">
-          <Outlet key={pathname + location.search} />
+          <Outlet key={pathname + search} />
         </div>
       </main>
 

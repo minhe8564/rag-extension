@@ -10,11 +10,16 @@ export function ProgressBar({
   showLabel?: boolean;
 }) {
   const v = Math.min(100, Math.max(0, value));
+
   return (
     <div className="w-full">
-      <div className="h-2 w-full rounded-full bg-gray-200">
-        <div className={`h-2 rounded-full ${color}`} style={{ width: `${v}%` }} />
+      <div className="h-2 w-full rounded-full bg-gray-200 overflow-hidden">
+        <div
+          className={`h-2 rounded-full ${color} transition-all duration-500 ease-out`}
+          style={{ width: `${v}%` }}
+        />
       </div>
+
       {showLabel && (
         <div className="mt-1 text-[11px] text-gray-500 text-right">{v.toFixed(0)}%</div>
       )}

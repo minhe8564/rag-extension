@@ -1,4 +1,5 @@
-import { Wand2 } from 'lucide-react';
+import { useState } from 'react';
+import { Wand2, Copy } from 'lucide-react';
 import Tooltip from '@/shared/components/Tooltip';
 import ChatMarkdown from '@/shared/components/chat/ChatMarkdown';
 import InlineReaskInput from '@/shared/components/chat/InlineReaskInput';
@@ -49,8 +50,35 @@ export default function ChatMessageItem({
   pendingSubtitle,
   brand = 'retina',
 }: Props) {
+  const [copied, setCopied] = useState(false);
+
   const isUser = msg.role === 'user';
   const userBubbleBase = `rounded-xl border ml-auto ${brandBgClass[brand]} text-black border-gray-200`;
+
+  const handleCopy = async () => {
+    try {
+      const text = msg.content ?? '';
+
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-9999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1200);
+    } catch (e) {
+      console.error('Copy failed:', e);
+    }
+  };
 
   return (
     <div
@@ -122,6 +150,17 @@ export default function ChatMessageItem({
               className="p-1 rounded hover:bg-gray-100 pointer-events-auto"
             >
               <Wand2 size={14} className="text-gray-500" />
+            </button>
+          </Tooltip>
+        )}
+
+        {!isUser && !isPendingAssistant && (
+          <Tooltip content={copied ? '복사 완료' : '답변 복사'} side="bottom">
+            <button
+              onClick={handleCopy}
+              className="p-1 rounded hover:bg-gray-100 pointer-events-auto"
+            >
+              <Copy size={14} className={copied ? 'text-[var(--color-retina)]' : 'text-gray-500'} />
             </button>
           </Tooltip>
         )}

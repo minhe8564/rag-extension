@@ -4,8 +4,9 @@ import { createPortal } from 'react-dom';
 interface TooltipProps {
   content: string;
   children: React.ReactElement;
-  side?: 'top' | 'bottom';
+  side?: 'top' | 'bottom' | 'right';
   shiftX?: number;
+  shiftY?: number;
   offset?: number;
   portal?: boolean;
 }
@@ -15,6 +16,7 @@ export default function Tooltip({
   children,
   side = 'top',
   shiftX = 0,
+  shiftY = 0,
   offset = 8,
   portal = false,
 }: TooltipProps) {
@@ -27,8 +29,20 @@ export default function Tooltip({
 
     const calc = () => {
       const r = ref.current!.getBoundingClientRect();
-      const top = side === 'top' ? r.top - offset : r.bottom + offset;
-      const left = r.left + r.width / 2 + shiftX;
+      let top = 0;
+      let left = 0;
+
+      if (side === 'top') {
+        top = r.top - offset + shiftY;
+        left = r.left + r.width / 2 + shiftX;
+      } else if (side === 'bottom') {
+        top = r.bottom + offset + shiftY;
+        left = r.left + r.width / 2 + shiftX;
+      } else if (side === 'right') {
+        top = r.top + r.height / 2 + shiftY;
+        left = r.right + offset + shiftX;
+      }
+
       setPos({ top, left });
     };
 
@@ -39,7 +53,7 @@ export default function Tooltip({
       window.removeEventListener('scroll', calc, true);
       window.removeEventListener('resize', calc);
     };
-  }, [portal, open, side, offset, shiftX]);
+  }, [portal, open, side, offset, shiftX, shiftY]);
 
   const tooltipNode = (
     <div
@@ -51,14 +65,29 @@ export default function Tooltip({
               position: 'fixed',
               top: pos.top,
               left: pos.left,
-              transform: side === 'top' ? 'translate(-50%, -100%)' : 'translate(-50%, 0)',
+              transform:
+                side === 'top'
+                  ? 'translate(-50%, -100%)'
+                  : side === 'bottom'
+                    ? 'translate(-50%, 0)'
+                    : 'translate(0, -50%)',
             }
-          : {
-              position: 'absolute',
-              top: side === 'top' ? `-${offset + 28}px` : `calc(100% + ${offset}px)`,
-              left: '50%',
-              transform: `translateX(calc(-50% + ${shiftX}px))`,
-            }
+          : side === 'right'
+            ? {
+                position: 'absolute',
+                top: `calc(50% + ${shiftY}px)`,
+                left: `calc(100% + ${offset}px + ${shiftX}px)`,
+                transform: 'translateY(-50%)',
+              }
+            : {
+                position: 'absolute',
+                top:
+                  side === 'top'
+                    ? `calc(-${offset + 28}px + ${shiftY}px)`
+                    : `calc(100% + ${offset}px + ${shiftY}px)`,
+                left: '50%',
+                transform: `translateX(calc(-50% + ${shiftX}px))`,
+              }
       }
     >
       {content}

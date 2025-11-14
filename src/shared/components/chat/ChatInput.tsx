@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { SendHorizonal } from 'lucide-react';
 
 type Props = {
@@ -9,26 +9,33 @@ type Props = {
 export default function ChatInput({ onSend, variant = 'retina' }: Props) {
   const [text, setText] = useState('');
   const composingRef = useRef(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const [isTall, setIsTall] = useState(false);
 
   const send = () => {
     const content = text.trim();
     if (!content) return;
     onSend(content);
     setText('');
+    requestAnimationFrame(() => {
+      const el = textareaRef.current;
+      if (!el) return;
+      el.style.height = 'auto';
+      el.style.height = `${el.scrollHeight}px`;
+      setIsTall(el.scrollHeight > 60);
+    });
   };
 
-  const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key !== 'Enter') return;
 
     const native = e.nativeEvent;
-    if (
-      (native as unknown as { isComposing?: boolean }).isComposing ||
-      composingRef.current ||
-      (typeof (native as KeyboardEvent).keyCode === 'number' &&
-        (native as KeyboardEvent).keyCode === 229)
-    ) {
+    if (native.isComposing || composingRef.current || native.keyCode === 229) {
       return;
     }
+
+    if (e.shiftKey) return;
 
     e.preventDefault();
     send();
@@ -42,6 +49,16 @@ export default function ChatInput({ onSend, variant = 'retina' }: Props) {
     composingRef.current = false;
   };
 
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+
+    setIsTall(el.scrollHeight > 60);
+  }, [text]);
+
   const buttonColor =
     variant === 'hebees'
       ? 'bg-[var(--color-hebees)] hover:bg-[var(--color-hebees-dark)]'
@@ -52,25 +69,36 @@ export default function ChatInput({ onSend, variant = 'retina' }: Props) {
   return (
     <div className="flex flex-col items-center w-full gap-4">
       <div className="w-full">
-        <div className="flex items-center rounded-full border border-gray-300 bg-white px-4 py-2 shadow-sm">
-          <input
-            className="flex-1 text-base bg-transparent border-none text-black placeholder-gray-400 
-               focus:outline-none focus:ring-0"
-            placeholder="레티나 챗봇에게 무엇이든 물어보세요."
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={onKeyDown}
-            onCompositionStart={onCompositionStart}
-            onCompositionEnd={onCompositionEnd}
-          />
-          <button
-            type="button"
-            disabled={isDisabled}
-            className={`w-9 h-9 flex items-center justify-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${buttonColor}`}
-            onClick={send}
-          >
-            <SendHorizonal size={18} className="text-white" />
-          </button>
+        <div
+          className={`
+            border border-gray-300 px-4 py-3 shadow-sm transition-all
+            ${isTall ? 'rounded-xl' : 'rounded-full'}
+          `}
+        >
+          <div className="flex items-end gap-2">
+            <textarea
+              ref={textareaRef}
+              className="flex-1 w-full text-base border-none text-black placeholder-gray-400
+                         resize-none overflow-hidden leading-[1.4] min-h-[32px] max-h-[40vh]
+                         focus:outline-none focus:ring-0"
+              placeholder="레티나 챗봇에게 무엇이든 물어보세요."
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={onKeyDown}
+              onCompositionStart={onCompositionStart}
+              onCompositionEnd={onCompositionEnd}
+              rows={1}
+            />
+            <button
+              type="button"
+              disabled={isDisabled}
+              className={`shrink-0 self-end w-9 h-9 flex items-center justify-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${buttonColor}`}
+              onClick={send}
+              aria-label="메시지 전송"
+            >
+              <SendHorizonal size={18} className="text-white" />
+            </button>
+          </div>
         </div>
       </div>
 

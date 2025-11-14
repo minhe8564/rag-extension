@@ -80,4 +80,5 @@ export interface SendMessageRequest {
 export interface SendMessageResult {
   content: string;
   timestamp: string;
+  messageNo?: string;
 }
