@@ -4,12 +4,12 @@ Generation Strategy 모듈
 """
 
 from .base import BaseGenerationStrategy
-from .openAI import OpenAI
+from .openai import Openai
 from .ollama import Ollama
 
 __all__ = [
     "BaseGenerationStrategy",
-    "OpenAI",
+    "Openai",
     "Ollama"
 ]
 

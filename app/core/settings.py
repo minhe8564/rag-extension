@@ -34,6 +34,16 @@ class Settings(BaseSettings):
     def mongo_url(self) -> str:
         return f"mongodb://{self.mongo_username}:{self.mongo_password}@{self.mongo_host}:{self.mongo_port}/{self.mongo_database}"
 
+    # Database 설정
+    db_host: str = "database-mysql"
+    db_port: int = 3306
+    db_username: str = "s407test"
+    db_password: str = "q1w2e3r4"
+
+    @property
+    def database_url(self) -> str:
+        return f"mysql+aiomysql://{self.db_username}:{self.db_password}@{self.db_host}:{self.db_port}/hebees-test"
+
     # Redis 설정
     redis_host: str = "database-redis"
     redis_port: int = 6379
