@@ -14,9 +14,13 @@ public record AskRequest(
     @Schema(description = "질문할 세션 ID")
     UUID sessionNo,
 
-    @NotNull
+    @Nullable
     @Schema(description = "사용할 LLM ID")
     UUID llmNo,
+
+    @Nullable
+    @Schema(description = "사용할 LLM 이름")
+    String model,
 
     @Nullable
     @Schema(description = "질문 내용 (삭제 예정)")
@@ -29,6 +33,9 @@ public record AskRequest(
 
     public AskRequest{
         if(!StringUtils.hasText(query) && !StringUtils.hasText(content)){
+            throw new BusinessException(ErrorCode.BAD_REQUEST);
+        }
+        if(!StringUtils.hasText(model) && llmNo == null){
             throw new BusinessException(ErrorCode.BAD_REQUEST);
         }
     }
