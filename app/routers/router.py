@@ -191,33 +191,6 @@ async def extract_process(
             )
             raise HTTPException(status_code=400, detail=error_response.dict())
 
-        # 전략 로드
-        logger.info(f"Extraction strategy: {strategy_name}, parameters: {parameters}")
-        
-        try:
-            strategy = get_strategy(strategy_name, file_ext, parameters)
-            logger.info("strategy: {}", strategy)
-        except Exception as e:
-            logger.error(f"Failed to load strategy: {e}", exc_info=True)
-            raise
-        
-        # Progress pusher (runId가 없으면 fileNo로 대체)
-        try:
-            run_id_param = None
-            if isinstance(parameters, dict):
-                run_id_param = parameters.get("runId")
-        except Exception:
-            run_id_param = None
-
-        progress_pusher = IngestProgressPusher(
-            user_id=x_user_uuid,
-            file_no=file_no,
-            run_id=None,
-            step_name="EXTRACTION",
-        )
-        
-        logger.info(f"[PROGRESS] Progress pusher 초기화 - runId={progress_pusher.run_id}, fileNo={file_no}, userId={x_user_uuid}")
-
         # 전략에 전달할 parameters 복사 (progress_cb 추가용)
         strategy_params = dict(parameters) if isinstance(parameters, dict) else {}
         
@@ -229,6 +202,27 @@ async def extract_process(
             except Exception:
                 # 진행률 전송 실패는 무시
                 pass
+
+        # Progress pusher (runId가 없으면 fileNo로 대체)
+        progress_pusher = IngestProgressPusher(
+            user_id=x_user_uuid,
+            file_no=file_no,
+            run_id=None,
+            step_name="EXTRACTION",
+        )
+        logger.info(f"[PROGRESS] Progress pusher 초기화 - runId={progress_pusher.run_id}, fileNo={file_no}, userId={x_user_uuid}")
+
+        # 콜백을 전략 파라미터에 주입
+        strategy_params["progress_cb"] = _progress_cb
+
+        # 전략 로드
+        logger.info(f"Extraction strategy: {strategy_name}, parameters: {strategy_params}")
+        try:
+            strategy = get_strategy(strategy_name, file_ext, strategy_params)
+            logger.info("strategy: {}", strategy)
+        except Exception as e:
+            logger.error(f"Failed to load strategy: {e}", exc_info=True)
+            raise
 
         # extract() 메서드 호출
         try:
