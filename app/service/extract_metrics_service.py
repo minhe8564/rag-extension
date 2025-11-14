@@ -16,7 +16,7 @@ class ExtractMetricsService:
     def __init__(self):
         self.redis_client: Optional[Redis] = None
         self.metrics_key: str = "extract:metrics:response_time"
-        self.ttl_seconds = 300
+        self.ttl_seconds = 86400  # 1일
         self.metrics_redis_db = 4
 
     async def _get_redis_client(self) -> Redis:
