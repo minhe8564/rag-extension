@@ -43,4 +43,52 @@ public class ChatbotAggregateHourly extends BaseEntity {
     @Column(name = "RESPONSE_COUNT", nullable = false)
     @Builder.Default
     private Long responseCount = 0L; // 응답 수
+
+    public void recordUsage(long inputTokenDelta, long outputTokenDelta, long responseTimeMs) {
+        inputTokens = safeAdd(inputTokens, inputTokenDelta);
+        outputTokens = safeAdd(outputTokens, outputTokenDelta);
+        totalTokens = safeSum(inputTokens, outputTokens);
+        totalResponseTimeMs = safeFloatAdd(totalResponseTimeMs, Math.max(responseTimeMs, 0L));
+        responseCount = safeAdd(responseCount, 1L);
+    }
+
+    private long safeAdd(Long base, long delta) {
+        long current = base != null ? base : 0L;
+        long updated;
+        try {
+            updated = Math.addExact(current, delta);
+        } catch (ArithmeticException e) {
+            updated = delta >= 0 ? Long.MAX_VALUE : 0L;
+        }
+        if (updated < 0L) {
+            updated = 0L;
+        }
+        return updated;
+    }
+
+    private long safeSum(long left, long right) {
+        long updated;
+        try {
+            updated = Math.addExact(left, right);
+        } catch (ArithmeticException e) {
+            updated = Long.MAX_VALUE;
+        }
+        if (updated < 0L) {
+            updated = 0L;
+        }
+        return updated;
+    }
+
+    private float safeFloatAdd(Float base, long delta) {
+        float current = base != null ? base : 0F;
+        float addition = delta >= 0L ? Math.min(delta, (long) Float.MAX_VALUE) : 0F;
+        float updated = current + addition;
+        if (Float.isInfinite(updated) || Float.isNaN(updated)) {
+            return Float.MAX_VALUE;
+        }
+        if (updated < 0F) {
+            return 0F;
+        }
+        return updated;
+    }
 }
