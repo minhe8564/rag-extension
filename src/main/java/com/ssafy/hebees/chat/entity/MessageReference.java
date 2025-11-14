@@ -14,25 +14,25 @@ import org.springframework.data.mongodb.core.mapping.Field;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class MessageReference {
 
-    @Field("FILE_NO")
+    @Field("fileNo")
     private UUID fileNo;
 
-    @Field("NAME")
+    @Field("name")
     private String name;
 
-    @Field("TITLE")
+    @Field("title")
     private String title;
 
-    @Field("TYPE")
+    @Field("type")
     private String type;
 
-    @Field("INDEX")
+    @Field("index")
     private Integer index;
 
-    @Field("DOWNLOAD_URL")
+    @Field("downloadUrl")
     private String downloadUrl;
 
-    @Field("SNIPPET")
+    @Field("snippet")
     private String snippet;
 }
 
