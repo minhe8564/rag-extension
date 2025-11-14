@@ -15,10 +15,9 @@ class StoreInfo(BaseModel):
 
 
 class PaymentBreakdown(BaseModel):
-    """결제 수단 비율"""
+    """결제 수단 비율 (카드, 현금, 상품권)"""
     card: Decimal = Field(..., description="카드 결제 비율 (0.0 ~ 1.0)")
     cash: Decimal = Field(..., description="현금 결제 비율 (0.0 ~ 1.0)")
-    cash_receipt: Decimal = Field(..., description="현금영수증 비율 (0.0 ~ 1.0)")
     voucher: Decimal = Field(..., description="상품권 비율 (0.0 ~ 1.0)")
 
 
@@ -83,7 +82,10 @@ class MonthlySalesReport(BaseModel):
     total_sales: Decimal = Field(..., description="총 판매금액")
 
     # 💳 결제 수단 비율
-    payment_breakdown: PaymentBreakdown = Field(..., description="결제 수단 비율")
+    payment_breakdown: PaymentBreakdown = Field(..., description="결제 수단 비율 (카드, 현금, 상품권)")
+
+    # 🧾 현금영수증 발급 금액
+    cash_receipt_amount: Decimal = Field(..., description="현금영수증 발급 금액")
 
     # 👥 재방문 고객 비율
     returning_customer_rate: Decimal = Field(..., description="재방문 고객 비율 (0.0 ~ 1.0)")
@@ -117,9 +119,9 @@ class MonthlySalesReport(BaseModel):
                 "payment_breakdown": {
                     "card": "0.75",
                     "cash": "0.20",
-                    "cash_receipt": "0.03",
-                    "voucher": "0.02"
+                    "voucher": "0.05"
                 },
+                "cash_receipt_amount": "3000000",
                 "returning_customer_rate": "0.65",
                 "new_customers_count": 43,
                 "month_over_month_growth": "0.05",
