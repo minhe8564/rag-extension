@@ -35,13 +35,22 @@ public class RunpodClient {
     private final ObjectMapper objectMapper;
 
     public RunpodChatResult chat(List<RunpodChatMessage> messages) {
-        String baseUrl = properties.getBaseUrl();
+        return chat(messages, null, null, null);
+    }
+
+    public RunpodChatResult chat(
+        List<RunpodChatMessage> messages,
+        String baseUrlOverride,
+        String modelOverride,
+        String apiKeyOverride
+    ) {
+        String baseUrl = StringUtils.hasText(baseUrlOverride) ? baseUrlOverride : properties.getBaseUrl();
         if (!StringUtils.hasText(baseUrl)) {
             log.error("Runpod base URL is not configured");
             throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
 
-        String model = properties.getModel();
+        String model = StringUtils.hasText(modelOverride) ? modelOverride : properties.getModel();
         if (!StringUtils.hasText(model)) {
             log.error("Runpod model is not configured");
             throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
@@ -55,6 +64,10 @@ public class RunpodClient {
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
+        String apiKey = StringUtils.hasText(apiKeyOverride) ? apiKeyOverride : properties.getApiKey();
+        if (StringUtils.hasText(apiKey)) {
+            headers.setBearerAuth(apiKey);
+        }
 
         HttpEntity<RunpodChatRequest> entity = new HttpEntity<>(payload, headers);
 

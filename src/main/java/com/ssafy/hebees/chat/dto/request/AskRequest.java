@@ -1,12 +1,39 @@
 package com.ssafy.hebees.chat.dto.request;
 
+import com.mongodb.lang.Nullable;
+import com.ssafy.hebees.common.exception.BusinessException;
+import com.ssafy.hebees.common.exception.ErrorCode;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import java.util.UUID;
+import org.springframework.util.StringUtils;
 
 @Schema(description = "질문 요청 DTO")
 public record AskRequest(
-    @NotBlank(message = "질문 내용은 비어 있을 수 없습니다.")
-    String content
+    @Nullable
+    @Schema(description = "질문할 세션 ID")
+    UUID sessionNo,
+
+    @NotNull
+    @Schema(description = "사용할 LLM ID")
+    UUID llmNo,
+
+    @Nullable
+    @Schema(description = "질문 내용 (삭제 예정)")
+    String content,
+
+    @Nullable
+    @Schema(description = "질문 내용")
+    String query
 ) {
 
+    public AskRequest{
+        if(!StringUtils.hasText(query) && !StringUtils.hasText(content)){
+            throw new BusinessException(ErrorCode.BAD_REQUEST);
+        }
+    }
+
+    public String getQuery() {
+        return StringUtils.hasText(query) ? query : content;
+    }
 }

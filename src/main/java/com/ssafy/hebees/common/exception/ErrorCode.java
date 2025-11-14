@@ -26,10 +26,7 @@ public enum ErrorCode {
     INVALID_FILE_NAME(HttpStatus.BAD_REQUEST, "잘못된 파일명입니다"),
     VALIDATION_FAILED(HttpStatus.BAD_REQUEST, "유효성 검증에 실패했습니다"),
     INPUT_NULL(HttpStatus.BAD_REQUEST, "입력값이 NULL 입니다"),
-
-    // 중복 / 상태 충돌 (409)
-    ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 존재하는 데이터입니다"),
-    USER_ROLE_IN_USE(HttpStatus.CONFLICT, "사용 중인 사용자 역할은 삭제할 수 없습니다"),
+    INPUT_BLANK(HttpStatus.BAD_REQUEST, "입력값이 비어있습니다"),
 
     // 리소스 없음 (404)
     NOT_FOUND(HttpStatus.NOT_FOUND, "대상 데이터를 찾을 수 없습니다"),
@@ -37,6 +34,10 @@ public enum ErrorCode {
     OFFER_NOT_FOUND(HttpStatus.NOT_FOUND, "가맹점 정보를 찾을 수 없습니다"),
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."),
     SESSION_NOT_FOUND(HttpStatus.NOT_FOUND, "세션(채팅방)을 찾을 수 없습니다."),
+
+    // 중복 / 상태 충돌 (409)
+    ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 존재하는 데이터입니다"),
+    USER_ROLE_IN_USE(HttpStatus.CONFLICT, "사용 중인 사용자 역할은 삭제할 수 없습니다"),
 
     // 서버 오류 (500)
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 내부 오류가 발생했습니다");

@@ -1,18 +1,17 @@
 package com.ssafy.hebees.chat.service;
 
-import com.ssafy.hebees.chat.client.RunpodClient;
-import com.ssafy.hebees.chat.client.dto.RunpodChatMessage;
-import com.ssafy.hebees.chat.client.dto.RunpodChatResult;
+import com.ssafy.hebees.chat.client.dto.LlmChatMessage;
+import com.ssafy.hebees.chat.client.dto.LlmChatResult;
+import com.ssafy.hebees.chat.dto.request.AskRequest;
 import com.ssafy.hebees.chat.dto.request.MessageCreateRequest;
 import com.ssafy.hebees.chat.dto.response.AskResponse;
 import com.ssafy.hebees.chat.dto.response.MessageResponse;
 import com.ssafy.hebees.chat.entity.MessageRole;
 import com.ssafy.hebees.chat.entity.Session;
 import com.ssafy.hebees.chat.repository.SessionRepository;
-import com.ssafy.hebees.dashboard.model.service.ChatbotUsageStreamService;
+import com.ssafy.hebees.common.util.ValidationUtil;
 import com.ssafy.hebees.common.exception.BusinessException;
 import com.ssafy.hebees.common.exception.ErrorCode;
-import com.ssafy.hebees.common.util.UserValidationUtil;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -31,86 +30,92 @@ public class ChatAskServiceImpl implements ChatAskService {
 
     private final SessionRepository sessionRepository;
     private final MessageService messageService;
-    private final RunpodClient runpodClient;
-    private final ChatbotUsageStreamService chatbotUsageStreamService;
+    private final LlmChatGateway llmChatGateway;
 
     @Override
-    public AskResponse ask(UUID userNo, UUID sessionNo, String question) {
-        UserValidationUtil.requireUser(userNo);
-        UUID owner = userNo;
-        UUID sessionId = requireSession(sessionNo);
-        String sanitizedQuestion = sanitize(question);
+    public AskResponse ask(UUID userNo, UUID sessionNo, AskRequest request) {
+        ValidationUtil.require(userNo);
+        ValidationUtil.require(sessionNo);
+        String sanitizedQuery = sanitize(request.getQuery());
 
-        Session session = sessionRepository.findBySessionNo(sessionId)
-            .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
+        Session session = sessionRepository.findBySessionNo(sessionNo)
+            .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
 
-        if (!session.getUserNo().equals(owner)) {
-            log.warn("세션 접근 거부: requester={}, sessionNo={}", owner, sessionId);
-            throw new BusinessException(ErrorCode.PERMISSION_DENIED);
+        // 자신의 채팅방이 아니면 채팅 불가
+        if (!session.getUserNo().equals(userNo)) {
+            log.warn("세션 접근 거부: requester={}, sessionNo={}", userNo, sessionNo);
+            throw new BusinessException(ErrorCode.OWNER_ACCESS_DENIED);
         }
 
         session.updateLastRequestedAt(LocalDateTime.now());
 
-        chatbotUsageStreamService.recordChatbotRequest(owner, sessionId);
-
         // 사용자 메시지 저장
-        messageService.createMessage(owner, sessionId,
-            buildHumanMessage(owner, session, sanitizedQuestion));
+        messageService.createMessage(sessionNo,
+            buildHumanMessage(userNo, sanitizedQuery));
 
         // 대화 이력 조회
-        List<MessageResponse> history = messageService.getAllMessages(owner, sessionId);
-        List<RunpodChatMessage> runpodMessages = history.stream()
-            .map(this::toRunpodMessage)
+        List<MessageResponse> history = messageService.getAllMessages(userNo, sessionNo);
+        List<LlmChatMessage> llmMessages = history.stream()
+            .map(this::toChatMessage)
             .filter(Optional::isPresent)
             .map(Optional::get)
             .toList();
 
-        if (runpodMessages.isEmpty()) {
-            log.error("Runpod에 전달할 메시지가 없습니다. sessionNo={}, userNo={}", sessionId, owner);
+        // 사용자 질문 저장 실패
+        if (llmMessages.isEmpty()) {
+            log.error("LLM에 전달할 메시지가 없습니다. sessionNo={}, userNo={}", sessionNo, userNo);
             throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
 
-        RunpodChatResult runpodResponse = runpodClient.chat(runpodMessages);
-        String answer = sanitize(runpodResponse.content());
+        LlmChatResult llmResult = llmChatGateway.chat(userNo, request.llmNo(), llmMessages);
+        String answer = Optional.ofNullable(llmResult.content()).orElse("");
 
-        MessageResponse aiMessage = messageService.createMessage(owner, sessionId,
-            buildAiMessage(owner, session, answer));
+        MessageResponse aiMessage = messageService.createMessage(sessionNo,
+            buildAiMessage(
+                request.llmNo(),
+                answer,
+                llmResult.inputTokens(),
+                llmResult.outputTokens(),
+                llmResult.totalTokens(),
+                llmResult.responseTimeMs()
+            ));
 
-        LocalDateTime timestamp = Optional.ofNullable(aiMessage.createdAt())
-            .orElseGet(LocalDateTime::now);
-
-        return new AskResponse(answer, timestamp);
-    }
-
-    private MessageCreateRequest buildHumanMessage(UUID owner, Session session, String content) {
-        return new MessageCreateRequest(
-            MessageRole.HUMAN,
-            content,
-            owner,
-            session.getLlmNo(),
-            null,
-            null,
-            null,
-            null,
-            List.of()
+        return new AskResponse(
+            aiMessage.messageNo(),
+            aiMessage.role().getValue(),
+            aiMessage.content(),
+            aiMessage.createdAt()
         );
     }
 
-    private MessageCreateRequest buildAiMessage(UUID owner, Session session, String content) {
-        return new MessageCreateRequest(
-            MessageRole.AI,
-            content,
-            owner,
-            session.getLlmNo(),
-            null,
-            null,
-            null,
-            null,
-            List.of()
-        );
+    private MessageCreateRequest buildHumanMessage(UUID userNo, String content) {
+        return MessageCreateRequest.builder()
+            .role(MessageRole.HUMAN)
+            .content(content)
+            .userNo(userNo)
+            .build();
     }
 
-    private Optional<RunpodChatMessage> toRunpodMessage(MessageResponse message) {
+    private MessageCreateRequest buildAiMessage(
+        UUID llmNo,
+        String content,
+        Long inputTokens,
+        Long outputTokens,
+        Long totalTokens,
+        Long responseTimeMs
+    ) {
+        return MessageCreateRequest.builder()
+            .role(MessageRole.AI)
+            .content(content)
+            .llmNo(llmNo)
+            .inputTokens(inputTokens)
+            .outputTokens(outputTokens)
+            .totalTokens(totalTokens)
+            .responseTimeMs(responseTimeMs)
+            .build();
+    }
+
+    private Optional<LlmChatMessage> toChatMessage(MessageResponse message) {
         if (message == null || !StringUtils.hasText(message.content())) {
             return Optional.empty();
         }
@@ -122,19 +127,12 @@ public class ChatAskServiceImpl implements ChatAskService {
             case TOOL -> "tool";
         };
 
-        return Optional.of(RunpodChatMessage.of(role, message.content()));
-    }
-
-    private UUID requireSession(UUID sessionNo) {
-        if (sessionNo == null) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT);
-        }
-        return sessionNo;
+        return Optional.of(new LlmChatMessage(role, message.content()));
     }
 
     private String sanitize(String text) {
         if (!StringUtils.hasText(text)) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT);
+            throw new BusinessException(ErrorCode.INPUT_BLANK);
         }
         return text.trim();
     }
