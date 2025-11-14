@@ -12,6 +12,8 @@ import com.ssafy.hebees.chat.repository.SessionRepository;
 import com.ssafy.hebees.common.util.ValidationUtil;
 import com.ssafy.hebees.common.exception.BusinessException;
 import com.ssafy.hebees.common.exception.ErrorCode;
+import com.ssafy.hebees.ragsetting.entity.Strategy;
+import com.ssafy.hebees.ragsetting.repository.StrategyRepository;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -31,6 +33,7 @@ public class ChatAskServiceImpl implements ChatAskService {
     private final SessionRepository sessionRepository;
     private final MessageService messageService;
     private final LlmChatGateway llmChatGateway;
+    private final StrategyRepository strategyRepository;
 
     @Override
     public AskResponse ask(UUID userNo, UUID sessionNo, AskRequest request) {
@@ -67,7 +70,13 @@ public class ChatAskServiceImpl implements ChatAskService {
             throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
 
-        LlmChatResult llmResult = llmChatGateway.chat(userNo, request.llmNo(), llmMessages);
+        UUID llmNo = request.llmNo();
+        if(StringUtils.hasText(request.model())){
+            llmNo = strategyRepository.findByNameAndCodeStartingWith(request.model(), "GEN")
+                .orElseThrow(()->new BusinessException(ErrorCode.BAD_REQUEST)).getStrategyNo();
+        }
+
+        LlmChatResult llmResult = llmChatGateway.chat(userNo, llmNo, llmMessages);
         String answer = Optional.ofNullable(llmResult.content()).orElse("");
 
         MessageResponse aiMessage = messageService.createMessage(sessionNo,
