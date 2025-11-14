@@ -3,6 +3,9 @@ from typing import Any, List
 # ✅ LangChain Core (1.x LCEL 구조 표준)
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
+from loguru import logger
+
+from app.service.history_stream_service import get_history_stream_service
 
 
 class CustomMongoChatMessageHistory(BaseChatMessageHistory):  # type: ignore[misc]
@@ -154,21 +157,42 @@ class CustomMongoChatMessageHistory(BaseChatMessageHistory):  # type: ignore[mis
 			input_tok_val = ai_payload.get("input_tokens") or 0
 			ai_payload["total_tokens"] = (input_tok_val or 0) + (computed_out or 0)
 
+			llm_no_value = ai_payload.get("llm_no") if isinstance(ai_payload, dict) else None
+			input_tokens_value = ai_payload.get("input_tokens") if isinstance(ai_payload, dict) else None
+			output_tokens_value = ai_payload.get("output_tokens") if isinstance(ai_payload, dict) else computed_out
+			total_tokens_value = ai_payload.get("total_tokens") if isinstance(ai_payload, dict) else None
+			response_time_value = ai_payload.get("response_time_ms") if isinstance(ai_payload, dict) else None
+
 			self._manager.save_custom_message(
 				user_id=self._user_id,
 				session_id=self._session_id,
 				role="AI",
 				content=content,
 				references=normalized_references,
-				llm_no=ai_payload.get("llm_no") if isinstance(ai_payload, dict) else None,
-				input_tokens=ai_payload.get("input_tokens") if isinstance(ai_payload, dict) else None,
-				output_tokens=ai_payload.get("output_tokens") if isinstance(ai_payload, dict) else None,
-				total_tokens=ai_payload.get("total_tokens") if isinstance(ai_payload, dict) else None,
-				response_time_ms=ai_payload.get("response_time_ms") if isinstance(ai_payload, dict) else None,
+				llm_no=llm_no_value,
+				input_tokens=input_tokens_value,
+				output_tokens=output_tokens_value,
+				total_tokens=total_tokens_value,
+				response_time_ms=response_time_value,
 				session_no=self._context.get("session_no"),
 				allow_insert=True,
 				allow_update=False,
 			)
+
+			try:
+				history_stream_service = get_history_stream_service()
+				history_stream_service.append_ai_metrics(
+					user_id=str(self._user_id),
+					session_id=str(self._session_id),
+					llm_no=llm_no_value,
+					input_tokens=input_tokens_value,
+					output_tokens=output_tokens_value,
+					total_tokens=total_tokens_value,
+					response_time_ms=response_time_value,
+				)
+			except Exception as stream_error:
+				# Redis 스트림 저장 실패는 히스토리 저장에 영향을 주지 않는다.
+				logger.warning(f"Failed to append history metrics to Redis stream: {stream_error}")
 
 		def add_message(self, message: BaseMessage) -> None:  # type: ignore[override]
 			if isinstance(message, HumanMessage):

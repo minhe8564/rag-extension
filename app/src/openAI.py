@@ -29,7 +29,7 @@ class OpenAI(BaseGenerationStrategy):
         super().__init__(parameters)
 
         # 환경변수에서 OpenAI API 키 가져오기
-        self.openai_api_key = os.getenv("OPENAI_API_KEY")
+        self.openai_api_key =  os.getenv("OPENAI_API_KEY")
 
         # 파라미터에서 설정값 가져오기
         self.model_name = self.parameters.get("model_name", "gpt-4o")
