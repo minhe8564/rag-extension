@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
-import { SendHorizonal } from 'lucide-react';
+import { SendHorizonal, ArrowDown } from 'lucide-react';
+import clsx from 'clsx';
 
 type ChatMode = 'llm' | 'rag';
 
@@ -8,6 +9,7 @@ type Props = {
   variant?: 'retina' | 'hebees';
   mode?: ChatMode;
   onChangeMode?: (mode: ChatMode) => void;
+  watch?: number;
 };
 
 export default function ChatInput({
@@ -15,12 +17,16 @@ export default function ChatInput({
   variant = 'retina',
   mode = 'llm',
   onChangeMode,
+  watch,
 }: Props) {
   const [text, setText] = useState('');
   const composingRef = useRef(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const [isTall, setIsTall] = useState(false);
+
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const [hasUnseen, setHasUnseen] = useState(false);
 
   const send = () => {
     const content = text.trim();
@@ -68,6 +74,46 @@ export default function ChatInput({
     setIsTall(el.scrollHeight > 60);
   }, [text]);
 
+  const isAtBottom = () => {
+    const doc = document.documentElement;
+    const scrollTop = window.scrollY || doc.scrollTop;
+    const clientHeight = window.innerHeight;
+    const scrollHeight = doc.scrollHeight;
+
+    const delta = scrollHeight - (scrollTop + clientHeight);
+    return delta <= 50;
+  };
+
+  const scrollToBottom = () => {
+    const doc = document.documentElement;
+    const scrollHeight = doc.scrollHeight;
+    window.scrollTo({
+      top: scrollHeight,
+      behavior: 'smooth',
+    });
+  };
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const atBottom = isAtBottom();
+      setShowScrollButton(!atBottom);
+      if (atBottom) {
+        setHasUnseen(false);
+      }
+    };
+
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useEffect(() => {
+    if (watch === undefined) return;
+    if (!isAtBottom()) {
+      setHasUnseen(true);
+    }
+  }, [watch]);
+
   const buttonColor =
     variant === 'hebees'
       ? 'bg-[var(--color-hebees)] hover:bg-[var(--color-hebees-dark)]'
@@ -87,7 +133,32 @@ export default function ChatInput({
       : `${brandLabel}은(는) 일반 LLM 대화 모드로 응답합니다.`;
 
   return (
-    <div className="flex flex-col items-center w-full gap-3">
+    <div className="relative flex flex-col items-center w-full gap-3">
+      {showScrollButton && (
+        <button
+          type="button"
+          onClick={() => {
+            scrollToBottom();
+            setHasUnseen(false);
+          }}
+          className={clsx(
+            'absolute right-100 -top-1',
+            'inline-flex items-center gap-2 rounded-full border bg-white px-3 py-2 text-sm shadow-lg',
+            'text-gray-700 hover:bg-gray-50 transition',
+            'focus:outline-none focus-visible:outline-none'
+          )}
+        >
+          {hasUnseen && (
+            <span className="relative mr-1 inline-flex h-2.5 w-2.5 items-center justify-center">
+              <span className="absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-60 animate-ping"></span>
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500 animate-pulse"></span>
+            </span>
+          )}
+          <ArrowDown size={16} />
+          최신 메시지
+        </button>
+      )}
+
       <div className="w-full flex items-center justify-between px-1">
         <div className="inline-flex items-center gap-1 rounded-full bg-gray-100 p-1 text-sm">
           <button

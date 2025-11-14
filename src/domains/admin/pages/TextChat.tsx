@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 import ChatInput from '@/shared/components/chat/ChatInput';
 import ChatMessageItem from '@/shared/components/chat/ChatMessageItem';
-import ScrollToBottomButton from '@/shared/components/chat/ScrollToBottomButton';
 import { getSession, getMessages, sendMessage } from '@/shared/api/chat.api';
 import type { UiMsg, UiRole } from '@/shared/components/chat/ChatMessageItem';
 import type {
@@ -201,8 +200,12 @@ export default function TextChat() {
   };
 
   const isAtBottom = () => {
-    const el = scrollRef.current;
-    return !el || el.scrollTop + el.clientHeight >= el.scrollHeight - 50;
+    const doc = document.documentElement;
+    const scrollTop = window.scrollY || doc.scrollTop;
+    const clientHeight = window.innerHeight;
+    const scrollHeight = doc.scrollHeight;
+
+    return scrollTop + clientHeight >= scrollHeight - 50;
   };
 
   useEffect(() => {
@@ -214,17 +217,20 @@ export default function TextChat() {
     if (isAtBottom()) bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [list.length]);
 
-  const handleScroll: React.UIEventHandler<HTMLDivElement> = (e) => {
-    const el = e.currentTarget;
-    if (historyLoading) {
-      return;
-    }
-    if (!hasMoreHistory) return;
-    if (el.scrollTop <= 30) {
-      console.log('[scroll] top reached → loadOlderMessages() 호출');
-      void loadOlderMessages();
-    }
-  };
+  useEffect(() => {
+    const handleWindowScroll = () => {
+      const doc = document.documentElement;
+      const scrollTop = window.scrollY || doc.scrollTop;
+
+      // 위쪽(페이지 최상단 근처) 도달 시 지난 히스토리 로딩
+      if (!historyLoading && hasMoreHistory && scrollTop <= 30) {
+        void loadOlderMessages();
+      }
+    };
+
+    window.addEventListener('scroll', handleWindowScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleWindowScroll);
+  }, [historyLoading, hasMoreHistory, historyCursor, currentSessionNo]);
 
   const fillPendingAssistant = (content: string, createdAt?: string, messageNo?: string) => {
     setList((prev: UiMsg[]) =>
@@ -300,7 +306,7 @@ export default function TextChat() {
 
   if (initialLoading) {
     return (
-      <section className="flex flex-col min-h-[calc(100vh-82px)] h-[calc(100vh-82px)]">
+      <section className="flex flex-col min-h-[calc(100vh-82px)]">
         <div className="flex-1 flex items-center justify-center px-4">
           <div className="bg-gray-100 px-4 py-3 rounded-2xl shadow-sm flex items-center gap-2">
             <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.2s]" />
@@ -316,10 +322,8 @@ export default function TextChat() {
     <section className="flex min-h-[calc(100vh-82px)] flex-col">
       {list.length > 0 ? (
         <>
-          {/* 메시지 스크롤 영역 */}
           <div
             ref={scrollRef}
-            onScroll={handleScroll}
             className="relative flex-1 min-h-0 w-full flex justify-center overflow-y-auto no-scrollbar"
           >
             <div className="w-full h-full max-w-[75%] space-y-10 px-12 py-4">
@@ -353,17 +357,17 @@ export default function TextChat() {
 
               <div ref={bottomRef} className="h-6" />
             </div>
-
-            <ScrollToBottomButton
-              containerRef={scrollRef}
-              watch={list.length}
-              className="absolute right-8 bottom-6"
-            />
           </div>
 
           <div className="sticky bottom-0 w-full flex justify-center">
             <div className="w-full max-w-[75%]">
-              <ChatInput onSend={handleSend} variant="hebees" mode={mode} onChangeMode={setMode} />
+              <ChatInput
+                onSend={handleSend}
+                variant="hebees"
+                mode={mode}
+                onChangeMode={setMode}
+                watch={list.length}
+              />
             </div>
           </div>
         </>
@@ -378,6 +382,7 @@ export default function TextChat() {
                   variant="hebees"
                   mode={mode}
                   onChangeMode={setMode}
+                  watch={list.length}
                 />
               </div>
             </div>
