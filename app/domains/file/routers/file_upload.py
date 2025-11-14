@@ -5,17 +5,11 @@ from importlib import import_module
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, File as FFile, UploadFile, Request, HTTPException, status, Query, BackgroundTasks
+from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List, Tuple
+import logging
+from datetime import datetime, timezone
 
-try:
-    _redis_exceptions = import_module("redis.exceptions")
-    REDIS_ERROR_TYPES: Tuple[type[BaseException], ...] = (_redis_exceptions.RedisError,)
-except ModuleNotFoundError:
-    class _RedisErrorFallback(Exception):
-        """Fallback used when redis.exceptions is unavailable."""
-
-    REDIS_ERROR_TYPES = (_RedisErrorFallback,)
 from app.core.database import get_db
 from app.core.schemas import BaseResponse
 from ..schemas.response.upload_files import FileUploadBatchResult
@@ -24,7 +18,14 @@ from ..schemas.request.upload_files import FileUploadRequest
 from ..services.upload import upload_files as upload_files_service
 from app.core.clients.redis_client import get_metrics_redis_client, get_redis_client
 from app.core.config.settings import settings
+from importlib import import_module
 
+try:
+    _redis_exceptions = import_module("redis.exceptions")
+    REDIS_ERROR_TYPES = (_redis_exceptions.RedisError,)
+except ModuleNotFoundError:
+    class _RedisErrorFallback(Exception):
+        """Fallback used when redis.exceptions is unavailable."""
 
 UPLOAD_COUNT_KEY = "metrics:uploads:total_count"
 
@@ -98,7 +99,6 @@ async def upload_file(
 
     # ingest 옵션이 true일 때만 수행
     if autoIngest:
-        redis = None
         try:
             redis = get_redis_client()
             n = len(batch_meta.files)
@@ -112,7 +112,6 @@ async def upload_file(
                 run_id = run_ids[idx]
                 meta_key = f"ingest:run:{run_id}:meta"
                 events_key = f"ingest:run:{run_id}:events"
-                
                 pipe.hset(
                     meta_key,
                     mapping={
@@ -159,7 +158,56 @@ async def upload_file(
                     maxlen=1000,                     # 스트림 길이 관리 (approximate trim)
                     approximate=True,
                 )
-        
+
+            # 유저 단위 summary 진행률 업데이트 (hash + stream)
+            try:
+                summary_key = f"ingest:summary:user:{x_user_uuid}"
+                summary = await redis.hgetall(summary_key)
+                prev_total = 0
+                prev_completed = 0
+                if summary:
+                    try:
+                        prev_total = int(summary.get("total", 0) or 0)
+                    except (TypeError, ValueError):
+                        prev_total = 0
+                    try:
+                        prev_completed = int(summary.get("completed", 0) or 0)
+                    except (TypeError, ValueError):
+                        prev_completed = 0
+
+                # 진행 중 라운드가 있다면 total에 누적, 아니면 새 라운드 시작
+                if prev_total > 0 and prev_completed < prev_total:
+                    total = prev_total + n
+                    completed = prev_completed
+                else:
+                    total = n
+                    completed = 0
+
+                await redis.hset(
+                    summary_key,
+                    mapping={
+                        "total": str(total),
+                        "completed": str(completed),
+                        "updatedAt": now_iso,
+                    },
+                )
+
+                # summary용 스트림 이벤트 추가 (event: summary)
+                await redis.xadd(
+                    "ingest:summary",
+                    fields={
+                        "eventType": "SUMMARY",
+                        "userId": x_user_uuid,
+                        "completed": str(completed),
+                        "total": str(total),
+                        "ts": str(now_ms),
+                    },
+                    maxlen=1000,
+                    approximate=True,
+                )
+            except REDIS_ERROR_TYPES:
+                logger.exception("Failed to update ingest summary in Redis")
+
             await pipe.execute()
         except RuntimeError:
             logger.exception("Failed to acquire Redis client for ingest metadata")
