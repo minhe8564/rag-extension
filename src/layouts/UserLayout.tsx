@@ -84,7 +84,7 @@ export default function UserLayout() {
   return (
     <div className="flex min-h-screen bg-transparent">
       <aside
-        className={`sticky top-0 self-start shrink-0 h-dvh flex flex-col bg-white transition-all duration-300 shadow-sm ${
+        className={`top-0 self-start shrink-0 h-dvh flex flex-col bg-white transition-all duration-300 shadow-sm ${
           isOpen ? 'w-64 border-r' : 'w-[64px] border-r'
         }`}
       >
@@ -95,7 +95,7 @@ export default function UserLayout() {
             </div>
           ) : (
             <div className="w-full flex justify-center">
-              <Tooltip content="사이드바 열기" side="right" shiftX={12}>
+              <Tooltip content="사이드바 열기" side="right" shiftX={12} portal={true}>
                 <button
                   onClick={() => setIsOpen((prev) => !prev)}
                   className="text-[var(--color-retina)] hover:text-[var(--color-retina-dark)]"
@@ -107,7 +107,7 @@ export default function UserLayout() {
           )}
 
           {isOpen && (
-            <Tooltip content="사이드바 닫기" side="right" shiftX={12}>
+            <Tooltip content="사이드바 닫기" side="right" shiftX={12} portal={true}>
               <button
                 onClick={() => setIsOpen(false)}
                 className="text-[var(--color-retina)] hover:text-[var(--color-retina-dark)]"
@@ -233,7 +233,7 @@ export default function UserLayout() {
 
       <main className="flex-1 min-w-0">
         <div
-          className={`sticky z-50 top-0 flex px-8 py-5 ${
+          className={`sticky z-[9999] top-0 flex px-8 py-5 ${
             isChatRoute ? 'justify-between' : 'justify-end'
           }`}
         >
@@ -242,7 +242,7 @@ export default function UserLayout() {
               options={modelOptions}
               value={selectedModel}
               onChange={(v) => setSelectedModel(v)}
-              className="w-[190px]"
+              className="w-[200px]"
               placeholder="모델 선택"
             />
           )}
