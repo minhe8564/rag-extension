@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { EventSourcePolyfill } from 'event-source-polyfill';
 import { FileText, CloudUpload, Zap, Database, CircleCheck } from 'lucide-react';
 import type { VectorizationItem } from '@/domains/admin/types/documents.types';
@@ -10,6 +10,7 @@ import type {
   IngestStreamProgress,
   IngestStreamSummary,
 } from '@/domains/admin/components/rag-test/types';
+import { toast } from 'react-toastify';
 
 // 단계별 progress 포함한 확장 구조
 type FileState = {
@@ -24,7 +25,13 @@ type FileState = {
   };
 };
 
-export default function VecProcess({ isUploadDone }: { isUploadDone: boolean }) {
+export default function VecProcess({
+  isUploadDone,
+  setIsUploadDone,
+}: {
+  isUploadDone: boolean;
+  setIsUploadDone: React.Dispatch<React.SetStateAction<boolean>>;
+}) {
   const [pageNum, setPageNum] = useState(1);
 
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
@@ -41,18 +48,40 @@ export default function VecProcess({ isUploadDone }: { isUploadDone: boolean }) 
     return validSteps.includes(step);
   };
 
+  // 이전 벡터화 내역 삭제
+  useEffect(() => {
+    queryClient.removeQueries({
+      queryKey: ['vectorization-progress'],
+      exact: false,
+    });
+    setFileStates({});
+    setSummary(null);
+    setSelectedFile(null);
+  }, []); // 최초 렌더 시 1번
+
   // 초기 데이터 조회
   const { data: progressData, refetch } = useQuery({
     queryKey: ['vectorization-progress', pageNum],
     queryFn: () => getVectorizationProgress(pageNum - 1, pageSize),
-    enabled: false,
     staleTime: 0,
+    enabled: false,
     refetchOnWindowFocus: false,
   });
 
+  const queryClient = useQueryClient();
+
+  // useEffect(() => {
+  //   if (isUploadDone) refetch();
+  // }, [isUploadDone]);
+
   useEffect(() => {
     if (isUploadDone) {
-      refetch(); // 최초 조회
+      queryClient.removeQueries({
+        queryKey: ['vectorization-progress'],
+        exact: false,
+      });
+
+      refetch();
     }
   }, [isUploadDone]);
 
@@ -72,58 +101,48 @@ export default function VecProcess({ isUploadDone }: { isUploadDone: boolean }) 
   // 초기 상태 설정
   useEffect(() => {
     if (!progressData) return;
-
+    console.log('🟦 API progressData:', progressData);
+    progressData?.data?.forEach((item: any) => {
+      console.log(`🟩 API item:`, item.fileNo, item.fileName, item.status);
+    });
     const initial: Record<string, FileState> = {};
 
-    items
-      .filter((item: VectorizationItem) => item.status !== 'COMPLETED')
-      .forEach((item: VectorizationItem) => {
-        if (item.status === 'COMPLETED') return;
+    items.forEach((item: VectorizationItem) => {
+      if (item.status === 'COMPLETED') return; // 완료 제외
 
-        const idx = validSteps.indexOf(item.currentStep);
+      const idx = validSteps.indexOf(item.currentStep);
 
-        const stepState = {
-          UPLOAD: 0,
-          EXTRACTION: 0,
-          EMBEDDING: 0,
-          VECTOR_STORE: 0,
-        };
+      const stepState = {
+        UPLOAD: 0,
+        EXTRACTION: 0,
+        EMBEDDING: 0,
+        VECTOR_STORE: 0,
+      };
 
-        // 현재 단계
-        if (isValidStep(item.currentStep)) {
-          stepState[item.currentStep] = item.progressPct ?? 0;
-        }
+      if (isValidStep(item.currentStep)) {
+        stepState[item.currentStep] = item.progressPct ?? 0;
+      }
 
-        // 이전 단계는 100으로
-        for (let i = 0; i < idx; i++) {
-          stepState[validSteps[i]] = 100;
-        }
+      for (let i = 0; i < idx; i++) {
+        stepState[validSteps[i]] = 100;
+      }
 
-        initial[item.fileNo] = {
-          overall: item.overallPct ?? 0,
-          status: item.status,
-          step: item.currentStep,
-          steps: stepState,
-        };
-      });
-
-    setFileStates((prev) => {
-      const next = { ...prev };
-
-      Object.entries(initial).forEach(([fileNo, state]) => {
-        // 이미 SSE에서 관리 중인 파일이면 덮어쓰지 않음
-        if (!next[fileNo]) {
-          next[fileNo] = state;
-        }
-      });
-
-      return next;
+      initial[item.fileNo] = {
+        overall: item.overallPct ?? 0,
+        status: item.status,
+        step: item.currentStep,
+        steps: stepState,
+      };
     });
-    setOverallStatus('RUNNING');
+
+    // 🔥🔥🔥 프론트 상태를 완전히 progressData 기반으로 재설정
+    setFileStates(initial);
 
     if (!selectedFile && items.length > 0) {
       setSelectedFile(items[0].fileNo);
     }
+
+    setOverallStatus('RUNNING');
   }, [progressData]);
 
   // SSE 연결
@@ -178,7 +197,7 @@ export default function VecProcess({ isUploadDone }: { isUploadDone: boolean }) 
         if (payload.status === 'COMPLETED' && isValidStep(payload.currentStep)) {
           newSteps[payload.currentStep] = 100;
         }
-        console.log(payload);
+        // console.log(payload);
         return {
           ...prev,
           [fileNo]: {
@@ -218,8 +237,12 @@ export default function VecProcess({ isUploadDone }: { isUploadDone: boolean }) 
         setSummary(payload);
         if (payload.completed === payload.total) {
           console.log('🎉 모든 ingest run 완료 → SSE 연결 종료');
-
+          toast.success('모든 파일이 업로드 되었습니다!');
+          setFileStates({}); // 초기화
+          setSelectedFile(null);
+          setIsUploadDone(false);
           setOverallStatus('DONE');
+          setIsUploadDone(false);
           // 약간의 지연 후 종료
           setTimeout(() => {
             eventSource.close();
@@ -240,24 +263,24 @@ export default function VecProcess({ isUploadDone }: { isUploadDone: boolean }) 
   }, [isUploadDone, token]);
 
   // 완료된 파일 제거
-  useEffect(() => {
-    setFileStates((prev) => {
-      const newState: Record<string, FileState> = {};
+  // useEffect(() => {
+  //   setFileStates((prev) => {
+  //     const newState: Record<string, FileState> = {};
 
-      Object.keys(prev).forEach((fileNo) => {
-        const state = prev[fileNo];
-        if (state.status !== 'COMPLETED') {
-          newState[fileNo] = state;
-        }
-      });
+  //     Object.keys(prev).forEach((fileNo) => {
+  //       const state = prev[fileNo];
+  //       if (state.status !== 'COMPLETED') {
+  //         newState[fileNo] = state;
+  //       }
+  //     });
 
-      return newState;
-    });
-  }, [
-    Object.values(fileStates)
-      .map((s) => s.status)
-      .join(','),
-  ]);
+  //     return newState;
+  //   });
+  // }, [
+  //   Object.values(fileStates)
+  //     .map((s) => s.status)
+  //     .join(','),
+  // ]);
 
   // 완료된 파일 제외, fileStates기반으로 보여줌
   const activeItems = Object.keys(fileStates)

@@ -129,7 +129,7 @@ export default function UploadTab() {
         </div>
       </div>
       <div>
-        <VecProcess isUploadDone={isUploadDone} />
+        <VecProcess isUploadDone={isUploadDone} setIsUploadDone={setIsUploadDone} />
       </div>
     </section>
   );
