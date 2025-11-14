@@ -25,7 +25,7 @@ public class RedisConfig {
     private static final int DB_ACTIVE_USER = 3; // 활성 사용자 정보
     private static final int DB_METRICS = 4; // 메트릭 정보
     private static final int DB_LOGIN_HISTORY = 8; // 로그인 사용자 정보
-    private static final int DB_CHATBOT_USAGE = 8; // 챗봇 사용량 정보
+    private static final int DB_DASHBOARD_USAGE = 8; // 대시보드 정보
 
     @Bean(name = "authLettuceConnectionFactory")
     @Primary
@@ -58,9 +58,9 @@ public class RedisConfig {
         return createLettuceConnectionFactory(props, DB_METRICS, true);
     }
 
-    @Bean(name = "chatbotUsageLettuceConnectionFactory")
-    public LettuceConnectionFactory chatbotUsageLettuceConnectionFactory(RedisProperties props) {
-        return createLettuceConnectionFactory(props, DB_CHATBOT_USAGE, true);
+    @Bean(name = "dashboardLettuceConnectionFactory")
+    public LettuceConnectionFactory dashboardLettuceConnectionFactory(RedisProperties props) {
+        return createLettuceConnectionFactory(props, DB_DASHBOARD_USAGE, true);
     }
 
     @Bean(name = "authRedisTemplate")
@@ -100,9 +100,9 @@ public class RedisConfig {
         return createRedisTemplate(connectionFactory, true);
     }
 
-    @Bean(name = "chatbotUsageRedisTemplate")
+    @Bean(name = "dashboardRedisTemplate")
     public StringRedisTemplate chatbotUsageRedisTemplate(
-        @Qualifier("chatbotUsageLettuceConnectionFactory") LettuceConnectionFactory connectionFactory) {
+        @Qualifier("dashboardLettuceConnectionFactory") LettuceConnectionFactory connectionFactory) {
         return createRedisTemplate(connectionFactory, true);
     }
 

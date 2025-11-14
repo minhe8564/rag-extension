@@ -43,7 +43,7 @@ public class GenerationHistoryStreamSubscriber {
     private static final String GROUP_NAME = "backend-generation-history";
 
     public GenerationHistoryStreamSubscriber(
-        @Qualifier("metricsRedisTemplate") StringRedisTemplate redisTemplate,
+        @Qualifier("dashboardRedisTemplate") StringRedisTemplate redisTemplate,
         AnalyticsExpenseStreamService analyticsExpenseStreamService,
         UsageAggregateHourlyRepository usageAggregateHourlyRepository,
         ChatbotUsageStreamService chatbotUsageStreamService
