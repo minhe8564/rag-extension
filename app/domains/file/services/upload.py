@@ -148,6 +148,16 @@ async def upload_files(
     await _ensure_category_exists(session, category_no_bytes)
     offer_no = await _get_offer_no_by_user(session, user_no_bytes)
 
+    # ADMIN 계정일 때는 bucket을 public/hebees 로만 허용
+    role_lower = (user_role or "").lower()
+    if role_lower == "admin":
+        norm_bucket = (bucket or "").strip().lower() if bucket is not None else ""
+        if norm_bucket not in {"public", "hebees"}:
+            raise HTTPException(
+                status_code=400,
+                detail="ADMIN 계정은 bucket 값으로 'public' 또는 'hebees'만 사용할 수 있습니다.",
+            )
+
     bucket_name, should_create = _resolve_bucket(bucket, offer_no)
     if should_create:
         ensure_bucket(bucket_name)
