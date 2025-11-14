@@ -1,12 +1,13 @@
 package com.ssafy.hebees.chat.service;
 
-import com.ssafy.hebees.chat.client.RunpodClient;
-import com.ssafy.hebees.chat.client.dto.RunpodChatMessage;
-import com.ssafy.hebees.chat.client.dto.RunpodChatResult;
+import com.ssafy.hebees.chat.client.dto.LlmChatMessage;
+import com.ssafy.hebees.chat.client.dto.LlmChatResult;
 import com.ssafy.hebees.chat.dto.request.SessionCreateRequest;
 import com.ssafy.hebees.common.exception.BusinessException;
 import com.ssafy.hebees.ragsetting.entity.AgentPrompt;
+import com.ssafy.hebees.ragsetting.entity.Strategy;
 import com.ssafy.hebees.ragsetting.repository.AgentPromptRepository;
+import com.ssafy.hebees.ragsetting.repository.StrategyRepository;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -19,8 +20,16 @@ import org.springframework.util.StringUtils;
 @RequiredArgsConstructor
 public class SessionTitleServiceImpl implements SessionTitleService {
 
-    private final RunpodClient runpodClient;
+    private static final String TITLE_PROMPT_NAME = "Title Generation";
+    private static final String TITLE_PROMPT_FALLBACK = """
+        You are an assistant that reads the user's question and replies only with a concise Korean session title under 15 characters. Do not include punctuation or any extra text.
+        """;
+    private static final String TITLE_STRATEGY_NAME = "GPT-4o";
+    private static final String TITLE_STRATEGY_CODE_PREFIX = "GEN";
+
+    private final LlmChatGateway llmChatGateway;
     private final AgentPromptRepository agentPromptRepository;
+    private final StrategyRepository strategyRepository;
 
     @Override
     public String generate(String query) {
@@ -29,19 +38,32 @@ public class SessionTitleServiceImpl implements SessionTitleService {
             return SessionCreateRequest.DEFAULT_TITLE;
         }
 
-        try {
-            AgentPrompt agentPrompt = agentPromptRepository.findByName("Title Generation")
-                .orElse(null);
-            String prompt = agentPrompt != null ? agentPrompt.getContent() :
-                "You are an assistant that reads the user's question and replies only with a concise Korean session title under 15 characters. Do not include punctuation or any extra text.";
+        Strategy strategy = strategyRepository
+            .findByNameAndCodeStartingWith(TITLE_STRATEGY_NAME, TITLE_STRATEGY_CODE_PREFIX)
+            .orElse(null);
+        if (strategy == null) {
+            log.warn("세션 제목 생성을 위한 LLM 전략을 찾을 수 없습니다. name={}, codePrefix={}",
+                TITLE_STRATEGY_NAME, TITLE_STRATEGY_CODE_PREFIX);
+            return fallbackTitle(sanitizedQuery);
+        }
 
-            RunpodChatResult result = runpodClient.chat(List.of(
-                RunpodChatMessage.of("system", prompt),
-                RunpodChatMessage.of("user", sanitizedQuery)
-            ));
+        String prompt = agentPromptRepository.findByName(TITLE_PROMPT_NAME)
+            .map(AgentPrompt::getContent)
+            .filter(StringUtils::hasText)
+            .orElse(TITLE_PROMPT_FALLBACK)
+            .strip();
+
+        try {
+            LlmChatResult result = llmChatGateway.chatWithSystem(
+                strategy.getStrategyNo(),
+                List.of(
+                    new LlmChatMessage("system", prompt),
+                    new LlmChatMessage("user", sanitizedQuery)
+                )
+            );
 
             String title = Optional.ofNullable(result)
-                .map(RunpodChatResult::content)
+                .map(LlmChatResult::content)
                 .map(String::trim)
                 .orElse("");
 
@@ -55,10 +77,10 @@ public class SessionTitleServiceImpl implements SessionTitleService {
 
             return title;
         } catch (BusinessException e) {
-            log.warn("Runpod 세션 제목 생성 실패: {}", e.getMessage());
+            log.warn("LLM 세션 제목 생성 실패: {}", e.getMessage());
             return fallbackTitle(sanitizedQuery);
         } catch (Exception e) {
-            log.error("Runpod 세션 제목 생성 중 알 수 없는 오류", e);
+            log.error("LLM 세션 제목 생성 중 알 수 없는 오류", e);
             return fallbackTitle(sanitizedQuery);
         }
     }

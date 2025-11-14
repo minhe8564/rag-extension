@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.BiFunction;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -55,66 +56,15 @@ public class LlmChatGateway {
     private final RunpodProperties runpodProperties;
 
     public LlmChatResult chat(UUID userNo, UUID strategyNo, List<LlmChatMessage> messages) {
-        if (strategyNo == null) {
+        if (userNo == null) {
             throw new BusinessException(ErrorCode.INVALID_INPUT);
         }
-        if (CollectionUtils.isEmpty(messages)) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT);
-        }
+        return chatInternal(strategyNo, messages,
+            (provider, strategy) -> resolveApiKey(userNo, provider, strategy));
+    }
 
-        Strategy strategy = strategyRepository.findByStrategyNo(strategyNo)
-            .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
-
-        LlmProvider provider = resolveProvider(strategy);
-        LlmChatClient client = clients.stream()
-            .filter(candidate -> candidate.supports(provider))
-            .findFirst()
-            .orElseThrow(() -> new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR));
-
-        String apiKey = resolveApiKey(userNo, provider, strategy);
-        String model = resolveModel(provider, strategy);
-        JsonNode parameter = strategy.getParameter();
-
-        List<LlmChatMessage> payloadMessages = new ArrayList<>();
-        if (!containsSystemMessage(messages)) {
-            String systemPrompt = resolveSystemPrompt()
-                .map(String::strip)
-                .filter(StringUtils::hasText)
-                .orElse(null);
-            if (StringUtils.hasText(systemPrompt)) {
-                payloadMessages.add(new LlmChatMessage("system", systemPrompt));
-            }
-        }
-        payloadMessages.addAll(messages);
-
-        LlmChatRequest request = new LlmChatRequest(
-            provider,
-            model,
-            apiKey,
-            payloadMessages,
-            parameter,
-            strategy.getName(),
-            strategy.getCode()
-        );
-
-        long startedAt = System.nanoTime();
-        LlmChatResult result = client.chat(request);
-        long responseTimeMs = Duration.ofNanos(System.nanoTime() - startedAt).toMillis();
-
-        if (result == null || !StringUtils.hasText(result.content())) {
-            log.error("LLM 응답이 비어있습니다. provider={}, strategy={}", provider, strategyNo);
-            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
-        }
-
-        String trimmedContent = result.content() != null ? result.content().strip() : null;
-        return new LlmChatResult(
-            result.role(),
-            trimmedContent,
-            result.inputTokens(),
-            result.outputTokens(),
-            result.totalTokens(),
-            responseTimeMs
-        );
+    public LlmChatResult chatWithSystem(UUID strategyNo, List<LlmChatMessage> messages) {
+        return chatInternal(strategyNo, messages, this::resolveSystemApiKey);
     }
 
     private boolean containsSystemMessage(List<LlmChatMessage> messages) {
@@ -175,10 +125,6 @@ public class LlmChatGateway {
     }
 
     private String resolveApiKey(UUID userNo, LlmProvider provider, Strategy strategy) {
-        if (userNo == null) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT);
-        }
-
         Optional<String> userKey = llmKeyRepository
             .findByUser_UuidAndStrategy_StrategyNo(userNo, strategy.getStrategyNo())
             .map(LlmKey::getApiKey)
@@ -211,6 +157,95 @@ public class LlmChatGateway {
             case CLAUDE -> anthropicProperties.getDefaultApiKey();
             case RUNPOD -> runpodProperties.getApiKey();
         };
+    }
+
+    private String resolveSystemApiKey(LlmProvider provider, Strategy strategy) {
+        Optional<String> systemKey = llmKeyRepository
+            .findFirstByUserIsNullAndStrategy_StrategyNo(strategy.getStrategyNo())
+            .map(LlmKey::getApiKey)
+            .filter(StringUtils::hasText);
+
+        if (systemKey.isPresent()) {
+            return systemKey.get();
+        }
+
+        String fallback = fallbackApiKey(provider, strategy);
+        if (StringUtils.hasText(fallback)) {
+            log.warn("시스템용 LLM 키를 찾지 못해 기본 키를 사용합니다. provider={}, strategy={}",
+                provider, strategy.getStrategyNo());
+            return fallback;
+        }
+
+        log.error("시스템용 LLM 키가 존재하지 않습니다. provider={}, strategy={}",
+            provider, strategy.getStrategyNo());
+        throw new BusinessException(ErrorCode.NOT_FOUND);
+    }
+
+    private LlmChatResult chatInternal(
+        UUID strategyNo,
+        List<LlmChatMessage> messages,
+        BiFunction<LlmProvider, Strategy, String> apiKeyResolver
+    ) {
+        if (strategyNo == null) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        }
+        if (CollectionUtils.isEmpty(messages)) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        }
+
+        Strategy strategy = strategyRepository.findByStrategyNo(strategyNo)
+            .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
+
+        LlmProvider provider = resolveProvider(strategy);
+        LlmChatClient client = clients.stream()
+            .filter(candidate -> candidate.supports(provider))
+            .findFirst()
+            .orElseThrow(() -> new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR));
+
+        String apiKey = apiKeyResolver.apply(provider, strategy);
+        String model = resolveModel(provider, strategy);
+        JsonNode parameter = strategy.getParameter();
+
+        List<LlmChatMessage> payloadMessages = new ArrayList<>();
+        if (!containsSystemMessage(messages)) {
+            String systemPrompt = resolveSystemPrompt()
+                .map(String::strip)
+                .filter(StringUtils::hasText)
+                .orElse(null);
+            if (StringUtils.hasText(systemPrompt)) {
+                payloadMessages.add(new LlmChatMessage("system", systemPrompt));
+            }
+        }
+        payloadMessages.addAll(messages);
+
+        LlmChatRequest request = new LlmChatRequest(
+            provider,
+            model,
+            apiKey,
+            payloadMessages,
+            parameter,
+            strategy.getName(),
+            strategy.getCode()
+        );
+
+        long startedAt = System.nanoTime();
+        LlmChatResult result = client.chat(request);
+        long responseTimeMs = Duration.ofNanos(System.nanoTime() - startedAt).toMillis();
+
+        if (result == null || !StringUtils.hasText(result.content())) {
+            log.error("LLM 응답이 비어있습니다. provider={}, strategy={}", provider, strategyNo);
+            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
+
+        String trimmedContent = result.content() != null ? result.content().strip() : null;
+        return new LlmChatResult(
+            result.role(),
+            trimmedContent,
+            result.inputTokens(),
+            result.outputTokens(),
+            result.totalTokens(),
+            responseTimeMs
+        );
     }
 
     private Optional<String> extractText(JsonNode node, String fieldName) {
