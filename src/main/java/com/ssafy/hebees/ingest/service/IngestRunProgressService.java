@@ -143,9 +143,6 @@ public class IngestRunProgressService {
 
         // Build page items (RUNNING with steps)
         List<IngestProgressMetaWithStepsResponse> items = new ArrayList<>();
-        // Build summary over ALL runs in set
-        int total = 0;
-        int completed = 0;
 
         for (String runId : runIds) {
             String metaKey = RedisIngestUtils.runMetaKey(runId);
@@ -154,14 +151,9 @@ public class IngestRunProgressService {
                 continue;
             }
 
-            total++;
+            // page items: RUNNING only
             Object statusObj = meta.get("status");
             String statusStr = statusObj == null ? null : statusObj.toString();
-            if (statusStr != null && "COMPLETED".equalsIgnoreCase(statusStr)) {
-                completed++;
-            }
-
-            // page items: RUNNING only
             if (statusStr != null && "RUNNING".equalsIgnoreCase(statusStr)) {
                 IngestProgressMetaResponse base = IngestProgressMetaResponse.from(meta,
                     Map.of());
@@ -173,14 +165,11 @@ public class IngestRunProgressService {
             }
         }
 
-        if (total == 0) {
+        if (items.isEmpty()) {
             throw new BusinessException(ErrorCode.NOT_FOUND);
         }
 
-        IngestProgressSummaryResponse summary = new IngestProgressSummaryResponse(
-            completed,
-            total
-        );
+        IngestProgressSummaryResponse summary = getSummaryForUser(userUuid);
 
         // sort and paginate items
         items.sort((a, b) -> {
@@ -263,14 +252,30 @@ public class IngestRunProgressService {
     }
 
     public IngestProgressSummaryResponse getSummaryForUser(UUID userUuid) {
-        String setKey = RedisIngestUtils.userRunsKey(userUuid.toString());
+        HashOperations<String, Object, Object> hops = ingestRedisTemplate.opsForHash();
+        String userId = userUuid.toString();
+
+        // 1) 우선 ingest 마이크로서비스가 관리하는 유저 summary 해시를 사용
+        String summaryKey = "ingest:summary:user:" + userId;
+        Map<Object, Object> summaryMap = hops.entries(summaryKey);
+        if (summaryMap != null && !summaryMap.isEmpty()) {
+            Integer totalFromSummary = parseInt(summaryMap.get("total"));
+            Integer completedFromSummary = parseInt(summaryMap.get("completed"));
+            int total = totalFromSummary != null ? totalFromSummary : 0;
+            int completed = completedFromSummary != null ? completedFromSummary : 0;
+            if (total > 0) {
+                return new IngestProgressSummaryResponse(completed, total);
+            }
+        }
+
+        // 2) fallback: 기존처럼 userRuns 세트와 run meta 로 계산
+        String setKey = RedisIngestUtils.userRunsKey(userId);
         SetOperations<String, String> sops = ingestRedisTemplate.opsForSet();
         Set<String> runIds = sops.members(setKey);
         if (runIds == null || runIds.isEmpty()) {
             throw new BusinessException(ErrorCode.NOT_FOUND);
         }
 
-        HashOperations<String, Object, Object> hops = ingestRedisTemplate.opsForHash();
         int total = 0;
         int completed = 0;
 
@@ -314,6 +319,14 @@ public class IngestRunProgressService {
     private static Double parseDouble(Object value) {
         try {
             return value == null ? null : Double.parseDouble(value.toString());
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static Integer parseInt(Object value) {
+        try {
+            return value == null ? null : Integer.parseInt(value.toString());
         } catch (Exception e) {
             return null;
         }

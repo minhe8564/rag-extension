@@ -214,40 +214,69 @@ public class IngestController {
                             String status = dto.status();
                             if (status != null && ("COMPLETED".equalsIgnoreCase(status)
                                 || "FAILED".equalsIgnoreCase(status))) {
-                                // 이벤트 status가 완료일 때, 메타의 run 상태를 확인해
-                                // run 단위가 실제로 끝났다면 summary 전송 후 스트림 종료
-                                try {
-                                    Map<Object, Object> latestMeta = progressService.getMeta(
-                                        currentRunId);
-                                    Object runStatusObj =
-                                        latestMeta != null ? latestMeta.get("status") : null;
-                                    String runStatus =
-                                        runStatusObj != null ? runStatusObj.toString() : null;
+                                // 5-1) 마지막 VECTOR_STORE 단계가 끝난 경우, summary 해시를 우선 조회해서 바로 종료 시도
+                                String step = dto.currentStep();
+                                boolean isFinalStep = step != null
+                                    && "VECTOR_STORE".equalsIgnoreCase(step);
+                                boolean summarySent = false;
 
-                                    if (runStatus != null && ("COMPLETED".equalsIgnoreCase(
-                                        runStatus) || "FAILED".equalsIgnoreCase(runStatus))) {
+                                if (isFinalStep) {
+                                    try {
+                                        IngestProgressSummaryResponse summary =
+                                            progressService.getSummaryForUser(userUuid);
+                                        emitter.send(SseEmitter.event().name("summary")
+                                            .data(summary));
                                         log.info(
-                                            "[INGEST] run 전체 완료 감지 - runId={}, runStatus={}",
-                                            currentRunId, runStatus);
-                                        try {
-                                            IngestProgressSummaryResponse summary =
-                                                progressService.getSummaryForUser(userUuid);
-                                            emitter.send(SseEmitter.event().name("summary")
-                                                .data(summary));
-                                        } catch (Exception summaryEx) {
-                                            log.warn("[INGEST] summary 전송 중 오류 - userUuid={}",
-                                                userUuid, summaryEx);
-                                        }
-                                        done = true;
-                                        break;
-                                    } else {
-                                        log.info(
-                                            "[INGEST] step 완료 이벤트 수신 - runId={}, eventStatus={}, metaStatus={}",
-                                            currentRunId, status, runStatus);
+                                            "[INGEST] 최종 단계 완료 기반 summary 전송 - runId={}, step={}, status={}",
+                                            currentRunId, step, status);
+                                        summarySent = true;
+                                    } catch (Exception summaryEx) {
+                                        log.warn(
+                                            "[INGEST] 최종 단계 완료 기반 summary 전송 실패 - userUuid={}, runId={}",
+                                            userUuid, currentRunId, summaryEx);
                                     }
-                                } catch (Exception checkEx) {
-                                    log.warn("[INGEST] run 완료 여부 확인 중 오류 - runId={}",
-                                        currentRunId, checkEx);
+                                }
+
+                                // 5-2) 위에서 summary를 못 보냈으면, 기존처럼 run meta.status를 확인해 종료 시도
+                                if (!summarySent) {
+                                    try {
+                                        Map<Object, Object> latestMeta = progressService.getMeta(
+                                            currentRunId);
+                                        Object runStatusObj =
+                                            latestMeta != null ? latestMeta.get("status") : null;
+                                        String runStatus =
+                                            runStatusObj != null ? runStatusObj.toString() : null;
+
+                                        if (runStatus != null && ("COMPLETED".equalsIgnoreCase(
+                                            runStatus) || "FAILED".equalsIgnoreCase(
+                                            runStatus))) {
+                                            log.info(
+                                                "[INGEST] run 전체 완료 감지 - runId={}, runStatus={}",
+                                                currentRunId, runStatus);
+                                            try {
+                                                IngestProgressSummaryResponse summary =
+                                                    progressService.getSummaryForUser(userUuid);
+                                                emitter.send(SseEmitter.event().name("summary")
+                                                    .data(summary));
+                                            } catch (Exception summaryEx) {
+                                                log.warn("[INGEST] summary 전송 중 오류 - userUuid={}",
+                                                    userUuid, summaryEx);
+                                            }
+                                            summarySent = true;
+                                        } else {
+                                            log.info(
+                                                "[INGEST] step 완료 이벤트 수신 - runId={}, eventStatus={}, metaStatus={}",
+                                                currentRunId, status, runStatus);
+                                        }
+                                    } catch (Exception checkEx) {
+                                        log.warn("[INGEST] run 완료 여부 확인 중 오류 - runId={}",
+                                            currentRunId, checkEx);
+                                    }
+                                }
+
+                                if (summarySent) {
+                                    done = true;
+                                    break;
                                 }
                             }
                         }
