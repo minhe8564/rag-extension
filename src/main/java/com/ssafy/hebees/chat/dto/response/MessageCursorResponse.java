@@ -11,6 +11,7 @@ public record MessageCursorResponse(
 
     Pagination pagination
 ) {
+
     public record Pagination(
         @Schema(description = "다음 페이지 요청용 커서", nullable = true, type = "string",
             format = "date-time")
@@ -21,7 +22,7 @@ public record MessageCursorResponse(
 
         @Schema(description = "조회한 항목의 수")
         Integer count
-    ){
+    ) {
 
     }
 }

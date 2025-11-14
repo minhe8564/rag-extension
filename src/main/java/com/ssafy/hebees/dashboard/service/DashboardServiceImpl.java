@@ -24,6 +24,7 @@ public class DashboardServiceImpl implements DashboardService {
     private final UserAggregateHourlyRepository userAggregateHourlyRepository;
     private final DocumentAggregateHourlyRepository documentAggregateHourlyRepository;
     private final ErrorAggregateHourlyRepository errorAggregateHourlyRepository;
+
     @Override
     public Change24hResponse getAccessUsersChange24h() {
         Window window = Window.current();

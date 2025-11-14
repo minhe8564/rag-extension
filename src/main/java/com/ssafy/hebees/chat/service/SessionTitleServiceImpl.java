@@ -30,7 +30,8 @@ public class SessionTitleServiceImpl implements SessionTitleService {
         }
 
         try {
-            AgentPrompt agentPrompt = agentPromptRepository.findByName("Title Generation").orElse(null);
+            AgentPrompt agentPrompt = agentPromptRepository.findByName("Title Generation")
+                .orElse(null);
             String prompt = agentPrompt != null ? agentPrompt.getContent() :
                 "You are an assistant that reads the user's question and replies only with a concise Korean session title under 15 characters. Do not include punctuation or any extra text.";
 

@@ -25,7 +25,7 @@ public class RedisConfig {
     private static final int DB_MONITORING = 2; // 모니터링 정보
     private static final int DB_ACTIVE_USER = 3; // 활성 사용자 정보
     private static final int DB_LOGIN_HISTORY = 8; // 로그인 사용자 정보
-    private static final int DB_METRICS = 8; // 메트릭 정보
+    private static final int DB_METRICS = 4; // 메트릭 정보
 
     @Bean(name = "authLettuceConnectionFactory")
     @Primary

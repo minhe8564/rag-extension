@@ -14,7 +14,7 @@ public record TrendKeywordCreateRequest(
 
     public TrendKeywordCreateRequest {
         if (query != null) {
-            query = query.trim() .replaceAll("\\s{2,}", " ");
+            query = query.trim().replaceAll("\\s{2,}", " ");
         }
     }
 }
