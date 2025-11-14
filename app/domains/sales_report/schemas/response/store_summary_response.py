@@ -1,4 +1,4 @@
-"""Sales Report Response Schemas"""
+"""Store Summary Response Schemas"""
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from decimal import Decimal
@@ -93,10 +93,6 @@ class MonthlySalesReport(BaseModel):
     # 👤 신규 고객 수
     new_customers_count: int = Field(..., description="신규 고객 수")
 
-    # 📈 전월/전년 대비 매출 증감률
-    month_over_month_growth: Optional[Decimal] = Field(None, description="전월 대비 증감률")
-    year_over_year_growth: Optional[Decimal] = Field(None, description="전년 대비 증감률")
-
     # 💵 평균 판매금액
     avg_transaction_amount: Decimal = Field(..., description="평균 판매금액 (객단가)")
 
@@ -124,8 +120,6 @@ class MonthlySalesReport(BaseModel):
                 "cash_receipt_amount": "3000000",
                 "returning_customer_rate": "0.65",
                 "new_customers_count": 43,
-                "month_over_month_growth": "0.05",
-                "year_over_year_growth": "0.12",
                 "avg_transaction_amount": "375000",
                 "total_receivables": "5000000",
                 "receivable_customers": [
@@ -148,25 +142,31 @@ class MonthlySalesReport(BaseModel):
         }
 
 
+# ============== AI 인사이트 ==============
+
+class LLMInsights(BaseModel):
+    """LLM 생성 인사이트 (구조화된 형식)"""
+    sales_summary: str = Field(..., description="매출 요약 (2-3문장)")
+    sales_strategies: List[str] = Field(..., description="추천 매출 전략 목록")
+    marketing_strategies: List[str] = Field(..., description="추천 마케팅 전략 목록")
+
+
+class Metadata(BaseModel):
+    """메타데이터"""
+    ai_model: str = Field(..., description="사용된 AI 모델")
+    generation_time_ms: int = Field(..., description="생성 소요 시간 (ms)")
+
+
 # ============== 통합 리포트 ==============
 
-class SalesReportResponse(BaseModel):
-    """매출 리포트 통합 응답"""
+class StoreSummaryData(BaseModel):
+    """개별 안경원 매출 요약 리포트 데이터 (BaseResponse의 result.data 안에 들어갈 내용)"""
     store_info: StoreInfo = Field(..., description="매장 정보")
     daily_report: Optional[DailySalesReport] = Field(None, description="일별 리포트")
     monthly_report: Optional[MonthlySalesReport] = Field(None, description="월별 리포트")
-    ai_summary: Optional[str] = Field(None, description="🤖 AI 요약 리포트")
+    llm_insights: Optional[LLMInsights] = Field(None, description="🤖 AI 인사이트")
+    metadata: Optional[Metadata] = Field(None, description="메타데이터")
 
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "store_info": {
-                    "store_name": "행복안경원",
-                    "store_phone": "02-1234-5678",
-                    "owner_name": "홍길동"
-                },
-                "daily_report": {"report_date": "2024-11-12"},
-                "monthly_report": {"year_month": "2024-11"},
-                "ai_summary": "이번 달 매출이 전월 대비 5% 증가했습니다..."
-            }
-        }
+
+# 하위 호환성을 위한 alias (deprecated)
+StoreSummaryResponse = StoreSummaryData
