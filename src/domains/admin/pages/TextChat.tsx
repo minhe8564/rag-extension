@@ -313,36 +313,10 @@ export default function TextChat() {
   }
 
   return (
-    <section className="flex flex-col min-h-[calc(100vh-82px)] h-[calc(100vh-82px)]">
-      <div className="flex justify-center">
-        <div className="inline-flex items-center gap-1 rounded-full bg-gray-100 p-1 text-xs">
-          <button
-            type="button"
-            onClick={() => setMode('llm')}
-            className={`px-3 py-1 rounded-full transition ${
-              mode === 'llm'
-                ? 'bg-white shadow-sm text-gray-900'
-                : 'text-gray-500 hover:text-gray-800'
-            }`}
-          >
-            일반 LLM
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode('rag')}
-            className={`px-3 py-1 rounded-full transition ${
-              mode === 'rag'
-                ? 'bg-white shadow-sm text-gray-900'
-                : 'text-gray-500 hover:text-gray-800'
-            }`}
-          >
-            RAG 모드
-          </button>
-        </div>
-      </div>
-
+    <section className="flex min-h-[calc(100vh-82px)] flex-col">
       {list.length > 0 ? (
         <>
+          {/* 메시지 스크롤 영역 */}
           <div
             ref={scrollRef}
             onScroll={handleScroll}
@@ -379,29 +353,34 @@ export default function TextChat() {
 
               <div ref={bottomRef} className="h-6" />
             </div>
+
+            <ScrollToBottomButton
+              containerRef={scrollRef}
+              watch={list.length}
+              className="absolute right-8 bottom-6"
+            />
           </div>
 
-          <div className="sticky bottom-0 w-full flex flex-col items-center bg-transparent">
-            <div className="relative w-full flex justify-center">
-              <ScrollToBottomButton
-                containerRef={scrollRef}
-                watch={list.length}
-                className="absolute bottom-6"
-              />
-            </div>
-            <div className="w-full max-w-[75%] pb-6 bg-white">
-              <div className="mb-1 text-xs text-gray-400 flex justify-end pr-6">
-                현재 모드: {mode === 'rag' ? 'RAG 기반 검색 + 생성' : '일반 LLM 대화'}
-              </div>
-              <ChatInput onSend={handleSend} variant="hebees" />
+          <div className="sticky bottom-0 w-full flex justify-center">
+            <div className="w-full max-w-[75%]">
+              <ChatInput onSend={handleSend} variant="hebees" mode={mode} onChangeMode={setMode} />
             </div>
           </div>
         </>
       ) : (
-        <div className="flex-1 flex items-center justify-center px-4">
+        <div className="flex-1 flex items-center justify-center ">
           <div className="w-full max-w-[75%] flex flex-col items-center gap-4 text-center">
             <ChatEmptyState onSelectPrompt={handleSend} />
-            <ChatInput onSend={handleSend} variant="hebees" />
+            <div className="w-full">
+              <div className="bg-white pb-4">
+                <ChatInput
+                  onSend={handleSend}
+                  variant="hebees"
+                  mode={mode}
+                  onChangeMode={setMode}
+                />
+              </div>
+            </div>
           </div>
         </div>
       )}

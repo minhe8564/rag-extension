@@ -313,7 +313,7 @@ export default function TextChat() {
   }
 
   return (
-    <section className="flex flex-col min-h-[calc(100vh-82px)] h-[calc(100vh-82px)]">
+    <section className="flex flex-col min-h-[calc(100vh-82px)]">
       <div className="flex justify-center">
         <div className="inline-flex items-center gap-1 rounded-full bg-gray-100 p-1 text-xs">
           <button
