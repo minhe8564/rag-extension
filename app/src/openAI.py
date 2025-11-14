@@ -4,6 +4,8 @@ from loguru import logger
 import os
 import time
 import httpx
+from sqlalchemy import text
+from app.core.database import SessionLocal
 
 # ✅ OpenAI LLM (LangChain 전용 Wrapper)
 from langchain_openai import ChatOpenAI
@@ -18,7 +20,7 @@ from langchain_classic.chains.retrieval import create_retrieval_chain
 from langchain_classic.chains.combine_documents import create_stuff_documents_chain
 
 
-class OpenAI(BaseGenerationStrategy):
+class Openai(BaseGenerationStrategy):
     """
     ✅ LangChain 1.x 구조 기반 OpenAI 답변 생성 전략
     - RetrievalQA / ConversationalRetrievalChain / load_qa_chain 삭제됨
@@ -28,16 +30,29 @@ class OpenAI(BaseGenerationStrategy):
     def __init__(self, parameters: Dict[Any, Any] = None):
         super().__init__(parameters)
 
-        # 환경변수에서 OpenAI API 키 가져오기
-        self.openai_api_key =  os.getenv("OPENAI_API_KEY")
-
         # 파라미터에서 설정값 가져오기
         self.model_name = self.parameters.get("model_name", "gpt-4o")
         self.temperature = self.parameters.get("temperature", 0.1)
-        self.openai_api_key = self.parameters.get("openai_api_key", self.openai_api_key)
+        
+        # 파라미터에서 llmNo와 userNo 가져오기
+        llm_no = self.parameters.get("llmNo") or self.parameters.get("llm_no")
+        user_no = self.parameters.get("userNo") or self.parameters.get("user_no")
+
+        # llmNo와 userNo가 있으면 DB에서 API_KEY 조회
+        if llm_no and user_no:
+            try:
+                logger.info(f"[OpenAI] Fetching API_KEY from DB: llmNo={llm_no}, userNo={user_no}")
+                api_key = self._fetch_api_key_from_db(llm_no, user_no)
+                if api_key:
+                    self.openai_api_key = api_key
+                    logger.info("[OpenAI] API_KEY fetched from DB successfully")
+                else:
+                    logger.warning(f"[OpenAI] API_KEY not found in DB for llmNo={llm_no}, userNo={user_no}, using fallback")
+            except Exception as e:
+                logger.warning(f"[OpenAI] Failed to fetch API_KEY from DB: {str(e)}, using fallback")
 
         if not self.openai_api_key:
-            raise ValueError("OPENAI_API_KEY must be set in environment or parameters")
+            raise ValueError("OPENAI_API_KEY must be set in environment, parameters, or database")
 
         logger.info(f"[OpenAI] Initializing LLM: {self.model_name}")
 
@@ -51,6 +66,30 @@ class OpenAI(BaseGenerationStrategy):
         except Exception as e:
             logger.error(f"[OpenAI] Failed to initialize LLM: {str(e)}")
             raise
+
+    def _fetch_api_key_from_db(self, llm_no: str, user_no: str) -> Optional[str]:
+        """DB에서 STRATEGY_NO(=llm_no)와 USER_NO로 API_KEY 조회"""
+        session = SessionLocal()
+        try:
+            # STRATEGY_NO에 LLM_NO를, USER_NO에 USER_NO를 넣어서 조회
+            stmt = text(
+                "SELECT `API_KEY` "
+                "FROM `LLM_KEY` "
+                "WHERE `STRATEGY_NO` = UUID_TO_BIN(:llm_no) "
+                "AND `USER_NO` = UUID_TO_BIN(:user_no) "
+                "LIMIT 1"
+            )
+            result = session.execute(stmt, {"llm_no": llm_no, "user_no": user_no})
+            row = result.first()
+            if row:
+                api_key = row[0] if isinstance(row, tuple) else getattr(row, "API_KEY", None)
+                return api_key
+            return None
+        except Exception as e:
+            logger.error(f"[OpenAI] Database query error: {str(e)}")
+            raise
+        finally:
+            session.close()
 
     def _init_prompt_template(self, include_history: bool = False):
         """✅ LCEL용 ChatPromptTemplate 생성 (context, question 필수)"""
