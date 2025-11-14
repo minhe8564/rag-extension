@@ -26,7 +26,7 @@ import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 @Service
 public class RagMetricsService {
 
-    private static final int DEFAULT_WINDOW_SECONDS = 300; // 기본 5분
+    private static final int DEFAULT_WINDOW_SECONDS = 86400; // 기본 1일
     private static final String[] METRIC_KEYS = {
         "extract:metrics:response_time",
         "chunking:metrics:response_time",
