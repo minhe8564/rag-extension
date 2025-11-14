@@ -19,6 +19,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
+import java.util.Objects;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -55,8 +56,8 @@ public class LlmKeyController {
     public ResponseEntity<BaseResponse<LlmKeyResponse>> createLlmKey(
         @Valid @RequestBody LlmKeyCreateRequest request) {
         LlmKeyResponse response = llmKeyService.create(request);
-        URI location = URI.create("/rag-settings/llm-keys/" + response.llmKeyNo());
-        return ResponseEntity.created(location)
+        return ResponseEntity.created(
+                Objects.requireNonNull(URI.create("/rag-settings/llm-keys/" + response.llmKeyNo())))
             .body(BaseResponse.of(HttpStatus.CREATED, response, "LLM Key 생성에 성공하였습니다."));
     }
 
@@ -115,8 +116,8 @@ public class LlmKeyController {
         @Valid @RequestBody LlmKeySelfCreateRequest request) {
         UUID userNo = currentUser();
         LlmKeyResponse response = llmKeyService.createSelf(userNo, request);
-        URI location = URI.create(String.format("/rag-settings/llm-keys/%s", response.llmKeyNo()));
-        return ResponseEntity.created(location)
+        return ResponseEntity.created(Objects.requireNonNull(
+                URI.create(String.format("/rag-settings/llm-keys/%s", response.llmKeyNo()))))
             .body(BaseResponse.of(HttpStatus.CREATED, response, "LLM Key 생성에 성공하였습니다."));
     }
 
@@ -131,45 +132,45 @@ public class LlmKeyController {
             BaseResponse.of(HttpStatus.OK, responses, "LLM Key 목록 조회에 성공하였습니다."));
     }
 
-    @GetMapping("/me/{llmName}")
-    @Operation(summary = "내 LLM Key 단건 조회", description = "LLM 이름으로 현재 사용자의 LLM Key를 조회합니다.")
+    @GetMapping("/me/{llm}")
+    @Operation(summary = "내 LLM Key 단건 조회", description = "LLM 이름 또는 ID로 현재 사용자의 LLM Key를 조회합니다.")
     @ApiResponse(responseCode = "200", description = "LLM Key 조회 성공",
         content = @Content(schema = @Schema(implementation = LlmKeyResponse.class)))
     public ResponseEntity<BaseResponse<LlmKeyResponse>> getMyLlmKeyByLlm(
-        @Parameter(description = "LLM 이름", example = "gpt-4o", required = true)
-        @PathVariable("llmName") String llmName
+        @Parameter(description = "LLM 이름 또는 ID", example = "gpt-4o", required = true)
+        @PathVariable("llm") String llmIdentifier
     ) {
         UUID userNo = currentUser();
-        String validated = requireLlmName(llmName);
-        LlmKeyResponse response = llmKeyService.getSelfByLlm(userNo, validated);
+        String normalized = normalizeLlmIdentifier(llmIdentifier);
+        LlmKeyResponse response = llmKeyService.getSelfByLlm(userNo, normalized);
         return ResponseEntity.ok(
             BaseResponse.of(HttpStatus.OK, response, "LLM Key 조회에 성공하였습니다."));
     }
 
-    @PutMapping("/me/{llmName}")
+    @PutMapping("/me/{llm}")
     @Operation(summary = "내 LLM Key 수정", description = "현재 사용자 계정의 LLM Key를 수정합니다.")
     @ApiResponse(responseCode = "200", description = "LLM Key 수정 성공",
         content = @Content(schema = @Schema(implementation = LlmKeyResponse.class)))
     public ResponseEntity<BaseResponse<LlmKeyResponse>> updateMyLlmKey(
-        @Parameter(description = "LLM 이름", example = "gpt-4o", required = true)
-        @PathVariable("llmName") String llmName,
+        @Parameter(description = "LLM 이름 또는 ID", example = "1cb9d767-0a5f-4cda-9be9-7428c9af5c42", required = true)
+        @PathVariable("llm") String llmIdentifier,
         @Valid @RequestBody LlmKeySelfUpdateRequest request) {
         UUID userNo = currentUser();
-        String validated = requireLlmName(llmName);
-        LlmKeyResponse response = llmKeyService.updateSelf(userNo, validated, request);
+        String normalized = normalizeLlmIdentifier(llmIdentifier);
+        LlmKeyResponse response = llmKeyService.updateSelf(userNo, normalized, request);
         return ResponseEntity.ok(
             BaseResponse.of(HttpStatus.OK, response, "LLM Key 수정에 성공하였습니다."));
     }
 
-    @DeleteMapping("/me/{llmName}")
+    @DeleteMapping("/me/{llm}")
     @Operation(summary = "내 LLM Key 삭제", description = "현재 사용자 계정의 LLM Key를 삭제합니다.")
     @ApiResponse(responseCode = "204", description = "LLM Key 삭제 성공")
     public ResponseEntity<Void> deleteMyLlmKey(
-        @Parameter(description = "LLM 이름", example = "gpt-4o", required = true)
-        @PathVariable("llmName") String llmName) {
+        @Parameter(description = "LLM 이름 또는 ID", example = "claude-3-opus", required = true)
+        @PathVariable("llm") String llmIdentifier) {
         UUID userNo = currentUser();
-        String validated = requireLlmName(llmName);
-        llmKeyService.deleteSelf(userNo, validated);
+        String normalized = normalizeLlmIdentifier(llmIdentifier);
+        llmKeyService.deleteSelf(userNo, normalized);
         return ResponseEntity.noContent().build();
     }
 
@@ -178,15 +179,10 @@ public class LlmKeyController {
             .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_ACCESS_TOKEN));
     }
 
-    private String requireLlmName(String llmName) {
-        String trimmed = llmName != null ? llmName.trim() : null;
+    private String normalizeLlmIdentifier(String llm) {
+        String trimmed = llm != null ? llm.trim() : null;
         if (!StringUtils.hasText(trimmed)) {
             throw new BusinessException(ErrorCode.BAD_REQUEST);
-        }
-        try {
-            UUID.fromString(trimmed);
-            throw new BusinessException(ErrorCode.BAD_REQUEST);
-        } catch (IllegalArgumentException ignored) {
         }
         return trimmed;
     }
