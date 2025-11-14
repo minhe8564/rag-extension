@@ -61,15 +61,6 @@ public class IngestController {
         var userUuid = SecurityUtil.getCurrentUserUuid()
             .orElseThrow(() -> new RuntimeException("인증된 사용자 없음"));
 
-        String runId = progressService.getActiveRunId(userUuid);
-        if (runId == null) { // 활성 run 없을 때도 스트림 열어 두기
-            runId = "";
-        }
-        Map<Object, Object> meta = runId.isEmpty() ? Map.of() : progressService.getMeta(runId);
-
-        IngestProgressEventResponse initial = IngestProgressEventResponse.fromMaps(
-            meta, Map.of(), userUuid, "META_SNAPSHOT");
-
         // 1) Last-Event-ID 우선, 없으면 "0-0"
         String lastIdHdr = req.getHeader("Last-Event-ID");
         String lastId = (lastIdHdr != null && !lastIdHdr.isBlank()) ? lastIdHdr : "0-0";
@@ -97,28 +88,40 @@ public class IngestController {
             }
         });
 
-        try {
-            // summary + 초기 스냅샷을 함께 전송
-            IngestProgressSummaryResponse summary = progressService.getSummaryForUser(userUuid);
-            emitter.send(SseEmitter.event().name("summary").data(summary));
-            // 2) 초기 스냅샷에도 id를 넣어두면 클라가 일관되게 처리 가능
-            emitter.send(SseEmitter.event().name("initial").id(lastId).data(initial));
-        } catch (Exception e) {
-            emitter.completeWithError(e);
-            return emitter;
-        }
-
-        final String initialRunId = runId;
-        final String initialLastId = lastId;
-
         executor.submit(() -> {
-            log.info("[INGEST] SSE 스트림 루프 시작 - userUuid={}, initialRunId={}", userUuid,
-                initialRunId);
-            AtomicReference<String> currentRunIdRef = new AtomicReference<>(initialRunId);
-            AtomicReference<Map<Object, Object>> currentMetaRef = new AtomicReference<>(meta);
-            AtomicReference<String> lastRef = new AtomicReference<>(initialLastId);
+            log.info("[INGEST] SSE 스트림 루프 시작 - userUuid={}", userUuid);
+            AtomicReference<String> currentRunIdRef = new AtomicReference<>("");
+            AtomicReference<Map<Object, Object>> currentMetaRef = new AtomicReference<>(Map.of());
+            AtomicReference<String> lastRef = new AtomicReference<>(lastId);
+            AtomicReference<String> lastSummaryRef = new AtomicReference<>("0-0");
             boolean done = false;
             int loopCount = 0;
+
+            // 초기 runId 및 META_SNAPSHOT 전송
+            try {
+                String initialRunId = progressService.getActiveRunId(userUuid);
+                if (initialRunId != null) {
+                    currentRunIdRef.set(initialRunId);
+                    Map<Object, Object> meta = progressService.getMeta(initialRunId);
+                    currentMetaRef.set(meta);
+                    IngestProgressEventResponse initial = IngestProgressEventResponse.fromMaps(
+                        meta, Map.of(), userUuid, "META_SNAPSHOT");
+                    emitter.send(
+                        SseEmitter.event().name("initial").id(lastRef.get()).data(initial));
+                } else {
+                    IngestProgressEventResponse initial = IngestProgressEventResponse.fromMaps(
+                        Map.of(), Map.of(), userUuid, "META_SNAPSHOT");
+                    emitter.send(
+                        SseEmitter.event().name("initial").id(lastRef.get()).data(initial));
+                }
+            } catch (Exception initEx) {
+                log.error("[INGEST] 초기 META_SNAPSHOT 전송 실패", initEx);
+                try {
+                    emitter.completeWithError(initEx);
+                } catch (Exception ignored) {
+                }
+                return;
+            }
 
             while (!done && !Thread.currentThread().isInterrupted()) {
                 try {
@@ -214,70 +217,9 @@ public class IngestController {
                             String status = dto.status();
                             if (status != null && ("COMPLETED".equalsIgnoreCase(status)
                                 || "FAILED".equalsIgnoreCase(status))) {
-                                // 5-1) 마지막 VECTOR_STORE 단계가 끝난 경우, summary 해시를 우선 조회해서 바로 종료 시도
-                                String step = dto.currentStep();
-                                boolean isFinalStep = step != null
-                                    && "VECTOR_STORE".equalsIgnoreCase(step);
-                                boolean summarySent = false;
-
-                                if (isFinalStep) {
-                                    try {
-                                        IngestProgressSummaryResponse summary =
-                                            progressService.getSummaryForUser(userUuid);
-                                        emitter.send(SseEmitter.event().name("summary")
-                                            .data(summary));
-                                        log.info(
-                                            "[INGEST] 최종 단계 완료 기반 summary 전송 - runId={}, step={}, status={}",
-                                            currentRunId, step, status);
-                                        summarySent = true;
-                                    } catch (Exception summaryEx) {
-                                        log.warn(
-                                            "[INGEST] 최종 단계 완료 기반 summary 전송 실패 - userUuid={}, runId={}",
-                                            userUuid, currentRunId, summaryEx);
-                                    }
-                                }
-
-                                // 5-2) 위에서 summary를 못 보냈으면, 기존처럼 run meta.status를 확인해 종료 시도
-                                if (!summarySent) {
-                                    try {
-                                        Map<Object, Object> latestMeta = progressService.getMeta(
-                                            currentRunId);
-                                        Object runStatusObj =
-                                            latestMeta != null ? latestMeta.get("status") : null;
-                                        String runStatus =
-                                            runStatusObj != null ? runStatusObj.toString() : null;
-
-                                        if (runStatus != null && ("COMPLETED".equalsIgnoreCase(
-                                            runStatus) || "FAILED".equalsIgnoreCase(
-                                            runStatus))) {
-                                            log.info(
-                                                "[INGEST] run 전체 완료 감지 - runId={}, runStatus={}",
-                                                currentRunId, runStatus);
-                                            try {
-                                                IngestProgressSummaryResponse summary =
-                                                    progressService.getSummaryForUser(userUuid);
-                                                emitter.send(SseEmitter.event().name("summary")
-                                                    .data(summary));
-                                            } catch (Exception summaryEx) {
-                                                log.warn("[INGEST] summary 전송 중 오류 - userUuid={}",
-                                                    userUuid, summaryEx);
-                                            }
-                                            summarySent = true;
-                                        } else {
-                                            log.info(
-                                                "[INGEST] step 완료 이벤트 수신 - runId={}, eventStatus={}, metaStatus={}",
-                                                currentRunId, status, runStatus);
-                                        }
-                                    } catch (Exception checkEx) {
-                                        log.warn("[INGEST] run 완료 여부 확인 중 오류 - runId={}",
-                                            currentRunId, checkEx);
-                                    }
-                                }
-
-                                if (summarySent) {
-                                    done = true;
-                                    break;
-                                }
+                                log.info(
+                                    "[INGEST] step 완료 이벤트 수신 - runId={}, step={}, status={}",
+                                    currentRunId, dto.currentStep(), status);
                             }
                         }
                     } else {
@@ -288,8 +230,76 @@ public class IngestController {
                         } catch (Exception ignore) {
                             /* ignore send failure here */
                         }
-                        // 짧은 대기 후 다음 루프로 (새 runId 감지 기회 제공)
+                        // 짧은 대기 후 다음 루프로 (새 runId/summary 감지 기회 제공)
                         Thread.sleep(500);
+                    }
+
+                    // 6) summary 스트림에서 현재 사용자에 대한 SUMMARY 이벤트를 중계
+                    try {
+                        String lastSummaryId = lastSummaryRef.get();
+                        var summaryRecords = progressService.readSummaryEvents(lastSummaryId, 0L,
+                            20L);
+                        if (summaryRecords != null && !summaryRecords.isEmpty()) {
+                            for (var rec : summaryRecords) {
+                                var fields = rec.getValue();
+                                Object evType = fields.get("eventType");
+                                if (evType == null || !"SUMMARY".equalsIgnoreCase(
+                                    evType.toString())) {
+                                    continue;
+                                }
+                                Object uidObj = fields.get("userId");
+                                if (uidObj == null || !userUuid.toString().equals(
+                                    uidObj.toString())) {
+                                    continue;
+                                }
+                                String sid = rec.getId().getValue();
+                                lastSummaryRef.set(sid);
+
+                                int completed = 0;
+                                int total = 0;
+                                try {
+                                    Object cObj = fields.get("completed");
+                                    if (cObj != null) {
+                                        completed = Integer.parseInt(cObj.toString());
+                                    }
+                                } catch (Exception ignore) {
+                                    completed = 0;
+                                }
+                                try {
+                                    Object tObj = fields.get("total");
+                                    if (tObj != null) {
+                                        total = Integer.parseInt(tObj.toString());
+                                    }
+                                } catch (Exception ignore) {
+                                    total = 0;
+                                }
+
+                                IngestProgressSummaryResponse summaryPayload =
+                                    new IngestProgressSummaryResponse(completed, total);
+
+                                try {
+                                    emitter.send(
+                                        SseEmitter.event().name("summary").id(sid).data(summaryPayload));
+                                    log.info(
+                                        "[INGEST] summary 이벤트 전송 - userUuid={}, completed={}, total={}",
+                                        userUuid, completed, total);
+                                } catch (Exception sendEx) {
+                                    log.warn("[INGEST] summary 이벤트 전송 실패 - userUuid={}",
+                                        userUuid, sendEx);
+                                }
+
+                                if (total > 0 && completed >= total) {
+                                    log.info(
+                                        "[INGEST] summary completed/total 일치 - 스트림 종료 - userUuid={}",
+                                        userUuid);
+                                    done = true;
+                                    break;
+                                }
+                            }
+                        }
+                    } catch (Exception summaryReadEx) {
+                        log.warn("[INGEST] summary 스트림 읽기 중 오류 - userUuid={}", userUuid,
+                            summaryReadEx);
                     }
                 } catch (Exception e) {
                     log.error("[INGEST] SSE 스트림 처리 중 오류 발생", e);
