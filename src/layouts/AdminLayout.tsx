@@ -109,7 +109,7 @@ export default function AdminLayout() {
             </div>
           ) : (
             <div className="w-full flex justify-center">
-              <Tooltip content="사이드바 열기" side="right" shiftX={12}>
+              <Tooltip content="사이드바 열기" side="right" shiftX={12} portal={true}>
                 <button
                   onClick={() => setIsOpen((prev) => !prev)}
                   className="text-[var(--color-hebees)] hover:text-[var(--color-hebees-dark)]"
@@ -121,7 +121,7 @@ export default function AdminLayout() {
           )}
 
           {isOpen && (
-            <Tooltip content="사이드바 닫기" side="right" shiftX={12}>
+            <Tooltip content="사이드바 닫기" side="right" shiftX={12} portal={true}>
               <button
                 onClick={() => setIsOpen(false)}
                 className="text-[var(--color-hebees)] hover:text-[var(--color-hebees-dark)]"

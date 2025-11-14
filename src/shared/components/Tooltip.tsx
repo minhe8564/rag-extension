@@ -58,7 +58,7 @@ export default function Tooltip({
   const tooltipNode = (
     <div
       role="tooltip"
-      className="z-[1000] whitespace-nowrap rounded-md bg-[var(--overlay-90)] px-2 py-1 text-xs text-white shadow-md transition-opacity duration-100 pointer-events-none"
+      className="z-[9999] whitespace-nowrap rounded-md bg-[var(--overlay-90)] px-2 py-1 text-xs text-white shadow-md transition-opacity duration-100 pointer-events-none"
       style={
         portal
           ? {
@@ -102,8 +102,6 @@ export default function Tooltip({
       onMouseLeave={() => setOpen(false)}
       onFocus={() => setOpen(true)}
       onBlur={() => setOpen(false)}
-      aria-haspopup="true"
-      aria-expanded={open}
     >
       {children}
       {open && (portal ? createPortal(tooltipNode, document.body) : tooltipNode)}
