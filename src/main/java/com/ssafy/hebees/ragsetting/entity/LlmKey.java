@@ -37,11 +37,11 @@ public class LlmKey {
     @Column(name = "LLM_KEY_NO", columnDefinition = "BINARY(16)", nullable = false)
     private UUID llmKeyNo;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
     @JoinColumn(
         name = "USER_NO",
         referencedColumnName = "USER_NO",
-        nullable = false,
+        nullable = true,
         columnDefinition = "BINARY(16)"
     )
     private User user;

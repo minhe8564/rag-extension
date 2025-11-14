@@ -15,6 +15,8 @@ public interface LlmKeyRepository extends JpaRepository<LlmKey, UUID> {
     Optional<LlmKey> findByLlmKeyNoAndUser_Uuid(UUID llmKeyNo, UUID userNo);
 
     Optional<LlmKey> findByUser_UuidAndStrategy_StrategyNo(UUID userNo, UUID strategyNo);
+
+    Optional<LlmKey> findFirstByUserIsNullAndStrategy_StrategyNo(UUID strategyNo);
 }
 
 
