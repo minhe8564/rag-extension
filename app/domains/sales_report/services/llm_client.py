@@ -23,6 +23,7 @@ class LLMClient:
         store_name: str,
         total_sales: Decimal,
         payment_breakdown: dict,
+        cash_receipt_amount: Decimal,
         returning_customer_rate: Decimal,
         new_customers_count: int,
         month_over_month_growth: Optional[Decimal],
@@ -39,7 +40,8 @@ class LLMClient:
         Args:
             store_name: 안경원명
             total_sales: 총 판매금액
-            payment_breakdown: 결제 수단 비율
+            payment_breakdown: 결제 수단 비율 (카드, 현금, 상품권)
+            cash_receipt_amount: 현금영수증 발급 금액
             returning_customer_rate: 재방문 고객 비율
             new_customers_count: 신규 고객 수
             month_over_month_growth: 전월 대비 증감률
@@ -58,6 +60,7 @@ class LLMClient:
             store_name=store_name,
             total_sales=total_sales,
             payment_breakdown=payment_breakdown,
+            cash_receipt_amount=cash_receipt_amount,
             returning_customer_rate=returning_customer_rate,
             new_customers_count=new_customers_count,
             month_over_month_growth=month_over_month_growth,
@@ -82,6 +85,7 @@ class LLMClient:
         store_name: str,
         total_sales: Decimal,
         payment_breakdown: dict,
+        cash_receipt_amount: Decimal,
         returning_customer_rate: Decimal,
         new_customers_count: int,
         month_over_month_growth: Optional[Decimal],
@@ -111,10 +115,9 @@ class LLMClient:
         for customer in top_customers[:3]:
             top_customers_text += f"- {customer['customer_name']}: {int(customer['total_amount']):,}원 (구매 {customer['transaction_count']}회)\n"
 
-        # 결제 수단 텍스트 생성
+        # 결제 수단 텍스트 생성 (카드, 현금, 상품권만)
         payment_text = f"카드 {float(payment_breakdown['card'])*100:.0f}%, "
         payment_text += f"현금 {float(payment_breakdown['cash'])*100:.0f}%, "
-        payment_text += f"현금영수증 {float(payment_breakdown['cash_receipt'])*100:.0f}%, "
         payment_text += f"상품권 {float(payment_breakdown['voucher'])*100:.0f}%"
 
         prompt = f"""당신은 안경원 매출 분석 전문가입니다. 아래 데이터를 바탕으로 매출 요약과 전략을 제안해주세요.
@@ -128,6 +131,7 @@ class LLMClient:
 - 신규 고객 수: {new_customers_count}명
 - 재방문 고객 비율: {float(returning_customer_rate)*100:.1f}%
 - 결제 수단 비율: {payment_text}
+- 현금영수증 발급 금액: {int(cash_receipt_amount):,}원
 - 총 미수금액: {int(total_receivables):,}원
 - 매출 피크일: {peak_sales_date} ({int(peak_sales_amount):,}원)
 
