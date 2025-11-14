@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Users, FileText, TriangleAlert, TrendingUp, TrendingDown } from 'lucide-react';
-import Card from '@/shared/components/Card';
+// import Card from '@/shared/components/Card';
 import { EventSourcePolyfill } from 'event-source-polyfill';
 import { useAuthStore } from '@/domains/auth/store/auth.store';
 import {
@@ -16,6 +16,7 @@ import type {
   TotalGroup,
   CurrentGroup,
 } from '@/domains/admin/types/rag.dashboard.types';
+import { DatabaseZap } from 'lucide-react';
 
 export default function NumberBoard() {
   // 실시간 데이터
@@ -246,13 +247,15 @@ export default function NumberBoard() {
   };
 
   return (
-    <Card
-      title="오늘의 실시간 로그"
-      subtitle="실시간으로 처리되는 로그 데이터"
-      className="p-4 h-full flex-col"
-    >
-      <div className="mb-4 items-center"></div>
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-2">
+    <div className="flex h-full flex-col rounded-2xl border bg-white p-8 shadow-sm">
+      <div className="flex items-start gap-3">
+        <DatabaseZap size={18} className="text-blue-500 mt-1" />
+        <h3 className="text-xl font-semibold text-gray-900">오늘의 실시간 로그</h3>
+      </div>
+      <p className="mt-0.5 mb-4 text-sm text-gray-500">실시간으로 처리되는 로그 데이터</p>
+
+      <div className="mb-4 flex items-center"></div>
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-2 flex-1">
         {renderCard(
           'user',
           '현재 사용자 수',
@@ -278,6 +281,6 @@ export default function NumberBoard() {
           '총'
         )}
       </section>
-    </Card>
+    </div>
   );
 }

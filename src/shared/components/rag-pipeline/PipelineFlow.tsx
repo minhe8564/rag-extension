@@ -16,7 +16,7 @@ export type FlowStep = {
   label: string;
   sublabel?: string;
   icon: React.ReactNode;
-  durationMs?: number;
+  durationSec?: number;
   description?: string;
   tooltipNote?: string;
 };
@@ -35,15 +35,14 @@ export default function PipelineFlow({ steps, activeId, onStepClick, className }
 
   return (
     <div className={clsx('relative w-full select-none', className)}>
-      <div className="absolute top-12 left-8 right-8 h-[6px] rounded-full bg-gray-200" />
+      <div className="absolute top-12 left-8 right-8 h-[8px] rounded-full bg-gray-200" />
 
       <div
-        className="absolute top-12 h-[6px] rounded-full transition-all duration-500"
+        className="absolute top-12 h-[8px] rounded-full transition-all duration-500 ease-in-out"
         style={{
           width: `calc(${percent}% )`,
           background:
             'var(--color-hebees-gradient, linear-gradient(90deg,#BE7DB1 10%,#81BAFF 100%))',
-          boxShadow: '0 0 0 1px rgba(0,0,0,0.02)',
         }}
       />
 
@@ -63,51 +62,48 @@ export default function PipelineFlow({ steps, activeId, onStepClick, className }
               type="button"
               onClick={() => onStepClick?.(s.id)}
               aria-current={isActive ? 'step' : undefined}
-              aria-describedby={s.description || s.tooltipNote ? ttId : undefined}
+              aria-describedby={ttId}
               title={s.label}
               className={clsx(
                 'group relative flex flex-col items-center text-center overflow-visible',
-                'rounded-xl px-[2px] py-[2px] transition-all duration-200',
+                'rounded-xl px-[4px] py-[4px] transition-all duration-500 ease-in-out',
+
                 isActive
-                  ? 'bg-[linear-gradient(90deg,#BE7DB1_0%,#81BAFF_100%)] shadow-[0_0_8px_rgba(190,125,177,0.25)]'
-                  : 'bg-transparent hover:scale-[1.02]'
+                  ? 'bg-[linear-gradient(90deg,#BE7DB1_0%,#81BAFF_100%)] shadow-[0_0_14px_rgba(190,125,177,0.25)]'
+                  : 'bg-transparent hover:translate-y-[1px]'
               )}
             >
               <div
                 className={clsx(
-                  'w-full h-full rounded-xl bg-white border transition-all duration-200',
-                  isActive ? 'border-transparent' : 'border-gray-200 group-hover:border-gray-300'
+                  'w-full h-full rounded-xl bg-white border transition-all duration-500 ease-in-out',
+                  isActive ? 'border-transparent' : 'border-gray-200/80 group-hover:border-gray-300'
                 )}
               >
-                <div className="flex flex-col items-center text-center px-3 py-5">
+                <div className="flex flex-col h-full items-center text-center px-3 py-5">
                   <div className="absolute inset-x-0 -top-6 flex items-center justify-center">
                     <span className="relative inline-flex h-2.5 w-2.5 items-center justify-center">
                       {isActive && (
                         <span className="absolute inline-flex h-full w-full rounded-full bg-[#BE7DB1] opacity-50 animate-ping"></span>
                       )}
+
                       <span
                         className={clsx(
-                          'relative inline-flex h-2.5 w-2.5 rounded-full transition-all',
+                          'relative inline-flex h-2.5 w-2.5 rounded-full transition-all duration-500 ease-in-out',
                           isPending && 'bg-gray-300',
                           isCompleted && 'bg-[#BE7DB1]',
-                          isActive && 'animate-popbubble'
+                          isActive &&
+                            'bg-[linear-gradient(90deg,#BE7DB1_0%,#81BAFF_100%)] shadow-[0_0_0_4px_rgba(190,125,177,0.12)] animate-popbubble'
                         )}
-                        style={
-                          isActive
-                            ? {
-                                background: 'linear-gradient(90deg,#BE7DB1 0%,#81BAFF 100%)',
-                                boxShadow: '0 0 0 4px rgba(190,125,177,0.12)',
-                              }
-                            : undefined
-                        }
                       />
                     </span>
                   </div>
 
                   <div
                     className={clsx(
-                      'flex h-16 w-16 items-center justify-center rounded-xl transition-all duration-200 group-hover:scale-110',
-                      isActive ? 'shadow-sm' : 'shadow-[inset_0_0_0_1px_rgba(0,0,0,0.04)]'
+                      'flex h-16 w-16 items-center justify-center rounded-xl transition-transform duration-500 ease-in-out',
+                      isActive
+                        ? 'shadow-sm'
+                        : 'shadow-[inset_0_0_0_1px_rgba(0,0,0,0.04)] group-hover:scale-105'
                     )}
                     style={{
                       background: isActive
@@ -120,15 +116,20 @@ export default function PipelineFlow({ steps, activeId, onStepClick, className }
 
                   <div
                     className={clsx(
-                      'mt-3 text-sm font-semibold tracking-[0.01em]',
+                      'mt-3 text-sm font-semibold tracking-[0.01em] transition-colors duration-500 ease-in-out',
                       isActive ? 'text-gray-900' : 'text-gray-800'
                     )}
                   >
                     {s.label}
                   </div>
-                  {s.sublabel && <div className="text-[11px] text-gray-500">{s.sublabel}</div>}
-                  {typeof s.durationMs === 'number' && (
-                    <div className="mt-2 text-xs text-gray-500">{s.durationMs}ms</div>
+
+                  {s.sublabel && <div className="text-xs mb-6 text-gray-500">{s.sublabel}</div>}
+
+                  {typeof s.durationSec === 'number' && (
+                    <div className="text-3xl font-bold text-gray-800 leading-none">
+                      {s.durationSec}
+                      <span className="text-base font-medium text-gray-500 ml-1">s</span>
+                    </div>
                   )}
 
                   <PipelineTooltip

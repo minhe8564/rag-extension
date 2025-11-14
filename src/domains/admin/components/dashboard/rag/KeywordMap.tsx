@@ -1,9 +1,9 @@
 import { useEffect, useState, useRef } from 'react';
 import Highcharts from 'highcharts';
 import _wordcloudInit from 'highcharts/modules/wordcloud';
-import Card from '@/shared/components/Card';
 import type { frequentKeywords, keywordItem } from '@/domains/admin/types/rag.dashboard.types';
 import { getKeywords } from '@/domains/admin/api/rag.dashboard.api';
+import { Keyboard } from 'lucide-react';
 
 export default function KeywordMap() {
   const chartRef = useRef<Highcharts.Chart | null>(null);
@@ -88,12 +88,13 @@ export default function KeywordMap() {
   }, [keyword]);
 
   return (
-    <Card
-      title="최근 주요 키워드"
-      subtitle={`${starTime.slice(0, 10)} ~ ${endTime.slice(0, 10)}`}
-      className="p-3 h-full flex flex-col"
-    >
+    <div className="flex h-full flex-col rounded-2xl border bg-white p-8 shadow-sm">
+      <div className="flex items-start gap-3">
+        <Keyboard size={18} className="text-green-500 mt-1" />
+        <h3 className="text-xl font-semibold text-gray-900">최근 주요 키워드</h3>
+      </div>
+      <p className="mt-0.5 mb-4 text-sm text-gray-500">{`${starTime.slice(0, 10)} ~ ${endTime.slice(0, 10)}`}</p>
       <div id="keyword-cloud" className="w-full flex-1 min-h-[100px]" />
-    </Card>
+    </div>
   );
 }

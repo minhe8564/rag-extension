@@ -1,12 +1,12 @@
 import { useEffect, useState, useRef } from 'react';
 import Highcharts from 'highcharts';
 import _Heatmap from 'highcharts/modules/heatmap';
-import Card from '@/shared/components/Card';
 import { getChatbotUsageHeatmap } from '@/domains/admin/api/rag.dashboard.api';
 import type {
   chatbotHeatmapTimeframe,
   chatbotHeatmapLabels,
 } from '@/domains/admin/types/rag.dashboard.types';
+import { FolderKanban } from 'lucide-react';
 
 // 숫자 자리수 함수
 function niceRound(num: number) {
@@ -82,7 +82,7 @@ export default function WeeklyTimeHeatmap() {
       xAxis: {
         categories: label.slots,
         tickInterval: 3,
-        labels: { style: { color: '#6B7280', fontSize: '12px' } },
+        labels: { style: { color: '#6B7280', fontSize: '14px' } },
       },
       yAxis: {
         categories: label.days,
@@ -90,7 +90,7 @@ export default function WeeklyTimeHeatmap() {
         reversed: true,
         labels: {
           align: 'right',
-          style: { color: '#6B7280', fontSize: '12px', fontWeight: '500' },
+          style: { color: '#6B7280', fontSize: '14px', fontWeight: '500' },
         },
       },
       colorAxis: {
@@ -176,12 +176,15 @@ export default function WeeklyTimeHeatmap() {
   }, [label, cells]);
 
   return (
-    <Card
-      title="시간대별 챗봇 사용량"
-      subtitle="요일별 · 시간대별 사용량을 확인할 수 있습니다"
-      className="p-3"
-    >
+    <div className="flex h-full flex-col rounded-2xl border bg-white p-8 shadow-sm">
+      <div className="flex items-start gap-3">
+        <FolderKanban size={20} className="text-red-500 mt-1" />
+        <h3 className="text-xl font-semibold text-gray-900">시간대별 챗봇 사용량</h3>
+      </div>
+      <p className="mt-0.5 mb-4 text-sm text-gray-500">
+        요일별 · 시간대별 사용량을 확인할 수 있습니다.
+      </p>
       <div id="weekly-usage-chart" className="w-full" />
-    </Card>
+    </div>
   );
 }

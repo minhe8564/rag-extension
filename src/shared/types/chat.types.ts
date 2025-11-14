@@ -79,5 +79,6 @@ export interface SendMessageRequest {
 
 export interface SendMessageResult {
   content: string;
-  timestamp: string;
+  createdAt: string;
+  messageNo?: string;
 }

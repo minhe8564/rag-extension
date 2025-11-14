@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { MessageSquare, Clock } from 'lucide-react';
-import Card from '@/shared/components/Card';
 import Pagination from '@/shared/components/Pagination';
 import { getChatRooms } from '@/domains/admin/api/rag.dashboard.api';
 import type {
   createdChatrooms,
   chatroomTimeframe,
 } from '@/domains/admin/types/rag.dashboard.types';
+import { Activity } from 'lucide-react';
+import clsx from 'clsx';
 
 // 시간 경과 계산 함수
 function timeAgo(date: Date) {
@@ -26,15 +27,16 @@ export default function ChatRoom() {
     const fetchData = async () => {
       const result = await getChatRooms();
       setData(result);
-      console.log('✅ 생성된 채팅방 데이터:', result);
       setChatrooms(result.chatrooms);
       setTimeframe(result.timeframe);
+
+      console.log(result);
     };
     fetchData();
   }, []);
 
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 5;
+  const pageSize = 4;
   const sortedRooms = useMemo(
     () =>
       [...chatrooms].sort(
@@ -47,42 +49,50 @@ export default function ChatRoom() {
   const pageItems = sortedRooms.slice(startIndex, startIndex + pageSize);
 
   return (
-    <Card title="생성된 채팅방" subtitle="최근 활동 기준" className="p-4">
-      <ul className="flex flex-col gap-2">
+    <div className="flex h-full flex-col rounded-2xl border bg-white p-8 shadow-sm">
+      <div className="flex items-start gap-3">
+        <Activity size={18} className="text-purple-500 mt-1" />
+        <h3 className="text-xl font-semibold text-gray-900">생성된 채팅방</h3>
+      </div>
+      <p className="mt-0.5 mb-4 text-sm text-gray-500">최근 활동 기준</p>
+      <ul className="flex flex-col gap-3">
         {pageItems.map((room, i) => (
           <li
             key={`${room.chatRoomId}-${startIndex + i}`}
-            className="flex items-center justify-between p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition"
+            className="flex items-center justify-between p-4 mb-2 rounded-xl
+               bg-gray-50 hover:bg-gray-100 transition-colors"
           >
-            {/* 왼쪽: 아이콘 + 정보 */}
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-9 h-9 rounded-md bg-indigo-100 text-indigo-600">
+            <div className="flex items-center gap-4">
+              <div
+                className="flex items-center justify-center w-10 h-10 rounded-lg 
+                        bg-indigo-100 text-indigo-600 shadow-inner"
+              >
                 <MessageSquare size={18} />
               </div>
-              <div>
-                <p className="text-sm font-semibold text-gray-800">{room.chatTitle}</p>
-                <p className="text-xs text-gray-500">{room.userName}</p>
+
+              <div className="flex flex-col">
+                <p className="text-sm font-semibold text-gray-900">{room.title}</p>
+                <p className="text-xs text-gray-500 mt-[2px]">{room.userName}</p>
               </div>
             </div>
 
-            {/* 오른쪽: 메시지 수, 시간, 상태 */}
-            <div className="flex items-center gap-3 text-xs text-gray-500">
-              <div className="flex items-center gap-1">
-                <Clock size={14} />
+            <div className="flex items-center gap-4 text-xs text-gray-500">
+              <div className="flex items-center gap-1.5">
+                <Clock size={14} className="text-gray-400" />
                 <span>{timeAgo(new Date(room.createdAt))}</span>
               </div>
 
               <span
-                className={`px-2 py-0.5 rounded-md text-xs font-medium border
-                ${
+                className={clsx(
+                  'px-2.5 py-1 rounded-md text-[11px] font-medium border whitespace-nowrap',
                   room.userType === '제조 유통사'
-                    ? 'bg-[#F6EDF7] text-[#96257A] border-[#E1B8D9]' // 보라 (HEEBEES)
+                    ? 'bg-[#F6EDF7] text-[#96257A] border-[#E1B8D9]'
                     : room.userType === '개인 안경원'
-                      ? 'bg-[#E9F9F7] text-[#009688] border-[#A9E2D8]' // 민트 (상업/체인)
+                      ? 'bg-[#E9F9F7] text-[#009688] border-[#A9E2D8]'
                       : room.userType === '체인 안경원'
-                        ? 'bg-[#ECF2FF] text-[#135D9C] border-[#B6C8F0]' // 블루 (Retina)
+                        ? 'bg-[#ECF2FF] text-[#135D9C] border-[#B6C8F0]'
                         : 'bg-gray-100 text-gray-700 border-gray-300'
-                }`}
+                )}
               >
                 {room.userType}
               </span>
@@ -90,14 +100,17 @@ export default function ChatRoom() {
           </li>
         ))}
       </ul>
-      <Pagination
-        pageNum={currentPage}
-        totalPages={totalPages}
-        onPageChange={(p: number) => {
-          if (p < 1 || p > totalPages) return;
-          setCurrentPage(p);
-        }}
-      />
-    </Card>
+
+      <div className="mt-auto">
+        <Pagination
+          pageNum={currentPage}
+          totalPages={totalPages}
+          onPageChange={(p: number) => {
+            if (p < 1 || p > totalPages) return;
+            setCurrentPage(p);
+          }}
+        />
+      </div>
+    </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import Highcharts from 'highcharts';
-import Card from '@/shared/components/Card';
+import { MessageSquare } from 'lucide-react';
 
 export default function ChatbotUsageRealtime() {
   const chartRef = useRef<Highcharts.Chart | null>(null);
@@ -78,8 +78,13 @@ export default function ChatbotUsageRealtime() {
   }, []);
 
   return (
-    <Card title="실시간 챗봇 사용량" subtitle="10초 단위 업데이트" className="p-4">
+    <div className="flex h-full flex-col rounded-2xl border bg-white p-8 shadow-sm">
+      <div className="flex items-start gap-3">
+        <MessageSquare size={18} className="text-blue-500 mt-1" />
+        <h3 className="text-xl font-semibold text-gray-900">실시간 챗봇 사용량</h3>
+      </div>
+      <p className="mt-0.5 mb-12 text-sm text-gray-500">10초 단위 업데이트</p>
       <div id="chatbot-usage-container" className="w-full" />
-    </Card>
+    </div>
   );
 }

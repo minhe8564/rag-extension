@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import Highcharts from 'highcharts';
-import Card from '@/shared/components/Card';
 import Select from '@/shared/components/Select';
 import { getChatbotUsageTimeSeries } from '@/domains/admin/api/rag.dashboard.api';
 import type { chatbotUsageTime } from '@/domains/admin/types/rag.dashboard.types';
+import { MousePointerClick } from 'lucide-react';
 
 export default function ChatbotUsage() {
   const chartRef = useRef<Highcharts.Chart | null>(null);
@@ -114,8 +114,13 @@ export default function ChatbotUsage() {
   }, [data]);
 
   return (
-    <Card title="챗봇 사용량 추이" subtitle="일별, 주별, 월별 사용량 추이" className="p-4">
-      <div className="flex items-center justify-between mb-3">
+    <div className="flex h-full flex-col rounded-2xl border bg-white p-8 shadow-sm">
+      <div className="flex items-start gap-3">
+        <MousePointerClick size={20} className="text-red-500 mt-1" />
+        <h3 className="text-xl font-semibold text-gray-900">챗봇 사용량 추이</h3>
+      </div>
+      <p className="mt-0.5 mb-4 text-sm text-gray-500">일별, 주별, 월별 사용량 추이</p>
+      <div className="flex items-center justify-between mb-6">
         <div className="ml-auto w-40">
           <Select
             value={period}
@@ -130,6 +135,6 @@ export default function ChatbotUsage() {
       </div>
 
       <div id="chatbot-usage-chart" className="w-full" />
-    </Card>
+    </div>
   );
 }

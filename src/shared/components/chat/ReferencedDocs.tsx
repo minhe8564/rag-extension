@@ -1,4 +1,3 @@
-// src/shared/components/chat/ReferencedDocsPanel.tsx
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getReferencedDocuments } from '@/shared/api/chat.api';
@@ -39,6 +38,8 @@ export default function ReferencedDocsPanel({
   const [hidden, setHidden] = useState(false);
   const lastCountRef = useRef<number>(0);
 
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
   const { data, isFetching, isError, refetch } = useQuery({
     queryKey: ['refDocs', sessionNo, messageNo],
     queryFn: async () => {
@@ -78,6 +79,11 @@ export default function ReferencedDocsPanel({
       </div>
     );
   }
+
+  const truncateByChars = (text: string, max: number) => {
+    if (!text) return '';
+    return text.length > max ? text.slice(0, max) + '…' : text;
+  };
 
   return (
     <div className="mt-3 rounded-lg border bg-gray-50">
@@ -124,16 +130,22 @@ export default function ReferencedDocsPanel({
             <ul className="space-y-2">
               {docs.map((d) => {
                 const title = d.title?.trim() || d.name || `문서 #${d.index}`;
+                const docKey = `${d.fileNo}-${d.index}`;
+                const isExpanded = expandedId === docKey;
+
                 return (
                   <li
                     key={d.fileNo}
-                    className="rounded-md border border-gray-200 bg-white px-3 py-2"
+                    className={clsx(
+                      'rounded-md border border-gray-200 bg-white px-3 py-2',
+                      isExpanded && 'px-4 py-3'
+                    )}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-start gap-2 min-w-0">
                         <div className="mt-0.5 shrink-0">{getIconByType(d.type)}</div>
                         <div className="min-w-0">
-                          <div className="flex items-center gap-2">
+                          <div className="mb-3 flex items-center gap-2">
                             <div className="line-clamp-1 text-sm font-medium text-gray-800">
                               {title}
                             </div>
@@ -147,22 +159,52 @@ export default function ReferencedDocsPanel({
                             </span>
                           </div>
                           {d.snippet ? (
-                            <p className="mt-1 line-clamp-2 text-xs text-gray-500">{d.snippet}</p>
+                            <div
+                              className={clsx(
+                                'mt-2 transition-all',
+                                isExpanded &&
+                                  'relative rounded-lg border border-gray-200 bg-white px-5 py-5'
+                              )}
+                            >
+                              {isExpanded && (
+                                <div className="mb-3 flex items-center justify-between gap-10">
+                                  <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                    문서 미리보기
+                                  </div>
+                                  <div className="text-[11px] text-gray-700 bg-gray-100 px-2.5 py-1 rounded-full border border-gray-200 shadow-sm">
+                                    텍스트를 드래그하면 하이라이트해서 볼 수 있어요
+                                  </div>
+                                </div>
+                              )}
+
+                              <p
+                                className={clsx(
+                                  isExpanded
+                                    ? 'text-sm leading-[1.7] text-black tracking-normal whitespace-pre-line selection:bg-yellow-200/60 selection:text-black'
+                                    : 'text-gray-500 text-xs'
+                                )}
+                              >
+                                {isExpanded ? d.snippet : truncateByChars(d.snippet, 90)}
+                              </p>
+                            </div>
                           ) : null}
                         </div>
                       </div>
 
                       <div className="flex shrink-0 items-center gap-1">
-                        <Tooltip content="새 탭에서 열기" side="bottom">
-                          <a
-                            href={d.downloadUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="rounded p-1 hover:bg-gray-100"
-                          >
-                            <ExternalLink size={16} className="text-gray-600" />
-                          </a>
-                        </Tooltip>
+                        {d.snippet && (
+                          <Tooltip content={isExpanded ? '접기' : '전체 보기'} side="bottom">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setExpandedId((prev) => (prev === docKey ? null : docKey))
+                              }
+                              className="rounded p-1 hover:bg-gray-100"
+                            >
+                              <ExternalLink size={16} className="text-gray-600" />
+                            </button>
+                          </Tooltip>
+                        )}
 
                         <Tooltip content="다운로드" side="bottom">
                           <a
