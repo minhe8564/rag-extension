@@ -88,16 +88,20 @@ public class IngestController {
             }
         });
 
+        // summary 스트림의 현재 최신 ID를 기준으로, 그 이후에 들어오는 SUMMARY 이벤트만 수신
+        String initialSummaryId = progressService.getLatestSummaryId();
+
         executor.submit(() -> {
             log.info("[INGEST] SSE 스트림 루프 시작 - userUuid={}", userUuid);
             AtomicReference<String> currentRunIdRef = new AtomicReference<>("");
             AtomicReference<Map<Object, Object>> currentMetaRef = new AtomicReference<>(Map.of());
             AtomicReference<String> lastRef = new AtomicReference<>(lastId);
-            AtomicReference<String> lastSummaryRef = new AtomicReference<>("0-0");
+            AtomicReference<String> lastSummaryRef = new AtomicReference<>(
+                initialSummaryId != null ? initialSummaryId : "0-0");
             boolean done = false;
             int loopCount = 0;
 
-            // 초기 runId 및 META_SNAPSHOT 전송
+            // 초기 runId 및 META_SNAPSHOT + summary 스냅샷 전송
             try {
                 String initialRunId = progressService.getActiveRunId(userUuid);
                 if (initialRunId != null) {
@@ -113,6 +117,21 @@ public class IngestController {
                         Map.of(), Map.of(), userUuid, "META_SNAPSHOT");
                     emitter.send(
                         SseEmitter.event().name("initial").id(lastRef.get()).data(initial));
+                }
+
+                // 현재 Redis 해시 기반 summary 스냅샷을 한 번 보내준다.
+                // 이후 변경 사항은 summary 스트림 이벤트로 중계.
+                try {
+                    IngestProgressSummaryResponse summary =
+                        progressService.getSummaryForUser(userUuid);
+                    emitter.send(SseEmitter.event().name("summary").data(summary));
+                    log.info(
+                        "[INGEST] 초기 summary 스냅샷 전송 - userUuid={}, completed={}, total={}",
+                        userUuid, summary.completed(), summary.total());
+                } catch (Exception ignoreSummaryEx) {
+                    // 아직 summary 가 없을 수 있으므로 무시
+                    log.debug("[INGEST] 초기 summary 스냅샷 없음 또는 조회 실패 - userUuid={}",
+                        userUuid);
                 }
             } catch (Exception initEx) {
                 log.error("[INGEST] 초기 META_SNAPSHOT 전송 실패", initEx);
