@@ -52,11 +52,15 @@ def _infer_event_type(status: Optional[str]) -> str:
 
 def _calc_pct(processed: Optional[int], total: Optional[int], status: Optional[str]) -> Optional[float]:
     try:
+        # If the producer reports the step as COMPLETED, treat it as 100%
+        # even if processed/total are slightly inconsistent (off‑by‑one, etc.).
+        # This ensures that overallPct can reach 100 when all steps are completed.
+        if status == "COMPLETED":
+            return 100.0
+
         if total and total > 0 and processed is not None:
             pct = max(0.0, min(100.0, 100.0 * (float(processed) / float(total))))
             return pct
-        if status == "COMPLETED":
-            return 100.0
         return 0.0
     except Exception:
         return None
@@ -319,6 +323,78 @@ class IngestProgressService:
 
                 if fin_user_id:
                     await redis.srem(f"ingest:user:{fin_user_id}:runs", run_id)
+
+                    # 유저 단위 summary 진행률 업데이트 (completed +1)
+                    # - 마지막 단계 VECTOR_STORE 가 COMPLETED 또는 FAILED 되었을 때만 카운트
+                    # - run 당 한 번만 증가하도록 run meta 의 플래그로 보호
+                    if step == "VECTOR_STORE" and status in ("COMPLETED", "FAILED"):
+                        try:
+                            # 이미 summary에 반영된 run 인지 확인
+                            already_counted = await redis.hget(meta_key, "summaryCounted")
+                            if already_counted != "1":
+                                summary_key = f"ingest:summary:user:{fin_user_id}"
+                                summary = await redis.hgetall(summary_key)
+                                prev_total = 0
+                                prev_completed = 0
+                                if summary:
+                                    try:
+                                        prev_total = int(summary.get("total", 0) or 0)
+                                    except Exception:
+                                        prev_total = 0
+                                    try:
+                                        prev_completed = int(summary.get("completed", 0) or 0)
+                                    except Exception:
+                                        prev_completed = 0
+
+                                # 진행 중 라운드가 있으면 completed만 증가, 아니면 단일 작업 기준으로 1/1 라운드 시작
+                                if prev_total > 0 and prev_completed < prev_total:
+                                    total_summary = prev_total
+                                    completed_summary = prev_completed + 1
+                                else:
+                                    total_summary = prev_total if prev_total > 0 else 1
+                                    completed_summary = prev_completed + 1 if prev_total > 0 else 1
+
+                                summary_updated_at = datetime.fromtimestamp(
+                                    ts_ms / 1000.0, tz=timezone.utc
+                                ).isoformat()
+                                await redis.hset(
+                                    summary_key,
+                                    mapping={
+                                        "total": str(total_summary),
+                                        "completed": str(completed_summary),
+                                        "updatedAt": summary_updated_at,
+                                    },
+                                )
+
+                                # summary 라운드가 모두 완료되면 TTL 적용
+                                ttl_sec = settings.ingest_completed_ttl_sec
+                                if (
+                                    ttl_sec > 0
+                                    and total_summary > 0
+                                    and completed_summary >= total_summary
+                                ):
+                                    await redis.expire(summary_key, ttl_sec)
+
+                                # summary용 스트림 이벤트 추가
+                                await redis.xadd(
+                                    "ingest:summary",
+                                    fields={
+                                        "eventType": "SUMMARY",
+                                        "userId": fin_user_id,
+                                        "completed": str(completed_summary),
+                                        "total": str(total_summary),
+                                        "ts": str(ts_ms),
+                                    },
+                                    maxlen=STREAM_MAXLEN_GLOBAL,
+                                    approximate=True,
+                                )
+
+                                # 이 run 은 summary 에 반영되었음을 표시
+                                await redis.hset(meta_key, mapping={"summaryCounted": "1"})
+                        except Exception:
+                            logger.exception(
+                                "Failed to update ingest summary for user {}", fin_user_id
+                            )
 
                 # Set expire on completed/failed run data
                 ttl_sec = getattr(settings, "ingest_completed_ttl_sec", 0)
