@@ -34,7 +34,8 @@ cors:
     - "https://spring.ragextension.shop"
     - "http://localhost:7700"
     - "https://starlits.beta9.kr"
-    
+    - "https://k13s407.p.ssafy.io"
+        
 springdoc:
   swagger-ui:
     persist-authorization: true
