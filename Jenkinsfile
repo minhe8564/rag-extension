@@ -1,245 +1,142 @@
 pipeline {
     agent any
 
-    parameters {
-        booleanParam(name: 'BUILD_FRONTEND', defaultValue: false, description: '프론트엔드를 수동으로 빌드하고 배포하려면 체크하세요.')
-        string(name: 'BRANCH_TO_BUILD', defaultValue: 'develop', description: '수동 빌드 시 기준 브랜치를 선택하세요 (develop 또는 main).')
+    options {
+        skipDefaultCheckout(true)
     }
 
-    /********************  환경 변수  ********************/
-    environment {
-        // --- Frontend ---
-        FE_IMAGE_NAME     = "rag-extension/frontend-app"
-        FE_TEST_CONTAINER = "rag-extension-fe-test"
-        FE_PROD_CONTAINER = "rag-extension-fe-prod"
+    parameters {
+        booleanParam(name: 'BUILD_PYTHON_BACKEND', defaultValue: true, description: 'Python Backend를 수동으로 빌드하고 배포하려면 체크하세요.')
+        string(name: 'BRANCH_TO_BUILD', defaultValue: 'develop', description: '수동 빌드 시 기준 브랜치를 선택하세요 (develop 또는 main).')
+        booleanParam(name: 'CLEANUP_ONLY', defaultValue: false, description: '오래된 컨테이너/이미지 정리만 수행')
+    }
 
-        // --- Docker 네트워크 ---
+    environment {
+        // Image & Container
+        PYTHON_BACKEND_IMAGE_NAME = "hebees/python-backend"
+        PYTHON_BACKEND_CONTAINER  = "hebees-python-backend"
+
+        // Networks
         APP_NETWORK_TEST = "app-network-test"
         APP_NETWORK_PROD = "app-network-prod"
+        DB_NETWORK = "db-network"
     }
 
     stages {
-        /********************  서브모듈 체크아웃  ********************/
-        stage('Checkout Submodules') {
-            when {
-                anyOf {
-                    expression { env.GITLAB_OBJECT_KIND == 'push' }
-                    expression { params.BUILD_FRONTEND == true }
-                }
-            }
+        stage('Checkout') {
             steps {
-                sh '''
-                set -eux
-                git submodule sync --recursive
-                git submodule update --init --recursive
-                git submodule status
-                ls -la frontend-repo || true
-                '''
+                checkout scm
+                sh 'ls -al'
             }
         }
 
-        /********************  변경 파일 확인  ********************/
-        stage('Check for Changes') {
-            when { 
-                anyOf {
-                    expression { env.GITLAB_OBJECT_KIND == 'push' }
-                    expression { params.BUILD_FRONTEND == true }
-                }
-            }
-            steps {
-                script {
-                    echo "=== 환경 변수 확인 ==="
-                    echo "GITLAB_OBJECT_KIND: ${env.GITLAB_OBJECT_KIND}"
-                    echo "GIT_BRANCH: ${env.GIT_BRANCH}"
-                    echo "REF: ${env.REF}"
-                    echo "======================"
-                    
-                    if (env.GITLAB_OBJECT_KIND == 'push') {
-                        echo "📝 Push 이벤트 감지 - 현재 브랜치로 배포"
-                    } else if (params.BUILD_FRONTEND == true) {
-                        echo "📝 수동 빌드 실행"
-                    }
-                }
-            }
-        }
-
-        /********************  Docker 네트워크 준비  ********************/
         stage('Prepare Docker Networks') {
             when {
                 anyOf {
                     expression { env.GITLAB_OBJECT_KIND == 'push' }
-                    expression { params.BUILD_FRONTEND == true }
+                    expression { params.BUILD_PYTHON_BACKEND == true }
+                }
+            }
+            steps {
+                sh "docker network create ${APP_NETWORK_TEST} || true"
+                sh "docker network create ${APP_NETWORK_PROD} || true"
+                sh "docker network create ${DB_NETWORK} || true"
+            }
+        }
+
+        stage('Build Docker Image') {
+            when {
+                anyOf {
+                    expression { env.GITLAB_OBJECT_KIND == 'push' }
+                    expression { params.BUILD_PYTHON_BACKEND == true }
                 }
             }
             steps {
                 script {
-                    // Docker 네트워크 생성
-                    sh "docker network create ${APP_NETWORK_TEST} || true"
-                    sh "docker network create ${APP_NETWORK_PROD} || true"
-                    
-                    echo "✅ Docker 네트워크 준비 완료"
-                    echo "- Networks: ${APP_NETWORK_TEST}, ${APP_NETWORK_PROD}"
-                }
-            }
-        }
-
-        /********************  pnpm-lock.yaml 업데이트  ********************/
-        stage('Update pnpm-lock.yaml') {
-            when {
-                anyOf {
-                    expression { env.GITLAB_OBJECT_KIND == 'push' }
-                    expression { params.BUILD_FRONTEND == true }
-                }
-            }
-            steps {
-                sh '''
-                set -eux
-                # package.json 존재 시에만 lockfile 업데이트 시도
-                if [ -f package.json ]; then
-                  docker run --rm -v "$PWD":/app -w /app node:22.10.0-alpine sh -c "
-                      npm install -g pnpm && \
-                      pnpm install && \
-                      chown -R $(id -u):$(id -g) pnpm-lock.yaml 2>/dev/null || true
-                  "
-                else
-                  echo "skip pnpm install: package.json not found in workspace"
-                fi
-                # 업데이트 확인 (존재만 확인)
-                if [ -f pnpm-lock.yaml ]; then
-                    echo "✅ pnpm-lock.yaml present"
-                    ls -lh pnpm-lock.yaml
-                else
-                    echo "❌ pnpm-lock.yaml missing"
-                    exit 1
-                fi
-                '''
-            }
-        }
-
-        /******************** 프론트엔드 배포  ********************/
-        stage('Deploy Frontend') {
-            when {
-                anyOf {
-                    expression { env.GITLAB_OBJECT_KIND == 'push' }
-                    expression { params.BUILD_FRONTEND == true }
-                }
-            }
-            steps {
-                script {
-                    def branch = ""
-                    
+                    // 브랜치 결정: 웹훅(ref) 우선, 없으면 파라미터
+                    def branch = ''
                     if (env.GITLAB_OBJECT_KIND == 'push') {
-                        // Push 이벤트: REF에서 브랜치 추출
                         branch = (env.REF ?: '').replaceAll('refs/heads/', '').trim()
-                    } else if (params.BUILD_FRONTEND == true) {
-                        // 수동 빌드: 파라미터 브랜치 사용
+                    }
+                    if (!branch) {
                         branch = (params.BRANCH_TO_BUILD ?: '').trim()
                     }
+                    if (!branch) { error '[Build Docker Image] 브랜치가 비어 있습니다.' }
+                    echo "빌드 대상 브랜치: ${branch}"
 
-                    if (!branch) {
-                        error "[Deploy Frontend] 브랜치가 비어 있습니다. Push/수동 빌드 조건을 확인하세요."
-                    }
-                    
-                    echo "📝 배포 대상 브랜치: ${branch}"
-
-                    if (branch == 'develop') {
-                        withCredentials([file(credentialsId: '.env.development', variable: 'ENV_FILE')]) {
-                            def tag = "${FE_IMAGE_NAME}:test-${BUILD_NUMBER}"
-
-                            sh '''
-                            set -eux
-                            # Docker 빌드 컨텍스트 준비
-                            rm -rf _docker_ctx
-                            mkdir -p _docker_ctx
-                            SRC_DIR="."
-                            if [ -d frontend-repo ]; then SRC_DIR="frontend-repo"; fi
-                            TMP_ARCHIVE="$(mktemp -t ctx.XXXXXX.tar)"
-                            tar -C "$SRC_DIR" --no-same-owner -cf "$TMP_ARCHIVE" --exclude=.git --exclude=_docker_ctx --exclude=.env .
-                            tar -C _docker_ctx -xf "$TMP_ARCHIVE"
-                            rm -f "$TMP_ARCHIVE"
-                            # 컨텍스트 점검
-                            ls -la _docker_ctx | sed -n '1,120p'
-                            test -f _docker_ctx/package.json || { echo "missing package.json in _docker_ctx"; exit 1; }
-                            chmod -R 755 _docker_ctx
-                            # 개발 브랜치: Vite가 자동으로 읽는 파일명(.env.development)으로 복사
-                            cp "$ENV_FILE" _docker_ctx/.env.development
-                            
-                            # 사전 pnpm 설치는 생략 (Dockerfile에서 처리)
-                            ls -la _docker_ctx/.env.development || true
-                            ls -lh _docker_ctx/pnpm-lock.yaml
-                            TAG="${FE_IMAGE_NAME}:test-${BUILD_NUMBER}"
-                            # develop은 --mode development로 빌드되도록 build-arg 전달
-                            docker build -t "$TAG" --build-arg MODE=development _docker_ctx
-                            '''
-                            
-                            sh '''
-                            # 기존 컨테이너 중지 및 삭제
-                            TAG="${FE_IMAGE_NAME}:test-${BUILD_NUMBER}"
-                            docker stop ${FE_TEST_CONTAINER} || true
-                            docker rm ${FE_TEST_CONTAINER} || true
-                            
-                            # 새 컨테이너 실행
-                            docker run -d \\
-                                --name ${FE_TEST_CONTAINER} \\
-                                --restart unless-stopped \\
-                                --network ${APP_NETWORK_TEST} \\
-                                --publish 17443:80 \\
-                                "$TAG"
-                            '''
-                        }
-                    } else if (branch == 'main') {
-                        withCredentials([file(credentialsId: '.env.production', variable: 'ENV_FILE')]) {
-                            def tag = "${FE_IMAGE_NAME}:prod-${BUILD_NUMBER}"
-
-                            sh '''
-                            set -eux
-                            # Docker 빌드 컨텍스트 준비
-                            rm -rf _docker_ctx
-                            mkdir -p _docker_ctx
-                            SRC_DIR="."
-                            if [ -d frontend-repo ]; then SRC_DIR="frontend-repo"; fi
-                            TMP_ARCHIVE="$(mktemp -t ctx.XXXXXX.tar)"
-                            tar -C "$SRC_DIR" --no-same-owner -cf "$TMP_ARCHIVE" --exclude=.git --exclude=_docker_ctx --exclude=.env* .
-                            tar -C _docker_ctx -xf "$TMP_ARCHIVE"
-                            rm -f "$TMP_ARCHIVE"
-                            # 컨텍스트 점검
-                            ls -la _docker_ctx | sed -n '1,120p'
-                            test -f _docker_ctx/package.json || { echo "missing package.json in _docker_ctx"; exit 1; }
-                            chmod -R 755 _docker_ctx
-                            # 운영 브랜치: .env.production 파일명 유지
-                            cp "$ENV_FILE" _docker_ctx/.env.production
-                            
-                            # 사전 pnpm 설치는 생략 (Dockerfile에서 처리)
-                            ls -la _docker_ctx/.env.production || true
-                            ls -lh _docker_ctx/pnpm-lock.yaml
-                            TAG="${FE_IMAGE_NAME}:prod-${BUILD_NUMBER}"
-                            # main은 기본 production 모드지만 명시적으로 전달
-                            docker build -t "$TAG" --build-arg MODE=production _docker_ctx
-                            '''
-                            
-                            sh '''
-                            # 기존 컨테이너 중지 및 삭제
-                            TAG="${FE_IMAGE_NAME}:prod-${BUILD_NUMBER}"
-                            docker stop ${FE_PROD_CONTAINER} || true
-                            docker rm ${FE_PROD_CONTAINER} || true
-                            
-                            # 새 컨테이너 실행
-                            docker run -d \\
-                                --name ${FE_PROD_CONTAINER} \\
-                                --restart unless-stopped \\
-                                --network ${APP_NETWORK_PROD} \\
-                                --publish 7443:80 \\
-                                "$TAG"
-                            '''
-                        }
-                    } else {
-                        error "[Deploy Frontend] 지원하지 않는 브랜치='${branch}'. (develop/main 만 지원)"
-                    }
+                    def tag = "${PYTHON_BACKEND_IMAGE_NAME}:${env.BUILD_NUMBER}"
+                    sh """
+                    set -eux
+                    docker build -t ${tag} .
+                    """
+                    env.PYTHON_BACKEND_BUILD_TAG = tag
                 }
+            }
+        }
+
+        stage('Deploy Docker Container') {
+            when {
+                anyOf {
+                    expression { env.GITLAB_OBJECT_KIND == 'push' }
+                    expression { params.BUILD_PYTHON_BACKEND == true }
+                }
+            }
+            steps {
+                withCredentials([file(credentialsId: 'python-backend-repo.env', variable: 'PYTHON_BACKEND_ENV_FILE')]) {
+                    sh '''
+                    set -eux
+                    # 기존 컨테이너 종료/삭제
+                    docker stop "$PYTHON_BACKEND_CONTAINER" || true
+                    docker rm "$PYTHON_BACKEND_CONTAINER" || true
+
+                    # 컨테이너 실행: --env-file로 환경 변수 주입
+                    docker run -d \
+                        --name "$PYTHON_BACKEND_CONTAINER" \
+                        --restart unless-stopped \
+                        --network "$APP_NETWORK_TEST" \
+                        --env-file "$PYTHON_BACKEND_ENV_FILE" \
+                        "$PYTHON_BACKEND_BUILD_TAG"
+
+                    # 추가 네트워크 연결 (prod, db)
+                    docker network connect "$APP_NETWORK_PROD" "$PYTHON_BACKEND_CONTAINER" || true
+                    docker network connect "$DB_NETWORK" "$PYTHON_BACKEND_CONTAINER" || true
+                    '''
+                }
+            }
+        }
+
+        stage('Health Check') {
+            when {
+                anyOf {
+                    expression { env.GITLAB_OBJECT_KIND == 'push' }
+                    expression { params.BUILD_PYTHON_BACKEND == true }
+                }
+            }
+            steps {
+                script {
+                    def maxRetries = 30
+                    def ok = false
+                    for (int i = 0; i < maxRetries; i++) {
+                        def status = sh(script: '''
+                            docker run --rm --network "$APP_NETWORK_TEST" curlimages/curl:8.8.0 \
+                                -fsS http://$PYTHON_BACKEND_CONTAINER:8000/health >/dev/null
+                        ''', returnStatus: true)
+                        if (status == 0) { ok = true; break }
+                        sleep 2
+                    }
+                    if (!ok) { error "Health check failed for ${PYTHON_BACKEND_CONTAINER}" }
+                }
+            }
+        }
+
+        stage('Cleanup Old Images (Optional)') {
+            when { expression { params.CLEANUP_ONLY == true } }
+            steps {
+                sh "docker image prune -f || true"
             }
         }
     }
-    
+
     post {
         always {
             script {
@@ -289,11 +186,10 @@ pipeline {
     }
 }
 
-// 브랜치 해석: BRANCH_NAME → TARGET_BRANCH → git
+// 브랜치 해석: BRANCH_NAME → GIT_REF → git
 def resolveBranch() {
     if (env.BRANCH_NAME) return env.BRANCH_NAME
-    if (env.TARGET_BRANCH) return env.TARGET_BRANCH
-    if (env.SOURCE_BRANCH) return env.SOURCE_BRANCH
+    if (env.REF) return env.REF.replaceFirst(/^refs\/heads\//, '')
     return sh(script: "git name-rev --name-only HEAD || git rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
 }
 
@@ -306,8 +202,8 @@ def resolvePusherMention() {
 
 // 매터모스트 알림 전송
 def sendMMNotify(boolean success, Map info) {
-    def titleLine = success ? "## :jenkins7: 프론트엔드 빌드 성공 ✅"
-                            : "## :angry_jenkins: 프론트엔드 빌드 실패 ❌"
+    def titleLine = success ? "## :jenkins7: Python 백엔드 빌드 성공 ✅"
+                            : "## :angry_jenkins: Python 백엔드 빌드 실패 ❌"
     def lines = []
     if (info.mention) lines << "**작성자**: ${info.mention}"
     if (info.branch)  lines << "**대상 브랜치**: `${info.branch}`"
@@ -324,7 +220,7 @@ def sendMMNotify(boolean success, Map info) {
     
     def text = "${titleLine}\n" + (lines ? ("\n" + lines.join("\n")) : "")
     
-    // 안전 전송
+    // 안전 전송(크리덴셜 경고 없음)
     writeFile file: 'payload.json', text: groovy.json.JsonOutput.toJson([
         text      : text,
         username  : "Jenkins",
