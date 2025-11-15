@@ -43,6 +43,11 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     gemini_image_model_name: str = ""
 
+    # LLM 설정 (매출 리포트 AI 요약용)
+    llm_provider: str = "gpt"  # "qwen" or "gpt"
+    openai_api_key: str = ""  # GPT 사용 시 필요 (환경 변수 OPENAI_API_KEY에서 자동 로드)
+    openai_model: str = "gpt-4o-mini"  # GPT 모델명 (환경 변수 OPENAI_MODEL에서 자동 로드)
+
     # Monitoring 설정
     network_bandwidth_mbps: float = 1000.0  # 네트워크 총 대역폭(Mbps), 기본값 1Gbps
 

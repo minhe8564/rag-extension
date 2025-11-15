@@ -10,8 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 logger = logging.getLogger(__name__)
 
 from app.domains.sales_report.services.adminschool_client import AdminSchoolClient
-from app.domains.sales_report.services.store_llm_client import StoreLLMClient
-from app.domains.runpod.repositories.runpod_repository import RunpodRepository
+from app.domains.sales_report.services.llm.factory import LLMProviderFactory
 from app.domains.sales_report.exceptions import (
     ExternalAPIError,
     DataValidationError,
@@ -79,12 +78,12 @@ class StoreSummaryService:
         metadata = None
         if include_ai_summary and monthly_report and self.db:
             start_time = time.time()
-            llm_insights = await self._generate_ai_summary(store_info, monthly_report)
+            llm_insights, model_name = await self._generate_ai_summary(store_info, monthly_report)
             generation_time_ms = int((time.time() - start_time) * 1000)
 
-            if llm_insights:
+            if llm_insights and model_name:
                 metadata = Metadata(
-                    ai_model="qwen3-vl:8b",
+                    ai_model=model_name,
                     generation_time_ms=generation_time_ms
                 )
 
@@ -135,12 +134,12 @@ class StoreSummaryService:
         metadata = None
         if include_ai_summary and monthly_report and self.db:
             start_time = time.time()
-            llm_insights = await self._generate_ai_summary(store_info_response, monthly_report)
+            llm_insights, model_name = await self._generate_ai_summary(store_info_response, monthly_report)
             generation_time_ms = int((time.time() - start_time) * 1000)
 
-            if llm_insights:
+            if llm_insights and model_name:
                 metadata = Metadata(
-                    ai_model="qwen3-vl:8b",
+                    ai_model=model_name,
                     generation_time_ms=generation_time_ms
                 )
 
@@ -444,27 +443,24 @@ class StoreSummaryService:
         self,
         store_info: StoreInfo,
         monthly_report: MonthlySalesReport
-    ) -> Optional[LLMInsights]:
+    ) -> tuple[Optional[LLMInsights], Optional[str]]:
         """
         AI 요약 리포트 생성 (구조화된 인사이트)
+
+        ✨ LLM 제공자 모듈화 적용 (Qwen/GPT 선택 가능)
 
         Args:
             store_info: 매장 정보
             monthly_report: 월별 리포트
 
         Returns:
-            Optional[LLMInsights]: AI 생성 구조화된 인사이트 (실패 시 None)
+            Tuple[Optional[LLMInsights], Optional[str]]: (AI 생성 인사이트, 모델명) - 실패 시 (None, None)
         """
         try:
-            # Runpod에서 qwen3 LLM 주소 조회
-            runpod = await RunpodRepository.find_by_name(self.db, "qwen3")
+            # === 1. LLM 제공자 생성 (팩토리 패턴) ===
+            llm_provider, model_name = await LLMProviderFactory.create(db=self.db)
 
-            if not runpod or not runpod.address:
-                logger.warning("AI 요약 생성 실패: LLM 서버를 찾을 수 없습니다.")
-                raise RunpodNotFoundError("qwen3 LLM 서버를 찾을 수 없습니다.")
-
-            # LLM 클라이언트 생성
-            llm_client = StoreLLMClient(runpod.address)
+            # === 2. AI 인사이트 생성 (제공자 무관) ===
 
             # Top 고객 데이터 변환 (Pydantic 모델 → dict)
             top_customers_dict = [
@@ -483,8 +479,8 @@ class StoreSummaryService:
                 "voucher": monthly_report.payment_breakdown.voucher
             }
 
-            # AI 인사이트 생성 (구조화된 형식)
-            insights_dict = await llm_client.generate_sales_summary(
+            # LLM 호출 (Qwen/GPT 동일 인터페이스)
+            insights_dict = await llm_provider.generate_store_summary(
                 store_name=store_info.store_name,
                 total_sales=monthly_report.total_sales,
                 payment_breakdown=payment_breakdown_dict,
@@ -499,12 +495,12 @@ class StoreSummaryService:
             )
 
             # Dict를 Pydantic 모델로 변환
-            return LLMInsights(**insights_dict)
+            return LLMInsights(**insights_dict), model_name
 
         except RunpodNotFoundError:
-            # Runpod 서버를 찾을 수 없는 경우 - None 반환 (AI 요약 선택적 기능)
-            return None
+            # Qwen 서버 없음 - AI 요약 없이 진행
+            return None, None
         except Exception as e:
-            # 기타 에러 발생 시 로그 남기고 LLMServiceError 발생
+            # 기타 에러 발생 시
             logger.error(f"AI 요약 생성 실패: {str(e)}", exc_info=True)
             raise LLMServiceError(f"AI 요약 생성 중 오류 발생: {str(e)}")
