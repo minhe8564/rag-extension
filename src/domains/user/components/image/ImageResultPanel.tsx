@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Download, Copy, RefreshCw, Loader2, Plus } from 'lucide-react';
 import lottie from 'lottie-web';
 import type { AnimationItem } from 'lottie-web';
-import Tooltip from '@/shared/components/Tooltip';
+import Tooltip from '@/shared/components/controls/Tooltip';
 import type { StylePreset } from '@/domains/user/types/image.type';
 
 type Brand = 'retina' | 'hebees';

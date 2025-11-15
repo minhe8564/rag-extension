@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { Menu, MessageSquare, Image, FolderCog, LogOut, Bell, UserCog, Search } from 'lucide-react';
-import Tooltip from '@/shared/components/Tooltip';
+import Tooltip from '@/shared/components/controls/Tooltip';
 import ChatList from '@/shared/components/chat/list/ChatList';
-import ChatSearchModal from '@/shared/components/chat/ChatSearchModal';
+import ChatSearchModal from '@/shared/components/chat/layout/ChatSearchModal';
 import RetinaLogo from '@/assets/retina-logo.png';
-import Select from '@/shared/components/Select';
-import type { Option } from '@/shared/components/Select';
+import Select from '@/shared/components/controls/Select';
+import type { Option } from '@/shared/components/controls/Select';
 import { getMyLlmKeys } from '@/shared/api/llm.api';
 import type { MyLlmKeyResponse, MyLlmKeyListResponse } from '@/shared/types/llm.types';
 import { useChatModelStore } from '@/shared/store/useChatModelStore';

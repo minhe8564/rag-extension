@@ -8,7 +8,7 @@ import {
 } from '@/shared/api/llm.api';
 import type { MyLlmKeyResponse } from '@/shared/types/llm.types';
 import { KeyRound, Eye, EyeOff, Check, X, Pencil, Trash2, Copy } from 'lucide-react';
-import Tooltip from '@/shared/components/Tooltip';
+import Tooltip from '@/shared/components/controls/Tooltip';
 import ConfirmModal from '@/shared/components/ConfirmModal';
 
 function IconButton({

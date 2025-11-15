@@ -1,6 +1,6 @@
 import ChatInput from '@/shared/components/chat/ChatInput';
-import ChatMessageItem from '@/shared/components/chat/ChatMessageItem';
-import ChatEmptyState from '@/shared/components/chat/ChatEmptyState';
+import ChatMessageItem from '@/shared/components/chat/message/ChatMessageItem';
+import ChatEmptyState from '@/shared/components/chat/layout/ChatEmptyState';
 import { useChatLogic } from '@/shared/hooks/useChatLogic';
 import { useChatScroll } from '@/shared/hooks/useChatScroll';
 

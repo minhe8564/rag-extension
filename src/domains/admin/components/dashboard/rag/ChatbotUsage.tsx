@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import Highcharts from 'highcharts';
-import Select from '@/shared/components/Select';
+import Select from '@/shared/components/controls/Select';
 import { getChatbotUsageTimeSeries } from '@/domains/admin/api/rag.dashboard.api';
 import type { chatbotUsageTime } from '@/domains/admin/types/rag.dashboard.types';
 import { MousePointerClick } from 'lucide-react';
@@ -12,21 +12,21 @@ export default function ChatbotUsage() {
   const [_timeframe, setTimeframe] = useState<chatbotUsageTime['timeframe'] | null>(null);
   const [_items, setItems] = useState<chatbotUsageTime['items'] | null>(null);
 
-  // 데이터 로드
   useEffect(() => {
     const fetchData = async () => {
       const result = await getChatbotUsageTimeSeries({ granularity: period });
       setTimeframe(result.timeframe);
       setItems(result.items);
       setData(result);
-      console.log('✅ 챗봇 사용량 시계열 데이터:', result);
     };
     fetchData();
-  }, []);
+  }, [period]);
 
-  // 차트 초기화
   useEffect(() => {
     chartRef.current = Highcharts.chart('chatbot-usage-chart', {
+      accessibility: {
+        enabled: false,
+      },
       chart: {
         type: 'line',
         backgroundColor: 'transparent',
@@ -38,9 +38,9 @@ export default function ChatbotUsage() {
       credits: { enabled: false },
       xAxis: {
         type: 'datetime',
-        tickPixelInterval: 120, // ✅ 기존보다 약간 좁게 (기본 150 → 120)
-        minPadding: 0.05, // ✅ 왼쪽 여백 (5%)
-        maxPadding: 0.05, // ✅ 오른쪽 여백 (5%)
+        tickPixelInterval: 120,
+        minPadding: 0.05,
+        maxPadding: 0.05,
         labels: { style: { fontSize: '11px', color: '#6B7280' } },
       },
       yAxis: {
@@ -70,16 +70,13 @@ export default function ChatbotUsage() {
     });
   }, []);
 
-  // 기간별 데이터 반영 로직
   const updateChart = (type: 'day' | 'week' | 'month') => {
     setPeriod(type);
     const chart = chartRef.current;
     if (!chart || !data) return;
 
-    // timeframe, items 추출
     const { items } = data;
 
-    // x축 라벨 포맷 & 단위 변경
     if (type === 'day') {
       chart.xAxis[0].update({
         tickInterval: 24 * 3600 * 1000,
@@ -100,17 +97,15 @@ export default function ChatbotUsage() {
       chart.yAxis[0].setTitle({ text: '월별 총 토큰 사용량' });
     }
 
-    // 실제 API 데이터 items 반영
     const seriesData = items.map((item) => [new Date(item.x).getTime(), item.y]);
     chart.series[0].setData(seriesData, true);
   };
 
-  //  API 데이터 로드 이후 자동 반영
   useEffect(() => {
     if (data) {
-      // granularity를 기준으로 자동 반영 (예: day / week / month)
       updateChart(data.timeframe.granularity as 'day' | 'week' | 'month');
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
 
   return (

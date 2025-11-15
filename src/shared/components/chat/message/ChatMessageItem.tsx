@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Wand2, Copy } from 'lucide-react';
-import Tooltip from '@/shared/components/Tooltip';
-import ChatMarkdown from '@/shared/components/chat/ChatMarkdown';
-import InlineReaskInput from '@/shared/components/chat/InlineReaskInput';
-import ReferencedDocsPanel from '@/shared/components/chat/ReferencedDocs';
+import Tooltip from '@/shared/components/controls/Tooltip';
+import ChatMarkdown from '@/shared/components/chat/message/ChatMarkdown';
+import InlineReaskInput from '@/shared/components/chat/message/InlineReaskInput';
+import ReferencedDocsPanel from '@/shared/components/chat/message/ReferencedDocs';
 import { formatCreatedAt } from '@/shared/utils/date';
 import type { ReferencedDocument } from '@/shared/types/chat.types';
 

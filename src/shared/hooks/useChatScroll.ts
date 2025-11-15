@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { getMessages } from '@/shared/api/chat.api';
-import type { UiMsg, UiRole } from '@/shared/components/chat/ChatMessageItem';
+import type { UiMsg, UiRole } from '@/shared/components/chat/message/ChatMessageItem';
 import type { ChatRole, MessageItem, MessagePage } from '@/shared/types/chat.types';
 
 const mapRole = (r: ChatRole): UiRole => (r === 'human' ? 'user' : r === 'ai' ? 'assistant' : r);

@@ -1,5 +1,5 @@
 import { Sparkles, Loader2, Wand2 } from 'lucide-react';
-import Tooltip from '@/shared/components/Tooltip';
+import Tooltip from '@/shared/components/controls/Tooltip';
 import type { StylePreset } from '@/domains/user/types/image.type';
 import { STYLE_LABEL } from '@/domains/user/types/image.type';
 

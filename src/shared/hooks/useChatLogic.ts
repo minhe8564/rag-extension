@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { getSession, getMessages, sendMessage } from '@/shared/api/chat.api';
-import type { UiMsg, UiRole } from '@/shared/components/chat/ChatMessageItem';
+import type { UiMsg, UiRole } from '@/shared/components/chat/message/ChatMessageItem';
 import type {
   ChatRole,
   MessageItem,

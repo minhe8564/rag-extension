@@ -1,32 +1,34 @@
 import { useEffect, useRef, useState } from 'react';
 import Highcharts from 'highcharts';
-import Select from '@/shared/components/Select';
+import Select from '@/shared/components/controls/Select';
 import type { modelTokenTime, modelData } from '@/domains/admin/types/rag.dashboard.types';
 import { getModelTokenUsageTimeSeries } from '@/domains/admin/api/rag.dashboard.api';
 import { Braces } from 'lucide-react';
 
+export type Period = 'day' | 'week' | 'month';
+
 export default function ModelUsageChart() {
   const chartRef = useRef<Highcharts.Chart | null>(null);
-  const periods = ['day', 'week', 'month'] as const;
-  const [period, setPeriod] = useState<(typeof periods)[number]>('day');
+  const [period, setPeriod] = useState<Period>('day');
   const [_data, setData] = useState<modelTokenTime | null>(null);
   const [modelsData, setModelsData] = useState<modelData[] | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
       const result = await getModelTokenUsageTimeSeries({ granularity: period });
-      console.log('✅ 모델 토큰 사용량 시계열 데이터:', result);
       setData(result);
       setModelsData(result.model);
     };
     fetchData();
   }, [period]);
 
-  // 차트 초기화
   useEffect(() => {
     chartRef.current = Highcharts.chart('model-usage-chart', {
+      accessibility: {
+        enabled: false,
+      },
       chart: {
-        type: 'areaspline', // 부드러운 누적 면적 그래프
+        type: 'areaspline',
         backgroundColor: 'transparent',
         height: 300,
         animation: true,
@@ -56,10 +58,10 @@ export default function ModelUsageChart() {
       },
       plotOptions: {
         series: {
-          stacking: 'normal', // 누적 영역 설정
+          stacking: 'normal',
         },
         areaspline: {
-          fillOpacity: 0.6, // 면적 투명도
+          fillOpacity: 0.6,
           lineWidth: 1.5,
           marker: { enabled: false },
         },
@@ -82,15 +84,12 @@ export default function ModelUsageChart() {
     setTimeout(() => {
       chartRef.current?.update({ series: newSeries as Highcharts.SeriesOptionsType[] }, true, true);
     }, 0);
-  }, [modelsData, chartRef.current]);
-
-  // 기간 변경 핸들러
-  const handlePeriodChange = (type: (typeof periods)[number]) => {
+  }, [modelsData]);
+  const handlePeriodChange = (type: Period) => {
     setPeriod(type);
     const chart = chartRef.current;
     if (!chart) return;
 
-    // X축 라벨 포맷
     if (type === 'day') {
       chart.xAxis[0].update({
         tickInterval: 24 * 3600 * 1000,
@@ -120,7 +119,7 @@ export default function ModelUsageChart() {
         <div className="ml-auto w-40">
           <Select
             value={period}
-            onChange={(v) => handlePeriodChange(v as (typeof periods)[number])}
+            onChange={(v) => handlePeriodChange(v as Period)}
             options={[
               { label: '일별', value: 'day' },
               { label: '주별', value: 'week' },

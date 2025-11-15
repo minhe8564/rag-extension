@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import Card from '@/shared/components/Card';
-import Select from '@/shared/components/Select';
+import Select from '@/shared/components/controls/Select';
 import FileDropzone from '@/shared/components/file/FileUploader';
 import UploadedFileList from '@/shared/components/file/UploadedFileList';
 import type { UploadedDoc as UDoc } from '@/shared/types/file.types';

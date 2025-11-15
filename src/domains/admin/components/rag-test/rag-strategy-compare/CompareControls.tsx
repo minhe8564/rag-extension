@@ -1,5 +1,5 @@
 import Card from '@/shared/components/Card';
-import Select from '@/shared/components/Select';
+import Select from '@/shared/components/controls/Select';
 import { Loader2, BarChart3 } from 'lucide-react';
 
 type Props = {
@@ -32,8 +32,8 @@ type Props = {
 
 export function CompareControls(props: Props) {
   // {id,name} -> {label,value}
-  const ingestOptions = props.initialIngest.map(o => ({ label: o.name, value: o.id }));
-  const queryOptions = props.initialQueries.map(o => ({ label: o.name, value: o.id }));
+  const ingestOptions = props.initialIngest.map((o) => ({ label: o.name, value: o.id }));
+  const queryOptions = props.initialQueries.map((o) => ({ label: o.name, value: o.id }));
 
   return (
     <>
@@ -167,7 +167,7 @@ export function CompareControls(props: Props) {
         <textarea
           placeholder="질문을 입력하세요."
           value={props.question}
-          onChange={e => {
+          onChange={(e) => {
             const v = e.target.value;
             if (v.length <= 300) props.setQuestion(v);
           }}

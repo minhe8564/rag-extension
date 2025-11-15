@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import clsx from 'clsx';
 import { Pencil, Trash2, Plus } from 'lucide-react';
-import Tooltip from '@/shared/components/Tooltip';
+import Tooltip from '@/shared/components/controls/Tooltip';
 import { getIngestTemplates } from '@/domains/admin/api/rag-settings/ingest-templates.api';
 import { getQueryTemplates } from '@/domains/admin/api/rag-settings/query-templates.api';
 

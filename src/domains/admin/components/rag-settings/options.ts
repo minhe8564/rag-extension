@@ -2,7 +2,7 @@ import type {
   Strategy,
   StrategyParameter,
 } from '@/domains/admin/types/rag-settings/strategies.types';
-import type { Option } from '@/shared/components/Select';
+import type { Option } from '@/shared/components/controls/Select';
 
 // 파일 타입 옵션
 export const fileTypeOptions: Option[] = [

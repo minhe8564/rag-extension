@@ -29,15 +29,16 @@ export default function KeywordMap() {
   useEffect(() => {
     if (!keyword || keyword.length === 0) return;
 
-    //  Highcharts용 데이터 변환
     const data = keyword.map((k) => ({
       name: k.text,
       weight: k.weight,
       count: k.count,
     }));
 
-    //  차트 생성
     chartRef.current = Highcharts.chart('keyword-cloud', {
+      accessibility: {
+        enabled: false,
+      },
       chart: {
         backgroundColor: 'transparent',
       },
