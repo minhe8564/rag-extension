@@ -2,6 +2,7 @@ package com.ssafy.hebees.auth.dto.response;
 
 import com.ssafy.hebees.user.entity.User;
 import io.swagger.v3.oas.annotations.media.Schema;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Schema(description = "로그인 응답 DTO")
 public record LoginResponse(
@@ -18,6 +19,7 @@ public record LoginResponse(
     String accessToken,
 
     @Schema(description = "리프레시 토큰", example = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
+    @JsonIgnore
     String refreshToken
 ) {
 

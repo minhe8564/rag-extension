@@ -1,6 +1,7 @@
 package com.ssafy.hebees.user.repository;
 
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import com.ssafy.hebees.offer.entity.QOffer;
 import com.ssafy.hebees.user.entity.QUser;
 import com.ssafy.hebees.user.entity.QUserRole;
 import com.ssafy.hebees.user.entity.User;
@@ -9,6 +10,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
 @RequiredArgsConstructor
@@ -17,12 +19,14 @@ public class UserRepositoryCustomImpl implements UserRepositoryCustom {
     private final JPAQueryFactory queryFactory;
     private final QUser user = QUser.user;
     private final QUserRole userRole = QUserRole.userRole;
+    private final QOffer offer = QOffer.offer;
 
     @Override
     public List<User> findByRoleName(String roleName) {
         return queryFactory
             .selectFrom(user)
-            .join(user.userRole, userRole)
+            .join(user.userRole, userRole).fetchJoin()
+            .join(user.offer, offer).fetchJoin()
             .where(userRole.name.eq(roleName)
                 .and(user.deletedAt.isNull()))
             .fetch();
@@ -43,6 +47,8 @@ public class UserRepositoryCustomImpl implements UserRepositoryCustom {
     public Optional<User> findByEmailWithQueryDSL(String email) {
         User result = queryFactory
             .selectFrom(user)
+            .leftJoin(user.userRole, userRole).fetchJoin()
+            .leftJoin(user.offer, offer).fetchJoin()
             .where(user.email.eq(email)
                 .and(user.deletedAt.isNull()))
             .fetchOne();
@@ -54,10 +60,35 @@ public class UserRepositoryCustomImpl implements UserRepositoryCustom {
     public Optional<User> findByNameWithQueryDSL(String name) {
         User result = queryFactory
             .selectFrom(user)
+            .leftJoin(user.userRole, userRole).fetchJoin()
+            .leftJoin(user.offer, offer).fetchJoin()
             .where(user.name.eq(name)
                 .and(user.deletedAt.isNull()))
             .fetchOne();
 
         return Optional.ofNullable(result);
+    }
+
+    @Override
+    public boolean existsByRoleUuid(UUID userRoleUuid) {
+        Integer result = queryFactory
+            .selectOne()
+            .from(user)
+            .join(user.userRole, userRole)
+            .where(userRole.uuid.eq(userRoleUuid)
+                .and(user.deletedAt.isNull()))
+            .fetchFirst();
+
+        return result != null;
+    }
+
+    @Override
+    public List<User> findActiveUsers(int offset, int limit) {
+        return queryFactory
+            .selectFrom(user)
+            .where(user.deletedAt.isNull())
+            .offset(offset)
+            .limit(limit)
+            .fetch();
     }
 }
