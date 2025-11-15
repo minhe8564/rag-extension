@@ -4,7 +4,8 @@ from app.schemas.response.generationProcessResponse import GenerationProcessResp
 from app.schemas.response.errorResponse import ErrorResponse
 from app.core.memory_manager import get_memory_manager
 from app.middleware.metrics_middleware import with_generation_metrics
-from typing import Dict, Any, Optional
+from app.service.history_stream_service import get_history_stream_service
+from typing import Dict, Any
 import importlib
 from loguru import logger
 
@@ -89,6 +90,18 @@ async def generation_process(
 
         if not query or not query.strip():
             raise HTTPException(status_code=400, detail="query cannot be empty")
+
+        # Redis Stream에 질의 기록
+        try:
+            history_stream_service = get_history_stream_service()
+            history_stream_service.append_user_query(
+                query=query,
+                user_id=str(userNo) if userNo else None,
+                session_id=str(sessionNo) if sessionNo else None,
+                strategy=strategy_name,
+            )
+        except Exception as stream_error:
+            logger.warning(f"Failed to append query to Redis stream: {stream_error}")
 
         # 전략 로드
         strategy = get_strategy(strategy_name, parameters)

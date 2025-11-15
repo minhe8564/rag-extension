@@ -6,6 +6,8 @@ import time
 import httpx
 from sqlalchemy import text
 from app.core.database import SessionLocal
+from app.core.settings import settings
+from app.service.history_stream_service import get_history_stream_service
 
 # ✅ OpenAI LLM (LangChain 전용 Wrapper)
 from langchain_openai import ChatOpenAI
@@ -33,10 +35,20 @@ class Openai(BaseGenerationStrategy):
         # 파라미터에서 설정값 가져오기
         self.model_name = self.parameters.get("model_name", "gpt-4o")
         self.temperature = self.parameters.get("temperature", 0.1)
+
+        # OPENAI API 키 초기화 (우선순위: 파라미터 → 환경변수 → 설정 파일)
+        self.openai_api_key: Optional[str] = (
+            str(self.parameters.get("openai_api_key") or "").strip()
+            or str(self.parameters.get("apiKey") or "").strip()
+            or str(os.getenv("OPENAI_API_KEY") or "").strip()
+            or str(getattr(settings, "openai_api_key", "") or "").strip()
+        ) or None
         
         # 파라미터에서 llmNo와 userNo 가져오기
         llm_no = self.parameters.get("llmNo") or self.parameters.get("llm_no")
         user_no = self.parameters.get("userNo") or self.parameters.get("user_no")
+        self.llm_no = llm_no
+        self.user_no = user_no
 
         # llmNo와 userNo가 있으면 DB에서 API_KEY 조회
         if llm_no and user_no:
@@ -184,6 +196,19 @@ class Openai(BaseGenerationStrategy):
 
             if not documents:
                 logger.warning("[OpenAI] No documents retrieved")
+                try:
+                    history_stream_service = get_history_stream_service()
+                    history_stream_service.append_error_event(
+                        error_code="NO_DOCUMENTS",
+                        message="No documents retrieved for query",
+                        error_type="RESPONSE",
+                        user_id=str(self.user_no or user_id) if (self.user_no or user_id) else None,
+                        session_id=str(session_id) if session_id else None,
+                        llm_no=self.llm_no,
+                        query=query,
+                    )
+                except Exception as stream_error:
+                    logger.warning(f"[OpenAI] Failed to append error event to Redis stream: {stream_error}")
                 return {
                     "query": query,
                     "answer": "I don't have enough information to answer this question.",
@@ -388,5 +413,18 @@ class Openai(BaseGenerationStrategy):
 
         except Exception as e:
             logger.error(f"[OpenAI] Error during generation: {str(e)}")
+            try:
+                history_stream_service = get_history_stream_service()
+                history_stream_service.append_error_event(
+                    error_code="GENERATION_EXCEPTION",
+                    message=str(e),
+                    error_type="SYSTEM",
+                    user_id=str(self.user_no or user_id) if (self.user_no or user_id) else None,
+                    session_id=str(session_id) if session_id else None,
+                    llm_no=self.llm_no,
+                    query=query,
+                )
+            except Exception as stream_error:
+                logger.warning(f"[OpenAI] Failed to append system error event to Redis stream: {stream_error}")
             raise
 
