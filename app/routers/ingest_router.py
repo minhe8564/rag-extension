@@ -3,10 +3,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.schemas.request.ingestRequest import IngestRequest
 from app.schemas.request.collectionRequest import CollectionRequest
 from app.schemas.request.ingestProcessRequest import IngestProcessRequest
+from app.schemas.request.ingestProgressEvent import IngestProgressEvent
 from app.schemas.response.ingestProcessResponse import IngestProcessResponse, IngestProcessResult
 from app.schemas.response.errorResponse import ErrorResponse
 from app.service.ingest_service import IngestService
 from app.service.gateway_client import GatewayClient
+from app.service.ingest_progress_service import IngestProgressService
 from app.core.database import get_db
 from typing import Optional, List
 import json
@@ -20,6 +22,7 @@ router = APIRouter(prefix="/ingest", tags=["ingest"])
 
 ingest_service = IngestService()
 gateway_client = GatewayClient()
+progress_service = IngestProgressService()
 
 
 async def parse_ingest_request_from_form(
@@ -362,7 +365,25 @@ async def ingest_process(
                     processed_first = (file_name, collection_name)
             except Exception as per_file_err:
                 logger.exception("Per-file processing failed for {}: {}", file_name, per_file_err)
-                # 파일별 STATUS = FAILED
+
+                # 진행률(ingest run)도 FAILED 로 마무리되도록 Redis에 이벤트 전송
+                try:
+                    await progress_service.push_event(
+                        IngestProgressEvent(
+                            runId=None,
+                            userId=user_uuid or None,
+                            fileNo=file_no,
+                            currentStep="VECTOR_STORE",
+                            status="FAILED",
+                        ),
+                        user_uuid,
+                    )
+                except Exception as progress_err:
+                    logger.warning(
+                        "Failed to push FAILED progress event for {}: {}", file_name, progress_err
+                    )
+
+                # 파일별 STATUS = FAILED (DB)
                 try:
                     file_no_bytes = None
                     if file_no:
