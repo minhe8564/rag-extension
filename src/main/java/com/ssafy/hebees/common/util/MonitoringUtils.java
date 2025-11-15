@@ -1,0 +1,147 @@
+package com.ssafy.hebees.common.util;
+
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+
+/**
+ * 모니터링 공통 유틸리티 클래스
+ */
+public class MonitoringUtils {
+
+    // Constants
+    public static final ZoneId KST = ZoneId.of("Asia/Seoul");
+    public static final DateTimeFormatter ISO_FORMATTER = DateTimeFormatter.ofPattern(
+        "yyyy-MM-dd'T'HH:mm:ssXXX");
+    public static final String NETWORK_TRAFFIC_KEY = "monitoring:network:traffic";
+    public static final String NETWORK_BYTES_KEY = "monitoring:network:bytes";
+
+    // Redis Stream 키
+    public static final String CPU_STREAM_KEY = "monitoring:cpu:stream";
+    public static final String MEMORY_STREAM_KEY = "monitoring:memory:stream";
+    public static final String NETWORK_STREAM_KEY = "monitoring:network:stream";
+    public static final String ACTIVE_USER_STREAM_KEY = "active:user:stream";
+
+    public static final double SQRT_TWO = Math.sqrt(2.0);
+    public static final double BYTES_TO_GB_FACTOR = 1024.0 * 1024.0 * 1024.0;
+    public static final double BYTES_TO_MBPS_FACTOR = 8.0 / (1024.0 * 1024.0);
+    public static final long SECONDS_PER_DAY = 86_400;
+    public static final long SECONDS_PER_HOUR = 3_600;
+    public static final long SECONDS_PER_MINUTE = 60;
+
+    /**
+     * KST 시간대의 현재 시각을 ISO8601 형식으로 반환
+     */
+    public static String getKstTimestamp() {
+        return ZonedDateTime.now(KST).format(ISO_FORMATTER);
+    }
+
+    /**
+     * 값을 지정된 소수점 자리수로 반올림
+     */
+    public static double round(double value, int decimals) {
+        if (!Double.isFinite(value)) {
+            return 0.0;
+        }
+        double factor = Math.pow(10, decimals);
+        return Math.round(value * factor) / factor;
+    }
+
+    /**
+     * 바이트를 GB로 변환
+     */
+    public static double bytesToGb(long bytes) {
+        return round(bytes / BYTES_TO_GB_FACTOR, 2);
+    }
+
+    /**
+     * 바이트와 시간(초)을 Mbps로 변환
+     */
+    public static double bytesToMbps(long bytes, double seconds) {
+        if (seconds == 0) {
+            return 0.0;
+        }
+        return round((bytes * BYTES_TO_MBPS_FACTOR) / seconds, 1);
+    }
+
+    /**
+     * Instant를 ISO8601 형식 문자열로 변환
+     */
+    public static String formatInstant(Instant instant) {
+        if (instant == null) {
+            return null;
+        }
+        return instant.atZone(KST).format(ISO_FORMATTER);
+    }
+
+    /**
+     * Build Redis key for network bytes snapshot with optional host suffix.
+     */
+    public static String buildNetworkBytesKey(String hostIdentifier) {
+        if (hostIdentifier == null) {
+            return NETWORK_BYTES_KEY;
+        }
+        String normalized = hostIdentifier.trim();
+        if (normalized.isEmpty()) {
+            return NETWORK_BYTES_KEY;
+        }
+        String safe = normalized.replaceAll("[^A-Za-z0-9:_-]", "_");
+        if (safe.isEmpty()) {
+            return NETWORK_BYTES_KEY;
+        }
+        return NETWORK_BYTES_KEY + ":" + safe;
+    }
+
+    /**
+     * Build Redis Stream key for network traffic with optional host suffix.
+     *
+     * @deprecated Use {@link #buildStreamKey(String, String)} instead
+     */
+    @Deprecated
+    public static String buildNetworkStreamKey(String hostIdentifier) {
+        return buildStreamKey(NETWORK_STREAM_KEY, hostIdentifier);
+    }
+
+    /**
+     * Build Redis Stream key with optional host suffix.
+     *
+     * @param baseKey        기본 Stream 키 (예: CPU_STREAM_KEY, MEMORY_STREAM_KEY)
+     * @param hostIdentifier 호스트 식별자 (null이면 baseKey 반환)
+     * @return 호스트별 Stream 키 또는 기본 키
+     */
+    public static String buildStreamKey(String baseKey, String hostIdentifier) {
+        if (hostIdentifier == null) {
+            return baseKey;
+        }
+        String normalized = hostIdentifier.trim();
+        if (normalized.isEmpty()) {
+            return baseKey;
+        }
+        String safe = normalized.replaceAll("[^A-Za-z0-9:_-]", "_");
+        if (safe.isEmpty()) {
+            return baseKey;
+        }
+        return baseKey + ":" + safe;
+    }
+
+    /**
+     * Build Redis Stream key for CPU usage with optional host suffix.
+     *
+     * @deprecated Use {@link #buildStreamKey(String, String)} instead
+     */
+    @Deprecated
+    public static String buildCpuStreamKey(String hostIdentifier) {
+        return buildStreamKey(CPU_STREAM_KEY, hostIdentifier);
+    }
+
+    /**
+     * Build Redis Stream key for memory usage with optional host suffix.
+     *
+     * @deprecated Use {@link #buildStreamKey(String, String)} instead
+     */
+    @Deprecated
+    public static String buildMemoryStreamKey(String hostIdentifier) {
+        return buildStreamKey(MEMORY_STREAM_KEY, hostIdentifier);
+    }
+}

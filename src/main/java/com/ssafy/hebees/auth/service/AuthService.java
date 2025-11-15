@@ -1,9 +1,12 @@
 package com.ssafy.hebees.auth.service;
 
 import com.ssafy.hebees.auth.dto.request.LoginRequest;
+import com.ssafy.hebees.auth.dto.response.AccessTokenIssueResponse;
 import com.ssafy.hebees.auth.dto.response.LoginResponse;
 import com.ssafy.hebees.auth.dto.request.TokenRefreshRequest;
 import com.ssafy.hebees.auth.dto.response.TokenRefreshResponse;
+
+import java.util.UUID;
 
 public interface AuthService {
 
@@ -22,6 +25,22 @@ public interface AuthService {
      * @return 새로운 토큰들
      */
     TokenRefreshResponse refreshToken(TokenRefreshRequest request);
+
+    /**
+     * 사용자 번호로 액세스 토큰 발급
+     *
+     * @param userNo 사용자 UUID
+     * @return 발급된 액세스 토큰 응답
+     */
+    AccessTokenIssueResponse issueAccessToken(UUID userNo);
+
+    /**
+     * 이메일로 액세스 토큰 발급
+     *
+     * @param email 사용자 이메일
+     * @return 발급된 액세스 토큰 응답
+     */
+    AccessTokenIssueResponse issueAccessTokenByEmail(String email);
 
     /**
      * 로그아웃 (리프레시 토큰 삭제)

@@ -1,5 +1,6 @@
 package com.ssafy.hebees.user.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.ssafy.hebees.common.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -43,8 +44,14 @@ public class UserRole extends BaseEntity {
     @Column(name = "MODE", nullable = false)
     private Integer mode;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "userRole", fetch = FetchType.LAZY)
     @Builder.Default
     private List<User> users = new ArrayList<>();
+
+    public void update(Integer mode, String name) {
+        this.mode = mode;
+        this.name = name;
+    }
 }
 

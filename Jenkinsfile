@@ -49,14 +49,19 @@ def deployToInactiveEnvironment(environment, credentials, inactiveContainer, net
             --network ${networkName} \\
             --network ${env.DB_NETWORK} \\
             --network-alias backend-${environment}-new \\
+            -v /var/run/docker.sock:/var/run/docker.sock \\
             --env SPRING_PROFILES_ACTIVE=docker \\
             --env DB_USERNAME=\$DB_USERNAME \\
             --env DB_PASSWORD=\$DB_PASSWORD \\
             --env DB_NAME=\$DB_NAME \\
             --env REDIS_PASSWORD=\$REDIS_PASSWORD \\
+            --env MONGODB_DATABASE=\$MONGODB_DATABASE \\
+            --env MONGODB_USERNAME=\$MONGODB_USERNAME \\
+            --env MONGODB_PASSWORD=\$MONGODB_PASSWORD \\
             --env JWT_SECRET=\$JWT_SECRET \\
             --env JWT_ACCESS_TOKEN_EXPIRATION=\$JWT_ACCESS_EXPIRATION \\
             --env JWT_REFRESH_TOKEN_EXPIRATION=\$JWT_REFRESH_EXPIRATION \\
+            --env RUNPOD_API_KEY=\$RUNPOD_API_KEY \\
             ${tag}
         """
     }
@@ -199,10 +204,44 @@ pipeline {
                     echo "REF: ${env.REF}"
                     echo "======================"
                     
+                    String branch = ''
                     if (env.GITLAB_OBJECT_KIND == 'push') {
+                        branch = (env.REF ?: '').replaceAll('refs/heads/', '').trim()
                         echo "📝 Push 이벤트 감지 - 현재 브랜치로 배포"
                     } else if (params.BUILD_BACKEND == true) {
+                        branch = (params.BRANCH_TO_BUILD ?: '').trim()
                         echo "📝 수동 빌드 실행"
+                    }
+
+                    env.PIPELINE_BRANCH = branch ?: ''
+                    env.PIPELINE_COMMIT_MSG = ''
+                    env.PIPELINE_MENTION = ''
+
+                    if (fileExists('.git')) {
+                        try {
+                            env.PIPELINE_COMMIT_MSG = sh(script: "git log -1 --pretty=%s", returnStdout: true).trim()
+                        } catch (Exception e) {
+                            echo "⚠️ 커밋 메시지를 가져오지 못했습니다: ${e.message}"
+                            env.PIPELINE_COMMIT_MSG = ''
+                        }
+
+                        def pusherUsername = env.GIT_PUSHER_USERNAME?.trim()
+                        if (pusherUsername) {
+                            env.PIPELINE_MENTION = "@${pusherUsername}"
+                        } else {
+                            try {
+                                env.PIPELINE_MENTION = sh(script: "git --no-pager show -s --format='%an <%ae>' HEAD", returnStdout: true).trim()
+                            } catch (Exception e) {
+                                echo "⚠️ 커밋 작성자 정보를 가져오지 못했습니다: ${e.message}"
+                                env.PIPELINE_MENTION = ''
+                            }
+                        }
+                    } else {
+                        echo "⚠️ Git 저장소를 찾지 못해 커밋 메타데이터 캐싱을 건너뜁니다."
+                        def pusherUsername = env.GIT_PUSHER_USERNAME?.trim()
+                        if (pusherUsername) {
+                            env.PIPELINE_MENTION = "@${pusherUsername}"
+                        }
                     }
                 }
             }
@@ -300,9 +339,13 @@ pipeline {
                             string(credentialsId: 'backend.db.password.test', variable: 'DB_PASSWORD'),
                             string(credentialsId: 'backend.db.name.test', variable: 'DB_NAME'),
                             string(credentialsId: 'backend.redis.password', variable: 'REDIS_PASSWORD'),
+                            string(credentialsId: 'backend.mongodb.database', variable: 'MONGODB_DATABASE'),
+                            string(credentialsId: 'backend.mongodb.username', variable: 'MONGODB_USERNAME'),
+                            string(credentialsId: 'backend.mongodb.password', variable: 'MONGODB_PASSWORD'),
                             string(credentialsId: 'backend.jwt.secret.test', variable: 'JWT_SECRET'),
                             string(credentialsId: 'backend.jwt.access.expiration', variable: 'JWT_ACCESS_EXPIRATION'),
-                            string(credentialsId: 'backend.jwt.refresh.expiration', variable: 'JWT_REFRESH_EXPIRATION')
+                            string(credentialsId: 'backend.jwt.refresh.expiration', variable: 'JWT_REFRESH_EXPIRATION'),
+                            string(credentialsId: 'RUNPOD_API_KEY', variable: 'RUNPOD_API_KEY')
                         ]
                         
                         // 현재 활성 컨테이너 확인
@@ -326,9 +369,13 @@ pipeline {
                             string(credentialsId: 'backend.db.password.prod', variable: 'DB_PASSWORD'),
                             string(credentialsId: 'backend.db.name.prod', variable: 'DB_NAME'),
                             string(credentialsId: 'backend.redis.password', variable: 'REDIS_PASSWORD'),
+                            string(credentialsId: 'backend.mongodb.database', variable: 'MONGODB_DATABASE'),
+                            string(credentialsId: 'backend.mongodb.username', variable: 'MONGODB_USERNAME'),
+                            string(credentialsId: 'backend.mongodb.password', variable: 'MONGODB_PASSWORD'),
                             string(credentialsId: 'backend.jwt.secret.prod', variable: 'JWT_SECRET'),
                             string(credentialsId: 'backend.jwt.access.expiration', variable: 'JWT_ACCESS_EXPIRATION'),
-                            string(credentialsId: 'backend.jwt.refresh.expiration', variable: 'JWT_REFRESH_EXPIRATION')
+                            string(credentialsId: 'backend.jwt.refresh.expiration', variable: 'JWT_REFRESH_EXPIRATION'),
+                            string(credentialsId: 'RUNPOD_API_KEY', variable: 'RUNPOD_API_KEY')
                         ]
                         
                         // 현재 활성 컨테이너 확인
@@ -471,31 +518,148 @@ pipeline {
     }
     
     post {
-        success {
-            script {
-                echo "✅ Pipeline succeeded!"
-                
-                // 성공 시에만 오래된 리소스 정리
-                if (env.GITLAB_OBJECT_KIND == 'push' || params.BUILD_BACKEND == true) {
-                    cleanupOldResources()
-                }
-            }
-        }
-        
-        failure {
-            script {
-                echo "❌ Pipeline failed!"
-                
-                // 실패 시 롤백 정보 출력
-                if (env.GITLAB_OBJECT_KIND == 'push' || params.BUILD_BACKEND == true) {
-                    echo "🔄 Consider running manual rollback with ROLLBACK_DEPLOYMENT parameter"
-                }
-            }
-        }
-        
         always {
-            echo "📦 Pipeline finished with status: ${currentBuild.currentResult}"
+            script {
+                // node 블록 안에서 실행하여 FilePath 컨텍스트 확보
+                node {
+                    try {
+                        // 공통 정보 수집 (한 번만 실행)
+                        def branch    = resolveBranch()
+                        def mention   = resolvePusherMention()
+                        def commitMsg = env.PIPELINE_COMMIT_MSG?.trim()
+                        if (!commitMsg) {
+                            commitMsg = "N/A"
+                        }
+                        def commitUrl = env.GIT_COMMIT_URL ?: ""
+                        
+                        def buildInfo = [
+                            branch   : branch,
+                            mention  : mention,
+                            buildUrl : env.BUILD_URL,
+                            commit   : [msg: commitMsg, url: commitUrl]
+                        ]
+                        
+                        // 빌드 결과에 따라 알림 전송
+                        if (currentBuild.result == 'SUCCESS' || currentBuild.result == null) {
+                            echo "🎉 POST: 빌드 성공 – Mattermost 알림 전송"
+                            
+                            // 성공 시에만 오래된 리소스 정리
+                            if (env.GITLAB_OBJECT_KIND == 'push' || params.BUILD_BACKEND == true) {
+                                cleanupOldResources()
+                            }
+                            
+                            sendMMNotify(true, buildInfo)
+                            
+                        } else if (currentBuild.result == 'FAILURE') {
+                            echo "🚨 POST: 빌드 실패 – 로그 추출 후 Mattermost 알림 전송"
+                            
+                            // Jenkins 내장 API로 로그 추출 (마지막 150줄)
+                            def logLines = []
+                            try {
+                                def rawBuild = currentBuild.rawBuild
+                                def logText = rawBuild.getLog(150).join('\n')
+                                
+                                // 민감정보 마스킹
+                                logText = logText
+                                    .replaceAll(/(?i)(token|secret|password|passwd|apikey|api_key)\s*[:=]\s*\S+/, '$1=[REDACTED]')
+                                    .replaceAll(/AKIA[0-9A-Z]{16}/, 'AKIA[REDACTED]')
+                                
+                                buildInfo.details = "```text\n${logText}\n```"
+                            } catch (Exception e) {
+                                echo "⚠️ 로그 추출 실패: ${e.message}"
+                                buildInfo.details = "```text\n로그를 가져올 수 없습니다.\n```"
+                            }
+                            
+                            sendMMNotify(false, buildInfo)
+                            
+                            // 실패 시 롤백 정보 출력
+                            if (env.GITLAB_OBJECT_KIND == 'push' || params.BUILD_BACKEND == true) {
+                                echo "🔄 Consider running manual rollback with ROLLBACK_DEPLOYMENT parameter"
+                            }
+                        }
+                        
+                        echo "📦 Pipeline finished with status: ${currentBuild.currentResult}"
+                    } catch (Exception e) {
+                        echo "⚠️ Post condition 실행 중 오류 발생: ${e.message}"
+                    }
+                }
+            }
         }
+    }
+}
+
+// 브랜치 해석: BRANCH_NAME → GIT_REF → git
+def resolveBranch() {
+    def cached = env.PIPELINE_BRANCH?.trim()
+    if (cached) return cached
+    if (env.BRANCH_NAME) return env.BRANCH_NAME
+    if (env.REF) return env.REF.replaceFirst(/^refs\/heads\//, '')
+    if (params?.BRANCH_TO_BUILD?.trim()) return params.BRANCH_TO_BUILD.trim()
+    try {
+        if (fileExists('.git')) {
+            return sh(script: "git name-rev --name-only HEAD || git rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
+        }
+    } catch (Exception e) {
+        echo "⚠️ Git 브랜치 정보를 가져올 수 없습니다: ${e.message}"
+    }
+    return "unknown"
+}
+
+// @username (웹훅의 user_username) 우선, 없으면 커밋 작성자 표시
+def resolvePusherMention() {
+    def cached = env.PIPELINE_MENTION?.trim()
+    if (cached) return cached
+    def u = env.GIT_PUSHER_USERNAME?.trim()
+    if (u) {
+        def mention = "@${u}"
+        env.PIPELINE_MENTION = mention
+        return mention
+    }
+    try {
+        if (fileExists('.git')) {
+            def author = sh(script: "git --no-pager show -s --format='%an <%ae>' HEAD", returnStdout: true).trim()
+            env.PIPELINE_MENTION = author
+            return author
+        }
+    } catch (Exception e) {
+        echo "⚠️ Git 커밋 작성자 정보를 가져올 수 없습니다: ${e.message}"
+    }
+    return "Unknown"
+}
+
+// 매터모스트 알림 전송
+def sendMMNotify(boolean success, Map info) {
+    def titleLine = success ? "## :jenkins7: 백엔드 빌드 성공 ✅"
+                            : "## :angry_jenkins: 백엔드 빌드 실패 ❌"
+    def lines = []
+    if (info.mention) lines << "**작성자**: ${info.mention}"
+    if (info.branch)  lines << "**대상 브랜치**: `${info.branch}`"
+    if (info.commit?.msg) {
+        def commitLine = info.commit?.url ? "[${info.commit.msg}](${info.commit.url})" : info.commit.msg
+        lines << "**커밋**: ${commitLine}"
+    }
+    if (info.buildUrl) {
+        lines << "**빌드 상세**: [Details](${info.buildUrl})"
+    }
+    if (!success && info.details) {
+        lines << "**에러 로그**:\n${info.details}"
+    }
+    
+    def text = "${titleLine}\n" + (lines ? ("\n" + lines.join("\n")) : "")
+    
+    // 안전 전송(크리덴셜 경고 없음)
+    writeFile file: 'payload.json', text: groovy.json.JsonOutput.toJson([
+        text      : text,
+        username  : "Jenkins",
+        icon_emoji: ":jenkins7:"
+    ])
+    
+    withCredentials([string(credentialsId: 'mattermost-webhook', variable: 'MM_WEBHOOK')]) {
+        sh(script: '''
+            curl -sS -f -X POST -H 'Content-Type: application/json' \
+                --data-binary @payload.json \
+                "$MM_WEBHOOK" || true
+        ''')
     }
 }
 
