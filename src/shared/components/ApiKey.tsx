@@ -113,7 +113,7 @@ export default function ApiKey({
     setIsSaving(true);
     try {
       if (current) {
-        const res = await updateMyLlmKey(current.llmKeyNo, { apiKey: value });
+        const res = await updateMyLlmKey(current.llmNo, { apiKey: value });
         setCurrent(res.data.result);
         toast.success('API Key 수정 완료');
       } else {
@@ -142,7 +142,7 @@ export default function ApiKey({
     }
     setIsSaving(true);
     try {
-      await deleteMyLlmKey(current.llmKeyNo);
+      await deleteMyLlmKey(current.llmNo);
       setCurrent(null);
       setTempKey('');
       setEditingKey(false);

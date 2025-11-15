@@ -19,12 +19,9 @@ export const getMyLlmKeyByName = (llmName: string) =>
   springApi.get<ApiEnvelope<MyLlmKeyResponse>>(`/api/v1/rag-settings/llm-keys/me/${llmName}`);
 
 // 내 LLM Key 수정
-export const updateMyLlmKey = (llmKeyNo: string, data: Partial<MyLlmKeyCreateRequest>) =>
-  springApi.put<ApiEnvelope<MyLlmKeyResponse>>(
-    `/api/v1/rag-settings/llm-keys/me/${llmKeyNo}`,
-    data
-  );
+export const updateMyLlmKey = (llmNo: string, data: Partial<MyLlmKeyCreateRequest>) =>
+  springApi.put<ApiEnvelope<MyLlmKeyResponse>>(`/api/v1/rag-settings/llm-keys/me/${llmNo}`, data);
 
 // 내 LLM Key 삭제
-export const deleteMyLlmKey = (llmKeyNo: string) =>
-  springApi.delete(`/api/v1/rag-settings/llm-keys/me/${llmKeyNo}`);
+export const deleteMyLlmKey = (llmNo: string) =>
+  springApi.delete(`/api/v1/rag-settings/llm-keys/me/${llmNo}`);
