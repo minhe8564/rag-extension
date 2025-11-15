@@ -27,8 +27,7 @@ from app.domains.sales_report.schemas.response.chain_summary_response import (
     LLMInsights,
     Metadata
 )
-from app.domains.sales_report.services.chain_llm_client import ChainLLMClient
-from app.domains.runpod.repositories.runpod_repository import RunpodRepository
+from app.domains.sales_report.services.llm.factory import LLMProviderFactory
 from app.domains.sales_report.exceptions import LLMServiceError, RunpodNotFoundError
 
 logger = logging.getLogger(__name__)
@@ -112,8 +111,9 @@ class ChainSummaryService:
 
         # 7. LLM 인사이트 (구조화된 형식)
         llm_insights = None
+        model_name = "N/A"
         if include_ai_insights:
-            llm_insights = await self._generate_llm_insights(
+            llm_insights, model_name = await self._generate_llm_insights(
                 analysis_period=analysis_period,
                 store_performance=store_performance,
                 product_insights=product_insights,
@@ -134,7 +134,7 @@ class ChainSummaryService:
         generation_time_ms = int((end_time - start_time).total_seconds() * 1000)
 
         metadata = Metadata(
-            ai_model="qwen3-vl:8b" if include_ai_insights else "N/A",
+            ai_model=model_name,
             generation_time_ms=generation_time_ms
         )
 
@@ -533,21 +533,21 @@ class ChainSummaryService:
         time_patterns: TimePatterns,
         customer_analysis: CustomerAnalysis,
         visit_sales_patterns: List[VisitSalesPattern]
-    ) -> LLMInsights:
-        """LLM을 사용한 구조화된 인사이트 생성"""
+    ) -> tuple[LLMInsights, str]:
+        """
+        LLM을 사용한 구조화된 인사이트 생성
+
+        ✨ LLM 제공자 모듈화 적용 (Qwen/GPT 선택 가능)
+
+        Returns:
+            Tuple[LLMInsights, str]: (AI 생성 인사이트, 모델명)
+        """
         try:
-            # Runpod에서 qwen3 LLM 주소 조회
-            runpod = await RunpodRepository.find_by_name(self.db, "qwen3")
+            # === 1. LLM 제공자 생성 (팩토리 패턴) ===
+            llm_provider, model_name = await LLMProviderFactory.create(db=self.db)
 
-            if not runpod or not runpod.address:
-                logger.warning("AI 인사이트 생성 실패: LLM 서버를 찾을 수 없습니다.")
-                raise RunpodNotFoundError("qwen3 LLM 서버를 찾을 수 없습니다.")
-
-            # LLM 클라이언트 생성
-            llm_client = ChainLLMClient(runpod.address)
-
-            # LLM 인사이트 생성 (구조화된 응답)
-            insights = await llm_client.generate_chain_insights(
+            # === 2. AI 인사이트 생성 (제공자 무관) ===
+            insights_dict = await llm_provider.generate_chain_insights(
                 analysis_period=analysis_period,
                 store_performance=store_performance,
                 product_insights=product_insights,
@@ -556,14 +556,14 @@ class ChainSummaryService:
                 visit_sales_patterns=visit_sales_patterns
             )
 
-            return insights
+            return LLMInsights(**insights_dict), model_name
 
         except RunpodNotFoundError:
             return LLMInsights(
                 sales_summary="LLM 서버를 찾을 수 없어 AI 인사이트를 생성할 수 없습니다.",
                 sales_strategies=[],
                 marketing_strategies=[]
-            )
+            ), "unavailable"
         except Exception as e:
             logger.error(f"AI 인사이트 생성 실패: {str(e)}", exc_info=True)
             raise LLMServiceError(f"AI 인사이트 생성 중 오류 발생: {str(e)}")

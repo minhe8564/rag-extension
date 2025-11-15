@@ -14,3 +14,11 @@ DEFAULT_PAGE_SIZE = 20
 
 # Maximum allowed items per page
 MAX_PAGE_SIZE = 100
+
+# ============================================
+# Settings Export
+# ============================================
+
+from app.core.config.settings import settings
+
+__all__ = ["DEFAULT_PAGE_SIZE", "MAX_PAGE_SIZE", "settings"]
