@@ -65,8 +65,12 @@ public class LlmKeyServiceImpl implements LlmKeyService {
 
     @Override
     public LlmKeyResponse get(UUID llmKeyNo) {
-        LlmKey llmKey = fetchLlmKey(llmKeyNo);
-        return mapToResponse(llmKey);
+        try{
+            LlmKey llmKey = fetchLlmKey(llmKeyNo);
+            return mapToResponse(llmKey);
+        } catch (BusinessException e){
+            return LlmKeyResponse.builder().hasKey(false).build();
+        }
     }
 
     @Override
@@ -209,13 +213,9 @@ public class LlmKeyServiceImpl implements LlmKeyService {
     public LlmKeyResponse getSelfByLlm(UUID userNo, String llmIdentifier) {
         UUID owner = UserValidationUtil.requireUser(userNo);
         UUID strategyNo = resolveStrategyNo(llmIdentifier);
-        LlmKey llmKey = llmKeyRepository.findByUser_UuidAndStrategy_StrategyNo(owner, strategyNo)
-            .orElseThrow(() -> {
-                log.warn("LLM Key 조회 실패 - 존재하지 않음: userNo={}, llmIdentifier={}", owner,
-                    llmIdentifier);
-                return new BusinessException(ErrorCode.NOT_FOUND);
-            });
-        return mapToResponse(llmKey);
+        return llmKeyRepository.findByUser_UuidAndStrategy_StrategyNo(owner, strategyNo)
+            .map(this::mapToResponse)
+            .orElseGet(()-> LlmKeyResponse.builder().hasKey(false).build());
     }
 
     private LlmKey fetchLlmKey(UUID llmKeyNo) {
@@ -319,6 +319,7 @@ public class LlmKeyServiceImpl implements LlmKeyService {
         }
 
         return new LlmKeyResponse(
+            true,
             llmKey.getLlmKeyNo(),
             llmKey.getUser() != null ? llmKey.getUser().getUuid() : null,
             strategy != null ? strategy.getStrategyNo() : null,
