@@ -18,6 +18,14 @@ class Settings(BaseSettings):
     hf_home: str = "./cache/hf"
     transformers_cache: str = "./cache/hf"
 
+    # MinIO 설정
+    minio_endpoint: str
+    minio_access_key: str
+    minio_secret_key: str
+    minio_bucket_name: str
+    minio_secure: bool = False  # HTTP 사용 (False) 또는 HTTPS 사용 (True)
+    minio_base_url: str = "https://storage.ragextension.shop"  # MinIO 공개 URL
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
