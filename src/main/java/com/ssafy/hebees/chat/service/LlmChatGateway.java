@@ -13,10 +13,10 @@ import com.ssafy.hebees.chat.config.RunpodProperties;
 import com.ssafy.hebees.common.exception.BusinessException;
 import com.ssafy.hebees.common.exception.ErrorCode;
 import com.ssafy.hebees.ragsetting.entity.AgentPrompt;
-import com.ssafy.hebees.ragsetting.entity.LlmKey;
+import com.ssafy.hebees.llmKey.entity.LlmKey;
 import com.ssafy.hebees.ragsetting.entity.Strategy;
 import com.ssafy.hebees.ragsetting.repository.AgentPromptRepository;
-import com.ssafy.hebees.ragsetting.repository.LlmKeyRepository;
+import com.ssafy.hebees.llmKey.repository.LlmKeyRepository;
 import com.ssafy.hebees.ragsetting.repository.StrategyRepository;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -126,7 +126,7 @@ public class LlmChatGateway {
 
     private String resolveApiKey(UUID userNo, LlmProvider provider, Strategy strategy) {
         Optional<String> userKey = llmKeyRepository
-            .findByUser_UuidAndStrategy_StrategyNo(userNo, strategy.getStrategyNo())
+            .findByUserUuidAndStrategyNo(userNo, strategy.getStrategyNo())
             .map(LlmKey::getApiKey)
             .filter(StringUtils::hasText);
 
@@ -161,7 +161,7 @@ public class LlmChatGateway {
 
     private String resolveSystemApiKey(LlmProvider provider, Strategy strategy) {
         Optional<String> systemKey = llmKeyRepository
-            .findFirstByUserIsNullAndStrategy_StrategyNo(strategy.getStrategyNo())
+            .findSystemLlmKeyByStrategyNo(strategy.getStrategyNo())
             .map(LlmKey::getApiKey)
             .filter(StringUtils::hasText);
 

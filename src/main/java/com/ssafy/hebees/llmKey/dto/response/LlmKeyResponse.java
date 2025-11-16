@@ -1,4 +1,4 @@
-package com.ssafy.hebees.ragsetting.dto.response;
+package com.ssafy.hebees.llmKey.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -32,5 +32,3 @@ public record LlmKeyResponse(
 ) {
 
 }
-
-

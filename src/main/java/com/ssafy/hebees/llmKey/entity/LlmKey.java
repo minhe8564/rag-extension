@@ -1,5 +1,6 @@
-package com.ssafy.hebees.ragsetting.entity;
+package com.ssafy.hebees.llmKey.entity;
 
+import com.ssafy.hebees.ragsetting.entity.Strategy;
 import com.ssafy.hebees.user.entity.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -37,11 +38,10 @@ public class LlmKey {
     @Column(name = "LLM_KEY_NO", columnDefinition = "BINARY(16)", nullable = false)
     private UUID llmKeyNo;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(
         name = "USER_NO",
         referencedColumnName = "USER_NO",
-        nullable = true,
         columnDefinition = "BINARY(16)"
     )
     private User user;
@@ -55,7 +55,7 @@ public class LlmKey {
     )
     private Strategy strategy;
 
-    @Column(name = "API_KEY", nullable = false)
+    @Column(name = "API_KEY", nullable = false, length = 255)
     private String apiKey;
 
     @PrePersist
@@ -63,10 +63,6 @@ public class LlmKey {
         if (llmKeyNo == null) {
             llmKeyNo = UUID.randomUUID();
         }
-    }
-
-    public void updateStrategy(Strategy strategy) {
-        this.strategy = strategy;
     }
 
     public void updateApiKey(String apiKey) {
