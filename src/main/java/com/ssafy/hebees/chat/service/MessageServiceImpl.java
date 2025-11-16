@@ -12,7 +12,6 @@ import com.ssafy.hebees.chat.repository.MessageRepository;
 import com.ssafy.hebees.chat.repository.SessionRepository;
 import com.ssafy.hebees.common.exception.BusinessException;
 import com.ssafy.hebees.common.exception.ErrorCode;
-import com.ssafy.hebees.common.util.UserValidationUtil;
 import com.ssafy.hebees.common.util.ValidationUtil;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -100,7 +99,7 @@ public class MessageServiceImpl implements MessageService {
 
     @Override
     public MessageResponse getMessage(UUID userNo, UUID sessionNo, UUID messageNo) {
-        UUID owner = UserValidationUtil.requireUser(userNo);
+        UUID owner = ValidationUtil.require(userNo);
         UUID sessionId = ValidationUtil.require(sessionNo);
         UUID messageId = ValidationUtil.require(messageNo);
 
