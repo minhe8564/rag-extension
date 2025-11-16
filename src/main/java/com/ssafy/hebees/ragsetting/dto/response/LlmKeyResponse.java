@@ -1,10 +1,17 @@
 package com.ssafy.hebees.ragsetting.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.UUID;
+import lombok.Builder;
 
+@JsonInclude(JsonInclude.Include.NON_NULL)
 @Schema(description = "LLM Key 응답")
+@Builder(toBuilder = true)
 public record LlmKeyResponse(
+    @Schema(description = "키 존재 여부", example = "true")
+    boolean hasKey,
+
     @Schema(description = "LLM Key ID", example = "e3a3a951-2b44-4bd4-8c91-1d6d5f4b7a1e")
     UUID llmKeyNo,
 
