@@ -227,13 +227,6 @@ async def embedding_process(
                 except Exception:
                     pass
 
-            # EMBEDDING 실패 알림
-            if progress_client:
-                try:
-                    await progress_client.embedding_fail(processed=0, total=total_chunks)
-                except Exception as pe:
-                    logger.debug(f"Failed to send embedding fail progress: {pe}")
-
             # 실패 시 기존 전략으로 폴백 (progress 콜백 주입)
             strategy_params = dict(parameters) if isinstance(parameters, dict) else {}
             if progress_client:
