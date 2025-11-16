@@ -165,6 +165,8 @@ async def upload_file(
                 summary = await redis.hgetall(summary_key)
                 prev_total = 0
                 prev_completed = 0
+                prev_success = 0
+                prev_failed = 0
                 if summary:
                     try:
                         prev_total = int(summary.get("total", 0) or 0)
@@ -179,15 +181,27 @@ async def upload_file(
                 if prev_total > 0 and prev_completed < prev_total:
                     total = prev_total + n
                     completed = prev_completed
+                    try:
+                        prev_success = int(summary.get("successCount", 0) or 0)
+                    except (TypeError, ValueError, AttributeError):
+                        prev_success = 0
+                    try:
+                        prev_failed = int(summary.get("failedCount", 0) or 0)
+                    except (TypeError, ValueError, AttributeError):
+                        prev_failed = 0
                 else:
                     total = n
                     completed = 0
+                    prev_success = 0
+                    prev_failed = 0
 
                 await redis.hset(
                     summary_key,
                     mapping={
                         "total": str(total),
                         "completed": str(completed),
+                        "successCount": str(prev_success),
+                        "failedCount": str(prev_failed),
                         "updatedAt": now_iso,
                     },
                 )
