@@ -47,12 +47,20 @@ export default function AdminLayout() {
   const [isOpen, setIsOpen] = useState(true);
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
-  const [sp] = useSearchParams();
-  const activeSessionNo = sp.get('session') || undefined;
   const navigate = useNavigate();
 
+  const [sp] = useSearchParams();
   const location = useLocation();
   const { pathname } = location;
+
+  const sessionFromPath = pathname.startsWith('/admin/chat/text/')
+    ? pathname.replace('/admin/chat/text/', '')
+    : undefined;
+
+  const sessionFromQuery = sp.get('session') || undefined;
+
+  const activeSessionNo = sessionFromPath ?? sessionFromQuery;
+
   const isChatRoute = pathname.startsWith('/admin/chat/text');
 
   const [modelOptions, setModelOptions] = useState<Option[]>([]);
