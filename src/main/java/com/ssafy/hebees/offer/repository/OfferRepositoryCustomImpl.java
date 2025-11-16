@@ -36,4 +36,3 @@ public class OfferRepositoryCustomImpl implements OfferRepositoryCustom {
         return count != null && count > 0;
     }
 }
-
