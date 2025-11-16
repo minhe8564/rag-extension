@@ -56,8 +56,6 @@ export default function AdminLayout() {
   const isChatRoute = pathname.startsWith('/admin/chat/text');
 
   const [modelOptions, setModelOptions] = useState<Option[]>([]);
-  const [hasKey, setHasKey] = useState<boolean | null>(null);
-
   const { selectedModel, setSelectedModel } = useChatModelStore();
 
   useEffect(() => {
@@ -70,13 +68,10 @@ export default function AdminLayout() {
       if (!active) return;
 
       if (!result.hasKey) {
-        setHasKey(false);
         setModelOptions([]);
         setSelectedModel(undefined, undefined);
         return;
       }
-
-      setHasKey(true);
 
       const list: MyLlmKeyResponse[] = [result];
 

@@ -38,12 +38,10 @@ export default function UserLayout() {
   const activeSessionNo = sp.get('session') || undefined;
   const navigate = useNavigate();
 
-  const { pathname, search } = useLocation();
+  const { pathname } = useLocation();
   const isChatRoute = pathname.startsWith('/user/chat/text');
 
   const [modelOptions, setModelOptions] = useState<Option[]>([]);
-  const [hasKey, setHasKey] = useState<boolean | null>(null);
-
   const { selectedModel, setSelectedModel } = useChatModelStore();
 
   useEffect(() => {
@@ -56,13 +54,10 @@ export default function UserLayout() {
       if (!active) return;
 
       if (!result.hasKey) {
-        setHasKey(false);
         setModelOptions([]);
         setSelectedModel(undefined, undefined);
         return;
       }
-
-      setHasKey(true);
 
       const list: MyLlmKeyResponse[] = [result];
 
@@ -95,9 +90,6 @@ export default function UserLayout() {
       active = false;
     };
   }, [selectedModel, setSelectedModel]);
-
-  const headerJustifyClass =
-    hasKey && isChatRoute && modelOptions.length > 0 ? 'justify-between' : 'justify-end';
 
   return (
     <div className="flex min-h-screen bg-transparent">
