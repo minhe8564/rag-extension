@@ -1,6 +1,6 @@
 """
-Word 프로세서
-Word 파일(.docx)을 PDF로 변환 후 Marker로 처리
+HTML 프로세서
+HTML 파일(.html, .htm)을 PDF로 변환 후 Marker로 처리
 """
 import logging
 import threading
@@ -19,23 +19,21 @@ from .base import BaseProcessor
 
 logger = logging.getLogger(__name__)
 
-
-class WordProcessor(BaseProcessor):
+class HTMLProcessor(BaseProcessor):
     """
-    Word 파일(.docx)을 Markdown으로 변환하는 프로세서
+    HTML 파일(.html, .htm)을 Markdown으로 변환하는 프로세서
     PDF로 변환 후 Marker로 처리
     """
-    
     @property
     def supported_extensions(self) -> List[str]:
         """
         지원하는 파일 확장자
         """
-        return [".docx"]
-    
+        return [".html", ".htm"]
+
     def __init__(self):
-        self._model_dict = None
-        self._lock = threading.Lock()
+        self._model_dict = None  # 언더스코어 추가
+        self._lock = threading.Lock()  # 언더스코어 추가
         
         # settings에서 명시적으로 device가 지정된 경우
         requested_device = settings.marker_device.lower()
@@ -59,7 +57,6 @@ class WordProcessor(BaseProcessor):
         else:
             self._dtype = settings.marker_dtype.lower() if settings.marker_dtype else "float16"
             self._dtype_t = getattr(torch, self._dtype, torch.float16)
-        
     def _auto_select_device(self) -> str:
         """
         자동으로 device 선택 (우선순위: CUDA > MPS > CPU)
@@ -70,7 +67,6 @@ class WordProcessor(BaseProcessor):
             return "mps"
         else:
             return "cpu"
-    
     def _ensure_model(self):
         """
         Marker 모델을 싱글톤으로 로드 (thread-safe)
@@ -84,22 +80,21 @@ class WordProcessor(BaseProcessor):
                 return self._model_dict
             
             try:
-                logger.info(f"[Word Marker 모델] 로딩 시작 - Device: {self._device.upper()}, Dtype: {self._dtype}")
+                logger.info(f"[HTML Marker 모델] 로딩 시작 - Device: {self._device.upper()}, Dtype: {self._dtype}")
                 kwargs = {"device": self._device}
                 if self._dtype_t is not None:
                     kwargs["dtype"] = self._dtype_t
                 self._model_dict = create_model_dict(**kwargs)
-                logger.info(f"[Word Marker 모델] 로드 완료 - Device: {self._device.upper()}, Dtype: {self._dtype}")
+                logger.info(f"[HTML Marker 모델] 로드 완료 - Device: {self._device.upper()}, Dtype: {self._dtype}")
             except TypeError:
-                logger.info(f"[Word Marker 모델] 로딩 시작 (dtype 제외) - Device: {self._device.upper()}")
+                logger.info(f"[HTML Marker 모델] 로딩 시작 (dtype 제외) - Device: {self._device.upper()}")
                 self._model_dict = create_model_dict(device=self._device)
-                logger.info(f"[Word Marker 모델] 로드 완료 - Device: {self._device.upper()}")
+                logger.info(f"[HTML Marker 모델] 로드 완료 - Device: {self._device.upper()}")
             
             return self._model_dict
-    
     def process(self, file_path: str) -> Dict[str, Any]:
         """
-        Word 파일 -> PDF 변환 -> MinIO 업로드 -> Marker로 Markdown 변환
+        HTML 파일 -> PDF 변환 -> MinIO 업로드 -> Marker로 Markdown 변환
         """
         if not Path(file_path).exists():
             raise FileNotFoundError(f"파일을 찾을 수 없습니다: {file_path}")
@@ -107,8 +102,8 @@ class WordProcessor(BaseProcessor):
         pdf_path = None
         minio_path = None
         try:
-            # 1. Word 파일을 PDF로 변환하고 MinIO에 업로드
-            logger.info(f"Word 파일을 PDF로 변환 시작: {file_path}")
+            # 1. HTML 파일을 PDF로 변환하고 MinIO에 업로드
+            logger.info(f"HTML 파일을 PDF로 변환 시작: {file_path}")
             pdf_path, minio_path = convert_to_pdf_and_upload(file_path)
             logger.info(f"PDF 변환 완료: {pdf_path}")
             if minio_path:
@@ -120,7 +115,7 @@ class WordProcessor(BaseProcessor):
             rendered = conv(pdf_path)
             md_text, _, images = text_from_rendered(rendered)
             
-            logger.info(f"Word 파일 처리 완료: {file_path}")
+            logger.info(f"HTML 파일 처리 완료: {file_path}")
             
             return {
                 "content": md_text,
@@ -133,7 +128,7 @@ class WordProcessor(BaseProcessor):
                 }
             }
         except Exception as e:
-            logger.error(f"Word 처리 실패: {file_path}, 오류: {e}", exc_info=True)
+            logger.error(f"HTML 처리 실패: {file_path}, 오류: {e}", exc_info=True)
             raise
         finally:
             # 임시 PDF 파일 정리
@@ -145,4 +140,3 @@ class WordProcessor(BaseProcessor):
                         logger.debug(f"임시 PDF 파일 삭제: {pdf_path}")
                 except Exception as e:
                     logger.warning(f"임시 PDF 파일 삭제 실패: {pdf_path}, 오류: {e}")
-            

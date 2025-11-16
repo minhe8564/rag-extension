@@ -14,6 +14,7 @@ from marker.models import create_model_dict
 from marker.output import text_from_rendered
 
 from app.core.settings import settings
+from app.core.utils.pdf_converter import upload_pdf_to_minio
 from .base import BaseProcessor
 
 logger = logging.getLogger(__name__)
@@ -106,25 +107,34 @@ class PDFProcessor(BaseProcessor):
     
     def process(self, file_path: str) -> Dict[str, Any]:
         """
-        PDF -> Markdown 변환
+        PDF -> MinIO 업로드 -> Markdown 변환
         """
         if not Path(file_path).exists():
             raise FileNotFoundError(f"파일을 찾을 수 없습니다: {file_path}")
 
+        minio_path = None
         try:
-            # 모델 로드
+            # 1. PDF 파일을 MinIO에 업로드
+            logger.info(f"PDF 파일을 MinIO에 업로드 시작: {file_path}")
+            minio_path = upload_pdf_to_minio(file_path)
+            logger.info(f"MinIO 업로드 완료: {minio_path}")
+            
+            # 2. 모델 로드
             mdict = self._ensure_model()
 
-            # PDF 변환
+            # 3. PDF 변환
             conv = PdfConverter(artifact_dict=mdict)
             rendered = conv(file_path)
-            md_text, _, _ = text_from_rendered(rendered)
+            md_text, _, images = text_from_rendered(rendered)
+            
             return {
                 "content": md_text,
                 "metadata": {
                     "file_type": "pdf",
                     "device": self._device,
                     "dtype": self._dtype,
+                    "image_count": len(images) if images else 0,
+                    "minio_path": minio_path,  # MinIO 업로드 경로 추가
                 }
             }
         except Exception as e:
