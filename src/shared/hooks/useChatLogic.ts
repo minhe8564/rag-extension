@@ -138,19 +138,15 @@ export function useChatLogic() {
   const stopCurrentResponse = () => {
     if (!awaitingAssistant) return;
 
-    // 현재 요청을 “종료된 상태”로 만든다
     requestIdRef.current = null;
     setAwaitingAssistant(false);
 
-    // pending 어시스턴트 메시지 제거
     setList((prev: UiMsg[]) => prev.filter((m: UiMsg) => m.messageNo !== '__pending__'));
   };
 
   const handleSend = async (msg: string) => {
-    // ✅ 이미 응답 기다리는 중이면 추가 전송 막기
     if (awaitingAssistant) return;
 
-    // ✅ 이 전송에 대한 고유 ID
     const myRequestId = (requestIdRef.current ?? 0) + 1;
     requestIdRef.current = myRequestId;
 
@@ -180,7 +176,6 @@ export function useChatLogic() {
         });
         const result = res.data.result as RagQueryProcessResult;
 
-        // ✅ 중간에 stop이 눌렸으면 결과 무시
         if (requestIdRef.current !== myRequestId) return;
 
         fillPendingAssistant(
@@ -193,7 +188,6 @@ export function useChatLogic() {
         const res = await sendMessage(sessionNo, body);
         const result = res.data.result as SendMessageResult;
 
-        // ✅ 중간에 stop이 눌렸으면 결과 무시
         if (requestIdRef.current !== myRequestId) return;
 
         const content = result.content ?? '(응답이 없습니다)';
@@ -204,7 +198,6 @@ export function useChatLogic() {
       }
     } catch (e) {
       console.error(e);
-      // ✅ stop으로 취소된 경우에는 여기서 안 지우게 필터링
       if (requestIdRef.current === myRequestId) {
         setList((prev: UiMsg[]) => prev.filter((m: UiMsg) => m.messageNo !== '__pending__'));
       }

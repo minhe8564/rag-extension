@@ -94,7 +94,7 @@ export default function ChatInput({
     const scrollHeight = doc.scrollHeight;
 
     const delta = scrollHeight - (scrollTop + clientHeight);
-    return delta <= 50;
+    return delta <= 300;
   };
 
   const scrollToBottom = () => {
@@ -115,7 +115,7 @@ export default function ChatInput({
       }
     };
 
-    handleScroll();
+    // handleScroll();
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);

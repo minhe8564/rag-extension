@@ -19,10 +19,15 @@ export function useChatScroll({ currentSessionNo, list, setList }: UseChatScroll
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const forceScrollRef = useRef(false);
+  const skipAutoScrollRef = useRef(false);
 
   // 초기 리스트가 로딩된 뒤 첫 페이지의 nextCursor 세팅용
   useEffect(() => {
-    if (!currentSessionNo) return;
+    setHistoryCursor(null);
+    setHasMoreHistory(true);
+    setHistoryLoading(false);
+    skipAutoScrollRef.current = false;
+    forceScrollRef.current = true;
   }, [currentSessionNo]);
 
   const loadOlderMessages = async () => {
@@ -52,6 +57,7 @@ export function useChatScroll({ currentSessionNo, list, setList }: UseChatScroll
           })
         ) ?? [];
 
+      skipAutoScrollRef.current = true;
       setList((prev) => [...mapped, ...prev]);
 
       const nextCursor = page.pagination?.nextCursor ?? null;
@@ -70,15 +76,6 @@ export function useChatScroll({ currentSessionNo, list, setList }: UseChatScroll
     }
   };
 
-  const isAtBottom = () => {
-    const doc = document.documentElement;
-    const scrollTop = window.scrollY || doc.scrollTop;
-    const clientHeight = window.innerHeight;
-    const scrollHeight = doc.scrollHeight;
-
-    return scrollTop + clientHeight >= scrollHeight - 50;
-  };
-
   useEffect(() => {
     if (!bottomRef.current) return;
 
@@ -88,22 +85,26 @@ export function useChatScroll({ currentSessionNo, list, setList }: UseChatScroll
       return;
     }
 
-    if (isAtBottom()) {
-      bottomRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (skipAutoScrollRef.current) {
+      skipAutoScrollRef.current = false;
+      return;
     }
+
+    requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }));
   }, [list.length]);
 
   useEffect(() => {
-    const handleWindowScroll = () => {
-      const doc = document.documentElement;
-      const scrollTop = window.scrollY || doc.scrollTop;
-      if (!historyLoading && hasMoreHistory && scrollTop <= 30) {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const handleScroll = () => {
+      if (!historyLoading && hasMoreHistory && el.scrollTop <= 30) {
         void loadOlderMessages();
       }
     };
 
-    window.addEventListener('scroll', handleWindowScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleWindowScroll);
+    el.addEventListener('scroll', handleScroll, { passive: true });
+    return () => el.removeEventListener('scroll', handleScroll);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [historyLoading, hasMoreHistory, historyCursor, currentSessionNo]);
 
