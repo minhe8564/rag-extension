@@ -8,7 +8,7 @@ import RetinaLogo from '@/assets/retina-logo.png';
 import Select from '@/shared/components/controls/Select';
 import type { Option } from '@/shared/components/controls/Select';
 import { getMyLlmKeys } from '@/shared/api/llm.api';
-import type { MyLlmKeyResponse } from '@/shared/types/llm.types';
+import type { MyLlmKeyResponse, MyLlmKeyListResponse } from '@/shared/types/llm.types';
 import { useChatModelStore } from '@/shared/store/useChatModelStore';
 
 // 상단 import 추가
@@ -82,40 +82,52 @@ export default function UserLayout() {
     let active = true;
 
     (async () => {
-      const res = await getMyLlmKeys();
-      const result = res.data.result as MyLlmKeyResponse;
+      try {
+        const res = await getMyLlmKeys();
+        const result = res.data.result as MyLlmKeyListResponse;
+        console.log(result);
 
-      if (!active) return;
+        if (!active) return;
 
-      if (!result.hasKey) {
+        const list: MyLlmKeyResponse[] = result?.data ?? [];
+
+        const hasAnyKey = list.some((k) => k.hasKey);
+        if (!hasAnyKey || list.length === 0) {
+          setModelOptions([]);
+          setSelectedModel(undefined, undefined);
+          return;
+        }
+
+        const options = list
+          .map((k) => ({
+            value: k.llmName ?? '',
+            label: k.llmName ?? '',
+            desc: k.llmName
+              ? (MODEL_DESCRIPTIONS[k.llmName] ?? '모델 설명 없음')
+              : '모델 정보 없음',
+          }))
+          .filter((o) => o.value);
+
+        console.log(options);
+
+        setModelOptions(options);
+
+        let final = selectedModel;
+        const found = list.find((k) => k.llmName === final);
+
+        if (!found) {
+          final = list[0]?.llmName;
+        }
+
+        if (final) {
+          const matched = list.find((k) => k.llmName === final);
+          setSelectedModel(final, matched?.llmNo);
+        } else {
+          setSelectedModel(undefined, undefined);
+        }
+      } catch (err) {
+        console.error(err);
         setModelOptions([]);
-        setSelectedModel(undefined, undefined);
-        return;
-      }
-
-      const list: MyLlmKeyResponse[] = [result];
-
-      const options = list
-        .map((k) => ({
-          value: k.llmName ?? '',
-          label: k.llmName ?? '',
-          desc: k.llmName ? (MODEL_DESCRIPTIONS[k.llmName] ?? '모델 설명 없음') : '모델 정보 없음',
-        }))
-        .filter((o) => o.value);
-
-      setModelOptions(options);
-
-      let final = selectedModel;
-      const found = list.find((k) => k.llmName === final);
-
-      if (!found) {
-        final = list[0]?.llmName;
-      }
-
-      if (final) {
-        const matched = list.find((k) => k.llmName === final);
-        setSelectedModel(final, matched?.llmNo);
-      } else {
         setSelectedModel(undefined, undefined);
       }
     })();

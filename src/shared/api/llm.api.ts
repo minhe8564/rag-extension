@@ -3,12 +3,12 @@ import type { ApiEnvelope } from '@/shared/lib/api.types';
 import type {
   MyLlmKeyCreateRequest,
   MyLlmKeyResponse,
-  // MyLlmKeyListResponse,
+  MyLlmKeyListResponse,
 } from '@/shared/types/llm.types';
 
 // 내 LLM Key 목록 조회
 export const getMyLlmKeys = () =>
-  springApi.get<ApiEnvelope<MyLlmKeyResponse>>('/api/v1/rag-settings/llm-keys/me');
+  springApi.get<ApiEnvelope<MyLlmKeyListResponse>>('/api/v1/rag-settings/llm-keys/me');
 
 // 내 LLM Key 생성
 export const createMyLlmKey = (data: MyLlmKeyCreateRequest) =>

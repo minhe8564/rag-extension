@@ -13,6 +13,6 @@ export interface MyLlmKeyResponse {
   apiKey: string;
 }
 
-// export interface MyLlmKeyListResponse {
-//   data: MyLlmKeyResponse[];
-// }
+export interface MyLlmKeyListResponse {
+  data: MyLlmKeyResponse[];
+}
