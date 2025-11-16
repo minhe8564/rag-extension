@@ -251,7 +251,10 @@ export default function FileDropzone({
           <div className="mt-4">
             <button
               type="button"
-              onClick={openFileDialog}
+              onClick={(e) => {
+                e.stopPropagation(); // 버튼 클릭 이벤트 버블링 차단
+                openFileDialog();
+              }}
               disabled={disabled}
               className={`inline-flex items-center rounded-md px-4 py-2 text-sm font-medium text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60 ${buttonBrand}`}
             >
@@ -260,17 +263,17 @@ export default function FileDropzone({
           </div>
           {error && <p className="mt-3 whitespace-pre-line text-xs text-red-600">{error}</p>}
         </div>
-
-        <input
-          ref={inputRef}
-          type="file"
-          accept={accept}
-          multiple={multiple}
-          disabled={disabled}
-          onChange={(e) => e.target.files && handleFiles(e.target.files)}
-          className="sr-only"
-        />
       </div>
+      
+      <input
+        ref={inputRef}
+        type="file"
+        accept={accept}
+        multiple={multiple}
+        disabled={disabled}
+        onChange={(e) => e.target.files && handleFiles(e.target.files)}
+        className="sr-only"
+      />
     </div>
   );
 }
