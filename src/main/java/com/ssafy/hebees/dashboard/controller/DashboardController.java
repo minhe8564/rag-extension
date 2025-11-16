@@ -5,7 +5,7 @@ import com.ssafy.hebees.dashboard.dto.request.ErrorMetricIncrementRequest;
 import com.ssafy.hebees.dashboard.dto.request.MetricIncrementRequest;
 import com.ssafy.hebees.dashboard.dto.request.ModelExpenseUsageRequest;
 import com.ssafy.hebees.dashboard.dto.request.TimeSeriesRequest;
-import com.ssafy.hebees.dashboard.keyword.dto.request.TrendKeywordCreateRequest;
+import com.ssafy.hebees.dashboard.keyword.dto.request.TrendKeywordRegisterRequest;
 import com.ssafy.hebees.dashboard.keyword.dto.request.TrendKeywordListRequest;
 import com.ssafy.hebees.dashboard.dto.response.Change24hResponse;
 import com.ssafy.hebees.dashboard.model.dto.response.ChatbotTimeSeriesResponse;
@@ -17,7 +17,7 @@ import com.ssafy.hebees.dashboard.model.dto.response.ModelTimeSeriesResponse;
 import com.ssafy.hebees.dashboard.dto.response.TotalDocumentsResponse;
 import com.ssafy.hebees.dashboard.dto.response.TotalErrorsResponse;
 import com.ssafy.hebees.dashboard.dto.response.TotalUsersResponse;
-import com.ssafy.hebees.dashboard.keyword.dto.response.TrendKeywordCreateResponse;
+import com.ssafy.hebees.dashboard.keyword.dto.response.TrendKeywordRegisterResponse;
 import com.ssafy.hebees.dashboard.keyword.dto.response.TrendKeywordListResponse;
 import com.ssafy.hebees.dashboard.chat.service.DashboardChatService;
 import com.ssafy.hebees.dashboard.keyword.service.DashboardKeywordService;
@@ -34,7 +34,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -293,7 +292,7 @@ public class DashboardController {
     @ApiResponse(responseCode = "200", description = "조회 성공")
     public ResponseEntity<BaseResponse<TrendKeywordListResponse>> getTrendKeywords(
         @Valid TrendKeywordListRequest request) {
-        TrendKeywordListResponse response = dashboardKeywordService.getTrendKeywords(request);
+        TrendKeywordListResponse response = dashboardKeywordService.getKeywords(request);
         return ResponseEntity.ok(BaseResponse.of(HttpStatus.OK, response,
             String.format("최근 %d일 자주 물어보는 키워드를 조회하였습니다.", request.scale())
         ));
@@ -302,10 +301,10 @@ public class DashboardController {
     @PostMapping(value = "/trends/keywords")
     @Operation(summary = "대화 키워드 트렌드 등록", description = "사용자 질의를 트렌드 키워드 집계에 반영합니다.")
     @ApiResponse(responseCode = "200", description = "키워드 집계 성공")
-    public ResponseEntity<BaseResponse<TrendKeywordCreateResponse>> recordTrendKeywords(
-        @Valid @RequestBody TrendKeywordCreateRequest request
+    public ResponseEntity<BaseResponse<TrendKeywordRegisterResponse>> recordTrendKeywords(
+        @Valid @RequestBody TrendKeywordRegisterRequest request
     ) {
-        TrendKeywordCreateResponse response = dashboardKeywordService.recordTrendKeywords(request);
+        TrendKeywordRegisterResponse response = dashboardKeywordService.registerKeywords(request);
         return ResponseEntity.ok(
             BaseResponse.of(HttpStatus.OK, response, "키워드를 등록하였습니다."));
     }
