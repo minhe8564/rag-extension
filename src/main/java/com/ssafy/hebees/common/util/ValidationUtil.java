@@ -22,5 +22,9 @@ public final class ValidationUtil {
         }
         return value.trim();
     }
+
+    public static String orElse(@Nullable String value, String defaultValue) {
+        return StringUtils.hasText(value) ? value.trim() : defaultValue;
+    }
 }
 

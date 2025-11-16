@@ -1,4 +1,4 @@
-package com.ssafy.hebees.ragsetting.entity;
+package com.ssafy.hebees.AgentPrompt.entity;
 
 import com.ssafy.hebees.common.entity.BaseEntity;
 import jakarta.persistence.Column;
@@ -47,4 +47,3 @@ public class AgentPrompt extends BaseEntity {
         this.content = content;
     }
 }
-
