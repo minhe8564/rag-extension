@@ -40,11 +40,20 @@ export default function UserLayout() {
   const [isOpen, setIsOpen] = useState(true);
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
-  const [sp] = useSearchParams();
-  const activeSessionNo = sp.get('session') || undefined;
   const navigate = useNavigate();
 
-  const { pathname, search } = useLocation();
+  const [sp] = useSearchParams();
+  const location = useLocation();
+  const { pathname } = location;
+
+  const sessionFromPath = pathname.startsWith('/user/chat/text/')
+    ? pathname.replace('/user/chat/text/', '')
+    : undefined;
+
+  const sessionFromQuery = sp.get('session') || undefined;
+
+  const activeSessionNo = sessionFromPath ?? sessionFromQuery;
+
   const isChatRoute = pathname.startsWith('/user/chat/text');
 
   const [modelOptions, setModelOptions] = useState<Option[]>([]);
@@ -322,7 +331,7 @@ export default function UserLayout() {
         </div>
 
         <div className="flex w-full flex-col gap-3 px-8">
-          <Outlet key={pathname + search} />
+          <Outlet key={pathname + location.search} />
         </div>
       </main>
 

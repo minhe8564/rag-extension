@@ -206,7 +206,8 @@ export default function ChatList({
                 <ChatListItem
                   key={session.sessionNo}
                   session={session}
-                  isActive={(activeSessionNo ?? localActiveNo) === session.sessionNo}
+                  // isActive={(activeSessionNo ?? localActiveNo) === session.sessionNo}
+                  isActive={activeSessionNo === session.sessionNo}
                   onSelect={(s) => {
                     setLocalActiveNo(s.sessionNo);
                     onSelect?.(s);

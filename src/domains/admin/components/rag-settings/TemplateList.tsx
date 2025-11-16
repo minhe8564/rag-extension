@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
 import clsx from 'clsx';
 import { Pencil, Trash2, Plus } from 'lucide-react';
 import Tooltip from '@/shared/components/controls/Tooltip';
 import { getIngestTemplates } from '@/domains/admin/api/rag-settings/ingest-templates.api';
 import { getQueryTemplates } from '@/domains/admin/api/rag-settings/query-templates.api';
+import { useQuery } from '@tanstack/react-query';
 
 type Props = {
   kind: 'ingest' | 'query';
@@ -31,30 +31,26 @@ export default function TemplateList({
   onDelete,
   onCreate,
 }: Props) {
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const [items, setItems] = useState<Array<IngestItem | QueryItem>>([]);
-
-  useEffect(() => {
-    const run = async () => {
-      try {
-        setLoading(true);
-        setErr(null);
-        if (kind === 'ingest') {
-          const res = await getIngestTemplates({ pageNum: 1, pageSize: 100 });
-          setItems(res.data ?? []);
-        } else {
-          const res = await getQueryTemplates({ pageNum: 1, pageSize: 100 });
-          setItems(res.data ?? []);
-        }
-      } catch {
-        setErr('템플릿 목록을 불러오지 못했어요.');
-      } finally {
-        setLoading(false);
+  const {
+    data: items = [],
+    isLoading: loading,
+    isError,
+  } = useQuery<Array<IngestItem | QueryItem>>({
+    queryKey:
+      kind === 'ingest'
+        ? ['admin', 'ragSettings', 'ingest', 'templates']
+        : ['admin', 'ragSettings', 'query', 'templates'],
+    queryFn: async () => {
+      if (kind === 'ingest') {
+        const res = await getIngestTemplates({ pageNum: 1, pageSize: 100 });
+        return res.data ?? [];
       }
-    };
-    run();
-  }, [kind]);
+      const res = await getQueryTemplates({ pageNum: 1, pageSize: 100 });
+      return res.data ?? [];
+    },
+  });
+
+  const err = isError ? '템플릿 목록을 불러오지 못했어요.' : null;
 
   return (
     <aside
@@ -68,7 +64,6 @@ export default function TemplateList({
           <button
             type="button"
             onClick={() => {
-              setItems((prev) => prev.map((t) => ({ ...t, isDefault: false })));
               onCreate();
             }}
             className={clsx(

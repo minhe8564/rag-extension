@@ -26,6 +26,7 @@ export default function TextChatBase({ brand }: TextChatProps) {
     cancelReask,
     submitReask,
     setList,
+    stopCurrentResponse,
   } = useChatLogic();
 
   const { scrollRef, bottomRef, historyLoading } = useChatScroll({
@@ -97,6 +98,8 @@ export default function TextChatBase({ brand }: TextChatProps) {
                 mode={mode}
                 onChangeMode={setMode}
                 watch={list.length}
+                loading={awaitingAssistant}
+                onStop={stopCurrentResponse}
               />
             </div>
           </div>
@@ -113,6 +116,8 @@ export default function TextChatBase({ brand }: TextChatProps) {
                   mode={mode}
                   onChangeMode={setMode}
                   watch={list.length}
+                  loading={awaitingAssistant}
+                  onStop={stopCurrentResponse}
                 />
               </div>
             </div>

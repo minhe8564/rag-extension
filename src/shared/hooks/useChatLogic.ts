@@ -45,6 +45,8 @@ export function useChatLogic() {
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [editingDraft, setEditingDraft] = useState<string>('');
 
+  const requestIdRef = useRef<number | null>(null);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -133,7 +135,21 @@ export function useChatLogic() {
     );
   };
 
+  const stopCurrentResponse = () => {
+    if (!awaitingAssistant) return;
+
+    requestIdRef.current = null;
+    setAwaitingAssistant(false);
+
+    setList((prev: UiMsg[]) => prev.filter((m: UiMsg) => m.messageNo !== '__pending__'));
+  };
+
   const handleSend = async (msg: string) => {
+    if (awaitingAssistant) return;
+
+    const myRequestId = (requestIdRef.current ?? 0) + 1;
+    requestIdRef.current = myRequestId;
+
     setAwaitingAssistant(true);
 
     setList((prev) => [
@@ -160,6 +176,8 @@ export function useChatLogic() {
         });
         const result = res.data.result as RagQueryProcessResult;
 
+        if (requestIdRef.current !== myRequestId) return;
+
         fillPendingAssistant(
           result.content ?? '(응답이 없습니다)',
           result.createdAt,
@@ -170,6 +188,8 @@ export function useChatLogic() {
         const res = await sendMessage(sessionNo, body);
         const result = res.data.result as SendMessageResult;
 
+        if (requestIdRef.current !== myRequestId) return;
+
         const content = result.content ?? '(응답이 없습니다)';
         const createdAt = result?.createdAt ?? undefined;
         const messageNo = result?.messageNo ?? undefined;
@@ -178,9 +198,14 @@ export function useChatLogic() {
       }
     } catch (e) {
       console.error(e);
-      setList((prev: UiMsg[]) => prev.filter((m: UiMsg) => m.messageNo !== '__pending__'));
+      if (requestIdRef.current === myRequestId) {
+        setList((prev: UiMsg[]) => prev.filter((m: UiMsg) => m.messageNo !== '__pending__'));
+      }
     } finally {
-      setAwaitingAssistant(false);
+      if (requestIdRef.current === myRequestId) {
+        setAwaitingAssistant(false);
+        requestIdRef.current = null;
+      }
     }
   };
 
@@ -221,5 +246,7 @@ export function useChatLogic() {
 
     // 리스트 setter (스크롤 훅에서 과거 메시지 붙일 때 사용)
     setList,
+
+    stopCurrentResponse,
   };
 }

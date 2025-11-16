@@ -7,12 +7,17 @@ import {
   deleteRole,
 } from '@/domains/admin/api/roles.api';
 import { RotateCw, Trash2 } from 'lucide-react';
+import Tooltip from '@/shared/components/controls/Tooltip';
+import ConfirmModal from '@/shared/components/ConfirmModal';
 
 type Role = {
   uuid: string;
   mode: number | null;
   name: string;
 };
+
+const ROLE_NAME_MAX = 30;
+const ROLE_MODE_MAX = 100;
 
 export default function RoleAsideSection() {
   const [roles, setRoles] = useState<Role[]>([]);
@@ -21,6 +26,10 @@ export default function RoleAsideSection() {
   const [form, setForm] = useState<Partial<Role>>({ name: '', mode: 0 });
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingRole, setPendingRole] = useState<Role | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     loadRoles();
@@ -53,8 +62,11 @@ export default function RoleAsideSection() {
     if (!form.name) return alert('역할명을 입력해주세요.');
     try {
       setSaving(true);
-      if (activeRoleId) await updateRole(activeRoleId, { name: form.name!, mode: form.mode! });
-      else await createRole({ name: form.name!, mode: form.mode! });
+      if (activeRoleId) {
+        await updateRole(activeRoleId, { name: form.name!, mode: form.mode! });
+      } else {
+        await createRole({ name: form.name!, mode: form.mode! });
+      }
       await loadRoles();
       resetForm();
     } finally {
@@ -63,10 +75,30 @@ export default function RoleAsideSection() {
   };
 
   const removeRole = async (id: string) => {
-    if (!confirm('삭제할까요?')) return;
-    await deleteRole(id);
-    if (activeRoleId === id) resetForm();
-    await loadRoles();
+    setDeleting(true);
+    try {
+      await deleteRole(id);
+      if (activeRoleId === id) resetForm();
+      await loadRoles();
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleRequestDelete = (role: Role) => {
+    setPendingRole(role);
+    setConfirmOpen(true);
+  };
+
+  const handleCloseConfirm = () => {
+    setConfirmOpen(false);
+    setPendingRole(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!pendingRole) return;
+    await removeRole(pendingRole.uuid);
+    handleCloseConfirm();
   };
 
   return (
@@ -98,14 +130,22 @@ export default function RoleAsideSection() {
                 <span className="font-medium">{r.name}</span>
                 <span className="text-xs text-gray-500">mode: {r.mode}</span>
               </button>
-              <button
-                onClick={() => removeRole(r.uuid)}
-                className="flex items-center gap-1 text-sm text-gray-500 px-2 py-1 rounded 
-             opacity-0 group-hover:opacity-100 hover:text-red-600 transition"
-              >
-                <Trash2 size={16} strokeWidth={2} />
-                삭제
-              </button>
+
+              <Tooltip content="삭제" side="bottom">
+                <button
+                  type="button"
+                  onClick={() => handleRequestDelete(r)}
+                  disabled={deleting}
+                  className="
+                    flex items-center gap-1 text-sm text-gray-600 px-1.5 py-1.5 rounded-md
+                    bg-white opacity-0 group-hover:opacity-100
+                    hover:bg-gray-100 hover:text-gray-800
+                    transition
+                  "
+                >
+                  <Trash2 size={16} strokeWidth={2} />
+                </button>
+              </Tooltip>
             </div>
           ))
         )}
@@ -126,18 +166,37 @@ export default function RoleAsideSection() {
               <label className="text-xs text-gray-500">역할명(name)</label>
               <input
                 value={form.name || ''}
-                onChange={(e) => setForm((v) => ({ ...v, name: e.target.value }))}
-                className="w-full border rounded-md px-3 py-2 text-sm"
+                onChange={(e) =>
+                  setForm((v) => ({
+                    ...v,
+                    name: e.target.value.slice(0, ROLE_NAME_MAX),
+                  }))
+                }
+                maxLength={ROLE_NAME_MAX}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm
+                           focus:outline-none focus:ring-0 focus:border-gray-400"
               />
+              <div className="mt-1 text-xs text-gray-400 text-right">
+                {form.name?.length ?? 0}/{ROLE_NAME_MAX}
+              </div>
             </div>
             <div>
               <label className="text-xs text-gray-500">모드(mode)</label>
               <input
                 type="number"
                 value={form.mode ?? 0}
-                onChange={(e) => setForm((v) => ({ ...v, mode: Number(e.target.value) }))}
-                className="w-full border rounded-md px-3 py-2 text-sm"
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  const clamped = Math.min(isNaN(n) ? 0 : n, ROLE_MODE_MAX);
+                  setForm((v) => ({ ...v, mode: clamped }));
+                }}
+                max={ROLE_MODE_MAX}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm
+                           focus:outline-none focus:ring-0 focus:border-gray-400"
               />
+              <div className="mt-1 text-xs text-gray-400 text-right">
+                최대 {ROLE_MODE_MAX} 까지 입력 가능
+              </div>
             </div>
           </div>
 
@@ -164,6 +223,22 @@ export default function RoleAsideSection() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        open={confirmOpen}
+        onClose={handleCloseConfirm}
+        onConfirm={handleConfirmDelete}
+        title="역할 삭제"
+        message={
+          pendingRole
+            ? `정말로 이 역할을 삭제할까요?\n"${pendingRole.name}"`
+            : '정말로 이 역할을 삭제할까요?'
+        }
+        confirmText={deleting ? '삭제 중...' : '삭제'}
+        cancelText="취소"
+        variant="danger"
+        zIndex={10060}
+      />
     </aside>
   );
 }
