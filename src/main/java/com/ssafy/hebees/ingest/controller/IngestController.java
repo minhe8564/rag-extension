@@ -298,7 +298,8 @@ public class IngestController {
 
                                 try {
                                     emitter.send(
-                                        SseEmitter.event().name("summary").id(sid).data(summaryPayload));
+                                        SseEmitter.event().name("summary").id(sid)
+                                            .data(summaryPayload));
                                     log.info(
                                         "[INGEST] summary 이벤트 전송 - userUuid={}, completed={}, total={}",
                                         userUuid, completed, total);

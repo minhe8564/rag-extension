@@ -71,9 +71,9 @@ public class ChatAskServiceImpl implements ChatAskService {
         }
 
         UUID llmNo = request.llmNo();
-        if(StringUtils.hasText(request.model())){
+        if (StringUtils.hasText(request.model())) {
             llmNo = strategyRepository.findByNameAndCodeStartingWith(request.model(), "GEN")
-                .orElseThrow(()->new BusinessException(ErrorCode.BAD_REQUEST)).getStrategyNo();
+                .orElseThrow(() -> new BusinessException(ErrorCode.BAD_REQUEST)).getStrategyNo();
         }
 
         LlmChatResult llmResult = llmChatGateway.chat(userNo, llmNo, llmMessages);

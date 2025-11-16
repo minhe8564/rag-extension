@@ -44,7 +44,8 @@ public class RunpodClient {
         String modelOverride,
         String apiKeyOverride
     ) {
-        String baseUrl = StringUtils.hasText(baseUrlOverride) ? baseUrlOverride : properties.getBaseUrl();
+        String baseUrl =
+            StringUtils.hasText(baseUrlOverride) ? baseUrlOverride : properties.getBaseUrl();
         if (!StringUtils.hasText(baseUrl)) {
             log.error("Runpod base URL is not configured");
             throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
@@ -64,7 +65,8 @@ public class RunpodClient {
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        String apiKey = StringUtils.hasText(apiKeyOverride) ? apiKeyOverride : properties.getApiKey();
+        String apiKey =
+            StringUtils.hasText(apiKeyOverride) ? apiKeyOverride : properties.getApiKey();
         if (StringUtils.hasText(apiKey)) {
             headers.setBearerAuth(apiKey);
         }

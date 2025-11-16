@@ -16,7 +16,8 @@ public final class ValidationUtil {
         }
         return value;
     }
-    public static String require(@Nullable String value){
+
+    public static String require(@Nullable String value) {
         if (!StringUtils.hasText(value)) {
             throw new BusinessException(ErrorCode.INPUT_BLANK);
         }

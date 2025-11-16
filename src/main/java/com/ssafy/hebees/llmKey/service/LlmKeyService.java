@@ -7,6 +7,7 @@ import com.ssafy.hebees.llmKey.dto.response.LlmKeyResponse;
 import java.util.UUID;
 
 public interface LlmKeyService {
+
     ListResponse<LlmKeyResponse> listLlmKeys(UUID userNo);
 
     LlmKeyResponse getLlmKey(UUID userNo, String llmIdentifier);

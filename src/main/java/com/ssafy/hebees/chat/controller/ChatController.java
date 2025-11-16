@@ -212,6 +212,7 @@ public class ChatController {
                 "일반 LLM 챗봇에게 질문을 성공하였습니다."
             ));
     }
+
     @PostMapping("/ask")
     @Operation(summary = "일반 LLM 챗봇에게 질문하기", description = "일반 LLM 챗봇에게 질문을 합니다.")
     @ApiResponse(responseCode = "200", description = "일반 LLM 챗봇에게 질문을 성공하였습니다.")

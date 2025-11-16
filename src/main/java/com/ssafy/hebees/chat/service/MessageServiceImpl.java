@@ -165,16 +165,17 @@ public class MessageServiceImpl implements MessageService {
     }
 
     private Message toMessage(UUID sessionNo, MessageCreateRequest request) {
-        List<MessageReference> references = request.references() == null ? null : request.references().stream()
-            .map(ref -> MessageReference.builder()
-                .fileNo(ref.fileNo())
-                .name(ref.name())
-                .title(ref.title())
-                .type(ref.type())
-                .index(ref.index())
-                .downloadUrl(ref.downloadUrl())
-                .snippet(ref.snippet())
-                .build()).toList();
+        List<MessageReference> references =
+            request.references() == null ? null : request.references().stream()
+                .map(ref -> MessageReference.builder()
+                    .fileNo(ref.fileNo())
+                    .name(ref.name())
+                    .title(ref.title())
+                    .type(ref.type())
+                    .index(ref.index())
+                    .downloadUrl(ref.downloadUrl())
+                    .snippet(ref.snippet())
+                    .build()).toList();
 
         return Message.builder()
             .sessionNo(sessionNo)

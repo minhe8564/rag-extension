@@ -33,9 +33,8 @@ public class IngestNotificationController {
     private final IngestRunProgressService progressService;
 
     /**
-     * 현재 로그인한 사용자의 ingest summary 완료(complete == total) 시점을 알림으로 전달하는 SSE.
-     * 클라이언트는 로그인 직후 이 스트림을 연결해두고,
-     * SUMMARY 이벤트 중 completed >= total 인 이벤트를 알림으로 사용한다.
+     * 현재 로그인한 사용자의 ingest summary 완료(complete == total) 시점을 알림으로 전달하는 SSE. 클라이언트는 로그인 직후 이 스트림을
+     * 연결해두고, SUMMARY 이벤트 중 completed >= total 인 이벤트를 알림으로 사용한다.
      */
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @Operation(summary = "Ingest 완료 알림 SSE", description = "summary completed/total 이 일치하는 시점에만 알림 이벤트를 전송합니다.")
@@ -98,7 +97,8 @@ public class IngestNotificationController {
                                 Map<Object, Object> fields = rec.getValue();
 
                                 Object userIdObj = fields.get("userId");
-                                if (userIdObj == null || !userUuid.toString().equals(userIdObj.toString())) {
+                                if (userIdObj == null || !userUuid.toString()
+                                    .equals(userIdObj.toString())) {
                                     continue;
                                 }
 
@@ -125,7 +125,8 @@ public class IngestNotificationController {
                                             userUuid, total, completed, success, failed
                                         );
                                     } catch (Exception sendEx) {
-                                        log.warn("[INGEST-NOTIFY] SSE 전송 실패 - userUuid={}", userUuid, sendEx);
+                                        log.warn("[INGEST-NOTIFY] SSE 전송 실패 - userUuid={}",
+                                            userUuid, sendEx);
                                         emitter.completeWithError(sendEx);
                                         running = false;
                                         break;
@@ -141,7 +142,8 @@ public class IngestNotificationController {
                             Thread.sleep(2000L);
                         }
                     } catch (Exception loopEx) {
-                        log.warn("[INGEST-NOTIFY] summary 스트림 처리 중 오류 - userUuid={}", userUuid, loopEx);
+                        log.warn("[INGEST-NOTIFY] summary 스트림 처리 중 오류 - userUuid={}", userUuid,
+                            loopEx);
                         try {
                             emitter.completeWithError(loopEx);
                         } catch (Exception ignored) {

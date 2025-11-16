@@ -31,11 +31,11 @@ public record AskRequest(
     String query
 ) {
 
-    public AskRequest{
-        if(!StringUtils.hasText(query) && !StringUtils.hasText(content)){
+    public AskRequest {
+        if (!StringUtils.hasText(query) && !StringUtils.hasText(content)) {
             throw new BusinessException(ErrorCode.BAD_REQUEST);
         }
-        if(!StringUtils.hasText(model) && llmNo == null){
+        if (!StringUtils.hasText(model) && llmNo == null) {
             throw new BusinessException(ErrorCode.BAD_REQUEST);
         }
     }

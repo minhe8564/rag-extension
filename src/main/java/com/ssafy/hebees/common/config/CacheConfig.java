@@ -83,7 +83,8 @@ public class CacheConfig {
         mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
         SimpleModule uuidModule = new SimpleModule();
-        uuidModule.addSerializer(UUID.class, new com.fasterxml.jackson.databind.ser.std.ToStringSerializer());
+        uuidModule.addSerializer(UUID.class,
+            new com.fasterxml.jackson.databind.ser.std.ToStringSerializer());
         uuidModule.addDeserializer(UUID.class, new JsonDeserializer<UUID>() {
             @Override
             public UUID deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
