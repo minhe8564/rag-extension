@@ -10,12 +10,11 @@ import java.util.UUID;
 
 public interface MessageErrorService {
 
-    MessageErrorCreateResponse createMessageError(UUID userNo,
-        MessageErrorCreateRequest request);
+    MessageErrorCreateResponse createError(MessageErrorCreateRequest request);
 
-    PageResponse<MessageErrorResponse> listMessageErrors(PageRequest pageRequest,
-        MessageErrorSearchRequest searchRequest);
+    PageResponse<MessageErrorResponse> listErrors(
+        PageRequest pageRequest, MessageErrorSearchRequest searchRequest);
 
-    void deleteMessageError(UUID errorMessageNo);
+    void deleteError(UUID errorNo);
 }
 

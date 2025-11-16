@@ -1,16 +1,15 @@
-package com.ssafy.hebees.AgentPrompt.controller;
+package com.ssafy.hebees.agentPrompt.controller;
 
 import com.ssafy.hebees.common.dto.ListResponse;
 import com.ssafy.hebees.common.response.BaseResponse;
-import com.ssafy.hebees.AgentPrompt.dto.requeset.AgentPromptUpsertRequest;
-import com.ssafy.hebees.AgentPrompt.dto.response.AgentPromptResponse;
-import com.ssafy.hebees.AgentPrompt.service.AgentPromptService;
+import com.ssafy.hebees.agentPrompt.dto.requeset.AgentPromptUpsertRequest;
+import com.ssafy.hebees.agentPrompt.dto.response.AgentPromptResponse;
+import com.ssafy.hebees.agentPrompt.service.AgentPromptService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
-import java.util.Objects;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;

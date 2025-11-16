@@ -311,10 +311,8 @@ public class DashboardController {
     }
 
     @GetMapping("/chatrooms/today")
-    @Operation(summary = "오늘 생성된 챗룸 조회",
-        description = "오늘 생성된 최신 챗룸 목록과 사용자 정보를 제공합니다.")
+    @Operation(summary = "오늘 생성된 챗룸 조회", description = "오늘 생성된 최신 챗룸 목록과 사용자 정보를 제공합니다.")
     @ApiResponse(responseCode = "200", description = "조회 성공")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BaseResponse<ChatroomsTodayResponse>> getChatroomsToday() {
         ChatroomsTodayResponse response = dashboardChatService.getChatroomsToday();
         return ResponseEntity.ok(BaseResponse.of(HttpStatus.OK, response,
@@ -322,10 +320,8 @@ public class DashboardController {
     }
 
     @GetMapping("/errors/today")
-    @Operation(summary = "오늘 발생한 메시지 에러 조회",
-        description = "오늘 발생한 최근 메시지 에러 목록과 관련된 세션 정보를 제공합니다.")
+    @Operation(summary = "오늘 발생한 메시지 에러 조회", description = "오늘 발생한 최근 메시지 에러 목록과 관련된 세션 정보를 제공합니다.")
     @ApiResponse(responseCode = "200", description = "조회 성공")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BaseResponse<ErrorsTodayResponse>> getErrorsToday() {
         ErrorsTodayResponse response = dashboardChatService.getErrorsToday();
         return ResponseEntity.ok(BaseResponse.of(HttpStatus.OK, response,

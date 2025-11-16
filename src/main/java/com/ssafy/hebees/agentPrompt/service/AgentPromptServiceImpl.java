@@ -1,12 +1,12 @@
-package com.ssafy.hebees.AgentPrompt.service;
+package com.ssafy.hebees.agentPrompt.service;
 
 import com.ssafy.hebees.common.dto.ListResponse;
 import com.ssafy.hebees.common.exception.BusinessException;
 import com.ssafy.hebees.common.exception.ErrorCode;
-import com.ssafy.hebees.AgentPrompt.dto.requeset.AgentPromptUpsertRequest;
-import com.ssafy.hebees.AgentPrompt.dto.response.AgentPromptResponse;
-import com.ssafy.hebees.AgentPrompt.entity.AgentPrompt;
-import com.ssafy.hebees.AgentPrompt.repository.AgentPromptRepository;
+import com.ssafy.hebees.agentPrompt.dto.requeset.AgentPromptUpsertRequest;
+import com.ssafy.hebees.agentPrompt.dto.response.AgentPromptResponse;
+import com.ssafy.hebees.agentPrompt.entity.AgentPrompt;
+import com.ssafy.hebees.agentPrompt.repository.AgentPromptRepository;
 import com.ssafy.hebees.common.util.ValidationUtil;
 import java.util.List;
 import java.util.UUID;

@@ -4,7 +4,6 @@ import com.ssafy.hebees.chat.entity.MessageError;
 import com.ssafy.hebees.chat.entity.Session;
 import com.ssafy.hebees.chat.repository.MessageErrorRepository;
 import com.ssafy.hebees.chat.repository.SessionRepository;
-import com.ssafy.hebees.common.util.MonitoringUtils;
 import com.ssafy.hebees.dashboard.chat.dto.response.ChatroomsTodayResponse;
 import com.ssafy.hebees.dashboard.chat.dto.response.ChatroomsTodayResponse.Chatroom;
 import com.ssafy.hebees.dashboard.chat.dto.response.ErrorsTodayResponse;
@@ -20,9 +19,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,8 +30,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class DashboardChatServiceImpl implements DashboardChatService {
 
-    private static final int RECENT_CHATROOM_LIMIT = 10;
-    private static final int RECENT_ERROR_LIMIT = 20;
+    private static final int RECENT_CHATROOM_LIMIT = 100;
+    private static final int RECENT_ERROR_LIMIT = 100;
     private static final String[] BUSINESS_TYPE_LABELS = {"개인 안경원", "체인 안경원", "제조 유통사"};
 
     private final SessionRepository sessionRepository;
@@ -41,15 +40,15 @@ public class DashboardChatServiceImpl implements DashboardChatService {
 
     @Override
     public ChatroomsTodayResponse getChatroomsToday() {
-        LocalDate today = LocalDate.now(MonitoringUtils.KST);
+        LocalDate today = LocalDate.now();
         LocalDateTime startInclusive = today.atStartOfDay();
         LocalDateTime endExclusive = startInclusive.plusDays(1);
 
-        List<Session> sessions = sessionRepository.findCreatedBetween(startInclusive, endExclusive,
-            RECENT_CHATROOM_LIMIT);
+        List<Session> sessions = sessionRepository.findCreatedBetween(
+            startInclusive, endExclusive, RECENT_CHATROOM_LIMIT);
 
         if (sessions.isEmpty()) {
-            return ChatroomsTodayResponse.empty(new Timeframe(today, today));
+            return new ChatroomsTodayResponse(new Timeframe(today, today), List.of());
         }
 
         Set<UUID> userIds = sessions.stream()
@@ -58,17 +57,16 @@ public class DashboardChatServiceImpl implements DashboardChatService {
             .collect(Collectors.toSet());
 
         Map<UUID, User> usersById = userRepository.findAllById(userIds).stream()
-            .collect(Collectors.toMap(User::getUuid, user -> user));
+            .collect(Collectors.toMap(User::getUuid, Function.identity()));
 
         List<Chatroom> chatrooms = sessions.stream()
             .sorted(Comparator.comparing(Session::getCreatedAt).reversed())
             .map(session -> {
                 User owner = usersById.get(session.getUserNo());
-                String userType = resolveUserType(owner);
                 return new Chatroom(
                     session.getTitle(),
-                    userType,
-                    owner != null ? owner.getName() : "알 수 없음",
+                    getUserType(owner),
+                    owner != null ? owner.getName() : "-",
                     session.getSessionNo(),
                     session.getCreatedAt()
                 );
@@ -80,13 +78,13 @@ public class DashboardChatServiceImpl implements DashboardChatService {
 
     @Override
     public ErrorsTodayResponse getErrorsToday() {
-        LocalDate today = LocalDate.now(MonitoringUtils.KST);
+        LocalDate today = LocalDate.now();
         LocalDateTime startInclusive = today.atStartOfDay();
         LocalDateTime endExclusive = startInclusive.plusDays(1);
 
         List<MessageError> errors = messageErrorRepository
-            .findByCreatedAtBetweenOrderByCreatedAtDesc(startInclusive, endExclusive,
-                PageRequest.of(0, RECENT_ERROR_LIMIT));
+            .findByCreatedAtBetweenOrderByCreatedAtDesc(
+                startInclusive, endExclusive, RECENT_ERROR_LIMIT);
 
         if (errors.isEmpty()) {
             return new ErrorsTodayResponse(new Timeframe(today, today), List.of());
@@ -116,7 +114,7 @@ public class DashboardChatServiceImpl implements DashboardChatService {
                 User owner = session != null ? usersById.get(session.getUserNo()) : null;
 
                 String chatTitle = session != null ? session.getTitle() : "알 수 없음";
-                String userType = resolveUserType(owner);
+                String userType = getUserType(owner);
                 String userName = owner != null ? owner.getName() : "알 수 없음";
                 String chatRoomId = session != null ? session.getSessionNo().toString()
                     : error.getSessionNo() != null ? error.getSessionNo().toString() : null;
@@ -133,16 +131,16 @@ public class DashboardChatServiceImpl implements DashboardChatService {
         return new ErrorsTodayResponse(new Timeframe(today, today), errorItems);
     }
 
-    private String resolveUserType(User user) {
+    private String getUserType(User user) {
         if (user == null) {
-            return "알 수 없음";
+            return "-";
         }
 
         int type = user.getBusinessType();
-        if (type >= 0 && type < BUSINESS_TYPE_LABELS.length) {
+        if (0 <= type && type < BUSINESS_TYPE_LABELS.length) {
             return BUSINESS_TYPE_LABELS[type];
         }
-        return "기타";
+        return "-";
     }
 }
 

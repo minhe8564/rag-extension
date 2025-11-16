@@ -1,6 +1,6 @@
-package com.ssafy.hebees.AgentPrompt.repository;
+package com.ssafy.hebees.agentPrompt.repository;
 
-import com.ssafy.hebees.AgentPrompt.entity.AgentPrompt;
+import com.ssafy.hebees.agentPrompt.entity.AgentPrompt;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;

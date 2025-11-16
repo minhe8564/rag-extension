@@ -13,8 +13,8 @@ import com.ssafy.hebees.dashboard.keyword.dto.response.TrendKeywordCreateRespons
 import com.ssafy.hebees.dashboard.keyword.dto.response.TrendKeywordListResponse;
 import com.ssafy.hebees.dashboard.entity.KeywordAggregateDaily;
 import com.ssafy.hebees.dashboard.keyword.repository.KeywordAggregateDailyRepository;
-import com.ssafy.hebees.AgentPrompt.entity.AgentPrompt;
-import com.ssafy.hebees.AgentPrompt.repository.AgentPromptRepository;
+import com.ssafy.hebees.agentPrompt.entity.AgentPrompt;
+import com.ssafy.hebees.agentPrompt.repository.AgentPromptRepository;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
