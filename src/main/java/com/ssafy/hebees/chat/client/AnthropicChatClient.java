@@ -57,8 +57,9 @@ public class AnthropicChatClient implements LlmChatClient {
         }
 
         String baseUrl = resolveBaseUrl(request);
-        String path = StringUtils.hasText(properties.getMessagesPath()) ? properties.getMessagesPath()
-            : "/v1/messages";
+        String path =
+            StringUtils.hasText(properties.getMessagesPath()) ? properties.getMessagesPath()
+                : "/v1/messages";
 
         String url = UriComponentsBuilder.fromUriString(Objects.requireNonNull(baseUrl))
             .path(Objects.requireNonNull(path))

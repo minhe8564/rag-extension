@@ -106,8 +106,7 @@ public class IngestRunProgressService {
     }
 
     /**
-     * summary 스트림(ingest:summary)의 최신 레코드 ID를 조회합니다.
-     * 없으면 null 반환.
+     * summary 스트림(ingest:summary)의 최신 레코드 ID를 조회합니다. 없으면 null 반환.
      */
     public String getLatestSummaryId() {
         return RedisStreamUtils.getLatestRecordId(ingestRedisTemplate, "ingest:summary");

@@ -13,6 +13,7 @@ import com.ssafy.hebees.llmKey.repository.LlmKeyRepository;
 import com.ssafy.hebees.ragsetting.repository.StrategyRepository;
 import com.ssafy.hebees.user.entity.User;
 import com.ssafy.hebees.user.repository.UserRepository;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,7 +45,11 @@ public class LlmKeyServiceImpl implements LlmKeyService {
         Map<UUID, Strategy> strategyMap = new HashMap<>();
         strategies.forEach(strategy -> strategyMap.put(strategy.getStrategyNo(), strategy));
 
-        List<LlmKeyResponse> list = keys.stream().map(
+        // 사용자가 키를 가지고 있는 LLM 목록 생성
+        Map<UUID, LlmKey> keyMap = new HashMap<>();
+        keys.forEach(key -> keyMap.put(key.getStrategy().getStrategyNo(), key));
+
+        List<LlmKeyResponse> list = new ArrayList<>(keys.stream().map(
             llmKey -> {
                 Strategy llm = strategyMap.get(llmKey.getStrategy().getStrategyNo());
                 UUID llmNo = llm != null ? llm.getStrategyNo() : null;
@@ -59,7 +64,28 @@ public class LlmKeyServiceImpl implements LlmKeyService {
                     .llmName(llmName)
                     .apiKey(llmKey.getApiKey())
                     .build();
-            }).toList();
+            }).toList());
+
+        // 기본적으로 GEN_OLLAMA LLM 정보 추가 (키가 없어도 포함)
+        strategyRepository.findByCodeStartingWith("GEN")
+            .stream()
+            .filter(strategy -> "GEN_OLLAMA".equals(strategy.getCode()))
+            .findFirst()
+            .ifPresent(ollamaStrategy -> {
+                UUID ollamaNo = ollamaStrategy.getStrategyNo();
+                // 이미 키가 있는 경우는 제외 (중복 방지)
+                if (!keyMap.containsKey(ollamaNo)) {
+                    list.add(LlmKeyResponse.builder()
+                        .hasKey(false)
+                        .llmKeyNo(null)
+                        .userNo(userNo)
+                        .strategyNo(ollamaNo)
+                        .llmNo(ollamaNo)
+                        .llmName(ollamaStrategy.getName())
+                        .apiKey(null)
+                        .build());
+                }
+            });
 
         return ListResponse.of(list);
     }

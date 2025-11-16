@@ -18,7 +18,8 @@ public record LlmChatResult(
     }
 
     public LlmChatResult withResponseTime(Long responseTimeMs) {
-        return new LlmChatResult(role, content, inputTokens, outputTokens, totalTokens, responseTimeMs);
+        return new LlmChatResult(role, content, inputTokens, outputTokens, totalTokens,
+            responseTimeMs);
     }
 }
 
