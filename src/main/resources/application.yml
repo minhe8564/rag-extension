@@ -35,14 +35,14 @@ cors:
     - "http://localhost:7700"
     - "https://starlits.beta9.kr"
     - "https://k13s407.p.ssafy.io"
-        
+
 springdoc:
   swagger-ui:
     persist-authorization: true
 
 # Runpod (Ollama) 설정
 runpod:
-  base-url: http://localhost  # 기본값
+  base-url: http://localhost # 기본값
   model: qwen3-vl:8b
   name: qwen3
   # Runpod 공식 API 설정 (모니터링용)
