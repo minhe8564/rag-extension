@@ -14,14 +14,14 @@ import {
   Search,
   Image,
 } from 'lucide-react';
-import Tooltip from '@/shared/components/Tooltip';
+import Tooltip from '@/shared/components/controls/Tooltip';
 import ChatList from '@/shared/components/chat/list/ChatList';
-import ChatSearchModal from '@/shared/components/chat/ChatSearchModal';
+import ChatSearchModal from '@/shared/components/chat/layout/ChatSearchModal';
 import HebeesLogo from '@/assets/hebees-logo.png';
-import Select from '@/shared/components/Select';
-import type { Option } from '@/shared/components/Select';
+import Select from '@/shared/components/controls/Select';
+import type { Option } from '@/shared/components/controls/Select';
 import { getMyLlmKeys } from '@/shared/api/llm.api';
-import type { MyLlmKeyResponse, MyLlmKeyListResponse } from '@/shared/types/llm.types';
+import type { MyLlmKeyResponse } from '@/shared/types/llm.types';
 import { useChatModelStore } from '@/shared/store/useChatModelStore';
 
 const labelCls = (isOpen: boolean) =>
@@ -63,16 +63,26 @@ export default function AdminLayout() {
 
     (async () => {
       const res = await getMyLlmKeys();
-      const result = res.data.result as MyLlmKeyListResponse;
-      const list: MyLlmKeyResponse[] = result?.data ?? [];
+      const result = res.data.result as MyLlmKeyResponse;
 
       if (!active) return;
 
-      const options = list.map((k) => ({
-        value: k.llmName,
-        label: k.llmName,
-        desc: MODEL_DESCRIPTIONS[k.llmName] ?? '모델 설명 없음',
-      }));
+      if (!result.hasKey) {
+        setModelOptions([]);
+        setSelectedModel(undefined, undefined);
+        return;
+      }
+
+      const list: MyLlmKeyResponse[] = [result];
+
+      const options = list
+        .map((k) => ({
+          value: k.llmName ?? '',
+          label: k.llmName ?? '',
+          desc: k.llmName ? (MODEL_DESCRIPTIONS[k.llmName] ?? '모델 설명 없음') : '모델 정보 없음',
+        }))
+        .filter((o) => o.value);
+
       setModelOptions(options);
 
       let final = selectedModel;
@@ -109,7 +119,7 @@ export default function AdminLayout() {
             </div>
           ) : (
             <div className="w-full flex justify-center">
-              <Tooltip content="사이드바 열기" side="right" shiftX={12}>
+              <Tooltip content="사이드바 열기" side="right" shiftX={12} portal={true}>
                 <button
                   onClick={() => setIsOpen((prev) => !prev)}
                   className="text-[var(--color-hebees)] hover:text-[var(--color-hebees-dark)]"
@@ -121,7 +131,7 @@ export default function AdminLayout() {
           )}
 
           {isOpen && (
-            <Tooltip content="사이드바 닫기" side="right" shiftX={12}>
+            <Tooltip content="사이드바 닫기" side="right" shiftX={12} portal={true}>
               <button
                 onClick={() => setIsOpen(false)}
                 className="text-[var(--color-hebees)] hover:text-[var(--color-hebees-dark)]"
@@ -308,7 +318,7 @@ export default function AdminLayout() {
 
       <main className="flex-1 min-w-0">
         <div
-          className={`sticky z-30 top-0 flex px-8 py-5 ${
+          className={`sticky z-[9999] top-0 flex px-8 py-5 ${
             isChatRoute ? 'justify-between' : 'justify-end'
           }`}
         >

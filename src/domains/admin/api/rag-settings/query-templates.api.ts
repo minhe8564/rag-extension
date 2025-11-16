@@ -1,6 +1,6 @@
 import { fastApi } from '@/shared/lib/apiInstance';
 import type { ApiEnvelope } from '@/shared/lib/api.types';
-import type { Option } from '@/shared/components/Select';
+import type { Option } from '@/shared/components/controls/Select';
 import type {
   QueryTemplateListResult,
   QueryTemplateDetailResult,

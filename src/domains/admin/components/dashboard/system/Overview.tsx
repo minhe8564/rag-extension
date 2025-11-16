@@ -1,26 +1,14 @@
-import { Cpu, HardDrive, Wifi, Coins } from 'lucide-react';
+import { Cpu, HardDrive, Wifi } from 'lucide-react';
 import type { ReactNode } from 'react';
 import Card from '@/shared/components/Card';
 import { useMonitoringStreams } from '@/domains/admin/hooks/useMonitoringStreams';
-import {
-  ExpenseList,
-  type ModelExpense,
-} from '@/domains/admin/components/dashboard/system/overview/ExpenseList';
-import { NetworkMetrics } from './overview/NetworkMetrics';
+import { NetworkMetrics } from '@/domains/admin/components/dashboard/system/overview/NetworkMetrics';
 import {
   StatCardContent,
   StatusPill,
   TimeRight,
 } from '@/domains/admin/components/dashboard/system/overview/StatPrimitives';
-
-function formatUsd(v?: number) {
-  const n = typeof v === 'number' ? v : 0;
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 3,
-  }).format(n);
-}
+import { ExpenseOverviewCard } from '@/domains/admin/components/dashboard/system/overview/ExpenseOverview';
 
 export default function Overview() {
   const {
@@ -38,7 +26,7 @@ export default function Overview() {
   } = useMonitoringStreams();
 
   const stats: Array<{
-    key: 'cpu' | 'mem' | 'net' | 'expense';
+    key: 'cpu' | 'mem' | 'net';
     title: string;
     subtitle?: string;
     status?: ReactNode;
@@ -54,25 +42,6 @@ export default function Overview() {
     topRight?: ReactNode;
     customContent?: ReactNode;
   }> = [
-    {
-      key: 'expense',
-      title: '예상 비용',
-      subtitle: '일일 모델 비용',
-      status: connected.expense ? (
-        <StatusPill ok text="실시간" />
-      ) : errors.expense ? (
-        <StatusPill warn text="연결 오류" />
-      ) : (
-        <StatusPill text="대기" />
-      ),
-      topLeft: <TimeRight ts={expense?.timestamp} />,
-      value: formatUsd(expense?.grandPriceUsd),
-      icon: <Coins size={22} className="text-[#10B981]" />,
-      iconBg: 'bg-gradient-to-r from-[#ECFDF5]/90 to-white',
-      customContent: expense?.models ? (
-        <ExpenseList models={expense.models as ModelExpense[]} grand={expense?.grandPriceUsd} />
-      ) : undefined,
-    },
     {
       key: 'cpu',
       title: 'CPU 사용률',
@@ -167,30 +136,34 @@ export default function Overview() {
   ];
 
   return (
-    <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-      {stats.map((s) => (
-        <Card
-          key={s.key}
-          title={s.title}
-          subtitle={s.subtitle}
-          icon={s.icon}
-          iconBg={s.iconBg}
-          status={s.status}
-          className="p-4 max-h-[300px]"
-        >
-          <StatCardContent
-            value={s.value}
-            suffix={s.suffix}
-            footer={s.footer}
-            barValue={s.barValue}
-            barColor={s.barColor}
-            topLeft={s.topLeft}
-            topRight={s.topRight}
-            hints={s.hints}
-            customContent={s.customContent}
-          />
-        </Card>
-      ))}
+    <section className="flex flex-col gap-4">
+      <ExpenseOverviewCard expense={expense} connected={connected.expense} error={errors.expense} />
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {stats.map((s) => (
+          <Card
+            key={s.key}
+            title={s.title}
+            subtitle={s.subtitle}
+            icon={s.icon}
+            iconBg={s.iconBg}
+            status={s.status}
+            className="p-4 max-h-[300px]"
+          >
+            <StatCardContent
+              value={s.value}
+              suffix={s.suffix}
+              footer={s.footer}
+              barValue={s.barValue}
+              barColor={s.barColor}
+              topLeft={s.topLeft}
+              topRight={s.topRight}
+              hints={s.hints}
+              customContent={s.customContent}
+            />
+          </Card>
+        ))}
+      </div>
     </section>
   );
 }

@@ -9,9 +9,8 @@ import type {
 import { Activity } from 'lucide-react';
 import clsx from 'clsx';
 
-// 시간 경과 계산 함수
 function timeAgo(date: Date) {
-  const diff = Math.floor((Date.now() - date.getTime()) / 60000); // 분 단위
+  const diff = Math.floor((Date.now() - date.getTime()) / 60000);
   if (diff < 1) return '방금 전';
   if (diff < 60) return `${diff}분 전`;
   const hours = Math.floor(diff / 60);
@@ -29,8 +28,6 @@ export default function ChatRoom() {
       setData(result);
       setChatrooms(result.chatrooms);
       setTimeframe(result.timeframe);
-
-      console.log(result);
     };
     fetchData();
   }, []);

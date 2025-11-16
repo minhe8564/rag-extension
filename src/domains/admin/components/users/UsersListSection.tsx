@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { RotateCw } from 'lucide-react';
 import { getUsers, type User } from '@/domains/admin/api/user.api';
 import Pagination from '@/shared/components/Pagination';
-import Select from '@/shared/components/Select';
+import Select from '@/shared/components/controls/Select';
 
 export default function UsersListSection() {
   const [allUsers, setAllUsers] = useState<User[]>([]);

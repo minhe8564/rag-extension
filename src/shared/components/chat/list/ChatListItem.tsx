@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { PencilLine, Trash2, Check, X, Loader2, Clock } from 'lucide-react';
-import Tooltip from '@/shared/components/Tooltip';
+import Tooltip from '@/shared/components/controls/Tooltip';
 import clsx from 'clsx';
 import { toast } from 'react-toastify';
 import type { SessionItem } from '@/shared/types/chat.types';

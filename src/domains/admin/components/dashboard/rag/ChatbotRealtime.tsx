@@ -18,6 +18,9 @@ export default function ChatbotUsageRealtime() {
   // 차트 초기화
   useEffect(() => {
     chartRef.current = Highcharts.chart('chatbot-usage-container', {
+      accessibility: {
+        enabled: false,
+      },
       chart: {
         type: 'areaspline',
         backgroundColor: 'transparent',

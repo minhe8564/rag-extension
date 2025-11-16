@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { FileText, AlertTriangle, Check, X, Edit3 } from 'lucide-react';
-import Tooltip from '@/shared/components/Tooltip';
+import Tooltip from '@/shared/components/controls/Tooltip';
 import { ensureUniqueName } from '@/shared/utils/fileName';
 
 export type FileNameCellProps = {

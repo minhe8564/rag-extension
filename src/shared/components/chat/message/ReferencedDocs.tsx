@@ -12,7 +12,7 @@ import {
   ChevronDown,
   Eye,
 } from 'lucide-react';
-import Tooltip from '@/shared/components/Tooltip';
+import Tooltip from '@/shared/components/controls/Tooltip';
 import clsx from 'clsx';
 
 type Props = {
@@ -135,7 +135,7 @@ export default function ReferencedDocsPanel({
 
                 return (
                   <li
-                    key={d.fileNo}
+                    key={docKey}
                     className={clsx(
                       'rounded-md border border-gray-200 bg-white px-3 py-2',
                       isExpanded && 'px-4 py-3'

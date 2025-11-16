@@ -1,4 +1,4 @@
-import type { Option } from '@/shared/components/Select';
+import type { Option } from '@/shared/components/controls/Select';
 import type { RagOptions } from '@/domains/admin/components/rag-settings/options';
 import type { FlowStepId } from '@/shared/components/rag-pipeline/PipelineFlow';
 

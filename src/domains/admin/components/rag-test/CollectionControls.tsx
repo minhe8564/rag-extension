@@ -1,5 +1,5 @@
 import Card from '@/shared/components/Card';
-import Select from '@/shared/components/Select';
+import Select from '@/shared/components/controls/Select';
 import { Plus } from 'lucide-react';
 
 export type Collection = {
@@ -38,7 +38,7 @@ export function CollectionControls({
             onChange={(value: string) => onSelect(value || null)}
             options={[
               { label: '기존 Collection 선택', value: '' },
-              ...collections.map(c => ({
+              ...collections.map((c) => ({
                 label: `${c.name}${c.ingestTemplate ? ` · [${c.ingestTemplate}]` : ''}`,
                 value: c.id,
               })),

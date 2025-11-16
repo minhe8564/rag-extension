@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { X, Download, Trash2 } from 'lucide-react';
-import Checkbox from '@/shared/components/Checkbox';
-import Tooltip from '@/shared/components/Tooltip';
-import Select from '@/shared/components/Select';
+import Checkbox from '@/shared/components/controls/Checkbox';
+import Tooltip from '@/shared/components/controls/Tooltip';
+import Select from '@/shared/components/controls/Select';
 import Pagination from '@/shared/components/Pagination';
 import { fileTypeOptions } from '@/domains/admin/components/rag-settings/options';
 import { useCategoryStore } from '@/shared/store/useCategoryMap';

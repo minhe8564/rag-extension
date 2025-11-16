@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import RagPipeline, { type TabKey } from '@/domains/admin/components/rag-settings/RagPipeline';
-import SegmentedTabs from '@/shared/components/SegmentedTabs';
+import SegmentedTabs from '@/shared/components/controls/SegmentedTabs';
 import { Settings, UploadCloud, Search } from 'lucide-react';
 
 import { getStrategies } from '@/domains/admin/api/rag-settings/strategies.api';

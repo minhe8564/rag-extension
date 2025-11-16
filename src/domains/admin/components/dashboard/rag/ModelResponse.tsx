@@ -1,30 +1,32 @@
 import { useEffect, useRef, useState } from 'react';
 import Highcharts from 'highcharts';
-import Select from '@/shared/components/Select';
+import Select from '@/shared/components/controls/Select';
 import type { modelData, modelTokenTime } from '@/domains/admin/types/rag.dashboard.types';
 import { getModelTokenUsageTimeSeries } from '@/domains/admin/api/rag.dashboard.api';
 import { Clock } from 'lucide-react';
 
+export type Period = 'day' | 'week' | 'month';
+
 export default function ModelResponseTimeChart() {
   const chartRef = useRef<Highcharts.Chart | null>(null);
-  const periods = ['day', 'week', 'month'] as const;
-  const [period, setPeriod] = useState<(typeof periods)[number]>('day');
+  const [period, setPeriod] = useState<Period>('day');
   const [_data, setData] = useState<modelTokenTime | null>(null);
   const [modelsData, setModelsData] = useState<modelData[] | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
       const result = await getModelTokenUsageTimeSeries({ granularity: period });
-      console.log('✅ 모델 토큰 응답 시간 시계열 데이터:', result);
       setData(result);
       setModelsData(result.model);
     };
     fetchData();
   }, [period]);
 
-  // 차트 초기화
   useEffect(() => {
     chartRef.current = Highcharts.chart('model-response-chart', {
+      accessibility: {
+        enabled: false,
+      },
       chart: {
         type: 'line',
         backgroundColor: 'transparent',
@@ -76,15 +78,13 @@ export default function ModelResponseTimeChart() {
     setTimeout(() => {
       chartRef.current?.update({ series: newSeries as Highcharts.SeriesOptionsType[] }, true, true);
     }, 0);
-  }, [modelsData, chartRef.current]);
+  }, [modelsData]);
 
-  // 기간 변경 핸들러
-  const handlePeriodChange = (type: (typeof periods)[number]) => {
+  const handlePeriodChange = (type: Period) => {
     setPeriod(type);
     const chart = chartRef.current;
     if (!chart) return;
 
-    // X축 포맷 업데이트
     if (type === 'day') {
       chart.xAxis[0].update({
         tickInterval: 24 * 3600 * 1000,
@@ -114,7 +114,7 @@ export default function ModelResponseTimeChart() {
         <div className="ml-auto w-40">
           <Select
             value={period}
-            onChange={(v) => handlePeriodChange(v as (typeof periods)[number])}
+            onChange={(v) => handlePeriodChange(v as Period)}
             options={[
               { label: '일별', value: 'day' },
               { label: '주별', value: 'week' },

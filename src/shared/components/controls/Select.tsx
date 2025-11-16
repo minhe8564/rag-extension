@@ -43,7 +43,7 @@ export default function Select({
         aria-haspopup="listbox"
         aria-expanded={open}
         className={
-          'flex w-full items-center justify-between rounded-lg border px-3 py-2 text-base outline-none transition disabled:cursor-not-allowed disabled:bg-gray-100'
+          'z-10 flex w-full items-center justify-between rounded-lg border px-3 py-2 text-base outline-none transition disabled:cursor-not-allowed disabled:bg-gray-100'
         }
       >
         <span className={selected ? 'text-gray-900' : 'text-gray-400'}>

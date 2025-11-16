@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { Option } from '@/shared/components/Select';
+import type { Option } from '@/shared/components/controls/Select';
 import { Save, Check } from 'lucide-react';
 import { toast } from 'react-toastify';
-import Tooltip from '@/shared/components/Tooltip';
+import Tooltip from '@/shared/components/controls/Tooltip';
 import IngestSettingsFields from '@/domains/admin/components/rag-settings/ingest/IngestSettingsFields';
 import type {
   SavePayload,

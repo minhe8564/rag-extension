@@ -1,15 +1,21 @@
 import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { Menu, MessageSquare, Image, FolderCog, LogOut, Bell, UserCog, Search } from 'lucide-react';
-import Tooltip from '@/shared/components/Tooltip';
+import Tooltip from '@/shared/components/controls/Tooltip';
 import ChatList from '@/shared/components/chat/list/ChatList';
-import ChatSearchModal from '@/shared/components/chat/ChatSearchModal';
+import ChatSearchModal from '@/shared/components/chat/layout/ChatSearchModal';
 import RetinaLogo from '@/assets/retina-logo.png';
-import Select from '@/shared/components/Select';
-import type { Option } from '@/shared/components/Select';
+import Select from '@/shared/components/controls/Select';
+import type { Option } from '@/shared/components/controls/Select';
 import { getMyLlmKeys } from '@/shared/api/llm.api';
-import type { MyLlmKeyResponse, MyLlmKeyListResponse } from '@/shared/types/llm.types';
+import type { MyLlmKeyResponse } from '@/shared/types/llm.types';
 import { useChatModelStore } from '@/shared/store/useChatModelStore';
+
+// 상단 import 추가
+import { useAuthStore } from '@/domains/auth/store/auth.store';
+import { useIngestNotifyStream } from '@/shared/hooks/useIngestNotifyStream';
+import { useNotificationStore } from '@/shared/store/useNotificationStore';
+import { useIngestStreamStore } from '@/shared/store/useIngestStreamStore';
 
 const labelCls = (isOpen: boolean) =>
   'ml-2 whitespace-nowrap transition-[max-width,opacity,transform] duration-300 ' +
@@ -44,21 +50,59 @@ export default function UserLayout() {
   const [modelOptions, setModelOptions] = useState<Option[]>([]);
   const { selectedModel, setSelectedModel } = useChatModelStore();
 
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const addIngestNotification = useNotificationStore((s) => s.addIngestNotification);
+  const hasUnread = useNotificationStore((s) => s.hasUnread);
+  const markAllRead = useNotificationStore((s) => s.markAllRead);
+
+  const enabled = useIngestStreamStore((s) => s.enabled);
+  const setEnabled = useIngestStreamStore((s) => s.setEnabled);
+
+  const handleBellClick = () => {
+    if (hasUnread) {
+      markAllRead();
+    }
+    // TODO: 알림 리스트 열기 등
+  };
+
+  useIngestNotifyStream({
+    accessToken: accessToken ?? '',
+    enabled,
+    onMessage: (data) => {
+      addIngestNotification(data);
+      setEnabled(false);
+    },
+    onError: (e) => {
+      console.error('Ingest SSE error: ', e);
+      setEnabled(false);
+    },
+  });
+
   useEffect(() => {
     let active = true;
 
     (async () => {
       const res = await getMyLlmKeys();
-      const result = res.data.result as MyLlmKeyListResponse;
-      const list: MyLlmKeyResponse[] = result?.data ?? [];
+      const result = res.data.result as MyLlmKeyResponse;
 
       if (!active) return;
 
-      const options = list.map((k) => ({
-        value: k.llmName,
-        label: k.llmName,
-        desc: MODEL_DESCRIPTIONS[k.llmName] ?? '모델 설명 없음',
-      }));
+      if (!result.hasKey) {
+        setModelOptions([]);
+        setSelectedModel(undefined, undefined);
+        return;
+      }
+
+      const list: MyLlmKeyResponse[] = [result];
+
+      const options = list
+        .map((k) => ({
+          value: k.llmName ?? '',
+          label: k.llmName ?? '',
+          desc: k.llmName ? (MODEL_DESCRIPTIONS[k.llmName] ?? '모델 설명 없음') : '모델 정보 없음',
+        }))
+        .filter((o) => o.value);
+
       setModelOptions(options);
 
       let final = selectedModel;
@@ -95,7 +139,7 @@ export default function UserLayout() {
             </div>
           ) : (
             <div className="w-full flex justify-center">
-              <Tooltip content="사이드바 열기" side="right" shiftX={12}>
+              <Tooltip content="사이드바 열기" side="right" shiftX={12} portal={true}>
                 <button
                   onClick={() => setIsOpen((prev) => !prev)}
                   className="text-[var(--color-retina)] hover:text-[var(--color-retina-dark)]"
@@ -107,7 +151,7 @@ export default function UserLayout() {
           )}
 
           {isOpen && (
-            <Tooltip content="사이드바 닫기" side="right" shiftX={12}>
+            <Tooltip content="사이드바 닫기" side="right" shiftX={12} portal={true}>
               <button
                 onClick={() => setIsOpen(false)}
                 className="text-[var(--color-retina)] hover:text-[var(--color-retina-dark)]"
@@ -233,7 +277,7 @@ export default function UserLayout() {
 
       <main className="flex-1 min-w-0">
         <div
-          className={`sticky z-50 top-0 flex px-8 py-5 ${
+          className={`sticky z-[9999] top-0 flex px-8 py-5 ${
             isChatRoute ? 'justify-between' : 'justify-end'
           }`}
         >
@@ -247,10 +291,19 @@ export default function UserLayout() {
             />
           )}
 
-          <Bell
-            size={22}
-            className="text-gray-600 hover:text-gray-800 cursor-pointer transition-colors shake-hover"
-          />
+          <button
+            type="button"
+            onClick={handleBellClick}
+            className="relative flex items-center justify-center"
+          >
+            <Bell
+              size={22}
+              className="text-gray-600 hover:text-gray-800 cursor-pointer transition-colors shake-hover"
+            />
+            {hasUnread && (
+              <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-red-500 shadow-sm" />
+            )}
+          </button>
         </div>
 
         <div className="flex w-full flex-col gap-3 px-8">
