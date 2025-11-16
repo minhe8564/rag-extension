@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import clsx from 'clsx';
 import { Pencil, Trash2, Plus } from 'lucide-react';
 import Tooltip from '@/shared/components/controls/Tooltip';
