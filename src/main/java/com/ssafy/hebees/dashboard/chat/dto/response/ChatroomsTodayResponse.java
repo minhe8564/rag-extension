@@ -10,10 +10,6 @@ public record ChatroomsTodayResponse(
     List<Chatroom> chatrooms
 ) {
 
-    public static ChatroomsTodayResponse empty(Timeframe timeframe) {
-        return new ChatroomsTodayResponse(timeframe, List.of());
-    }
-
     public record Chatroom(
         String title,
         String userType,

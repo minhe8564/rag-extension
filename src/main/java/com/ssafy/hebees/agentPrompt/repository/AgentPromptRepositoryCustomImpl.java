@@ -1,9 +1,9 @@
-package com.ssafy.hebees.AgentPrompt.repository;
+package com.ssafy.hebees.agentPrompt.repository;
 
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
-import com.ssafy.hebees.AgentPrompt.entity.AgentPrompt;
-import com.ssafy.hebees.AgentPrompt.entity.QAgentPrompt;
+import com.ssafy.hebees.agentPrompt.entity.AgentPrompt;
+import com.ssafy.hebees.agentPrompt.entity.QAgentPrompt;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;

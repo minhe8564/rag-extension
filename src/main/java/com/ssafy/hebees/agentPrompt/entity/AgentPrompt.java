@@ -1,4 +1,4 @@
-package com.ssafy.hebees.AgentPrompt.entity;
+package com.ssafy.hebees.agentPrompt.entity;
 
 import com.ssafy.hebees.common.entity.BaseEntity;
 import jakarta.persistence.Column;

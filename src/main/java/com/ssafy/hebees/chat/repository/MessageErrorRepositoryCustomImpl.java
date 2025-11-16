@@ -4,8 +4,8 @@ import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.ssafy.hebees.chat.entity.MessageError;
 import com.ssafy.hebees.chat.entity.QMessageError;
+import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Objects;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -17,13 +17,12 @@ import org.springframework.stereotype.Repository;
 @RequiredArgsConstructor
 public class MessageErrorRepositoryCustomImpl implements MessageErrorRepositoryCustom {
 
-    private static final QMessageError messageError = QMessageError.messageError;
-
     private final JPAQueryFactory queryFactory;
+    private static final QMessageError messageError = QMessageError.messageError;
 
     @Override
     public Page<MessageError> search(UUID sessionNo, UUID userNo, Pageable pageable) {
-        List<MessageError> fetched = queryFactory
+        List<MessageError> content = queryFactory
             .selectFrom(messageError)
             .where(
                 eqSessionNo(sessionNo),
@@ -33,10 +32,6 @@ public class MessageErrorRepositoryCustomImpl implements MessageErrorRepositoryC
             .offset(pageable.getOffset())
             .limit(pageable.getPageSize())
             .fetch();
-
-        List<MessageError> content = fetched.stream()
-            .filter(Objects::nonNull)
-            .toList();
 
         Long total = queryFactory
             .select(messageError.count())
@@ -50,6 +45,16 @@ public class MessageErrorRepositoryCustomImpl implements MessageErrorRepositoryC
         long totalCount = total != null ? total : 0L;
 
         return new PageImpl<>(content, pageable, totalCount);
+    }
+
+    @Override
+    public List<MessageError> findByCreatedAtBetweenOrderByCreatedAtDesc(
+        LocalDateTime startInclusive, LocalDateTime endExclusive, int limit) {
+        return queryFactory.selectFrom(messageError)
+            .where(messageError.createdAt.between(startInclusive, endExclusive))
+            .orderBy(messageError.createdAt.desc())
+            .limit(limit)
+            .fetch();
     }
 
     private BooleanExpression eqSessionNo(UUID sessionNo) {

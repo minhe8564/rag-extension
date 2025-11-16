@@ -1,8 +1,8 @@
-package com.ssafy.hebees.AgentPrompt.service;
+package com.ssafy.hebees.agentPrompt.service;
 
 import com.ssafy.hebees.common.dto.ListResponse;
-import com.ssafy.hebees.AgentPrompt.dto.requeset.AgentPromptUpsertRequest;
-import com.ssafy.hebees.AgentPrompt.dto.response.AgentPromptResponse;
+import com.ssafy.hebees.agentPrompt.dto.requeset.AgentPromptUpsertRequest;
+import com.ssafy.hebees.agentPrompt.dto.response.AgentPromptResponse;
 import java.util.UUID;
 
 public interface AgentPromptService {
