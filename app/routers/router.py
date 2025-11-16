@@ -398,6 +398,16 @@ async def embedding_process(
                 
             except Exception as e:
                 logger.error(f"Failed to insert embeddings into Milvus: {str(e)}", exc_info=True)
+
+                # VECTOR_STORE 단계 실패 알림
+                if progress_client:
+                    try:
+                        await progress_client.vector_store_fail(
+                            processed=processed_vectors or None,
+                            total=total_vectors,
+                        )
+                    except Exception as pe:
+                        logger.debug(f"Failed to send vector_store fail progress: {pe}")
                 # VECTOR_STORE 실패 알림
                 if progress_client:
                     try:
