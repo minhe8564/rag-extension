@@ -11,6 +11,12 @@ import { getMyLlmKeys } from '@/shared/api/llm.api';
 import type { MyLlmKeyResponse } from '@/shared/types/llm.types';
 import { useChatModelStore } from '@/shared/store/useChatModelStore';
 
+// 상단 import 추가
+import { useAuthStore } from '@/domains/auth/store/auth.store';
+import { useIngestNotifyStream } from '@/shared/hooks/useIngestNotifyStream';
+import { useNotificationStore } from '@/shared/store/useNotificationStore';
+import { useIngestStreamStore } from '@/shared/store/useIngestStreamStore';
+
 const labelCls = (isOpen: boolean) =>
   'ml-2 whitespace-nowrap transition-[max-width,opacity,transform] duration-300 ' +
   (isOpen
@@ -38,11 +44,39 @@ export default function UserLayout() {
   const activeSessionNo = sp.get('session') || undefined;
   const navigate = useNavigate();
 
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const isChatRoute = pathname.startsWith('/user/chat/text');
 
   const [modelOptions, setModelOptions] = useState<Option[]>([]);
   const { selectedModel, setSelectedModel } = useChatModelStore();
+
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const addIngestNotification = useNotificationStore((s) => s.addIngestNotification);
+  const hasUnread = useNotificationStore((s) => s.hasUnread);
+  const markAllRead = useNotificationStore((s) => s.markAllRead);
+
+  const enabled = useIngestStreamStore((s) => s.enabled);
+  const setEnabled = useIngestStreamStore((s) => s.setEnabled);
+
+  const handleBellClick = () => {
+    if (hasUnread) {
+      markAllRead();
+    }
+    // TODO: 알림 리스트 열기 등
+  };
+
+  useIngestNotifyStream({
+    accessToken: accessToken ?? '',
+    enabled,
+    onMessage: (data) => {
+      addIngestNotification(data);
+      setEnabled(false);
+    },
+    onError: (e) => {
+      console.error('Ingest SSE error: ', e);
+      setEnabled(false);
+    },
+  });
 
   useEffect(() => {
     let active = true;
@@ -257,14 +291,23 @@ export default function UserLayout() {
             />
           )}
 
-          <Bell
-            size={22}
-            className="text-gray-600 hover:text-gray-800 cursor-pointer transition-colors shake-hover"
-          />
+          <button
+            type="button"
+            onClick={handleBellClick}
+            className="relative flex items-center justify-center"
+          >
+            <Bell
+              size={22}
+              className="text-gray-600 hover:text-gray-800 cursor-pointer transition-colors shake-hover"
+            />
+            {hasUnread && (
+              <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-red-500 shadow-sm" />
+            )}
+          </button>
         </div>
 
         <div className="flex w-full flex-col gap-3 px-8">
-          <Outlet key={pathname + location.search} />
+          <Outlet key={pathname + search} />
         </div>
       </main>
 

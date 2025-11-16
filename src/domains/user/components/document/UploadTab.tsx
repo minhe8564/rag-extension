@@ -5,6 +5,7 @@ import { uploadFiles } from '@/shared/api/file.api';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import type { UploadedDoc as UDoc } from '@/shared/types/file.types';
+import { useIngestStreamStore } from '@/shared/store/useIngestStreamStore';
 
 type UploadPayload = { files: File[]; category: string; categoryName?: string };
 
@@ -12,6 +13,8 @@ export default function UploadTab() {
   const [uploadedDocs, setUploadedDocs] = useState<UDoc[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+
+  const setIngestEnabled = useIngestStreamStore((s) => s.setEnabled);
 
   const detectType = (f: File): UDoc['type'] => {
     const name = f.name.toLowerCase();
@@ -48,6 +51,8 @@ export default function UploadTab() {
       return;
     }
 
+    setIngestEnabled(true);
+
     let successCount = 0;
 
     const grouped = targets.reduce<Record<string, UDoc[]>>((acc, doc) => {
@@ -82,6 +87,8 @@ export default function UploadTab() {
 
         setSelectedIds([]);
       }
+    } catch {
+      setIngestEnabled(false);
     } finally {
       setUploading(false);
     }
