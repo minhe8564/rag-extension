@@ -81,3 +81,5 @@ class Docx(BaseExtractionStrategy):
             logger.error(f"[BasicDocs] Error extracting DOCX: {str(e)}")
             raise
 
+
+

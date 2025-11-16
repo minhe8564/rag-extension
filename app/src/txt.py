@@ -64,3 +64,5 @@ class Txt(BaseExtractionStrategy):
             "length": len(content)
         }
 
+
+

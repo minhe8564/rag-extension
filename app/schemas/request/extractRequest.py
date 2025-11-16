@@ -14,3 +14,5 @@ class ExtractTestRequest(BaseModel):
     extractionStrategy: str
     extractionParameter: Dict[Any, Any] = {}
 
+
+
