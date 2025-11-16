@@ -1,14 +1,11 @@
 ﻿from __future__ import annotations
 
 import logging
-from importlib import import_module
 from datetime import datetime, timezone
+from typing import List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, File as FFile, UploadFile, Request, HTTPException, status, Query, BackgroundTasks
-from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
-import logging
-from datetime import datetime, timezone
 
 from app.core.database import get_db
 from app.core.schemas import BaseResponse
@@ -16,23 +13,14 @@ from ..schemas.response.upload_files import FileUploadBatchResult
 from ..services.call_ingest import call_ingest
 from ..schemas.request.upload_files import FileUploadRequest
 from ..services.upload import upload_files as upload_files_service
-from app.core.clients.redis_client import get_metrics_redis_client, get_redis_client
-from app.core.config.settings import settings
-from importlib import import_module
-
-try:
-    _redis_exceptions = import_module("redis.exceptions")
-    REDIS_ERROR_TYPES = (_redis_exceptions.RedisError,)
-except ModuleNotFoundError:
-    class _RedisErrorFallback(Exception):
-        """Fallback used when redis.exceptions is unavailable."""
-
-UPLOAD_COUNT_KEY = "metrics:uploads:total_count"
-
+from app.core.clients.redis_client import get_metrics_redis_client
 
 router = APIRouter(prefix="/files", tags=["File"])
 
 logger = logging.getLogger(__name__)
+
+UPLOAD_STREAM_KEY = "upload:files"
+
 
 @router.post("", response_model=BaseResponse[FileUploadBatchResult], status_code=201)
 async def upload_file(
@@ -62,8 +50,8 @@ async def upload_file(
         effective_bucket = None
         effective_collection = None
 
-    files_payload: list[tuple[bytes, str, str | None]] = []
-    file_sizes: list[int] = []
+    files_payload: List[Tuple[bytes, str, Optional[str]]] = []
+    file_sizes: List[int] = []
     for f in files:
         content = await f.read()
         files_payload.append((content, f.filename or "uploaded", f.content_type))
@@ -84,151 +72,39 @@ async def upload_file(
         logger.exception("Upload failed")
         raise
 
-    uploaded_files_count = len(batch_meta.files)
     metrics_redis = None
     try:
         metrics_redis = get_metrics_redis_client()
     except RuntimeError:
-        logger.exception("Failed to acquire Redis client for upload metrics")
+        logger.exception("Failed to acquire Redis client for upload stream")
 
-    if metrics_redis is not None and uploaded_files_count:
+    if metrics_redis is not None:
+        now_iso = datetime.now(timezone.utc).isoformat()
+        now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
         try:
-            await metrics_redis.incrby(UPLOAD_COUNT_KEY, uploaded_files_count)
-        except REDIS_ERROR_TYPES:
-            logger.exception("Failed to increment upload metrics in Redis")
-
-    # ingest 옵션이 true일 때만 수행
-    if autoIngest:
-        try:
-            redis = get_redis_client()
-            n = len(batch_meta.files)
-            base = await redis.incrby("ingest:run:seq", n)
-            run_ids = [str(base - (n - 1) + i) for i in range(n)]
-
-            pipe = redis.pipeline(transaction=False)
-            now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
-            now_iso = datetime.now(timezone.utc).isoformat()
-            for idx, fmeta in enumerate(batch_meta.files):
-                run_id = run_ids[idx]
-                meta_key = f"ingest:run:{run_id}:meta"
-                events_key = f"ingest:run:{run_id}:events"
-                pipe.hset(
-                    meta_key,
-                    mapping={
+            for idx, uploaded in enumerate(batch_meta.files):
+                await metrics_redis.xadd(
+                    UPLOAD_STREAM_KEY,
+                    fields={
+                        "eventType": "UPLOAD",
                         "userId": x_user_uuid,
-                        "fileNo": fmeta.fileNo,
-                        "fileName": fmeta.fileName,
-                        "fileCategory": request.category,
-                        "bucket": batch_meta.bucket,
+                        "role": role_upper,
+                        "fileNo": str(uploaded.fileNo),
+                        "fileName": uploaded.fileName,
+                        "fileCategory": str(request.category or ""),
+                        "bucket": batch_meta.bucket or "",
                         "size": str(file_sizes[idx]),
-                        "status": "RUNNING",
-                        "currentStep": "UPLOAD",
-                        "progressPct": "100",
-                        "overallPct": "20",
-                        "createdAt": now_iso,
-                        "updatedAt": now_iso,
-                    },
-                )
-                if getattr(settings, "ingest_meta_ttl_sec", 0) > 0:
-                    pipe.expire(meta_key, settings.ingest_meta_ttl_sec)
-                pipe.sadd(f"ingest:user:{x_user_uuid}:runs", run_id)
-
-                # 파일번호로 최신 runId 조회용 STRING 키 저장
-                file_latest_key = f"ingest:file:{fmeta.fileNo}:latest_run_id"
-                pipe.set(file_latest_key, run_id)
-                if getattr(settings, "ingest_meta_ttl_sec", 0) > 0:
-                    pipe.expire(file_latest_key, settings.ingest_meta_ttl_sec)
-                    
-                pipe.xadd(
-                    events_key,
-                    fields={
-                        "type": "STEP_UPDATE",
-                        "runId": run_id,               # Long/숫자 문자열 OK
-                        "docId": "",                   # 없으면 빈값 (또는 fileNo 사용 시 클라이언트 매핑)
-                        "docName": fmeta.fileName,
-                        "step": "UPLOAD",              # DTO의 step 필드명에 맞춤
-                        "processed": "1",              # 있으면 설정, 없으면 "0"
-                        "total": "1",
-                        "progressPct": "100",
-                        "overallPct": "20",
-                        "status": "RUNNING",
+                        "autoIngest": "true" if autoIngest else "false",
+                        "uploadedAt": now_iso,
                         "ts": str(now_ms),
                     },
-                    id="*",                          # 서버에서 ms-time 기반 ID 부여
-                    maxlen=1000,                     # 스트림 길이 관리 (approximate trim)
+                    maxlen=2000,
                     approximate=True,
                 )
+        except Exception:
+            logger.exception("Failed to publish upload event to Redis stream")
 
-            # 유저 단위 summary 진행률 업데이트 (hash + stream)
-            try:
-                summary_key = f"ingest:summary:user:{x_user_uuid}"
-                summary = await redis.hgetall(summary_key)
-                prev_total = 0
-                prev_completed = 0
-                prev_success = 0
-                prev_failed = 0
-                if summary:
-                    try:
-                        prev_total = int(summary.get("total", 0) or 0)
-                    except (TypeError, ValueError):
-                        prev_total = 0
-                    try:
-                        prev_completed = int(summary.get("completed", 0) or 0)
-                    except (TypeError, ValueError):
-                        prev_completed = 0
-
-                # 진행 중 라운드가 있다면 total에 누적, 아니면 새 라운드 시작
-                if prev_total > 0 and prev_completed < prev_total:
-                    total = prev_total + n
-                    completed = prev_completed
-                    try:
-                        prev_success = int(summary.get("successCount", 0) or 0)
-                    except (TypeError, ValueError, AttributeError):
-                        prev_success = 0
-                    try:
-                        prev_failed = int(summary.get("failedCount", 0) or 0)
-                    except (TypeError, ValueError, AttributeError):
-                        prev_failed = 0
-                else:
-                    total = n
-                    completed = 0
-                    prev_success = 0
-                    prev_failed = 0
-
-                await redis.hset(
-                    summary_key,
-                    mapping={
-                        "total": str(total),
-                        "completed": str(completed),
-                        "successCount": str(prev_success),
-                        "failedCount": str(prev_failed),
-                        "updatedAt": now_iso,
-                    },
-                )
-
-                # summary용 스트림 이벤트 추가 (event: summary)
-                await redis.xadd(
-                    "ingest:summary",
-                    fields={
-                        "eventType": "SUMMARY",
-                        "userId": x_user_uuid,
-                        "completed": str(completed),
-                        "total": str(total),
-                        "ts": str(now_ms),
-                    },
-                    maxlen=1000,
-                    approximate=True,
-                )
-            except REDIS_ERROR_TYPES:
-                logger.exception("Failed to update ingest summary in Redis")
-
-            await pipe.execute()
-        except RuntimeError:
-            logger.exception("Failed to acquire Redis client for ingest metadata")
-        except REDIS_ERROR_TYPES:
-            logger.exception("Failed to write ingest run metadata to Redis")
-
-        # ingest 비동기 호출
+    if autoIngest:
         if background_tasks is not None:
             try:
                 background_tasks.add_task(
