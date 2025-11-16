@@ -1,4 +1,4 @@
-package com.ssafy.hebees.dashboard.entity;
+package com.ssafy.hebees.dashboard.keyword.entity;
 
 import com.ssafy.hebees.common.entity.BaseEntity;
 import jakarta.persistence.*;
