@@ -15,7 +15,7 @@ public class LlmKeyCacheService {
 
     private final StrategyRepository strategyRepository;
 
-    @Cacheable(cacheNames = "llmNo", key = "#llmIdentifier")
+    @Cacheable(cacheNames = "cache:llmNo", key = "#llmIdentifier")
     public UUID fetchLlmNo(String llmIdentifier) {
         llmIdentifier = ValidationUtil.require(llmIdentifier);
 
