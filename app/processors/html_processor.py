@@ -14,7 +14,7 @@ from marker.models import create_model_dict
 from marker.output import text_from_rendered
 
 from app.core.settings import settings
-from app.core.utils.pdf_converter import convert_to_pdf
+from app.core.utils.pdf_converter import convert_to_pdf_and_upload
 from .base import BaseProcessor
 
 logger = logging.getLogger(__name__)
@@ -94,17 +94,20 @@ class HTMLProcessor(BaseProcessor):
             return self._model_dict
     def process(self, file_path: str) -> Dict[str, Any]:
         """
-        HTML 파일 -> PDF 변환 -> Marker로 Markdown 변환
+        HTML 파일 -> PDF 변환 -> MinIO 업로드 -> Marker로 Markdown 변환
         """
         if not Path(file_path).exists():
             raise FileNotFoundError(f"파일을 찾을 수 없습니다: {file_path}")
         
         pdf_path = None
+        minio_path = None
         try:
-            # 1. HTML 파일을 PDF로 변환 (LibreOffice 사용)
+            # 1. HTML 파일을 PDF로 변환하고 MinIO에 업로드
             logger.info(f"HTML 파일을 PDF로 변환 시작: {file_path}")
-            pdf_path = convert_to_pdf(file_path)
+            pdf_path, minio_path = convert_to_pdf_and_upload(file_path)
             logger.info(f"PDF 변환 완료: {pdf_path}")
+            if minio_path:
+                logger.info(f"MinIO 업로드 완료: {minio_path}")
             
             # 2. PDF를 Marker로 처리
             mdict = self._ensure_model()
@@ -121,6 +124,7 @@ class HTMLProcessor(BaseProcessor):
                     "device": self._device,
                     "dtype": self._dtype,
                     "image_count": len(images) if images else 0,
+                    "minio_path": minio_path,  # MinIO 업로드 경로 추가
                 }
             }
         except Exception as e:

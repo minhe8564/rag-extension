@@ -44,6 +44,17 @@ RUN apt-get update && apt-get install -y \
     libreoffice-impress \
     && rm -rf /var/lib/apt/lists/*
 
+# 한글 폰트 추가 (NotoSans + Nanum)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+fonts-noto-cjk \
+fonts-nanum \
+fonts-nanum-extra \
+fontconfig \
+&& rm -rf /var/lib/apt/lists/*
+
+# 폰트 캐시 갱신
+RUN fc-cache -fv
+
 # 빌더에서 준비한 venv 및 메타데이터 복사
 COPY --from=builder /app/.venv /app/.venv
 COPY --from=builder /app/pyproject.toml /app/uv.lock ./
