@@ -22,7 +22,7 @@ class Openpyxl(BaseExtractionStrategy):
         try:
             # XLSX 파일 열기
             workbook = load_workbook(file_path, data_only=True)
-
+            
             # 모든 시트 데이터 추출
             sheets_data = {}
             sheets_text = []
