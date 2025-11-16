@@ -71,14 +71,17 @@ export default function AdminLayout() {
 
         const list: MyLlmKeyResponse[] = result?.data ?? [];
 
-        const hasAnyKey = list.some((k) => k.hasKey);
-        if (!hasAnyKey || list.length === 0) {
-          setModelOptions([]);
-          setSelectedModel(undefined, undefined);
-          return;
-        }
+        // qwen 모델 체크 함수
+        const isQwen = (llmName: string | null | undefined): boolean => {
+          if (!llmName) return false;
+          const name = llmName.toLowerCase();
+          return name.includes('qwen');
+        };
 
-        const options = list
+        // qwen은 항상 표시, 다른 모델은 hasKey=true인 것만 표시
+        const filteredList = list.filter((k) => isQwen(k.llmName) || k.hasKey);
+        
+        const options = filteredList
           .map((k) => ({
             value: k.llmName ?? '',
             label: k.llmName ?? '',
@@ -92,15 +95,16 @@ export default function AdminLayout() {
 
         setModelOptions(options);
 
+        // 필터링된 리스트를 기준으로 모델 선택
         let final = selectedModel;
-        const found = list.find((k) => k.llmName === final);
+        const found = filteredList.find((k) => k.llmName === final);
 
         if (!found) {
-          final = list[0]?.llmName;
+          final = filteredList[0]?.llmName;
         }
 
         if (final) {
-          const matched = list.find((k) => k.llmName === final);
+          const matched = filteredList.find((k) => k.llmName === final);
           setSelectedModel(final, matched?.llmNo);
         } else {
           setSelectedModel(undefined, undefined);
