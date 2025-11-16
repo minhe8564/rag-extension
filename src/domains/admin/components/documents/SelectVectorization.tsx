@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { RawMyDoc } from '@/shared/types/file.types';
 import { useCategoryStore } from '@/shared/store/useCategoryMap';
-import type { UploadBucket } from '@/shared/types/file.types';
 import { getCollections } from '@/domains/admin/api/documents.api';
 import { uploadFiles } from '@/shared/api/file.api';
 import { toast } from 'react-toastify';
@@ -15,11 +14,13 @@ export default function SelectVectorization({
   onRemove,
   onUploadComplete,
   isVectorizing,
+  onStartVectorizing,
 }: {
   finalSelectedFiles: RawMyDoc[];
   onRemove?: (file: RawMyDoc) => void;
-  onUploadComplete?: (files: RawMyDoc[]) => void;
+  onUploadComplete: () => void;
   isVectorizing: boolean;
+  onStartVectorizing: () => void;
 }) {
   const [localFiles, setLocalFiles] = useState<RawMyDoc[]>(finalSelectedFiles);
   const [selectedFile, setSelectedFile] = useState<RawMyDoc | null>(null);
@@ -35,47 +36,59 @@ export default function SelectVectorization({
 
   useEffect(() => {
     setLocalFiles(finalSelectedFiles);
+    console.log('@%%%%', finalSelectedFiles);
   }, [finalSelectedFiles]);
 
-  //  업로드
+  // 업로드
   async function handleUpload(finalSelectedFiles: RawMyDoc[]) {
     try {
+      onStartVectorizing();
+
       setIsUploading(true);
-      const groupedByCategory = finalSelectedFiles.reduce<Record<string, RawMyDoc[]>>(
+
+      // 카테고리로 그룹화
+      const groupedByCategoryAndCollection = finalSelectedFiles.reduce<Record<string, RawMyDoc[]>>(
         (acc, file) => {
-          if (!acc[file.categoryNo]) acc[file.categoryNo] = [];
-          acc[file.categoryNo].push(file);
+          const categoryNo = file.categoryNo;
+          const bucket = file.collectionNo; // 👈 RawMyDoc에 있어야 함
+
+          const key = `${categoryNo}__${bucket}`;
+
+          if (!acc[key]) acc[key] = [];
+          acc[key].push(file);
           return acc;
         },
         {}
       );
 
-      const uploadPromises = Object.entries(groupedByCategory).map(([categoryNo, files]) => {
-        const bucket = files[0].bucket as UploadBucket;
+      // 그룹별로 업로드 요청
+      const uploadPromises = Object.entries(groupedByCategoryAndCollection).map(([, files]) => {
+        const categoryNo = files[0].categoryNo;
+        const bucket = files[0].collectionNo;
+
         return uploadFiles({
-          files: files.map((f) => f.originalFile as File),
           categoryNo,
           bucket,
+          files: files.map((f) => f.originalFile as File),
         });
       });
 
-      await Promise.all(uploadPromises);
-      console.log('🎉 전체 업로드 완료');
-      toast.success('파일 업로드가 완료되었습니다!');
-      onUploadComplete?.(finalSelectedFiles);
+      const uploadResults = await Promise.all(uploadPromises);
+      toast.success('파일 업로드 완료!');
+      // 초기화
+      setLocalFiles([]);
+      setSelectedFile(null);
+      setCurrentPage(1);
+      console.log('🔥 벡터화 시작 요청 결과:', uploadResults);
+
+      onUploadComplete();
     } catch (err) {
       console.error('❌ 업로드 실패', err);
-      toast.error('파일 업로드에 실패했습니다. 다시 시도해주세요.');
+      toast.error('업로드 중 오류가 발생했습니다.');
     } finally {
       setIsUploading(false);
     }
   }
-
-  //   useEffect(() => {
-  //   if (isVectorizingDone) {
-  //     refetch(); // ✅ React Query로 전체 벡터화 진행률 재요청
-  //   }
-  // }, [isVectorizingDone, refetch]);
 
   const { data: collectionsResult } = useQuery({
     queryKey: ['collections', { filter: true }],
@@ -185,7 +198,7 @@ export default function SelectVectorization({
                   {/* 저장위치 */}
                   <span className="col-span-1 text-center text-xs">
                     {' '}
-                    {collections.find((c) => c.collectionNo === file.collectionNo)?.name || '-'}
+                    {collections.find((c) => c.name === file.collectionNo)?.name || '-'}
                   </span>
                 </div>
               );
@@ -223,9 +236,9 @@ export default function SelectVectorization({
       <div className="flex justify-center mt-6 mb-4">
         <button
           onClick={() => handleUpload(localFiles)}
-          disabled={isUploading || localFiles.length === 0 || isVectorizing} // ✅ 추가
+          disabled={isUploading || localFiles.length === 0}
           className={`px-10 py-2 text-white cursor-pointer font-semibold rounded-md transition shadow-md ${
-            isUploading || isVectorizing
+            isUploading
               ? 'bg-gray-300 cursor-not-allowed'
               : 'bg-[linear-gradient(90deg,#BE7DB1_10%,#81BAFF_100%)] hover:opacity-90'
           }`}

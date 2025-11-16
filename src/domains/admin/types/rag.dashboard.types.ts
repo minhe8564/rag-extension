@@ -163,3 +163,37 @@ export type chatroomItem = {
   chatRoomId: string;
   createdAt: string;
 };
+
+////////////////////////////
+// 챗봇 실시간 사용량
+
+export type chatbotRealtimeInit = {
+  event: string;
+  data: {
+    bucketIntervalMs: string;
+    buckets: Array<{
+      timestamp: string;
+      requestCount: number;
+    }>;
+  };
+};
+
+export type initData = {
+  bucketIntervalMs: string;
+  buckets: {
+    timestamp: string;
+    requestCount: number;
+  }[];
+};
+
+export type chatbotRealtimeLive = {
+  event: string;
+  data: {
+    requestCount: number;
+  };
+};
+
+export type updateData = {
+  timestamp: string;
+  requestCount: number;
+};

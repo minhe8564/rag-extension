@@ -11,6 +11,7 @@ export type DocItem = {
   createdAt?: string;
   categoryNo?: string;
   type: string;
+  status: string;
 };
 
 type Props = {
@@ -82,7 +83,7 @@ export default function CollectionDocumentsAdm({
         onDownload={onDownload}
         onDelete={onDelete}
         brand="hebees"
-        showStatus={false}
+        showStatus={true}
       />
     </div>
   );

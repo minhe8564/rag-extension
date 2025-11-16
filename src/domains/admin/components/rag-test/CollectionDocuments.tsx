@@ -14,6 +14,7 @@ export type DocItem = {
   createdAt?: string;
   categoryNo?: string;
   type: string;
+  status: string;
 };
 
 type Props = {

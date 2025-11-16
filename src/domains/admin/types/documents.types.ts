@@ -81,6 +81,7 @@ export type documentDatatype = {
   categoryNo: string;
   collectionNo: string;
   createdAt: string;
+  status: string;
 };
 
 // 컬렉션 환경 타입
@@ -96,53 +97,26 @@ export type FileType = {
   totalProgress: number | null;
 };
 
-// 진행률 최초 조회 요청
-export type GetVectorizationProgressParams = {
-  page?: number; // 기본값 1
-  status?: string; //"RUNNING,QUEUED"
-  pipeline?: string; // "pdf-default"
-  docId?: number; // 특정 문서만 조회
+export type VectorizationStep = {
+  type: 'UPLOAD' | 'EXTRACTION' | 'EMBEDDING' | 'VECTOR_STORE';
+  percentage: number;
 };
 
-// 진행률 최초 조회 응답
-export type GetVectorizationProgress = {
-  items: VectorizationItem[];
-  page: number;
-  size: number;
-  hasNext: boolean;
-  hasPrev: boolean;
-};
-// (steps안)각 단계별 상세 진행 상태
-export type VectorizationStep = {
-  step: 'CLEAN' | 'EMBED' | 'UPSERT';
-  status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED';
-  unit: 'PAGE' | 'CHUNK' | 'RECORD';
-  processed: number;
-  total: number;
-  progressPct: number;
-  startedAt: string | null;
-  finishedAt: string | null;
-};
-// (큐) 상태 정보
-export type VectorizationQueue = {
-  position: number;
-  concurrencyLimit: number;
-};
-// (items안)각 문서별 벡터화 실행 단위
 export type VectorizationItem = {
-  runId: number;
-  docId: number;
-  docName: string;
-  pipeline: string;
+  userId: string;
+  fileNo: string;
+  fileName: string;
+  fileCategory: string;
+  bucket: string;
+  size: number;
+
   status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED';
-  currentStep: 'CLEAN' | 'EMBED' | 'UPSERT' | null;
-  overallPct: number; // 전체 진행률
-  version: number;
-  enqueuedAt: string | null;
-  startedAt: string | null;
-  createdAt: string | null;
-  queue: VectorizationQueue;
-  etaSec: number | null; // 예상 남은 시간(초)
-  lastError: string | null;
+  currentStep: 'UPLOAD' | 'EXTRACTION' | 'EMBEDDING' | 'VECTOR_STORE';
+
+  progressPct: number;
+  overallPct: number;
+  createdAt: number;
+  updatedAt: number;
+
   steps: VectorizationStep[];
 };
