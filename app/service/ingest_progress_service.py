@@ -336,6 +336,8 @@ class IngestProgressService:
                                 summary = await redis.hgetall(summary_key)
                                 prev_total = 0
                                 prev_completed = 0
+                                prev_success = 0
+                                prev_failed = 0
                                 if summary:
                                     try:
                                         prev_total = int(summary.get("total", 0) or 0)
@@ -345,6 +347,14 @@ class IngestProgressService:
                                         prev_completed = int(summary.get("completed", 0) or 0)
                                     except Exception:
                                         prev_completed = 0
+                                    try:
+                                        prev_success = int(summary.get("successCount", 0) or 0)
+                                    except Exception:
+                                        prev_success = 0
+                                    try:
+                                        prev_failed = int(summary.get("failedCount", 0) or 0)
+                                    except Exception:
+                                        prev_failed = 0
 
                                 # 진행 중 라운드가 있으면 completed만 증가, 아니면 단일 작업 기준으로 1/1 라운드 시작
                                 if prev_total > 0 and prev_completed < prev_total:
@@ -354,6 +364,13 @@ class IngestProgressService:
                                     total_summary = prev_total if prev_total > 0 else 1
                                     completed_summary = prev_completed + 1 if prev_total > 0 else 1
 
+                                if status == "COMPLETED":
+                                    success_summary = prev_success + 1
+                                    failed_summary = prev_failed
+                                else:
+                                    success_summary = prev_success
+                                    failed_summary = prev_failed + 1
+
                                 summary_updated_at = datetime.fromtimestamp(
                                     ts_ms / 1000.0, tz=timezone.utc
                                 ).isoformat()
@@ -362,6 +379,8 @@ class IngestProgressService:
                                     mapping={
                                         "total": str(total_summary),
                                         "completed": str(completed_summary),
+                                        "successCount": str(success_summary),
+                                        "failedCount": str(failed_summary),
                                         "updatedAt": summary_updated_at,
                                     },
                                 )
@@ -383,6 +402,8 @@ class IngestProgressService:
                                         "userId": fin_user_id,
                                         "completed": str(completed_summary),
                                         "total": str(total_summary),
+                                        "successCount": str(success_summary),
+                                        "failedCount": str(failed_summary),
                                         "ts": str(ts_ms),
                                     },
                                     maxlen=STREAM_MAXLEN_GLOBAL,
