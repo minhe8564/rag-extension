@@ -17,7 +17,7 @@ class Docx(BaseExtractionStrategy):
     def extract(self, file_path: str) -> Dict[Any, Any]:
         """DOCX 파일 추출 처리"""
         logger.info(f"[BasicDocs] Extracting DOCX file: {file_path}")
-
+        
         if Document is None:
             raise ImportError("python-docx is required for DOCX extraction. Install it with: pip install python-docx")
 
