@@ -14,6 +14,7 @@ import com.ssafy.hebees.chat.dto.response.ReferencedDocumentResponse;
 import com.ssafy.hebees.chat.dto.response.SessionCreateResponse;
 import com.ssafy.hebees.chat.dto.response.SessionResponse;
 import com.ssafy.hebees.chat.service.ChatAskService;
+import com.ssafy.hebees.chat.service.ChatAskStreamService;
 import com.ssafy.hebees.chat.service.ChatService;
 import com.ssafy.hebees.chat.service.MessageService;
 import com.ssafy.hebees.common.dto.ListResponse;
@@ -33,9 +34,9 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -45,6 +46,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 
 @RestController
@@ -57,6 +59,7 @@ public class ChatController {
     private final ChatService chatService;
     private final MessageService chatMessageService;
     private final ChatAskService chatAskService;
+    private final ChatAskStreamService chatAskStreamService;
 
     @GetMapping("/sessions")
     @Operation(summary = "세션 목록 조회", description = "세션 목록을 조회합니다.")
@@ -232,6 +235,25 @@ public class ChatController {
             ));
     }
 
+    @PostMapping(value = "/sessions/{sessionNo}/ask/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @Operation(summary = "세션 LLM 챗봇에게 질문하기(SSE)", description = "세션 지정 일반 LLM 챗봇에게 질문을 하고 스트리밍으로 응답을 수신합니다.")
+    public SseEmitter askStream(
+        @PathVariable UUID sessionNo,
+        @Valid @RequestBody AskRequest request
+    ) {
+        UUID userNo = SecurityUtil.getCurrentUserUuid()
+            .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_ACCESS_TOKEN));
+        return chatAskStreamService.askStream(userNo, sessionNo, request);
+    }
+
+    @PostMapping(value = "/ask/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @Operation(summary = "일반 LLM 챗봇에게 질문하기(SSE)", description = "일반 LLM 챗봇에게 질문을 하고 스트리밍으로 응답을 수신합니다.")
+    public SseEmitter askStream(@Valid @RequestBody AskRequest request) {
+        UUID userNo = SecurityUtil.getCurrentUserUuid()
+            .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_ACCESS_TOKEN));
+        return chatAskStreamService.askStream(userNo, null, request);
+    }
+
     @PostMapping("/sessions/{sessionNo}/messages")
     @Operation(summary = "[관리자] 메시지 생성", description = "세션에 메시지를 추가합니다.")
     @ApiResponse(responseCode = "201", description = "메시지 생성 성공")
@@ -246,4 +268,5 @@ public class ChatController {
         return ResponseEntity.created(location)
             .body(BaseResponse.of(HttpStatus.CREATED, created, "메시지 생성 성공"));
     }
+
 }
