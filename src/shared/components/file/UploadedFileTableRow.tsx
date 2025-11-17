@@ -1,6 +1,6 @@
 import { Download, Trash2 } from 'lucide-react';
-import Checkbox from '@/shared/components/Checkbox';
-import Tooltip from '@/shared/components/Tooltip';
+import Checkbox from '@/shared/components/controls/Checkbox';
+import Tooltip from '@/shared/components/controls/Tooltip';
 import FileNameCell from '@/shared/components/file/FileNameCell';
 import StatusBadge from './StatusBadge';
 import type { UploadedDoc } from '@/shared/types/file.types';

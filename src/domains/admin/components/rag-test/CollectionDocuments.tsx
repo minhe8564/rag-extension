@@ -2,10 +2,10 @@ import { useMemo, useState } from 'react';
 import clsx from 'clsx';
 import type { Collection } from '@/domains/admin/components/rag-test/types';
 import { Upload, Download, Trash2, FileText, Folder, RefreshCw } from 'lucide-react';
-import Checkbox from '@/shared/components/Checkbox';
-import Select from '@/shared/components/Select';
+import Checkbox from '@/shared/components/controls/Checkbox';
+import Select from '@/shared/components/controls/Select';
 import { fileTypeOptions } from '@/domains/admin/components/rag-settings/options';
-import Tooltip from '@/shared/components/Tooltip';
+import Tooltip from '@/shared/components/controls/Tooltip';
 
 export type DocItem = {
   id: string;
@@ -14,6 +14,7 @@ export type DocItem = {
   createdAt?: string;
   categoryNo?: string;
   type: string;
+  status: string;
 };
 
 type Props = {

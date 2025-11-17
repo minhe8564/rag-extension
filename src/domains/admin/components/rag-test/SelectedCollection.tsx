@@ -18,24 +18,26 @@ export function SelectedCollection({ collection }: Props) {
       <CollectionDocuments
         key={refreshKey}
         collection={collection}
-        docs={[
-          {
-            id: '1',
-            name: '히비스_안내문서.pdf',
-            sizeKB: 162.6,
-            createdAt: '2025.10.21 01:27',
-            categoryNo: '업무 매뉴얼',
-            type: 'pdf',
-          },
-          {
-            id: '2',
-            name: '프로세스_가이드.pdf',
-            sizeKB: 98.2,
-            createdAt: '2025.10.21 01:27',
-            categoryNo: '업무 매뉴얼',
-            type: 'pdf',
-          },
-        ]}
+        docs={
+          [
+            // {
+            //   id: '1',
+            //   name: '히비스_안내문서.pdf',
+            //   sizeKB: 162.6,
+            //   createdAt: '2025.10.21 01:27',
+            //   categoryNo: '업무 매뉴얼',
+            //   type: 'pdf',
+            // },
+            // {
+            //   id: '2',
+            //   name: '프로세스_가이드.pdf',
+            //   sizeKB: 98.2,
+            //   createdAt: '2025.10.21 01:27',
+            //   categoryNo: '업무 매뉴얼',
+            //   type: 'pdf',
+            // },
+          ]
+        }
         onUpload={(files) => console.log('upload', files)}
         onDownload={(id) => console.log('download', id)}
         onReindex={(id) => console.log('reindex', id)}

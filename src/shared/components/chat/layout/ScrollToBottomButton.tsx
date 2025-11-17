@@ -11,7 +11,6 @@ type Props = {
 };
 
 export default function ScrollToBottomButton({
-  containerRef,
   watch = 0,
   smooth = true,
   className,
@@ -21,24 +20,26 @@ export default function ScrollToBottomButton({
   const [hasUnseen, setHasUnseen] = useState(false);
 
   const isAtBottom = () => {
-    const el = containerRef.current;
-    if (!el) return true;
-    return el.scrollTop + el.clientHeight >= el.scrollHeight - 50;
+    const doc = document.documentElement;
+    const scrollTop = window.scrollY || doc.scrollTop;
+    const clientHeight = window.innerHeight;
+    const scrollHeight = doc.scrollHeight;
+    const delta = scrollHeight - (scrollTop + clientHeight);
+
+    return delta <= 4;
   };
 
   const scrollToBottom = () => {
-    const el = containerRef.current;
-    if (!el) return;
-    el.scrollTo({
-      top: el.scrollHeight + bottomPadding,
+    const doc = document.documentElement;
+    const scrollHeight = doc.scrollHeight + bottomPadding;
+
+    window.scrollTo({
+      top: scrollHeight,
       behavior: smooth ? 'smooth' : 'auto',
     });
   };
 
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-
     const onScroll = () => {
       const atBottom = isAtBottom();
       setVisible(!atBottom);
@@ -46,16 +47,13 @@ export default function ScrollToBottomButton({
     };
 
     onScroll();
-    el.addEventListener('scroll', onScroll, { passive: true });
-    return () => el.removeEventListener('scroll', onScroll);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [containerRef]);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   const w = useMemo(() => watch, [watch]);
   useEffect(() => {
-    if (!containerRef.current) return;
     if (!isAtBottom()) setHasUnseen(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [w]);
 
   if (!visible) return null;

@@ -116,7 +116,11 @@ export function useMonitoringStreams(opts: UseMonitoringStreamsOptions = {}) {
 
     // CPU
     {
-      const es = new EventSourcePolyfill(urls.cpu, { headers, withCredentials: withCreds });
+      const es = new EventSourcePolyfill(urls.cpu, {
+        headers,
+        withCredentials: withCreds,
+        heartbeatTimeout: 3600000,
+      });
       esCpuRef.current = es;
 
       const payloadListener = createPayloadListener<CpuEvent>(

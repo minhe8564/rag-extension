@@ -16,7 +16,7 @@ export type FlowStep = {
   label: string;
   sublabel?: string;
   icon: React.ReactNode;
-  durationMs?: number;
+  durationSec?: number;
   description?: string;
   tooltipNote?: string;
 };
@@ -125,10 +125,10 @@ export default function PipelineFlow({ steps, activeId, onStepClick, className }
 
                   {s.sublabel && <div className="text-xs mb-6 text-gray-500">{s.sublabel}</div>}
 
-                  {typeof s.durationMs === 'number' && (
+                  {typeof s.durationSec === 'number' && (
                     <div className="text-3xl font-bold text-gray-800 leading-none">
-                      {s.durationMs}
-                      <span className="text-sm font-medium text-gray-500 ml-0.5">ms</span>
+                      {s.durationSec}
+                      <span className="text-base font-medium text-gray-500 ml-1">s</span>
                     </div>
                   )}
 

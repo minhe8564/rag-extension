@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { Option } from '@/shared/components/Select';
+import type { Option } from '@/shared/components/controls/Select';
 import { QuerySettingsForm } from '@/domains/admin/components/rag-settings/query/QuerySettingsForm';
 import TemplateList from '@/domains/admin/components/rag-settings/TemplateList';
 import type { RagOptions } from '@/domains/admin/components/rag-settings/options';

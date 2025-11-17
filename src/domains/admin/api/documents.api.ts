@@ -36,7 +36,12 @@ export const getDocInCollections = async (
 };
 
 // 진행률 최초 조회
-export const getVectorizationProgress = async () => {
-  const { data } = await springApi.get<ApiEnvelope<any>>('/api/v1/ingest/progress/init');
+export const getVectorizationProgress = async (pageNum: number, pageSize: number) => {
+  const { data } = await springApi.get<ApiEnvelope<any>>('/api/v1/ingest/progress', {
+    params: {
+      pageNum: String(pageNum),
+      pageSize: String(pageSize),
+    },
+  });
   return data.result;
 };

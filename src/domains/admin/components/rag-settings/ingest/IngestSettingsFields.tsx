@@ -2,7 +2,7 @@ import { LabelRow } from '@/domains/admin/components/rag-settings/ui/labelRow';
 import { Slider } from '@/domains/admin/components/rag-settings/ui/Slider';
 import { PipelineIcons } from '@/shared/components/rag-pipeline/PipelineIcons';
 import SectionHeader from '@/domains/admin/components/rag-settings/ui/SectionHeader';
-import Select from '@/shared/components/Select';
+import Select from '@/shared/components/controls/Select';
 import type { IngestSettingsFieldsProps } from '@/domains/admin/types/rag-settings/ingest/ingestSettings.types';
 
 export default function IngestSettingsFields({

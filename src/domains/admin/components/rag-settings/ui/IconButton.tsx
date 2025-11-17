@@ -1,4 +1,4 @@
-import Tooltip from '@/shared/components/Tooltip';
+import Tooltip from '@/shared/components/controls/Tooltip';
 
 type IconButtonProps = {
   title: string;

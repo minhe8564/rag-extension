@@ -8,7 +8,7 @@ import {
 } from '@/shared/api/llm.api';
 import type { MyLlmKeyResponse } from '@/shared/types/llm.types';
 import { KeyRound, Eye, EyeOff, Check, X, Pencil, Trash2, Copy } from 'lucide-react';
-import Tooltip from '@/shared/components/Tooltip';
+import Tooltip from '@/shared/components/controls/Tooltip';
 import ConfirmModal from '@/shared/components/ConfirmModal';
 
 function IconButton({
@@ -92,9 +92,15 @@ export default function ApiKey({
         const llmName = NAME_TO_ID[selectedName].toLowerCase();
         const res = await getMyLlmKeyByName(llmName);
         if (controller.signal.aborted) return;
-        const record = (res.data.result as MyLlmKeyResponse) ?? null;
-        setCurrent(record);
-        setTempKey(record?.apiKey ?? '');
+        const record = res.data.result as MyLlmKeyResponse | null;
+
+        if (!record || !record.hasKey) {
+          setCurrent(null);
+          setTempKey('');
+        } else {
+          setCurrent(record);
+          setTempKey(record.apiKey ?? '');
+        }
       } finally {
         if (!controller.signal.aborted) setIsLoading(false);
       }
@@ -113,7 +119,7 @@ export default function ApiKey({
     setIsSaving(true);
     try {
       if (current) {
-        const res = await updateMyLlmKey(current.llmKeyNo, { apiKey: value });
+        const res = await updateMyLlmKey(current.llmNo, { apiKey: value });
         setCurrent(res.data.result);
         toast.success('API Key 수정 완료');
       } else {
@@ -142,7 +148,7 @@ export default function ApiKey({
     }
     setIsSaving(true);
     try {
-      await deleteMyLlmKey(current.llmKeyNo);
+      await deleteMyLlmKey(current.llmNo);
       setCurrent(null);
       setTempKey('');
       setEditingKey(false);
@@ -201,9 +207,9 @@ export default function ApiKey({
             <div className="flex items-center justify-between">
               <div
                 className="
-    text-base font-semibold text-gray-900 tabular-nums min-h-[28px]
-    min-w-[160px] truncate
-  "
+                  text-base font-semibold text-gray-900 tabular-nums min-h-[28px]
+                  min-w-[160px] truncate
+                "
               >
                 {isLoading ? (
                   <span className="text-gray-400">-</span>

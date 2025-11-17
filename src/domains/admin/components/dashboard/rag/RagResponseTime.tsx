@@ -15,12 +15,23 @@ import type {
   RagPipelineResponseTimeResult,
 } from '@/domains/admin/types/system.dashboard.types';
 
-function msLabel(v?: number) {
-  if (typeof v !== 'number') return '-';
-  if (v < 1) return `${v.toFixed(2)} ms`;
-  if (v < 10) return `${v.toFixed(1)} ms`;
-  return `${Math.round(v)} ms`;
-}
+const toSec = (ms?: number): number | undefined => {
+  if (typeof ms !== 'number') return undefined;
+
+  const sec = ms / 1000;
+  const truncated = parseFloat(sec.toFixed(2));
+
+  return truncated;
+};
+
+const secLabel = (sec?: number): string => {
+  if (typeof sec === 'number' && !Number.isNaN(sec)) {
+    const formatted = sec.toFixed(2);
+    return `${formatted} s`;
+  }
+
+  return '-';
+};
 
 const normalizeKey = (s: string) => s.toLowerCase().replace(/\s+/g, '').replace(/-/g, '');
 
@@ -52,7 +63,7 @@ export default function RagResponseTime() {
         sublabel: '문서 수집',
         icon: PipelineIcons.Extract,
         description: '문서를 불러오고\n분석 가능한 형태로 준비합니다.',
-        durationMs: extract?.averageTimeMs,
+        durationSec: toSec(extract?.averageTimeMs),
       },
       {
         id: 'chunking',
@@ -60,7 +71,7 @@ export default function RagResponseTime() {
         sublabel: '문서 분할',
         icon: PipelineIcons.Chunking,
         description: '긴 문서를 의미 단위로 나누어\n처리 효율을 높입니다.',
-        durationMs: chunk?.averageTimeMs,
+        durationSec: toSec(chunk?.averageTimeMs),
       },
       {
         id: 'embedding',
@@ -68,7 +79,7 @@ export default function RagResponseTime() {
         sublabel: '벡터화',
         icon: PipelineIcons.Embedding,
         description: '분할된 문서를\n벡터 형태로 변환합니다.',
-        durationMs: embed?.averageTimeMs,
+        durationSec: toSec(embed?.averageTimeMs),
       },
       {
         id: 'query-embed',
@@ -76,7 +87,7 @@ export default function RagResponseTime() {
         sublabel: '쿼리 벡터화',
         icon: PipelineIcons.QueryEmbed,
         description: '사용자의 질문을 벡터로 변환해\n검색 기준을 만듭니다.',
-        durationMs: queryEmbed?.averageTimeMs,
+        durationSec: toSec(queryEmbed?.averageTimeMs),
       },
       {
         id: 'searching',
@@ -84,7 +95,7 @@ export default function RagResponseTime() {
         sublabel: '검색',
         icon: PipelineIcons.Searching,
         description: '가장 연관성 높은 문서를\n벡터 DB에서 탐색합니다.',
-        durationMs: search?.averageTimeMs,
+        durationSec: toSec(search?.averageTimeMs),
       },
       {
         id: 'reranker',
@@ -92,7 +103,7 @@ export default function RagResponseTime() {
         sublabel: '재정렬',
         icon: PipelineIcons.Reranker,
         description: '검색 결과를 의미 기반으로\n재정렬해 정확도를 높입니다.',
-        durationMs: crossEncoder?.averageTimeMs,
+        durationSec: toSec(crossEncoder?.averageTimeMs),
       },
       {
         id: 'generation',
@@ -100,7 +111,7 @@ export default function RagResponseTime() {
         sublabel: '응답 생성',
         icon: PipelineIcons.Generation,
         description: 'LLM이 문맥 기반으로\n최종 답변을 생성합니다.',
-        durationMs: gen?.averageTimeMs,
+        durationSec: toSec(gen?.averageTimeMs),
       },
     ];
   }, [metrics]);
@@ -121,26 +132,26 @@ export default function RagResponseTime() {
     return () => clearInterval(timer);
   }, [isLoading, isError, steps, metrics]);
 
-  const totalMs = useMemo(
-    () => steps.reduce((sum, s) => sum + (typeof s.durationMs === 'number' ? s.durationMs : 0), 0),
+  const totalSec = useMemo(
+    () => steps.reduce((sum, step) => sum + (step.durationSec ?? 0), 0),
     [steps]
   );
 
   const totalSamples = useMemo(() => metrics.reduce((sum, m) => sum + m.count, 0), [metrics]);
 
-  const hasData = useMemo(() => totalSamples > 0 && totalMs > 0, [totalSamples, totalMs]);
+  const hasData = useMemo(() => totalSamples > 0 && totalSec > 0, [totalSamples, totalSec]);
 
   return (
     <div className="flex h-full flex-col rounded-2xl border bg-white p-8 shadow-sm">
       <div className="mb-10 flex items-center justify-between gap-2">
         <div>
           <div className="flex items-start gap-3">
-            <Zap size={18} className="text-[var(--color-hebees)] mt-1" />
+            <Zap size={18} className="mt-1 text-[var(--color-hebees)]" />
             <h3 className="text-xl font-semibold text-gray-900">RAG 파이프라인 응답 시간</h3>
           </div>
           <p className="mt-0.5 text-sm text-gray-500">
             최근 5분 평균 · 단계별 처리 시간 ·{' '}
-            {hasData ? `총 ${msLabel(totalMs)}` : '아직 집계된 RAG 요청이 없습니다.'}
+            {hasData ? `총 ${secLabel(totalSec)}` : '아직 집계된 RAG 요청이 없습니다.'}
           </p>
         </div>
         {data && (
@@ -154,7 +165,7 @@ export default function RagResponseTime() {
 
             {!hasData && (
               <div className="rounded-full bg-amber-50 px-3 py-[6px] text-sm text-amber-700">
-                아직 생성된 채팅방/질문이 없어 0ms로 집계됩니다
+                아직 생성된 채팅방/질문이 없어 0s로 집계됩니다
               </div>
             )}
           </div>

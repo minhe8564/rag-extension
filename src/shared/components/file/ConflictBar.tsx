@@ -1,4 +1,4 @@
-import Tooltip from '@/shared/components/Tooltip';
+import Tooltip from '@/shared/components/controls/Tooltip';
 import { AlertTriangle } from 'lucide-react';
 
 type Props = {

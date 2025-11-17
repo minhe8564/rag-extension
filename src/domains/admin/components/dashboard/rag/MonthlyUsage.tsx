@@ -8,10 +8,9 @@ import type {
 } from '@/domains/admin/types/rag.dashboard.types';
 import { FolderKanban } from 'lucide-react';
 
-// 숫자 자리수 함수
 function niceRound(num: number) {
   if (num === 0) return 0;
-  const magnitude = Math.pow(10, Math.floor(Math.log10(num)) - 1); // 예: 634 → 10² = 100
+  const magnitude = Math.pow(10, Math.floor(Math.log10(num)) - 1);
   return Math.round(num / magnitude) * magnitude;
 }
 
@@ -24,7 +23,6 @@ export default function WeeklyTimeHeatmap() {
   useEffect(() => {
     const fetchData = async () => {
       const result = await getChatbotUsageHeatmap();
-      // const totalData = result.result
       setTimeframe(result.timeframe);
       setLabel(result.label);
       setCells(result.cells);
@@ -33,7 +31,6 @@ export default function WeeklyTimeHeatmap() {
   }, []);
 
   useEffect(() => {
-    // 더미 API 응답
     if (!label?.days?.length || !label?.slots?.length || !cells?.length) return;
 
     const flatValues = cells.flat();
@@ -44,7 +41,6 @@ export default function WeeklyTimeHeatmap() {
     const roundedMin = niceRound(min);
     const roundedMax = niceRound(max);
 
-    // 색상 레벨 계산
     const getLevel = (value: number) => {
       if (range === 0) return 0;
       const step = range / 5;
@@ -55,20 +51,21 @@ export default function WeeklyTimeHeatmap() {
     // 색상 단계 (밝은 파랑 → 진한 파랑)
     // const colorLevels = ['#F0F7FF', '#D6E8FF', '#A9D0FF', '#72B0FF', '#3A83E0'];
 
-    // heatmap 데이터 변환
     const heatmapData: [number, number, number][] = [];
     for (let d = 0; d < label.days.length; d++) {
       for (let h = 0; h < label.slots.length; h++) {
         const value = cells[d][h];
         const level = getLevel(value);
-        heatmapData.push([h, d, level]); // X=시간, Y=요일 (순서 바꿈)
+        heatmapData.push([h, d, level]);
       }
     }
 
     const container = document.getElementById('weekly-usage-chart') as HTMLElement;
     if (!container) return;
-    // 🔹 Highcharts Heatmap
     chartRef.current = Highcharts.chart({
+      accessibility: {
+        enabled: false,
+      },
       chart: {
         renderTo: container,
         type: 'heatmap',
@@ -126,9 +123,9 @@ export default function WeeklyTimeHeatmap() {
         margin: 20,
         padding: 10,
         title: {
-          text: '사용량 (토큰 수)', // 색상 옆에 표시되는 설명 텍스트
+          text: '사용량 (토큰 수)',
           style: {
-            color: '#374151', // 진한 회색
+            color: '#374151',
             fontSize: '12px',
             fontWeight: '600',
           },
@@ -156,7 +153,7 @@ export default function WeeklyTimeHeatmap() {
         heatmap: {
           borderWidth: 4,
           borderColor: '#fff',
-          pointPadding: 0.3, // 셀 간 간격
+          pointPadding: 0.3,
           dataLabels: { enabled: false },
           clip: false,
           crisp: false,

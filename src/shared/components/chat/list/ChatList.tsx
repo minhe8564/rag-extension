@@ -4,7 +4,7 @@ import { getSessions, deleteSession, updateSession } from '@/shared/api/chat.api
 import type { SessionItem, ListSessionsResult } from '@/shared/types/chat.types';
 import type { ApiEnvelope } from '@/shared/lib/api.types';
 import { ChevronDown, Loader2 } from 'lucide-react';
-import Tooltip from '@/shared/components/Tooltip';
+import Tooltip from '@/shared/components/controls/Tooltip';
 import ConfirmModal from '@/shared/components/ConfirmModal';
 import { toast } from 'react-toastify';
 import clsx from 'clsx';
@@ -206,7 +206,8 @@ export default function ChatList({
                 <ChatListItem
                   key={session.sessionNo}
                   session={session}
-                  isActive={(activeSessionNo ?? localActiveNo) === session.sessionNo}
+                  // isActive={(activeSessionNo ?? localActiveNo) === session.sessionNo}
+                  isActive={activeSessionNo === session.sessionNo}
                   onSelect={(s) => {
                     setLocalActiveNo(s.sessionNo);
                     onSelect?.(s);

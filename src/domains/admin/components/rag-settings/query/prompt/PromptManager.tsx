@@ -1,4 +1,4 @@
-import Select from '@/shared/components/Select';
+import Select from '@/shared/components/controls/Select';
 import ConfirmModal from '@/shared/components/ConfirmModal';
 import PromptForm from '@/domains/admin/components/rag-settings/query/prompt/PromptForm';
 import PromptView from '@/domains/admin/components/rag-settings/query/prompt/PromptView';

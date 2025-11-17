@@ -17,7 +17,7 @@ export default defineConfig({
         // JS, CSS 파일에 해시값 추가
         entryFileNames: 'assets/[name].[hash].js',
         chunkFileNames: 'assets/[name].[hash].js',
-        assetFileNames: assetInfo => {
+        assetFileNames: (assetInfo) => {
           if (!assetInfo.name) {
             return 'assets/[name].[hash].[ext]';
           }
@@ -35,6 +35,7 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    // port: 7700,
     host: true,
   },
 });

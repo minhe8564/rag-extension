@@ -46,7 +46,6 @@ export default function MyDocsTab() {
         if (!active || myReqId !== reqSeq.current) return;
 
         setMyDocs(items);
-        console.log(items);
 
         setTotal(total);
         setTotalPages(Math.max(1, totalPages));

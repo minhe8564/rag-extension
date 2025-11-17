@@ -1,8 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Users, FileText, TriangleAlert, TrendingUp, TrendingDown } from 'lucide-react';
-// import Card from '@/shared/components/Card';
-import { EventSourcePolyfill } from 'event-source-polyfill';
-import { useAuthStore } from '@/domains/auth/store/auth.store';
+import {
+  Users,
+  FileText,
+  TriangleAlert,
+  TrendingUp,
+  TrendingDown,
+  DatabaseZap,
+} from 'lucide-react';
 import {
   getTotalUserCount,
   getUserChangeTrend,
@@ -11,111 +15,22 @@ import {
   getTotalErrorCount,
   getErrorChangeTrend,
 } from '@/domains/admin/api/rag.dashboard.api';
-import type {
-  TrendGroup,
-  TotalGroup,
-  CurrentGroup,
-} from '@/domains/admin/types/rag.dashboard.types';
-import { DatabaseZap } from 'lucide-react';
+import type { TrendGroup, TotalGroup } from '@/domains/admin/types/rag.dashboard.types';
+import {
+  useNumberBoardStreams,
+  useRealtimeUserStream,
+} from '@/domains/admin/hooks/useNumberBoardStreams';
+import {
+  StatusPill,
+  TimeRight,
+} from '@/domains/admin/components/dashboard/system/overview/StatPrimitives';
 
 export default function NumberBoard() {
-  // 실시간 데이터
-  const [currentData, setCurrentData] = useState<CurrentGroup | null>(null);
-  // 토탈 데이터
+  const { currentData, connected, errors } = useNumberBoardStreams();
+  const { realtimeUserData } = useRealtimeUserStream();
   const [totalData, setTotalData] = useState<TotalGroup | null>(null);
-  // 증감률
   const [trendData, setTrendData] = useState<TrendGroup | null>(null);
 
-  const SPRING_API_BASE_URL = import.meta.env.VITE_SPRING_BASE_URL;
-
-  const token = useAuthStore((state) => state.accessToken);
-  // 실시간 데이터 로딩
-  useEffect(() => {
-    const sources = {
-      user: new EventSourcePolyfill(
-        `${SPRING_API_BASE_URL}/api/v1/analytics/metrics/access-users/stream`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      ),
-      document: new EventSourcePolyfill(
-        `${SPRING_API_BASE_URL}/api/v1/analytics/metrics/upload-documents/stream`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      ),
-      error: new EventSourcePolyfill(
-        `${SPRING_API_BASE_URL}/api/v1/analytics/metrics/errors/stream`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      ),
-    };
-
-    //  key에 따른 데이터 필드 매핑
-    const fieldMap = {
-      user: 'accessUsers',
-      document: 'uploadedDocs',
-      error: 'errorCount',
-    } as const;
-
-    // 공통 이벤트 핸들러
-    const handleEvent = (key: keyof typeof sources) => (event: MessageEvent) => {
-      try {
-        const parsed = JSON.parse(event.data);
-        console.log(`📡 ${key} ${event.type} 이벤트 수신`, parsed);
-
-        setCurrentData((prev) => {
-          const base = prev ?? {
-            user: { event: '', data: { accessUsers: 0 } },
-            document: { event: '', data: { accessUsers: 0 } },
-            error: { event: '', data: { accessUsers: 0 } },
-          };
-
-          // 해당 key에 맞는 필드명 가져오기
-          const field = fieldMap[key];
-          const newValue = parsed[field] ?? base[key].data.accessUsers;
-
-          return {
-            ...base,
-            [key]: {
-              event: event.type, // 'init' | 'update'
-              data: { accessUsers: newValue },
-            },
-          };
-        });
-      } catch (err) {
-        console.error(`❌ ${key} 이벤트 파싱 실패:`, err);
-      }
-    };
-
-    // 모든 소스에 대해 init/update 이벤트 리스너 등록
-    (Object.keys(sources) as (keyof typeof sources)[]).forEach((key) => {
-      const source = sources[key] as EventSource;
-      const listener = handleEvent(key);
-      source.addEventListener('init', listener);
-      source.addEventListener('update', listener);
-
-      // 연결 성공 로그
-      source.onopen = () => console.log(`✅ ${key} SSE 연결 성공`);
-      // 에러 로그
-      source.onerror = (err) => console.error(`🔴 ${key} SSE 연결 에러`, err);
-    });
-
-    // 컴포넌트 unmount 시 연결 종료
-    return () => {
-      Object.values(sources).forEach((s) => s.close());
-      console.log(' SSE 연결 종료');
-    };
-  }, []);
-
-  //  나머지 데이터 로딩
   useEffect(() => {
     const fetchTotalData = async () => {
       const [totalUserData, totalDocumentData, totalErrorData] = await Promise.all([
@@ -124,7 +39,7 @@ export default function NumberBoard() {
         getTotalErrorCount(),
       ]);
 
-      const normalziedTotalUserData = {
+      const normalziedTotalUserData: TotalGroup = {
         user: { totalUser: totalUserData.totalUser, asOf: totalUserData.asOf },
         document: { totalDocs: totalDocumentData.totalDocs, asOf: totalDocumentData.asOf },
         error: { totalErrors: totalErrorData.totalErrors, asOf: totalErrorData.asOf },
@@ -138,7 +53,8 @@ export default function NumberBoard() {
         getDocumentChangeTrend(),
         getErrorChangeTrend(),
       ]);
-      const normalziedTrendUserData = {
+
+      const normalziedTrendUserData: TrendGroup = {
         user: {
           todayTotal: trendUserData.todayTotal,
           yesterdayTotal: trendUserData.yesterdayTotal,
@@ -174,6 +90,34 @@ export default function NumberBoard() {
     error: 'totalErrors',
   } as const;
 
+  const anyConnected = connected?.user || connected?.document || connected?.error || false;
+  const anyError = Boolean(errors?.user || errors?.document || errors?.error);
+
+  const headerStatusPill = anyConnected ? (
+    <StatusPill ok text="실시간" />
+  ) : anyError ? (
+    <StatusPill warn text="연결 오류" />
+  ) : (
+    <StatusPill text="대기" />
+  );
+  const LiveBadge = () => (
+    <span
+      className="inline-flex items-center gap-1
+               px-1 py-[2px] text-[10px] font-semibold rounded-md
+               bg-red-100 text-red-600 border border-red-200"
+    >
+      <span>LIVE</span>
+      <span
+        className="ml-1 px-1.5 py-[1px] rounded-md 
+             bg-white/80 backdrop-blur-sm
+             text-[10px] font-bold text-red-600 
+             border border-red-200/70 shadow-[0_1px_2px_rgba(0,0,0,0.06)]
+             tracking-tight tabular-nums"
+      >
+        {realtimeUserData?.result?.activeUserCount?.toLocaleString() ?? 0}
+      </span>
+    </span>
+  );
   const renderCard = (
     key: keyof TrendGroup,
     title: string,
@@ -183,104 +127,132 @@ export default function NumberBoard() {
     const current = currentData?.[key]?.data.accessUsers ?? 0;
     const trend = trendData?.[key];
     const total = totalData?.[key];
-    // TOTAL 수는 API에서 가져온 데이터 사용
     const field = totalFieldMap[key];
     const totalCount = (total as Record<string, number | string | undefined>)?.[field] ?? 0;
-    // 하루 전 대비 수는 API에서 가져온 데이터로 계산
+
     const deltaValue =
       trend?.deltaPct !== undefined ? Number((trend.deltaPct * 100).toFixed(2)) : 0;
     const direction = trend?.direction ?? 'flat';
 
     const IconArrow = direction === 'up' ? TrendingUp : direction === 'down' ? TrendingDown : null;
     const sign = deltaValue > 0 ? '+' : '';
-    const color =
+    const colorClass =
       direction === 'up'
-        ? 'text-green-600'
+        ? 'text-emerald-600 bg-emerald-50 border-emerald-100'
         : direction === 'down'
-          ? 'text-red-600'
-          : 'text-gray-500';
+          ? 'text-rose-600 bg-rose-50 border-rose-100'
+          : 'text-slate-500 bg-slate-50 border-slate-100';
+
+    const subtitle =
+      key === 'user'
+        ? '접속한 전체 사용자'
+        : key === 'document'
+          ? '업로드된 전체 문서'
+          : '발생한 전체 오류';
+
+    const asOf = trend?.asOf ?? total?.asOf;
 
     return (
-      <div className="p-4 sm:p-5 h-full flex flex-col bg-white rounded-lg border shadow-sm">
-        {/* 헤더 */}
-        <div className="flex items-center gap-2">
-          {icon}
-          <span className="text-lg font-bold text-gray-900">{title}</span>
-        </div>
+      <article className="flex h-full flex-col rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-sm transition-transform duration-150 hover:-translate-y-0.5 hover:border-slate-300">
+        <header className="mb-6 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3">
+            {icon}
+            <div className="flex flex-col">
+              <span className="text-lg font-medium text-gray-900">{title}</span>
+              <span className="text-[11px] text-slate-400">{subtitle}</span>
+            </div>
+          </div>
+          {key === 'user' && <LiveBadge />}
+        </header>
 
-        {/* 메인 숫자 */}
-        <div className="flex flex-col gap-y-1 justify-center flex-1 mt-2.5">
-          <div className="flex items-end gap-1 leading-tight">
-            <span className="text-2xl font-extrabold text-gray-900 min-w-[2ch] text-right tabular-nums">
-              {current.toLocaleString()}
-            </span>
-            <span className="text-lg text-gray-400 mx-1">/</span>
-            <span className="text-lg text-gray-400 font-normal min-w-[2ch] text-right tabular-nums">
-              {totalLabel} {totalCount.toLocaleString()}
-            </span>
+        <div className="flex flex-1 flex-col gap-2">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex flex-col">
+              <span className="text-4xl font-semibold tracking-tight text-slate-900 tabular-nums leading-none">
+                {current.toLocaleString()}
+              </span>
+            </div>
+
+            <div className="flex flex-col items-end text-right">
+              <span className="text-[11px] uppercase tracking-wide text-slate-400">
+                {totalLabel}
+              </span>
+              <span className="text-base font-medium text-slate-600 tabular-nums">
+                {totalCount.toLocaleString()}
+              </span>
+            </div>
           </div>
 
-          <div className="flex items-center">
-            <div className="flex items-center gap-1.5 border rounded-lg px-2 py-1 shadow-sm bg-white">
-              {IconArrow && (
-                <IconArrow
-                  size={11}
-                  className={`${
-                    direction === 'up'
-                      ? 'text-green-600'
-                      : direction === 'down'
-                        ? 'text-red-600'
-                        : 'text-gray-400'
-                  }`}
-                />
-              )}
-              <span className="text-gray-600 text-sm">전일 대비</span>
-              <span className={`text-sm font-semibold ${color}`}>
+          <div className="mt-2 flex items-center justify-between">
+            <span className="text-xs text-slate-400">전일 대비 변화</span>
+            <div
+              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${colorClass}`}
+            >
+              {IconArrow && <IconArrow size={11} className="shrink-0" />}
+              <span>
                 {sign}
                 {Math.abs(deltaValue).toFixed(2)}%
               </span>
             </div>
           </div>
         </div>
-      </div>
+
+        {asOf && (
+          <footer className="mt-3 border-t border-slate-100 pt-2">
+            <span className="text-xs text-slate-400">
+              <TimeRight ts={asOf} />
+            </span>
+          </footer>
+        )}
+      </article>
     );
   };
 
   return (
     <div className="flex h-full flex-col rounded-2xl border bg-white p-8 shadow-sm">
-      <div className="flex items-start gap-3">
-        <DatabaseZap size={18} className="text-blue-500 mt-1" />
-        <h3 className="text-xl font-semibold text-gray-900">오늘의 실시간 로그</h3>
-      </div>
-      <p className="mt-0.5 mb-4 text-sm text-gray-500">실시간으로 처리되는 로그 데이터</p>
+      <header className="mb-4 flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <DatabaseZap size={18} className="text-[var(--color-hebees-blue)]" />
+            <h3 className="text-xl font-semibold text-gray-900">오늘의 실시간 로그</h3>
+          </div>
 
-      <div className="mb-4 flex items-center"></div>
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-2 flex-1">
+          <div>{headerStatusPill}</div>
+        </div>
+        <p className="text-sm text-gray-500">
+          현재 접속, 문서 업로드, 오류 발생 현황을 한눈에 확인하세요.
+        </p>
+        <p></p>
+      </header>
+
+      <div className="mt-2 grid flex-1 grid-cols-1 gap-3 md:grid-cols-3">
         {renderCard(
           'user',
           '현재 사용자 수',
-          <div className="h-10 w-10 rounded-lg bg-[var(--color-hebees-blue-bg)] flex items-center justify-center shadow-sm">
-            <Users size={25} className="text-[var(--color-hebees-blue)]" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-hebees-blue-bg)] shadow-sm">
+            <Users size={20} className="text-[var(--color-hebees-blue)]" />
           </div>,
-          '총'
+          '총 사용자'
         )}
+
         {renderCard(
           'document',
           '업로드 문서 수',
-          <div className="h-10 w-10 rounded-lg bg-[var(--color-hebees-bg)] flex items-center justify-center shadow-sm">
-            <FileText size={25} className="text-[var(--color-hebees)]" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-hebees-bg)] shadow-sm">
+            <FileText size={20} className="text-[var(--color-hebees)]" />
           </div>,
-          '총'
+          '총 문서'
         )}
+
         {renderCard(
           'error',
           '오류 발생 수',
-          <div className="h-10 w-10 rounded-lg bg-red-50 flex items-center justify-center shadow-sm">
-            <TriangleAlert size={25} className="text-red-500" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-rose-50 shadow-sm">
+            <TriangleAlert size={20} className="text-rose-500" />
           </div>,
-          '총'
+          '총 오류'
         )}
-      </section>
+      </div>
     </div>
   );
 }

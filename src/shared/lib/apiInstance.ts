@@ -138,11 +138,11 @@ function applyInterceptors(instance: typeof springApi | typeof ragApi | typeof f
       const msg =
         (code && ERROR_MESSAGES[code]) || backendMessage || ERROR_MESSAGES.INTERNAL_SERVER_ERROR;
 
+      // case 404: 제외
       switch (httpStatus) {
         case 400:
         case 401:
         case 403:
-        case 404:
         case 409:
         case 415:
           toast.error(msg);

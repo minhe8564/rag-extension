@@ -15,7 +15,7 @@ export function uploadFiles({
   files,
   categoryNo,
   bucket,
-  onNameConflict = 'reject',
+  onNameConflict = 'overwrite',
 }: UploadFilesParams) {
   const form = new FormData();
   files.forEach((f) => form.append('files', f));

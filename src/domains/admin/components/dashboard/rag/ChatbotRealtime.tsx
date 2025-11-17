@@ -1,19 +1,21 @@
 import { useEffect, useRef } from 'react';
 import Highcharts from 'highcharts';
 import { MessageSquare } from 'lucide-react';
+import type { initData, updateData } from '@/domains/admin/types/rag.dashboard.types';
+import { EventSourcePolyfill } from 'event-source-polyfill';
+import { useAuthStore } from '@/domains/auth/store/auth.store';
 
 export default function ChatbotUsageRealtime() {
   const chartRef = useRef<Highcharts.Chart | null>(null);
+  const SPRING_API_BASE_URL = import.meta.env.VITE_SPRING_BASE_URL;
+  const token = useAuthStore((state) => state.accessToken);
 
+  // 차트 초기화
   useEffect(() => {
-    // 초기 데이터 (더미)
-    const initialData = Array.from({ length: 10 }, (_, i) => ({
-      x: Date.now() - (10 - i) * 10000,
-      y: Math.floor(Math.random() * 60) + 20,
-    }));
-
-    // 차트 생성
     chartRef.current = Highcharts.chart('chatbot-usage-container', {
+      accessibility: {
+        enabled: false,
+      },
       chart: {
         type: 'areaspline',
         backgroundColor: 'transparent',
@@ -21,7 +23,7 @@ export default function ChatbotUsageRealtime() {
         marginRight: 10,
         height: 320,
       },
-      // 🔹 내부 title / subtitle 제거
+
       title: { text: undefined },
       subtitle: { text: undefined },
 
@@ -30,19 +32,23 @@ export default function ChatbotUsageRealtime() {
         tickPixelInterval: 150,
         labels: { style: { color: '#6B7280' } },
       },
+
       yAxis: {
         title: { text: '' },
         labels: { style: { color: '#6B7280' } },
         gridLineColor: '#E5E7EB',
         min: 0,
       },
+
       legend: { enabled: false },
+
       tooltip: {
         xDateFormat: '%p %I:%M:%S',
         pointFormat: '<b>{point.y}</b> 요청',
         backgroundColor: 'rgba(255,255,255,0.9)',
         borderColor: '#E5E7EB',
       },
+
       plotOptions: {
         areaspline: {
           color: '#81BAFF',
@@ -51,31 +57,67 @@ export default function ChatbotUsageRealtime() {
           marker: { enabled: false },
         },
       },
+
       credits: { enabled: false },
+
       series: [
         {
           name: '요청 수',
           type: 'areaspline',
-          data: initialData,
+          data: [],
         },
       ],
     });
 
-    // 10초마다 데이터 갱신
-    const interval = setInterval(() => {
-      const chart = chartRef.current;
-      if (!chart) return;
-
-      // 🔹 실제 API 연결 시 아래 부분 교체
-      const timestamp = Date.now();
-      const requestCount = Math.floor(Math.random() * 60) + 20;
-
-      const series = chart.series[0];
-      series.addPoint([timestamp, requestCount], true, series.data.length >= 10);
-    }, 10000);
-
-    return () => clearInterval(interval);
+    return () => chartRef.current?.destroy();
   }, []);
+
+  useEffect(() => {
+    const sources = {
+      realtimeUsage: new EventSourcePolyfill(
+        `${SPRING_API_BASE_URL}/api/v1/analytics/metrics/chatbot/stream`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      ),
+    };
+
+    sources.realtimeUsage.addEventListener('init', (event) => {
+      console.log('🔥 SSE onmessage RAW:', event);
+
+      const e = event as MessageEvent;
+      const InitData = JSON.parse(e.data) as initData;
+      const initBuckets = InitData.buckets.map((bucket) => [
+        new Date(bucket.timestamp).getTime(),
+        bucket.requestCount,
+      ]);
+
+      const chart = chartRef.current;
+      if (chart) {
+        const series = chart.series[0];
+        series.setData(initBuckets, true);
+      }
+    });
+
+    sources.realtimeUsage.addEventListener('update', (event) => {
+      console.log('🔥 SSE onmessage RAW:', event);
+
+      const e = event as MessageEvent;
+      const LiveData = JSON.parse(e.data) as updateData;
+      const updateBuckets = new Date(LiveData.timestamp).getTime();
+      const updateRequestCount = LiveData.requestCount;
+
+      const chart = chartRef.current;
+      const series = chart?.series[0];
+      series?.addPoint([updateBuckets, updateRequestCount], true, series.data.length >= 6);
+    });
+
+    return () => {
+      sources.realtimeUsage.close();
+    };
+  }, [token]);
 
   return (
     <div className="flex h-full flex-col rounded-2xl border bg-white p-8 shadow-sm">

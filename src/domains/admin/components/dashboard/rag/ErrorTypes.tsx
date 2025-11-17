@@ -64,32 +64,38 @@ export default function ErrorTypes() {
       </div>
       <p className="mt-0.5 mb-4 text-sm text-gray-500">최근 24시간</p>
 
-      <ul className="flex flex-col gap-2 mb-1">
-        {pageItems.map((err, i) => (
-          <li
-            key={`${err.chatRoomId}-${startIndex + i}`}
-            className="flex items-center justify-between p-4 mb-2 rounded-xl
-               bg-gray-50 hover:bg-gray-100 transition-colors"
-          >
-            <div className="flex items-center gap-4">
-              {getIcon(err.errorType as 'SYSTEM' | '응답오류')}
-
-              <div className="flex flex-col">
-                <p className="text-sm font-semibold text-gray-900">{err.chatTitle}</p>
-                <p className="text-xs text-gray-500 mt-[2px]">
-                  {err.userType} • {timeAgo(new Date(err.occuredAt))}
-                </p>
-              </div>
-            </div>
-
-            <div
-              className={`px-2.5 py-1 text-xs rounded-lg font-medium 
-                  whitespace-nowrap ${getBadgeStyle(err.errorType as 'SYSTEM' | '응답오류')}`}
+      <ul className="flex flex-col gap-2 mb-1 min-h-[220px] flex-1 justify-center items-center">
+        {pageItems.length === 0 ? (
+          <div className="text-gray-400 text-sm py-10">
+            최근 24시간 동안 발생한 오류가 없습니다.
+          </div>
+        ) : (
+          pageItems.map((err, i) => (
+            <li
+              key={`${err.chatRoomId}-${startIndex + i}`}
+              className="flex items-center justify-between p-4 mb-2 rounded-xl
+                 bg-gray-50 hover:bg-gray-100 transition-colors w-full"
             >
-              {err.errorType}
-            </div>
-          </li>
-        ))}
+              <div className="flex items-center gap-4">
+                {getIcon(err.errorType as 'SYSTEM' | '응답오류')}
+
+                <div className="flex flex-col">
+                  <p className="text-sm font-semibold text-gray-900">{err.chatTitle}</p>
+                  <p className="text-xs text-gray-500 mt-[2px]">
+                    {err.userType} • {timeAgo(new Date(err.occuredAt))}
+                  </p>
+                </div>
+              </div>
+
+              <div
+                className={`px-2.5 py-1 text-xs rounded-lg font-medium 
+            whitespace-nowrap ${getBadgeStyle(err.errorType as 'SYSTEM' | '응답오류')}`}
+              >
+                {err.errorType}
+              </div>
+            </li>
+          ))
+        )}
       </ul>
       <div className="mt-auto">
         <Pagination pageNum={pageNum} totalPages={totalPages} onPageChange={setPageNum} />

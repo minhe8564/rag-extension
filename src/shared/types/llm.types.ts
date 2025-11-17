@@ -4,6 +4,7 @@ export interface MyLlmKeyCreateRequest {
 }
 
 export interface MyLlmKeyResponse {
+  hasKey: boolean;
   llmKeyNo: string;
   userNo: string;
   strategyNo: string;

@@ -1,7 +1,7 @@
 import PageHeader from '@/domains/admin/components/dashboard/PageHeader';
 import { useState, useEffect } from 'react';
 import { Activity, Gauge } from 'lucide-react';
-import SegmentedTabs from '@/shared/components/SegmentedTabs';
+import SegmentedTabs from '@/shared/components/controls/SegmentedTabs';
 import RagTab from '@/domains/admin/components/dashboard/tab/RagTab';
 import SystemTab from '@/domains/admin/components/dashboard/tab/SystemTab';
 

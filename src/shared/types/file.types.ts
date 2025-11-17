@@ -1,5 +1,4 @@
 export type OnNameConflict = 'reject' | 'overwrite';
-export type UploadBucket = 'public' | 'private' | 'test' | null;
 
 export type RagStatus = 'PENDING' | 'INGESTING' | 'COMPLETED' | 'FAILED';
 
@@ -19,7 +18,7 @@ export type UploadedDoc = {
 export interface UploadFilesParams {
   files: File[];
   categoryNo: string;
-  bucket?: UploadBucket;
+  bucket?: string;
   onNameConflict?: OnNameConflict;
 }
 
