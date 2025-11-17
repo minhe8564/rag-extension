@@ -5,8 +5,16 @@ UserMemoryManager - 사용자별 Memory 관리자
 import uuid
 from typing import Optional, Dict, Any, Callable, List
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from loguru import logger
 import base64
+
+KST = ZoneInfo("Asia/Seoul")
+
+
+def _now_kst() -> datetime:
+    """현재 KST(Asia/Seoul) 시간 반환."""
+    return datetime.now(tz=KST)
 
 try:
     from pymongo import MongoClient
@@ -645,7 +653,7 @@ class UserMemoryManager:
                     update_fields["EXTRA"] = extra
 
                 if update_fields:
-                    update_fields["UPDATED_AT"] = datetime.utcnow()
+                    update_fields["UPDATED_AT"] = _now_kst()
                     logger.debug(
                         "Updating MongoDB message for user_id=%s, session_id=%s with fields=%s",
                         user_id,
@@ -692,7 +700,7 @@ class UserMemoryManager:
         # Role/content/timestamp
         document["ROLE"] = normalized_role
         document["CONTENT"] = content
-        document["CREATED_AT"] = datetime.utcnow()
+        document["CREATED_AT"] = _now_kst()
 
         # User id (for display near the top)
         document["USER_NO"] = self._to_uuid_if_possible(user_id)
