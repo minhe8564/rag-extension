@@ -2,17 +2,18 @@ package com.ssafy.hebees.chat.service;
 
 import com.ssafy.hebees.chat.dto.request.MessageCreateRequest;
 import com.ssafy.hebees.chat.dto.request.MessageCursorRequest;
+import com.ssafy.hebees.chat.dto.request.MessageUpdateRequest;
 import com.ssafy.hebees.chat.dto.response.MessageCursorResponse;
 import com.ssafy.hebees.chat.dto.response.MessageResponse;
 import com.ssafy.hebees.chat.dto.response.ReferencedDocumentListResponse;
 import com.ssafy.hebees.chat.dto.response.ReferencedDocumentResponse;
 import com.ssafy.hebees.chat.entity.Message;
 import com.ssafy.hebees.chat.entity.MessageReference;
+import com.ssafy.hebees.chat.entity.Session;
 import com.ssafy.hebees.chat.repository.MessageRepository;
 import com.ssafy.hebees.chat.repository.SessionRepository;
 import com.ssafy.hebees.common.exception.BusinessException;
 import com.ssafy.hebees.common.exception.ErrorCode;
-import com.ssafy.hebees.common.util.ValidationUtil;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -40,13 +41,41 @@ public class MessageServiceImpl implements MessageService {
     @Override
     @Transactional
     public MessageResponse createMessage(UUID sessionNo, MessageCreateRequest request) {
-        UUID sessionId = ValidationUtil.require(sessionNo);
+        UUID sessionId = requireSession(sessionNo);
+        Session session = sessionRepository.findBySessionNo(sessionId)
+            .orElseThrow(() -> {
+                log.warn("세션 조회 실패 - 존재하지 않음: sessionNo={}", sessionId);
+                return new BusinessException(ErrorCode.NOT_FOUND);
+            });
+        return createMessage(session.getUserNo(), sessionId, request);
+    }
 
-        if (request.userNo() != null) {
-            validateOwnership(request.userNo(), sessionId);
-        }
+    @Override
+    @Transactional
+    public MessageResponse createMessage(UUID userNo, UUID sessionNo,
+        MessageCreateRequest request) {
+        UUID owner = requireUser(userNo);
+        UUID sessionId = requireSession(sessionNo);
 
-        Message message = toMessage(sessionId, request);
+        validateOwnership(owner, sessionId);
+
+        UUID author = Optional.ofNullable(request.userNo()).orElse(owner);
+
+        List<MessageReference> references = mapToReferences(request);
+
+        Message message = Message.builder()
+            .sessionNo(sessionId)
+            .messageNo(UUID.randomUUID())
+            .role(request.role())
+            .content(request.content())
+            .userNo(author)
+            .llmNo(request.llmNo())
+            .inputTokens(request.inputTokens())
+            .outputTokens(request.outputTokens())
+            .totalTokens(request.totalTokens())
+            .responseTimeMs(request.responseTimeMs())
+            .referencedDocuments(new ArrayList<>(references))
+            .build();
 
         Message saved = messageRepository.save(message);
 
@@ -56,8 +85,8 @@ public class MessageServiceImpl implements MessageService {
     @Override
     public MessageCursorResponse listMessages(UUID userNo, UUID sessionNo,
         MessageCursorRequest request) {
-        UUID owner = ValidationUtil.require(userNo);
-        UUID sessionId = ValidationUtil.require(sessionNo);
+        UUID owner = requireUser(userNo);
+        UUID sessionId = requireSession(sessionNo);
 
         validateOwnership(owner, sessionId);
 
@@ -69,12 +98,13 @@ public class MessageServiceImpl implements MessageService {
         LocalDateTime cursor = effectiveRequest.cursor();
 
         int fetchSize = requestedSize + 1;
-        Pageable pageable = PageRequest.of(0, fetchSize, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Pageable pageable = PageRequest.of(0, fetchSize,
+            Sort.by(Sort.Direction.DESC, "createdAt"));
 
         List<Message> fetched = cursor == null
             ? messageRepository.findBySessionNoOrderByCreatedAtDesc(sessionId, pageable)
-            : messageRepository.findBySessionNoAndCreatedAtBeforeOrderByCreatedAtDesc(sessionId,
-                cursor, pageable);
+            : messageRepository.findBySessionNoAndCreatedAtBeforeOrderByCreatedAtDesc(sessionId, cursor,
+                pageable);
 
         boolean hasNext = fetched.size() > requestedSize;
         List<Message> limited = hasNext
@@ -91,17 +121,45 @@ public class MessageServiceImpl implements MessageService {
             .map(MessageServiceImpl::toMessageResponse)
             .toList();
 
-        return new MessageCursorResponse(
-            data,
-            new MessageCursorResponse.Pagination(nextCursor, hasNext, data.size())
-        );
+        MessageCursorResponse.Pagination pagination =
+            new MessageCursorResponse.Pagination(nextCursor, hasNext, data.size());
+        return new MessageCursorResponse(data, pagination);
+    }
+
+    @Override
+    @Transactional
+    public MessageResponse updateMessage(UUID sessionNo, UUID messageNo,
+        MessageUpdateRequest request) {
+        UUID sessionId = requireSession(sessionNo);
+        UUID target = requireMessage(messageNo);
+
+        Message existing = messageRepository.findBySessionNoAndMessageNo(sessionId, target)
+            .orElseThrow(() -> {
+                log.warn("메시지 업데이트 실패 - 존재하지 않음: sessionNo={}, messageNo={}", sessionId, target);
+                return new BusinessException(ErrorCode.NOT_FOUND);
+            });
+
+        Message updated = existing.toBuilder()
+            .role(Optional.ofNullable(request.role()).orElse(existing.getRole()))
+            .content(Optional.ofNullable(request.content()).orElse(existing.getContent()))
+            .userNo(Optional.ofNullable(request.userNo()).orElse(existing.getUserNo()))
+            .llmNo(Optional.ofNullable(request.llmNo()).orElse(existing.getLlmNo()))
+            .inputTokens(Optional.ofNullable(request.inputTokens()).orElse(existing.getInputTokens()))
+            .outputTokens(Optional.ofNullable(request.outputTokens()).orElse(existing.getOutputTokens()))
+            .totalTokens(Optional.ofNullable(request.totalTokens()).orElse(existing.getTotalTokens()))
+            .responseTimeMs(Optional.ofNullable(request.responseTimeMs()).orElse(existing.getResponseTimeMs()))
+            .referencedDocuments(new ArrayList<>(resolveReferences(existing, request)))
+            .build();
+
+        Message saved = messageRepository.save(updated);
+        return toMessageResponse(saved);
     }
 
     @Override
     public MessageResponse getMessage(UUID userNo, UUID sessionNo, UUID messageNo) {
-        UUID owner = ValidationUtil.require(userNo);
-        UUID sessionId = ValidationUtil.require(sessionNo);
-        UUID messageId = ValidationUtil.require(messageNo);
+        UUID owner = requireUser(userNo);
+        UUID sessionId = requireSession(sessionNo);
+        UUID messageId = requireMessage(messageNo);
 
         validateOwnership(owner, sessionId);
 
@@ -125,7 +183,7 @@ public class MessageServiceImpl implements MessageService {
     @Override
     public ReferencedDocumentResponse getReferencedDocument(UUID userNo, UUID sessionNo,
         UUID messageNo, UUID documentNo) {
-        UUID docId = ValidationUtil.require(documentNo);
+        UUID docId = requireDocument(documentNo);
 
         return listReferencedDocuments(userNo, sessionNo, messageNo).data().stream()
             .filter(doc -> Objects.equals(doc.fileNo(), docId))
@@ -139,8 +197,8 @@ public class MessageServiceImpl implements MessageService {
 
     @Override
     public List<MessageResponse> getAllMessages(UUID userNo, UUID sessionNo) {
-        UUID owner = ValidationUtil.require(userNo);
-        UUID sessionId = ValidationUtil.require(sessionNo);
+        UUID owner = requireUser(userNo);
+        UUID sessionId = requireSession(sessionNo);
 
         validateOwnership(owner, sessionId);
 
@@ -154,7 +212,7 @@ public class MessageServiceImpl implements MessageService {
             .map(session -> {
                 if (!session.getUserNo().equals(userNo)) {
                     log.warn("세션 접근 거부: requester={}, sessionNo={}", userNo, sessionNo);
-                    throw new BusinessException(ErrorCode.OWNER_ACCESS_DENIED);
+                    throw new BusinessException(ErrorCode.PERMISSION_DENIED);
                 }
                 return session;
             })
@@ -164,58 +222,99 @@ public class MessageServiceImpl implements MessageService {
             });
     }
 
-    private Message toMessage(UUID sessionNo, MessageCreateRequest request) {
-        List<MessageReference> references =
-            request.references() == null ? null : request.references().stream()
-                .map(ref -> MessageReference.builder()
-                    .fileNo(ref.fileNo())
-                    .name(ref.name())
-                    .title(ref.title())
-                    .type(ref.type())
-                    .index(ref.index())
-                    .downloadUrl(ref.downloadUrl())
-                    .snippet(ref.snippet())
-                    .build()).toList();
-
-        return Message.builder()
-            .sessionNo(sessionNo)
-            .messageNo(UUID.randomUUID())
-            .role(request.role())
-            .content(request.content())
-            .userNo(request.userNo())
-            .llmNo(request.llmNo())
-            .inputTokens(request.inputTokens())
-            .outputTokens(request.outputTokens())
-            .totalTokens(request.totalTokens())
-            .responseTimeMs(request.responseTimeMs())
-            .referencedDocuments(references)
-            .build();
+    private UUID requireUser(UUID userNo) {
+        if (userNo == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+        return userNo;
     }
 
-    private static MessageResponse toMessageResponse(Message message) {
+    private UUID requireSession(UUID sessionNo) {
+        if (sessionNo == null) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        }
+        return sessionNo;
+    }
+
+    private UUID requireMessage(UUID messageNo) {
+        if (messageNo == null) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        }
+        return messageNo;
+    }
+
+    private UUID requireDocument(UUID documentNo) {
+        if (documentNo == null) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        }
+        return documentNo;
+    }
+
+    private List<MessageReference> mapToReferences(MessageCreateRequest request) {
+        return toReferenceEntities(request != null ? request.references() : null);
+    }
+
+    private List<MessageReference> mapToReferences(MessageUpdateRequest request) {
+        return toReferenceEntities(request != null ? request.references() : null);
+    }
+
+    private List<MessageReference> toReferenceEntities(
+        List<MessageCreateRequest.ReferencedDocumentCreateRequest> references
+    ) {
+        if (references == null || references.isEmpty()) {
+            return List.of();
+        }
+
+        return references.stream()
+            .map(ref -> MessageReference.builder()
+                .fileNo(ref.fileNo())
+                .name(ref.name())
+                .title(ref.title())
+                .type(ref.type())
+                .index(ref.index())
+                .downloadUrl(ref.downloadUrl())
+                .snippet(ref.snippet())
+                .build())
+            .toList();
+    }
+
+    private List<MessageReference> resolveReferences(Message existing, MessageUpdateRequest request) {
+        if (request == null || request.references() == null) {
+            return existing.getReferencedDocuments();
+        }
+        return mapToReferences(request);
+    }
+
+    private static MessageResponse toMessageResponse(Message chatMessage) {
         List<ReferencedDocumentResponse> references = Optional.ofNullable(
-                message.getReferencedDocuments())
+                chatMessage.getReferencedDocuments())
             .orElseGet(List::of)
             .stream()
-            .map(ref -> new ReferencedDocumentResponse(
-                ref.getFileNo(),
-                ref.getName(),
-                ref.getTitle(),
-                ref.getType(),
-                ref.getIndex(),
-                ref.getDownloadUrl(),
-                ref.getSnippet()
-            )).toList();
+            .map(MessageServiceImpl::toReferencedDocumentResponse)
+            .toList();
 
-        return MessageResponse.builder()
-            .messageNo(message.getMessageNo())
-            .role(message.getRole())
-            .userNo(message.getUserNo())
-            .llmNo(message.getLlmNo())
-            .content(message.getContent())
-            .createdAt(message.getCreatedAt())
-            .references(references)
-            .build();
+        return new MessageResponse(
+            chatMessage.getMessageNo(),
+            chatMessage.getRole(),
+            chatMessage.getUserNo(),
+            chatMessage.getLlmNo(),
+            chatMessage.getContent(),
+            chatMessage.getCreatedAt(),
+            references
+        );
+    }
+
+    private static ReferencedDocumentResponse toReferencedDocumentResponse(
+        MessageReference reference) {
+        return new ReferencedDocumentResponse(
+            reference.getFileNo(),
+            reference.getName(),
+            reference.getTitle(),
+            reference.getType(),
+            reference.getIndex(),
+            reference.getDownloadUrl(),
+            reference.getSnippet()
+        );
     }
 
     private static ReferencedDocumentListResponse toReferencedDocumentListResponse(

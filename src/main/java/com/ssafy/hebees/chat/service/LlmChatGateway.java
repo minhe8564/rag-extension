@@ -3,6 +3,7 @@ package com.ssafy.hebees.chat.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.ssafy.hebees.chat.client.LlmChatClient;
 import com.ssafy.hebees.chat.client.LlmProvider;
+import com.ssafy.hebees.chat.client.StreamingLlmChatClient;
 import com.ssafy.hebees.chat.client.dto.LlmChatMessage;
 import com.ssafy.hebees.chat.client.dto.LlmChatRequest;
 import com.ssafy.hebees.chat.client.dto.LlmChatResult;
@@ -24,6 +25,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -61,6 +63,52 @@ public class LlmChatGateway {
         }
         return chatInternal(strategyNo, messages,
             (provider, strategy) -> resolveApiKey(userNo, provider, strategy));
+    }
+
+    public LlmChatResult streamChat(
+        UUID userNo,
+        UUID strategyNo,
+        List<LlmChatMessage> messages,
+        Consumer<String> onPartial
+    ) {
+        if (userNo == null) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        }
+        InvocationContext context = prepareInvocation(strategyNo, messages,
+            (provider, strategy) -> resolveApiKey(userNo, provider, strategy));
+
+        long startedAt = System.nanoTime();
+        LlmChatResult result;
+        LlmChatClient client = context.client();
+        if (client instanceof StreamingLlmChatClient streamingClient) {
+            result = streamingClient.stream(context.request(), onPartial);
+        } else {
+            result = client.chat(context.request());
+            if (result != null && StringUtils.hasText(result.content()) && onPartial != null) {
+                onPartial.accept(result.content());
+            }
+        }
+        long responseTimeMs = Duration.ofNanos(System.nanoTime() - startedAt).toMillis();
+
+        if (result == null || !StringUtils.hasText(result.content())) {
+            log.error("LLM 스트리밍 응답이 비어있습니다. provider={}, strategy={}",
+                context.provider(), strategyNo);
+            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
+
+        String trimmedContent = result.content() != null ? result.content().strip() : null;
+        Long effectiveResponseTime = result.responseTimeMs() != null
+            ? result.responseTimeMs()
+            : responseTimeMs;
+
+        return new LlmChatResult(
+            result.role(),
+            trimmedContent,
+            result.inputTokens(),
+            result.outputTokens(),
+            result.totalTokens(),
+            effectiveResponseTime
+        );
     }
 
     public LlmChatResult chatWithSystem(UUID strategyNo, List<LlmChatMessage> messages) {
@@ -186,6 +234,33 @@ public class LlmChatGateway {
         List<LlmChatMessage> messages,
         BiFunction<LlmProvider, Strategy, String> apiKeyResolver
     ) {
+        InvocationContext context = prepareInvocation(strategyNo, messages, apiKeyResolver);
+        long startedAt = System.nanoTime();
+        LlmChatResult result = context.client().chat(context.request());
+        long responseTimeMs = Duration.ofNanos(System.nanoTime() - startedAt).toMillis();
+
+        if (result == null || !StringUtils.hasText(result.content())) {
+            log.error("LLM 응답이 비어있습니다. provider={}, strategy={}",
+                context.provider(), context.strategy().getStrategyNo());
+            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
+
+        String trimmedContent = result.content() != null ? result.content().strip() : null;
+        return new LlmChatResult(
+            result.role(),
+            trimmedContent,
+            result.inputTokens(),
+            result.outputTokens(),
+            result.totalTokens(),
+            responseTimeMs
+        );
+    }
+
+    private InvocationContext prepareInvocation(
+        UUID strategyNo,
+        List<LlmChatMessage> messages,
+        BiFunction<LlmProvider, Strategy, String> apiKeyResolver
+    ) {
         if (strategyNo == null) {
             throw new BusinessException(ErrorCode.INVALID_INPUT);
         }
@@ -228,24 +303,15 @@ public class LlmChatGateway {
             strategy.getCode()
         );
 
-        long startedAt = System.nanoTime();
-        LlmChatResult result = client.chat(request);
-        long responseTimeMs = Duration.ofNanos(System.nanoTime() - startedAt).toMillis();
+        return new InvocationContext(strategy, provider, client, request);
+    }
 
-        if (result == null || !StringUtils.hasText(result.content())) {
-            log.error("LLM 응답이 비어있습니다. provider={}, strategy={}", provider, strategyNo);
-            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
-        }
-
-        String trimmedContent = result.content() != null ? result.content().strip() : null;
-        return new LlmChatResult(
-            result.role(),
-            trimmedContent,
-            result.inputTokens(),
-            result.outputTokens(),
-            result.totalTokens(),
-            responseTimeMs
-        );
+    private record InvocationContext(
+        Strategy strategy,
+        LlmProvider provider,
+        LlmChatClient client,
+        LlmChatRequest request
+    ) {
     }
 
     private Optional<String> extractText(JsonNode node, String fieldName) {
