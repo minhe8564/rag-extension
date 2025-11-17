@@ -95,9 +95,7 @@ def extract_metrics_timing(
             except Exception as e:
                 # 에러 발생 시에도 시간 측정
                 total_time_ms = (time.perf_counter() - start_time) * 1000
-                logger.error(
-                    f"Extract failed after {total_time_ms:.2f}ms: {str(e)}"
-                )
+                logger.error("Extract failed after {:.2f}ms: {}", total_time_ms, e)
                 # 에러는 그대로 전파
                 raise
         
@@ -176,9 +174,7 @@ def with_extract_metrics(func: Callable) -> Callable:
         except Exception as e:
             # 에러 발생 시에도 시간 측정
             total_time_ms = (time.perf_counter() - start_time) * 1000
-            logger.error(
-                f"Extract failed after {total_time_ms:.2f}ms: {str(e)}"
-            )
+            logger.error("Extract failed after {:.2f}ms: {}", total_time_ms, e)
             raise
     
     return wrapper

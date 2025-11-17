@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Dict, Any, Tuple, List
+from typing import Optional, Dict, Any, Tuple
 from fastapi import HTTPException
 from loguru import logger
 import importlib
@@ -8,8 +8,16 @@ import os
 import tempfile
 from urllib.parse import urlparse, unquote
 import httpx
+import uuid
+import hashlib
+from sqlalchemy import text
 
 from app.schemas.request.extractRequest import ExtractProcessRequest
+from app.service.minio_client import ensure_bucket, put_object_bytes
+from app.models.database import AsyncSessionLocal
+
+
+INGEST_BUCKET = "ingest"
 
 
 class ExtractService:
@@ -96,6 +104,7 @@ class ExtractService:
         request: ExtractProcessRequest,
         x_user_role: Optional[str],
         x_user_uuid: Optional[str],
+        x_offer_no: Optional[str],
         progress_pusher,
     ) -> Dict[str, Any]:
         """
@@ -114,7 +123,7 @@ class ExtractService:
             forward_headers["x-user-role"] = x_user_role
         if x_user_uuid:
             forward_headers["x-user-uuid"] = x_user_uuid
-
+        
         presigned_endpoint = f"http://hebees-python-backend:8000/api/v1/files/{file_no}/presigned"
         tmp_path, file_name, file_ext = await self.download_file_via_presigned(file_no, presigned_endpoint, forward_headers)
         if not file_ext:
@@ -136,10 +145,13 @@ class ExtractService:
                 pass
 
         strategy_params["progress_cb"] = _progress_cb
+        # 각 전략이 MinIO 업로드를 직접 수행할 수 있도록 메타 전달
+        strategy_params["user_id"] = (x_user_uuid or "").strip() or "unknown-user"
+        strategy_params["file_name"] = file_name
 
         # 4) 전략 로드
         strategy = self.get_strategy(strategy_name, file_ext, strategy_params)
-
+        
         # 5) extract 호출
         try:
             progress_pusher.start()
@@ -158,12 +170,113 @@ class ExtractService:
             except Exception:
                 pass
 
+        # 6) 업로드는 각 전략에서 수행 → 결과에서 bucket/path 추출
+        bucket = None
+        path = None
+        if isinstance(result, dict):
+            bucket = result.get("bucket")
+            path = result.get("path")
+        
+        # 7) 이미지 메타를 FILE DB에 기록 (가능한 경우)
+        # - FILE_CATEGORY_NO: 고정 UUID (이미지 카테고리)
+        # - OFFER_NO: extractionParameter.offerNo 또는 기본값
+        # - USER_NO: x_user_uuid
+        # - SOURCE_NO: request.fileNo
+        # - STATUS: 'COMPLETED'
+        try:
+            images = (result or {}).get("images") if isinstance(result, dict) else None
+            captions = (result or {}).get("captions") if isinstance(result, dict) else {}
+            if images:
+                # 우선순위: 헤더(x-offer-no) > 요청 파라미터(extractionParameter.offerNo) > 기본값
+                offer_no = ""
+                try:
+                    offer_no = (x_offer_no or "").strip()
+                except Exception:
+                    offer_no = ""
+                if not offer_no:
+                    try:
+                        offer_no = str((request.extractionParameter or {}).get("offerNo", "")).strip()
+                    except Exception:
+                        offer_no = ""
+                if not offer_no:
+                    # 기본값 (admin 등)
+                    offer_no = "0000000000"
+                user_no_bytes = None
+                try:
+                    if x_user_uuid:
+                        user_no_bytes = uuid.UUID(x_user_uuid).bytes
+                except Exception:
+                    user_no_bytes = None
+                source_no_bytes = None
+                try:
+                    if request.fileNo:
+                        source_no_bytes = uuid.UUID(request.fileNo).bytes
+                except Exception:
+                    source_no_bytes = None
+                category_uuid = uuid.UUID("797c1dee-b888-11f0-a5ea-0e6c5c03bab1").bytes
+
+                # COLLECTION_NO는 이미지 파일에 대해 항상 NULL로 저장 (요청에 따라 고정)
+                collection_no_bytes = None
+
+                # INSERT
+                async with AsyncSessionLocal() as session:
+                    params = []
+                    for img in images:
+                        try:
+                            file_no_bytes = uuid.uuid4().bytes
+                            name = img.get("name") or ""
+                            obj = img.get("object_name") or ""
+                            bkt = img.get("bucket") or INGEST_BUCKET
+                            size = int(img.get("size") or 0)
+                            hsh = img.get("hash") or ""
+                            typ = img.get("type") or "png"
+                            uid = img.get("uid")
+                            desc = ""
+                            if uid and isinstance(captions, dict):
+                                desc = captions.get(uid, "") or ""
+                            if not desc:
+                                desc = f"Extracted image ({typ})"
+
+                            p = {
+                                "file_no": file_no_bytes,
+                                "offer_no": offer_no[:10],
+                                "user_no": user_no_bytes,
+                                "name": name[:255],
+                                "size": size,
+                                "type": typ[:20],
+                                "hash": hsh[:255],
+                                "description": desc,
+                                "bucket": bkt[:255],
+                                "path": obj[:255],
+                                "file_category_no": category_uuid,
+                                "source_no": source_no_bytes,
+                                "status": "COMPLETED",
+                            }
+                            # COLLECTION_NO는 항상 NULL로 저장 → 파라미터에 추가하지 않음
+                            params.append(p)
+                        except Exception:
+                            continue
+
+                    if params:
+                        # COLLECTION_NO는 INSERT 대상에서 제외 (항상 NULL 저장)
+                        sql = text(
+                            "INSERT INTO `FILE` "
+                            "(`FILE_NO`,`OFFER_NO`,`USER_NO`,`NAME`,`SIZE`,`TYPE`,`HASH`,`DESCRIPTION`,`BUCKET`,`PATH`,`FILE_CATEGORY_NO`,`SOURCE_NO`,`STATUS`,`CREATED_AT`,`UPDATED_AT`) "
+                            "VALUES (:file_no,:offer_no,:user_no,:name,:size,:type,:hash,:description,:bucket,:path,:file_category_no,:source_no,:status,NOW(),NOW())"
+                        )
+                        await session.execute(sql, params)
+                        await session.commit()
+        except Exception as e:
+            # DB 에러는 전체 플로우를 막지 않음 (로그만 남김)
+            logger.warning(f"[DB] Failed to insert image FILE rows: {e}")
+
         return {
             "file_name": file_name,
             "file_ext": file_ext,
-            "result": result,
             "strategy": strategy_name,
             "strategy_parameter": parameters,
+            "bucket": bucket,
+            "path": path,
         }
 
 

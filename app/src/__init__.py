@@ -8,12 +8,14 @@ from .txt import Txt
 from .pyMuPDF import PyMuPDF
 from .docx import Docx
 from .openpyxl import Openpyxl
+from .marker import Marker
 
 __all__ = [
     "BaseExtractionStrategy",
     "Txt",
     "PyMuPDF",
     "Docx",
-    "Openpyxl"
+    "Openpyxl",
+    "Marker"
 ]
 
