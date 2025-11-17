@@ -1,36 +1,57 @@
 package com.ssafy.hebees.ingest.controller;
 
+import com.ssafy.hebees.common.exception.BusinessException;
+import com.ssafy.hebees.common.exception.ErrorCode;
 import com.ssafy.hebees.common.response.BaseResponse;
 import com.ssafy.hebees.common.util.SecurityUtil;
 import com.ssafy.hebees.ingest.dto.response.IngestNotificationSummaryResponse;
+import com.ssafy.hebees.notification.dto.request.NotificationCursorRequest;
+import com.ssafy.hebees.notification.dto.response.NotificationCursorResponse;
 import com.ssafy.hebees.ingest.service.IngestRunProgressService;
+import com.ssafy.hebees.notification.service.NotificationService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
-import org.springframework.data.redis.connection.stream.MapRecord;
-
+import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.connection.stream.MapRecord;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @Slf4j
 @RestController
 @RequestMapping("/ingest/notify")
 @RequiredArgsConstructor
-@Tag(name = "Ingest", description = "문서 Ingest 완료 알림 SSE API")
+@Tag(name = "Ingest", description = "문서 Ingest 알림 및 SSE API")
 public class IngestNotificationController {
 
     private final IngestRunProgressService progressService;
+    private final NotificationService notificationService;
+
+    @GetMapping
+    @Operation(summary = "Ingest 알림 목록 조회", description = "현재 로그인한 사용자의 ingest 알림을 커서 기반으로 조회합니다.")
+    @ApiResponse(responseCode = "200", description = "알림 목록 조회 성공")
+    public ResponseEntity<BaseResponse<NotificationCursorResponse>> listNotifications(
+        @Valid @ModelAttribute NotificationCursorRequest cursorRequest
+    ) {
+        UUID userNo = SecurityUtil.getCurrentUserUuid()
+            .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_ACCESS_TOKEN));
+        NotificationCursorResponse response = notificationService.listNotifications(userNo,
+            cursorRequest);
+        return ResponseEntity.ok(BaseResponse.success(response));
+    }
 
     /**
      * 현재 로그인한 사용자의 ingest summary 완료(complete == total) 시점을 알림으로 전달하는 SSE. 클라이언트는 로그인 직후 이 스트림을
@@ -108,6 +129,15 @@ public class IngestNotificationController {
                                 int failed = parseInt(fields.get("failedCount"));
 
                                 if (total > 0 && completed >= total) {
+                                    // ingest summary 완료 시점에 NOTIFICATION 테이블에 저장
+                                    notificationService.saveIngestSummaryNotification(
+                                        userUuid,
+                                        lastSummaryId,
+                                        total,
+                                        success,
+                                        failed
+                                    );
+
                                     IngestNotificationSummaryResponse payload =
                                         new IngestNotificationSummaryResponse(
                                             total,
