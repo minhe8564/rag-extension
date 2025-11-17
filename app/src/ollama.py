@@ -33,7 +33,7 @@ class Ollama(BaseGenerationStrategy):
 
         # ✅ 설정값 로드
         self.model_name = self.parameters.get("model_name", "qwen3-vl:8b")
-        self.base_url = self.parameters.get("base_url", "https://yo4z0wke606i0e-11434.proxy.runpod.net/")
+        self.base_url = self.parameters.get("base_url", "http://apik.co.kr:11434/")
         self.temperature = self.parameters.get("temperature", 0.1)
 
         logger.info(f"[Ollama] Initializing LLM: {self.model_name} at {self.base_url}")
