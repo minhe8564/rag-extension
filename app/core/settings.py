@@ -28,6 +28,17 @@ class Settings(BaseSettings):
     environment: str = "production"
     debug: bool = False
 
+    # Database 설정 (Runpod 주소 조회용)
+    db_host: str
+    db_port: int
+    db_name: str
+    db_username: str
+    db_password: str
+
+    @property
+    def database_url(self) -> str:
+        return f"mysql+aiomysql://{self.db_username}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
+
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",
         env_file_encoding="utf-8",
