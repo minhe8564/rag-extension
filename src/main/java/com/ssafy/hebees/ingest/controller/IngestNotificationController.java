@@ -13,7 +13,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -25,7 +24,6 @@ import org.springframework.data.redis.connection.stream.MapRecord;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -39,19 +37,6 @@ public class IngestNotificationController {
 
     private final IngestRunProgressService progressService;
     private final NotificationService notificationService;
-
-    @GetMapping
-    @Operation(summary = "Ingest 알림 목록 조회", description = "현재 로그인한 사용자의 ingest 알림을 커서 기반으로 조회합니다.")
-    @ApiResponse(responseCode = "200", description = "알림 목록 조회 성공")
-    public ResponseEntity<BaseResponse<NotificationCursorResponse>> listNotifications(
-        @Valid @ModelAttribute NotificationCursorRequest cursorRequest
-    ) {
-        UUID userNo = SecurityUtil.getCurrentUserUuid()
-            .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_ACCESS_TOKEN));
-        NotificationCursorResponse response = notificationService.listNotifications(userNo,
-            cursorRequest);
-        return ResponseEntity.ok(BaseResponse.success(response));
-    }
 
     /**
      * 현재 로그인한 사용자의 ingest summary 완료(complete == total) 시점을 알림으로 전달하는 SSE. 클라이언트는 로그인 직후 이 스트림을

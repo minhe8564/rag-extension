@@ -1,5 +1,7 @@
 package com.ssafy.hebees.notification.service;
 
+import com.ssafy.hebees.common.exception.BusinessException;
+import com.ssafy.hebees.common.exception.ErrorCode;
 import com.ssafy.hebees.common.util.ValidationUtil;
 import com.ssafy.hebees.notification.dto.request.NotificationCursorRequest;
 import com.ssafy.hebees.notification.dto.response.NotificationCursorResponse;
@@ -28,14 +30,14 @@ public class NotificationService {
     private final UserRepository userRepository;
 
     /**
-     * ingest summary 완료 시점에 알림을 생성합니다.
-     * 중복 생성을 막기 위해 (USER_NO, EVENT_TYPE, REFERENCE_ID) 조합 기준으로 한 번만 저장합니다.
+     * ingest summary 완료 시점에 알림을 생성합니다. 중복 생성을 막기 위해 (USER_NO, EVENT_TYPE, REFERENCE_ID) 조합 기준으로 한
+     * 번만 저장합니다.
      *
-     * @param userNo        알림 대상 사용자 UUID (USER.USER_NO)
+     * @param userNo         알림 대상 사용자 UUID (USER.USER_NO)
      * @param summaryEventId Redis summary 스트림 ID (REFERENCE_ID 로 사용)
-     * @param total         총 작업 수
-     * @param successCount  성공 수
-     * @param failedCount   실패 수
+     * @param total          총 작업 수
+     * @param successCount   성공 수
+     * @param failedCount    실패 수
      */
     @Transactional
     public void saveIngestSummaryNotification(
@@ -49,7 +51,7 @@ public class NotificationService {
         String referenceId = summaryEventId;
 
         Optional<Notification> existing =
-            notificationRepository.findByUser_UuidAndEventTypeAndReferenceId(
+            notificationRepository.findByUser_UuidAndEventTypeAndReferenceIdAndDeletedAtIsNull(
                 userNo,
                 eventType,
                 referenceId
@@ -101,9 +103,11 @@ public class NotificationService {
             Sort.by(Sort.Direction.DESC, "createdAt"));
 
         List<Notification> fetched = cursor == null
-            ? notificationRepository.findByUser_UuidOrderByCreatedAtDesc(owner, pageable)
-            : notificationRepository.findByUser_UuidAndCreatedAtBeforeOrderByCreatedAtDesc(
-                owner, cursor, pageable);
+            ? notificationRepository.findByUser_UuidAndDeletedAtIsNullOrderByCreatedAtDesc(
+            owner, pageable)
+            : notificationRepository
+                .findByUser_UuidAndDeletedAtIsNullAndCreatedAtBeforeOrderByCreatedAtDesc(
+                    owner, cursor, pageable);
 
         boolean hasNext = fetched.size() > requestedSize;
         List<Notification> limited = hasNext
@@ -137,5 +141,48 @@ public class NotificationService {
 
         return new NotificationCursorResponse(data, pagination);
     }
-}
 
+    /**
+     * 알림을 읽음 처리합니다.
+     *
+     * @param userNo         현재 사용자 ID
+     * @param notificationNo 알림 ID
+     */
+    @Transactional
+    public void markAsRead(UUID userNo, UUID notificationNo) {
+        UUID owner = ValidationUtil.require(userNo);
+        UUID targetId = ValidationUtil.require(notificationNo);
+
+        Notification notification = notificationRepository.findById(targetId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
+
+        if (!owner.equals(notification.getUser().getUuid())) {
+            throw new BusinessException(ErrorCode.OWNER_ACCESS_DENIED);
+        }
+
+        if (!notification.isRead()) {
+            notification.markAsRead();
+        }
+    }
+
+    /**
+     * 알림을 삭제합니다.
+     *
+     * @param userNo         현재 사용자 ID
+     * @param notificationNo 알림 ID
+     */
+    @Transactional
+    public void delete(UUID userNo, UUID notificationNo) {
+        UUID owner = ValidationUtil.require(userNo);
+        UUID targetId = ValidationUtil.require(notificationNo);
+
+        Notification notification = notificationRepository.findById(targetId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
+
+        if (!owner.equals(notification.getUser().getUuid())) {
+            throw new BusinessException(ErrorCode.OWNER_ACCESS_DENIED);
+        }
+
+        notificationRepository.delete(notification);
+    }
+}

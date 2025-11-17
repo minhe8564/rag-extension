@@ -10,18 +10,20 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface NotificationRepository extends JpaRepository<Notification, UUID> {
 
-    Optional<Notification> findByUser_UuidAndEventTypeAndReferenceId(
+    Optional<Notification> findByUser_UuidAndEventTypeAndReferenceIdAndDeletedAtIsNull(
         UUID userNo,
         String eventType,
         String referenceId
     );
 
-    List<Notification> findByUser_UuidOrderByCreatedAtDesc(UUID userNo, Pageable pageable);
+    List<Notification> findByUser_UuidAndDeletedAtIsNullOrderByCreatedAtDesc(
+        UUID userNo,
+        Pageable pageable
+    );
 
-    List<Notification> findByUser_UuidAndCreatedAtBeforeOrderByCreatedAtDesc(
+    List<Notification> findByUser_UuidAndDeletedAtIsNullAndCreatedAtBeforeOrderByCreatedAtDesc(
         UUID userNo,
         LocalDateTime cursor,
         Pageable pageable
     );
 }
-
