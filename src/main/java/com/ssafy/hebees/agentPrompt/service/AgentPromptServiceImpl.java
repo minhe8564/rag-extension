@@ -8,7 +8,10 @@ import com.ssafy.hebees.agentPrompt.dto.response.AgentPromptResponse;
 import com.ssafy.hebees.agentPrompt.entity.AgentPrompt;
 import com.ssafy.hebees.agentPrompt.repository.AgentPromptRepository;
 import com.ssafy.hebees.common.util.ValidationUtil;
+import com.ssafy.hebees.ragsetting.entity.Strategy;
+import com.ssafy.hebees.ragsetting.repository.StrategyRepository;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AgentPromptServiceImpl implements AgentPromptService {
 
     private final AgentPromptRepository agentPromptRepository;
+    private final StrategyRepository strategyRepository;
 
 
     @Override
@@ -34,8 +38,6 @@ public class AgentPromptServiceImpl implements AgentPromptService {
     @Override
     @Transactional(readOnly = true)
     public AgentPromptResponse getAgentPrompt(UUID agentPromptNo) {
-        ValidationUtil.require(agentPromptNo);
-
         AgentPrompt agentPrompt = fetchAgentPrompt(agentPromptNo);
         return toResponse(agentPrompt);
     }
@@ -45,6 +47,7 @@ public class AgentPromptServiceImpl implements AgentPromptService {
         String name = ValidationUtil.require(request.name());
         String description = ValidationUtil.orElse(request.description(), null);
         String content = ValidationUtil.require(request.content());
+        Strategy llm = fetchStrategy(request.llmNo());
 
         ensureUniqueAgentPrompt(name, null);
 
@@ -53,6 +56,7 @@ public class AgentPromptServiceImpl implements AgentPromptService {
                 .name(name)
                 .description(description)
                 .content(content)
+                .llm(llm)
                 .build()
         );
 
@@ -60,18 +64,19 @@ public class AgentPromptServiceImpl implements AgentPromptService {
     }
 
     @Override
-    public AgentPromptResponse updateAgentPrompt(UUID agentPromptNo, AgentPromptUpsertRequest request) {
-        ValidationUtil.require(agentPromptNo);
+    public AgentPromptResponse updateAgentPrompt(UUID agentPromptNo,
+        AgentPromptUpsertRequest request) {
         AgentPrompt agentPrompt = fetchAgentPrompt(agentPromptNo);
 
         String name = ValidationUtil.orElse(request.name(), agentPrompt.getName());
         String description = ValidationUtil.orElse(request.description(),
             agentPrompt.getDescription());
         String content = ValidationUtil.orElse(request.content(), agentPrompt.getContent());
+        Strategy llm = fetchStrategy(request.llmNo());
 
         ensureUniqueAgentPrompt(name, agentPromptNo);
 
-        agentPrompt.update(name, description, content);
+        agentPrompt.update(name, description, content, llm);
 
         AgentPrompt saved = agentPromptRepository.save(agentPrompt);
 
@@ -101,12 +106,22 @@ public class AgentPromptServiceImpl implements AgentPromptService {
             });
     }
 
+    private Strategy fetchStrategy(UUID strategyNo) {
+        ValidationUtil.require(strategyNo);
+        return strategyRepository.findByStrategyNo(strategyNo)
+            .orElseThrow(() -> {
+                log.warn("Strategy 조회 실패 - 존재하지 않음: strategyNo={}", strategyNo);
+                return new BusinessException(ErrorCode.NOT_FOUND);
+            });
+    }
+
     private static AgentPromptResponse toResponse(AgentPrompt agentPrompt) {
         return new AgentPromptResponse(
             agentPrompt.getAgentPromptNo(),
             agentPrompt.getName(),
             agentPrompt.getDescription(),
-            agentPrompt.getContent()
+            agentPrompt.getContent(),
+            Optional.ofNullable(agentPrompt.getLlm()).map(Strategy::getStrategyNo).orElse(null)
         );
     }
 }

@@ -3,7 +3,6 @@ package com.ssafy.hebees.dashboard.keyword.service;
 import com.ssafy.hebees.common.subscriber.BaseRedisStreamSubscriber;
 import com.ssafy.hebees.dashboard.keyword.dto.request.TrendKeywordRegisterRequest;
 import java.util.Map;
-import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,7 +31,7 @@ public class KeywordQueryStreamSubscriber extends BaseRedisStreamSubscriber {
         DashboardKeywordService dashboardKeywordService
     ) {
         super(redisTemplate, STREAM_KEY, GROUP_NAME, "키워드 스트림");
-        this.dashboardKeywordService = Objects.requireNonNull(dashboardKeywordService);
+        this.dashboardKeywordService = dashboardKeywordService;
     }
 
     @Scheduled(fixedDelayString = "${metrics.keyword.stream.poll-interval-ms:1000}")

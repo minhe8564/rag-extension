@@ -15,7 +15,10 @@ public record AgentPromptResponse(
     String description,
 
     @Schema(description = "프롬프트 내용", example = "당신은 포켓몬 세계의 최고의 마스터입니다. 사용자의 질문에 포켓몬 배틀, 육성, 타입 상성, 추천 파티 구성 관점에서 친절하고 자세하게 답변하세요. 필요하다면 예시 포켓몬과 기술 조합도 함께 제안해 주세요.")
-    String content
+    String content,
+
+    @Schema(description = "연결된 LLM 식별자", example = "b3f8bd78-520b-4e2e-b516-786f45fbe83a")
+    UUID llmNo
 ) {
 
 }

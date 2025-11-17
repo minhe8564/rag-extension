@@ -13,18 +13,25 @@ import org.springframework.stereotype.Repository;
 @RequiredArgsConstructor
 public class AgentPromptRepositoryCustomImpl implements AgentPromptRepositoryCustom {
 
+    private static final QAgentPrompt agentPrompt = QAgentPrompt.agentPrompt;
     private final JPAQueryFactory queryFactory;
-    private final QAgentPrompt agentPrompt = QAgentPrompt.agentPrompt;
 
-    public boolean existsByNameIgnoreCase(String name, UUID agentPromptNo){
-        return !queryFactory.selectFrom(agentPrompt)
-            .where(agentPrompt.name.equalsIgnoreCase(name), excludeSelf(agentPromptNo))
+    public boolean existsByNameIgnoreCase(String name, UUID excludeAgentPromptNo){
+        return !queryFactory
+            .selectFrom(agentPrompt)
+            .where(
+                agentPrompt.name.equalsIgnoreCase(name),
+                excludeSelf(excludeAgentPromptNo)
+            )
             .fetch().isEmpty();
     }
 
-    public Optional<AgentPrompt> findByName(String name){
-        AgentPrompt result = queryFactory.selectFrom(agentPrompt)
-            .where(agentPrompt.name.equalsIgnoreCase(name))
+    public Optional<AgentPrompt> findByNameIgnoreCase(String name){
+        AgentPrompt result = queryFactory
+            .selectFrom(agentPrompt)
+            .where(
+                agentPrompt.name.equalsIgnoreCase(name)
+            )
             .fetchFirst();
         return Optional.ofNullable(result);
     }

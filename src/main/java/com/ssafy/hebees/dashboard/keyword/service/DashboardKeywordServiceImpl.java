@@ -17,7 +17,6 @@ import com.ssafy.hebees.dashboard.keyword.dto.response.TrendKeywordListResponse.
 import com.ssafy.hebees.dashboard.keyword.dto.response.TrendKeywordRegisterResponse;
 import com.ssafy.hebees.dashboard.keyword.entity.KeywordAggregateDaily;
 import com.ssafy.hebees.dashboard.keyword.repository.KeywordAggregateDailyRepository;
-import com.ssafy.hebees.ragsetting.entity.Strategy;
 import com.ssafy.hebees.ragsetting.repository.StrategyRepository;
 import jakarta.annotation.PostConstruct;
 import java.time.LocalDate;
@@ -35,28 +34,33 @@ import org.springframework.util.StringUtils;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional()
+@Transactional
 public class DashboardKeywordServiceImpl implements DashboardKeywordService {
-
-    private static final String KEYWORD_STRATEGY_NAME = "GPT-4o";
-    private static final String KEYWORD_STRATEGY_CODE_PREFIX = "GEN";
+    private static final String PROMPT_NAME = "KeywordExtraction";
+    private static final String PROMPT_FALLBACK = "You are a Korean keyword extractor. Read the user's sentence and return only the core keywords as a JSON array with 1 to 7 string items. Example: [\"keyword1\", \"keyword2\"]. Do not include any explanations, numbering, or additional text.";
 
     private final KeywordAggregateDailyRepository keywordAggregateDailyRepository;
     private final LlmChatGateway llmChatGateway;
     private final AgentPromptRepository agentPromptRepository;
-    private final StrategyRepository strategyRepository;
     private final ObjectMapper objectMapper;
+    private final StrategyRepository strategyRepository;
 
-    private UUID keywordStrategyNo;
+    private AgentPrompt agentPrompt;
 
     @PostConstruct
-    public void initKeywordStrategyNo() {
-        keywordStrategyNo = strategyRepository.findByNameAndCodeStartingWith(
-                KEYWORD_STRATEGY_NAME,
-                KEYWORD_STRATEGY_CODE_PREFIX
-            )
-            .map(Strategy::getStrategyNo)
-            .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
+    private void init() {
+        agentPrompt = agentPromptRepository.findByNameIgnoreCase(PROMPT_NAME)
+            .orElseGet(() -> {
+                AgentPrompt created = AgentPrompt.builder()
+                    .name(PROMPT_NAME)
+                    .content(PROMPT_FALLBACK)
+                    .llm(strategyRepository.findByNameAndCodeStartingWith("GPT-4o", "GEN").orElseThrow(()->{
+                        log.error("LLM GPT-4o strategy not found");
+                        return new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
+                    }))
+                    .build();
+                return agentPromptRepository.save(Objects.requireNonNull(created));
+            });
     }
 
 
@@ -89,7 +93,6 @@ public class DashboardKeywordServiceImpl implements DashboardKeywordService {
     }
 
     @Override
-    @Transactional
     public TrendKeywordRegisterResponse registerKeywords(TrendKeywordRegisterRequest request) {
         String query = request.query();
         if (!StringUtils.hasText(query)) {
@@ -132,13 +135,10 @@ public class DashboardKeywordServiceImpl implements DashboardKeywordService {
     }
 
     private Set<String> extractKeywords(String query) {
-        String prompt = agentPromptRepository.findByName("KeywordExtraction")
-            .map(AgentPrompt::getContent)
-            .orElse(
-                "You are a Korean keyword extractor. Read the user's sentence and return only the core keywords as a comma-separated list (CSV) with 1 to 7 items. Example: keyword1, keyword2. Do not include any explanations, numbering, or additional text.");
+        UUID llmNo = agentPrompt.getLlm().getStrategyNo();
+        String prompt = agentPrompt.getContent();
 
         try {
-            UUID llmNo = keywordStrategyNo;
             LlmChatResult result = llmChatGateway
                 .chatWithSystem(llmNo,
                     List.of(
