@@ -27,3 +27,10 @@ export type NotificationPagination = {
   nextCursor: string | null;
   count: number;
 };
+
+export type ingestresult = {
+  total: number;
+  completed: number;
+  successCount: number;
+  failedCount: number;
+};
