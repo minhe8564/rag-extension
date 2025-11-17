@@ -120,3 +120,46 @@ export type VectorizationItem = {
 
   steps: VectorizationStep[];
 };
+
+// 진행률 조회 타입
+export type VectorizationProgressResult = {
+  data: VectorizationProgressItem[];
+  summary: VectorSummary;
+  pagination: VectorPagination;
+};
+
+export type VectorSummary = {
+  completed: number;
+  total: number;
+};
+
+export type VectorizationProgressItem = {
+  userId: string;
+  fileNo: string;
+  fileName: string;
+  fileCategory: string;
+  bucket: string;
+  size: number;
+  status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+  currentStep: 'UPLOAD' | 'EXTRACTION' | 'EMBEDDING' | 'VECTOR_STORE';
+  progressPct: number;
+  overallPct: number;
+  createdAt: number;
+  updatedAt: number;
+  steps: VectorStep[];
+};
+
+export type VectorStep = {
+  type: 'UPLOAD' | 'EXTRACTION' | 'EMBEDDING' | 'VECTOR_STORE';
+  percentage: number;
+};
+
+export type VectorPagination = {
+  pageNum: number;
+  display: number;
+  totalItems: number;
+  totalPages: number;
+  first: boolean;
+  last: boolean;
+  hasNext: boolean;
+};

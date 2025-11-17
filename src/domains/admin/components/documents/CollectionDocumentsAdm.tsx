@@ -6,6 +6,7 @@ import { getDocInCollections } from '@/domains/admin/api/documents.api';
 import type { documentDatatype } from '@/domains/admin/types/documents.types';
 import { FolderOpen, RefreshCw } from 'lucide-react';
 import UploadedFileList from '@/shared/components/file/UploadedFileList';
+import { formatCreatedAt } from '@/shared/utils/date';
 
 export type DocItem = {
   id: string;
@@ -45,7 +46,7 @@ export default function CollectionDocumentsAdm({
       id: doc.fileNo,
       name: doc.name,
       sizeKB: Number(doc.size) / 1024,
-      createdAt: doc.createdAt,
+      createdAt: formatCreatedAt(doc.createdAt),
       categoryNo: doc.categoryNo || undefined,
       type: doc.type || 'txt',
       status: doc.status,
