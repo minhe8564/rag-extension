@@ -20,14 +20,19 @@ import com.ssafy.hebees.ragsetting.repository.QueryGroupRepository;
 import com.ssafy.hebees.ragsetting.repository.StrategyRepository;
 import com.ssafy.hebees.user.entity.User;
 import com.ssafy.hebees.user.repository.UserRepository;
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -43,6 +48,7 @@ public class ChatServiceImpl implements ChatService {
     private final StrategyRepository strategyRepository;
     private final QueryGroupRepository queryGroupRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final SessionTitleService sessionTitleService;
 
     @Override
     public ListResponse<SessionResponse> getSessions(UUID userNo, SessionSearchRequest request) {
@@ -99,12 +105,12 @@ public class ChatServiceImpl implements ChatService {
         String title = request.title();
         String sanitizedQuery =
             StringUtils.hasText(request.query()) ? request.query().strip() : null;
-        boolean shouldGenerateTitleAsync = false;
+        boolean shouldAttemptTitleGeneration = false;
 
         if (title == null || title.isBlank()) { // 세션명이 없다면 생성
             title = SessionCreateRequest.DEFAULT_TITLE;
             if (sanitizedQuery != null) {
-                shouldGenerateTitleAsync = true;
+                shouldAttemptTitleGeneration = true;
             }
         } else {
             title = title.strip();
@@ -131,12 +137,25 @@ public class ChatServiceImpl implements ChatService {
         Session saved = sessionRepository.save(session);
         log.info("세션 생성 성공: userNo={}, sessionNo={}", owner, saved.getSessionNo());
 
-        if (shouldGenerateTitleAsync) {
+        String responseTitle = title;
+        boolean generatedSynchronously = false;
+
+        if (shouldAttemptTitleGeneration) {
+            Optional<String> generatedTitle = generateTitleWithin(Duration.ofMillis(3000),
+                sanitizedQuery);
+            if (generatedTitle.isPresent()) {
+                saved.updateTitle(generatedTitle.get());
+                responseTitle = generatedTitle.get();
+                generatedSynchronously = true;
+            }
+        }
+
+        if (!generatedSynchronously && shouldAttemptTitleGeneration) {
             eventPublisher.publishEvent(
                 new SessionTitleGenerationEvent(saved.getSessionNo(), sanitizedQuery));
         }
 
-        return new SessionCreateResponse(saved.getSessionNo(), title);
+        return new SessionCreateResponse(saved.getSessionNo(), responseTitle);
     }
 
     private UUID resolveLlmNo(String identifier) {
@@ -155,6 +174,34 @@ public class ChatServiceImpl implements ChatService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.BAD_REQUEST))
                 .getStrategyNo();
         }
+    }
+
+    private Optional<String> generateTitleWithin(Duration timeout, String query) {
+        if (!StringUtils.hasText(query) || timeout == null || timeout.isNegative()
+            || timeout.isZero()) {
+            return Optional.empty();
+        }
+
+        CompletableFuture<String> future = CompletableFuture.supplyAsync(
+            () -> sessionTitleService.generate(query));
+
+        try {
+            String generated = future.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+            if (StringUtils.hasText(generated)) {
+                return Optional.of(generated);
+            }
+        } catch (TimeoutException e) {
+            future.cancel(true);
+            log.warn("세션 제목 동기 생성 시간이 초과되었습니다. 제한 {}초", timeout.toSeconds());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("세션 제목 동기 생성이 인터럽트되었습니다.");
+        } catch (ExecutionException e) {
+            log.warn("세션 제목 동기 생성 중 오류 발생: {}",
+                e.getCause() != null ? e.getCause().getMessage() : e.getMessage());
+        }
+
+        return Optional.empty();
     }
 
     @Override
