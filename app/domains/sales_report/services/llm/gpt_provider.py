@@ -1,7 +1,7 @@
 """OpenAI GPT LLM 제공자"""
 import logging
 from decimal import Decimal
-from typing import Dict
+from typing import Dict, Optional
 import json
 import re
 import openai
@@ -45,18 +45,28 @@ class GPTLLMProvider(BaseLLMProvider):
         total_receivables: Decimal,
         top_customers: list,
         peak_sales_date: str,
-        peak_sales_amount: Decimal
+        peak_sales_amount: Decimal,
+        custom_prompt: Optional[str] = None
     ) -> Dict:
         """매장 요약 생성"""
 
-        # Qwen과 동일한 프롬프트 사용
-        prompt = self._create_store_prompt(
-            store_name, total_sales, payment_breakdown,
-            cash_receipt_amount, returning_customer_rate,
-            new_customers_count, avg_transaction_amount,
-            total_receivables, top_customers,
-            peak_sales_date, peak_sales_amount
-        )
+        # 커스텀 프롬프트 또는 기본 프롬프트 사용
+        if custom_prompt:
+            prompt = self._create_custom_store_prompt(
+                custom_prompt, store_name, total_sales, payment_breakdown,
+                cash_receipt_amount, returning_customer_rate,
+                new_customers_count, avg_transaction_amount,
+                total_receivables, top_customers,
+                peak_sales_date, peak_sales_amount
+            )
+        else:
+            prompt = self._create_store_prompt(
+                store_name, total_sales, payment_breakdown,
+                cash_receipt_amount, returning_customer_rate,
+                new_customers_count, avg_transaction_amount,
+                total_receivables, top_customers,
+                peak_sales_date, peak_sales_amount
+            )
 
         try:
             response_text = await self._call_gpt_api(prompt)
@@ -77,15 +87,24 @@ class GPTLLMProvider(BaseLLMProvider):
         product_insights,
         time_patterns,
         customer_analysis,
-        visit_sales_patterns
+        visit_sales_patterns,
+        custom_prompt: Optional[str] = None
     ) -> Dict:
         """체인 인사이트 생성"""
 
-        prompt = self._create_chain_prompt(
-            analysis_period, store_performance,
-            product_insights, time_patterns,
-            customer_analysis, visit_sales_patterns
-        )
+        # 커스텀 프롬프트 또는 기본 프롬프트 사용
+        if custom_prompt:
+            prompt = self._create_custom_chain_prompt(
+                custom_prompt, analysis_period, store_performance,
+                product_insights, time_patterns,
+                customer_analysis, visit_sales_patterns
+            )
+        else:
+            prompt = self._create_chain_prompt(
+                analysis_period, store_performance,
+                product_insights, time_patterns,
+                customer_analysis, visit_sales_patterns
+            )
 
         try:
             raw_response = await self._call_gpt_api(prompt)
@@ -315,19 +334,23 @@ JSON 형식으로 한국어로만 작성해주세요:
 
                 if all(k in parsed for k in ["sales_summary", "sales_strategies", "marketing_strategies"]):
                     logger.info("GPT JSON 파싱 성공")
-                    return parsed
+                    # 형식 검증 및 정규화
+                    return self._normalize_insights(parsed)
 
             # 코드 블록 없이 직접 파싱
             parsed = json.loads(response_text)
             if all(k in parsed for k in ["sales_summary", "sales_strategies", "marketing_strategies"]):
                 logger.info("GPT 직접 JSON 파싱 성공")
-                return parsed
+                # 형식 검증 및 정규화
+                return self._normalize_insights(parsed)
 
         except json.JSONDecodeError:
             logger.info("GPT JSON 파싱 실패, 텍스트 파싱 시도")
 
         # 텍스트 파싱 폴백 (Qwen과 동일한 로직)
         return self._parse_text_format(response_text)
+
+    # _normalize_insights() → BaseLLMProvider로 이동됨 (중복 제거)
 
     def _parse_text_format(self, text: str) -> Dict:
         """텍스트 형식 응답 파싱 (Qwen과 동일)"""
@@ -423,3 +446,7 @@ JSON 형식으로 한국어로만 작성해주세요:
             "sales_strategies": data["sales_strategies"] if isinstance(data["sales_strategies"], list) else [],
             "marketing_strategies": data["marketing_strategies"] if isinstance(data["marketing_strategies"], list) else []
         }
+
+    # _create_custom_store_prompt() → BaseLLMProvider로 이동됨 (중복 제거)
+
+    # _create_custom_chain_prompt() → BaseLLMProvider로 이동됨 (중복 제거)

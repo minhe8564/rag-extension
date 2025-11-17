@@ -2,6 +2,7 @@
 from pydantic import BaseModel, Field
 from typing import Optional
 from decimal import Decimal
+from ...constants import DEFAULT_CHAIN_SUMMARY_PROMPT
 
 
 class StoreInfo(BaseModel):
@@ -129,6 +130,10 @@ class ChainSummaryRequest(BaseModel):
     week: WeekData = Field(..., description="요일/시간대별 방문 및 매출 데이터")
     customer: CustomerData = Field(..., description="고객 연령대별 데이터")
     product: ProductData = Field(..., description="상품별 판매 데이터")
+    custom_prompt: Optional[str] = Field(
+        default=None,
+        description="AI 인사이트 생성을 위한 커스텀 프롬프트 (선택사항). 미입력 시 기본 프롬프트 사용"
+    )
 
     class Config:
         json_schema_extra = {
@@ -187,6 +192,7 @@ class ChainSummaryRequest(BaseModel):
                             "상품구분": "선글라스/안경테"
                         }
                     ]
-                }
+                },
+                "custom_prompt": DEFAULT_CHAIN_SUMMARY_PROMPT
             }
         }

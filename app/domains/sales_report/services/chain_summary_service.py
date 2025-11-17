@@ -2,7 +2,7 @@
 import logging
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from decimal import Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
 from collections import defaultdict
@@ -73,7 +73,8 @@ class ChainSummaryService:
         week_data: List[Dict[str, Any]],
         customer_data: List[Dict[str, Any]],
         product_data: List[Dict[str, Any]],
-        include_ai_insights: bool = True
+        include_ai_insights: bool = True,
+        custom_prompt: Optional[str] = None
     ) -> ChainSummaryResponse:
         """
         체인 매출 종합 분석 생성
@@ -85,6 +86,7 @@ class ChainSummaryService:
             customer_data: 연령대별 고객 데이터
             product_data: 상품별 판매 데이터
             include_ai_insights: AI 인사이트 포함 여부
+            custom_prompt: 커스텀 프롬프트 (선택사항)
 
         Returns:
             ChainSummaryResponse
@@ -119,7 +121,8 @@ class ChainSummaryService:
                 product_insights=product_insights,
                 time_patterns=time_patterns,
                 customer_analysis=customer_analysis,
-                visit_sales_patterns=visit_sales_patterns
+                visit_sales_patterns=visit_sales_patterns,
+                custom_prompt=custom_prompt  # 커스텀 프롬프트 전달
             )
         else:
             # AI 생략 시 기본 메시지
@@ -532,12 +535,16 @@ class ChainSummaryService:
         product_insights: ProductInsights,
         time_patterns: TimePatterns,
         customer_analysis: CustomerAnalysis,
-        visit_sales_patterns: List[VisitSalesPattern]
+        visit_sales_patterns: List[VisitSalesPattern],
+        custom_prompt: Optional[str] = None
     ) -> tuple[LLMInsights, str]:
         """
         LLM을 사용한 구조화된 인사이트 생성
 
         ✨ LLM 제공자 모듈화 적용 (Qwen/GPT 선택 가능)
+
+        Args:
+            custom_prompt: 커스텀 프롬프트 (선택사항)
 
         Returns:
             Tuple[LLMInsights, str]: (AI 생성 인사이트, 모델명)
@@ -553,7 +560,8 @@ class ChainSummaryService:
                 product_insights=product_insights,
                 time_patterns=time_patterns,
                 customer_analysis=customer_analysis,
-                visit_sales_patterns=visit_sales_patterns
+                visit_sales_patterns=visit_sales_patterns,
+                custom_prompt=custom_prompt  # 커스텀 프롬프트 전달
             )
 
             return LLMInsights(**insights_dict), model_name

@@ -101,7 +101,8 @@ class StoreSummaryService:
         transactions: List[dict],
         report_date: Optional[date] = None,
         year_month: Optional[str] = None,
-        include_ai_summary: bool = False
+        include_ai_summary: bool = False,
+        custom_prompt: Optional[str] = None
     ) -> StoreSummaryResponse:
         """
         전달받은 데이터로 매출 리포트 생성 (외부 API 호출 없음)
@@ -112,6 +113,7 @@ class StoreSummaryService:
             report_date: 일별 리포트 기준일 (None이면 생략)
             year_month: 월별 리포트 기준 년월 (None이면 생략)
             include_ai_summary: AI 요약 포함 여부 (기본값: False)
+            custom_prompt: AI 요약 생성을 위한 커스텀 프롬프트 (선택사항)
 
         Returns:
             StoreSummaryResponse: 통합 리포트
@@ -134,7 +136,11 @@ class StoreSummaryService:
         metadata = None
         if include_ai_summary and monthly_report and self.db:
             start_time = time.time()
-            llm_insights, model_name = await self._generate_ai_summary(store_info_response, monthly_report)
+            llm_insights, model_name = await self._generate_ai_summary(
+                store_info_response,
+                monthly_report,
+                custom_prompt=custom_prompt
+            )
             generation_time_ms = int((time.time() - start_time) * 1000)
 
             if llm_insights and model_name:
@@ -442,7 +448,8 @@ class StoreSummaryService:
     async def _generate_ai_summary(
         self,
         store_info: StoreInfo,
-        monthly_report: MonthlySalesReport
+        monthly_report: MonthlySalesReport,
+        custom_prompt: Optional[str] = None
     ) -> tuple[Optional[LLMInsights], Optional[str]]:
         """
         AI 요약 리포트 생성 (구조화된 인사이트)
@@ -452,6 +459,7 @@ class StoreSummaryService:
         Args:
             store_info: 매장 정보
             monthly_report: 월별 리포트
+            custom_prompt: 커스텀 프롬프트 (선택사항)
 
         Returns:
             Tuple[Optional[LLMInsights], Optional[str]]: (AI 생성 인사이트, 모델명) - 실패 시 (None, None)
@@ -491,7 +499,8 @@ class StoreSummaryService:
                 total_receivables=monthly_report.total_receivables,
                 top_customers=top_customers_dict,
                 peak_sales_date=str(monthly_report.peak_sales_date),
-                peak_sales_amount=monthly_report.peak_sales_amount
+                peak_sales_amount=monthly_report.peak_sales_amount,
+                custom_prompt=custom_prompt  # 커스텀 프롬프트 전달
             )
 
             # Dict를 Pydantic 모델로 변환

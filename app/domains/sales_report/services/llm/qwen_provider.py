@@ -4,7 +4,7 @@ import logging
 import json
 import re
 from decimal import Decimal
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from .base import BaseLLMProvider
 
@@ -40,18 +40,28 @@ class QwenLLMProvider(BaseLLMProvider):
         total_receivables: Decimal,
         top_customers: list,
         peak_sales_date: str,
-        peak_sales_amount: Decimal
+        peak_sales_amount: Decimal,
+        custom_prompt: Optional[str] = None
     ) -> Dict:
         """매장 요약 생성 (기존 StoreLLMClient.generate_sales_summary 로직)"""
 
-        # 프롬프트 생성
-        prompt = self._create_store_prompt(
-            store_name, total_sales, payment_breakdown,
-            cash_receipt_amount, returning_customer_rate,
-            new_customers_count, avg_transaction_amount,
-            total_receivables, top_customers,
-            peak_sales_date, peak_sales_amount
-        )
+        # 프롬프트 생성 (커스텀 프롬프트 우선, 없으면 기본 프롬프트)
+        if custom_prompt:
+            prompt = self._create_custom_store_prompt(
+                custom_prompt, store_name, total_sales, payment_breakdown,
+                cash_receipt_amount, returning_customer_rate,
+                new_customers_count, avg_transaction_amount,
+                total_receivables, top_customers,
+                peak_sales_date, peak_sales_amount
+            )
+        else:
+            prompt = self._create_store_prompt(
+                store_name, total_sales, payment_breakdown,
+                cash_receipt_amount, returning_customer_rate,
+                new_customers_count, avg_transaction_amount,
+                total_receivables, top_customers,
+                peak_sales_date, peak_sales_amount
+            )
 
         # LLM API 호출
         try:
@@ -75,15 +85,24 @@ class QwenLLMProvider(BaseLLMProvider):
         product_insights,
         time_patterns,
         customer_analysis,
-        visit_sales_patterns
+        visit_sales_patterns,
+        custom_prompt: Optional[str] = None
     ) -> Dict:
         """체인 인사이트 생성 (기존 ChainLLMClient 로직)"""
 
-        prompt = self._create_chain_prompt(
-            analysis_period, store_performance,
-            product_insights, time_patterns,
-            customer_analysis, visit_sales_patterns
-        )
+        # 프롬프트 생성 (커스텀 프롬프트 우선, 없으면 기본 프롬프트)
+        if custom_prompt:
+            prompt = self._create_custom_chain_prompt(
+                custom_prompt, analysis_period, store_performance,
+                product_insights, time_patterns,
+                customer_analysis, visit_sales_patterns
+            )
+        else:
+            prompt = self._create_chain_prompt(
+                analysis_period, store_performance,
+                product_insights, time_patterns,
+                customer_analysis, visit_sales_patterns
+            )
 
         try:
             raw_response = await self._call_ollama_api(prompt)
@@ -402,19 +421,23 @@ class QwenLLMProvider(BaseLLMProvider):
 
                 if all(k in parsed for k in ["sales_summary", "sales_strategies", "marketing_strategies"]):
                     logger.info("JSON 파싱 성공")
-                    return parsed
+                    # 형식 검증 및 정규화
+                    return self._normalize_insights(parsed)
 
             # JSON 코드 블록 없이 직접 파싱
             parsed = json.loads(response_text)
             if all(k in parsed for k in ["sales_summary", "sales_strategies", "marketing_strategies"]):
                 logger.info("직접 JSON 파싱 성공")
-                return parsed
+                # 형식 검증 및 정규화
+                return self._normalize_insights(parsed)
 
         except json.JSONDecodeError:
             logger.info("JSON 파싱 실패, 텍스트 파싱으로 전환")
 
         # 2단계: 텍스트 파싱 fallback
         return self._parse_text_format(response_text)
+
+    # _normalize_insights() → BaseLLMProvider로 이동됨 (중복 제거)
 
     def _parse_text_format(self, text: str) -> Dict:
         """텍스트 형식 응답 파싱"""
@@ -592,3 +615,8 @@ class QwenLLMProvider(BaseLLMProvider):
                     items.append(item)
 
         return items
+
+    # === 커스텀 프롬프트 메서드 ===
+    # _create_custom_store_prompt() → BaseLLMProvider로 이동됨 (중복 제거)
+
+    # _create_custom_chain_prompt() → BaseLLMProvider로 이동됨 (중복 제거)
