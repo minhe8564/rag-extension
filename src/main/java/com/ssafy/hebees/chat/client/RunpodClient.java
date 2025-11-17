@@ -17,8 +17,10 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -82,6 +84,16 @@ public class RunpodClient {
             }
 
             return parseResponse(response.getBody());
+        } catch (HttpStatusCodeException e) {
+            logHttpStatusException(e);
+            HttpStatusCode status = e.getStatusCode();
+            if (status.is5xxServerError()) {
+                throw new BusinessException(ErrorCode.SERVICE_UNAVAILABLE);
+            }
+            if (status.is4xxClientError()) {
+                throw new BusinessException(ErrorCode.BAD_REQUEST);
+            }
+            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
         } catch (RestClientException | JsonProcessingException e) {
             log.error("Failed to call Runpod chat API", e);
             throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
@@ -133,5 +145,10 @@ public class RunpodClient {
         }
 
         return null;
+    }
+
+    private void logHttpStatusException(HttpStatusCodeException e) {
+        log.warn("Runpod API 오류 응답: status={}, body={}", e.getStatusCode(),
+            e.getResponseBodyAsString());
     }
 }
