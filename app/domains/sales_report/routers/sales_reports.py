@@ -36,8 +36,6 @@ async def generate_store_summary(
     request: StoreSummaryRequest,
     start_date: Optional[date] = Query(None, description="조회 시작일 (YYYY-MM-DD, 선택사항)"),
     end_date: Optional[date] = Query(None, description="조회 종료일 (YYYY-MM-DD, 선택사항)"),
-    start_date: Optional[date] = Query(None, description="조회 시작일 (YYYY-MM-DD, 선택사항)"),
-    end_date: Optional[date] = Query(None, description="조회 종료일 (YYYY-MM-DD, 선택사항)"),
     skip_ai: bool = Query(True, description="AI 요약 생략 여부 (기본값: True)"),
     db: AsyncSession = Depends(get_db)
 ):
@@ -153,7 +151,6 @@ async def generate_store_summary(
             end_date=end_date,  # Query 파라미터로 받은 종료일
             year_month=request.json_content.year_month,
             include_ai_summary=not skip_ai,
-            custom_prompt=validated_prompt  # 검증된 프롬프트 전달
             custom_prompt=validated_prompt  # 검증된 프롬프트 전달
         )
 
