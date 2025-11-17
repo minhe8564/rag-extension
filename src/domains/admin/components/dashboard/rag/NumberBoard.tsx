@@ -108,9 +108,9 @@ export default function NumberBoard() {
     >
       <span>LIVE</span>
       <span
-        className="ml-1 px-1.5 py-[1px] rounded-md 
+        className="ml-2 px-1.5 py-[1px] rounded-md 
              bg-white/80 backdrop-blur-sm
-             text-[10px] font-bold text-red-600 
+             text-[13px] font-bold text-red-600 
              border border-red-200/70 shadow-[0_1px_2px_rgba(0,0,0,0.06)]
              tracking-tight tabular-nums"
       >
