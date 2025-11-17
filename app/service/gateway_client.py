@@ -123,40 +123,35 @@ class GatewayClient:
         self,
         data: Dict[Any, Any],
         strategy: str,
-        parameters: dict
+        parameters: dict,
+        extra_headers: Dict[str, Any] = None
     ) -> Dict[Any, Any]:
         """Chunking 컨테이너로 요청 - 서비스 간 직접 통신"""
         logger.debug(f"POST {self.chunking_direct_url} | chunkingStrategy={strategy}")
-        
-        # extraction_result에서 pages 형식으로 변환
-        # extract-repo의 응답 형식: {"result": {...}} 또는 직접 결과
-        # data가 이미 pages 리스트인 경우도 있음 (ingest_router.py에서 처리한 경우)
-        if isinstance(data, list):
-            # 이미 pages 형식인 경우
-            pages = data
-        else:
-            # extraction_result에서 result 추출
-            extraction_data = data.get("result", data) if isinstance(data, dict) else data
-            
-            # pages 필드가 있으면 사용 (PDF 등)
-            if isinstance(extraction_data, dict) and "pages" in extraction_data:
-                pages = extraction_data["pages"]
-            elif isinstance(extraction_data, dict) and "content" in extraction_data:
-                # content만 있는 경우 (TXT, DOCX, XLSX 등) pages 형식으로 변환
-                pages = [{"page": 1, "content": extraction_data["content"]}]
-            else:
-                # 다른 형식인 경우 기본 처리
-                pages = [{"page": 1, "content": str(extraction_data)}]
+
+        # extraction_result에서 bucket/path 추출 (pages는 더 이상 사용하지 않음)
+        request_payload: Dict[str, Any] = {
+            "chunkingStrategy": strategy,
+            "chunkingParameter": parameters
+        }
+
+        extraction_data = data.get("result", data) if isinstance(data, dict) else data
+        if not isinstance(extraction_data, dict):
+            raise ValueError("Invalid extraction result for chunking")
+        bucket = extraction_data.get("bucket")
+        path = extraction_data.get("path")
+        if not bucket or not path:
+            raise ValueError("Extraction result missing bucket/path for chunking")
+        request_payload["bucket"] = bucket
+        request_payload["path"] = path
+        request_payload["inline"] = False  # 고정
         
         async with httpx.AsyncClient(timeout=3600.0) as client:
             # Chunking 서비스에 직접 접근 (서비스 간 통신이므로 인증 불필요)
             response = await client.post(
                 self.chunking_direct_url,
-                json={
-                    "pages": pages,
-                    "chunkingStrategy": strategy,
-                    "chunkingParameter": parameters
-                }
+                json=request_payload,
+                headers={k: v for k, v in (extra_headers or {}).items() if v}
             )
             response.raise_for_status()
             return response.json()

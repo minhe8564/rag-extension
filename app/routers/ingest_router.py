@@ -313,7 +313,8 @@ async def ingest_process(
                     extraction_params=extraction_params,
                     extra_headers={
                         "x-user-role": user_role,
-                        "x-user-uuid": user_uuid
+                        "x-user-uuid": user_uuid,
+                        "x-offer-no": request.offerNo
                     }
                 )
                 
@@ -321,9 +322,13 @@ async def ingest_process(
                 chunking_result = await gateway_client.request_chunking(
                     data=extraction_result,
                     strategy=chunk_strategy,
-                    parameters=chunk_params
+                    parameters=chunk_params,
+                    extra_headers={
+                        "x-user-role": user_role,
+                        "x-user-uuid": user_uuid
+                    }
                 )
-
+                
                 # 3) Embedding
                 await gateway_client.request_embedding(
                     data=chunking_result,
