@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import Tooltip from '@/shared/components/controls/Tooltip';
 import clsx from 'clsx';
+import { useReferencedDocsStore } from '@/shared/store/useReferencedDocsStore';
 
 type Props = {
   sessionNo: string;
@@ -34,11 +35,34 @@ export default function ReferencedDocsPanel({
   messageNo,
   collapsedByDefault = false,
 }: Props) {
-  const [open, setOpen] = useState(!collapsedByDefault);
-  const [hidden, setHidden] = useState(false);
+  const { getState, setState } = useReferencedDocsStore();
+  const storedState = getState(messageNo);
+  
+  // 초기 상태: 저장된 상태가 있으면 사용, 없으면 collapsedByDefault 사용
+  const getInitialOpenState = (): boolean => {
+    if (storedState?.open !== undefined) return storedState.open;
+    return !collapsedByDefault;
+  };
+
+  const [open, setOpen] = useState(() => getInitialOpenState());
+  const [hidden, setHidden] = useState(() => storedState?.hidden ?? false);
   const lastCountRef = useRef<number>(0);
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  // messageNo가 변경되면 저장된 상태를 읽어옴
+  useEffect(() => {
+    if (messageNo) {
+      const state = getState(messageNo);
+      if (state) {
+        setHidden(state.hidden);
+        if (state.open !== undefined) {
+          setOpen(state.open);
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messageNo]);
 
   const { data, isFetching, isError, refetch } = useQuery({
     queryKey: ['refDocs', sessionNo, messageNo],
@@ -70,6 +94,7 @@ export default function ReferencedDocsPanel({
           onClick={() => {
             setHidden(false);
             setOpen(true);
+            setState(messageNo, { hidden: false, open: true });
           }}
           className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 hover:bg-gray-50 hover:text-black"
         >
@@ -90,7 +115,13 @@ export default function ReferencedDocsPanel({
       <div className="w-full flex items-center justify-between px-3 py-2">
         <button
           type="button"
-          onClick={() => setOpen((v) => !v)}
+          onClick={() => {
+            setOpen((v) => {
+              const newValue = !v;
+              setState(messageNo, { open: newValue });
+              return newValue;
+            });
+          }}
           className="inline-flex items-center gap-2 text-sm font-medium text-gray-700"
           aria-expanded={open}
         >
@@ -108,7 +139,13 @@ export default function ReferencedDocsPanel({
 
         <div className="flex items-center gap-1">
           <Tooltip content="참조 문서 숨기기" side="bottom">
-            <button onClick={() => setHidden(true)} className="rounded p-1 hover:bg-gray-100">
+            <button
+              onClick={() => {
+                setHidden(true);
+                setState(messageNo, { hidden: true });
+              }}
+              className="rounded p-1 hover:bg-gray-100"
+            >
               <EyeOff size={16} className="text-gray-600" />
             </button>
           </Tooltip>
