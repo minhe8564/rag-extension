@@ -27,14 +27,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/agent-prompts")
-@Tag(name = "Agent Prompt 관리", description = "에이전트 프롬프트 CRUD API")
+@Tag(name = "[관리자] Agent Prompt 관리", description = "에이전트 프롬프트 CRUD API")
 @PreAuthorize("hasRole('ADMIN')")
 public class AgentPromptController {
 
     private final AgentPromptService agentPromptService;
 
     @GetMapping
-    @Operation(summary = "[관리자] Agent Prompt 목록 조회", description = "등록된 Agent Prompt 목록을 조회합니다.")
+    @Operation(summary = "Agent Prompt 목록 조회", description = "등록된 Agent Prompt 목록을 조회합니다.")
     @ApiResponse(responseCode = "200", description = "Agent Prompt 목록 조회 성공")
     public ResponseEntity<BaseResponse<ListResponse<AgentPromptResponse>>> listAgentPrompts() {
         ListResponse<AgentPromptResponse> responses = agentPromptService.listAgentPrompts();
@@ -43,7 +43,7 @@ public class AgentPromptController {
     }
 
     @GetMapping("/{agentPromptNo}")
-    @Operation(summary = "[관리자] Agent Prompt 단건 조회", description = "Agent Prompt 상세 정보를 조회합니다.")
+    @Operation(summary = "Agent Prompt 단건 조회", description = "Agent Prompt 상세 정보를 조회합니다.")
     @ApiResponse(responseCode = "200", description = "Agent Prompt 조회 성공")
     public ResponseEntity<BaseResponse<AgentPromptResponse>> getAgentPrompt(
         @PathVariable UUID agentPromptNo) {
@@ -53,7 +53,7 @@ public class AgentPromptController {
     }
 
     @PostMapping
-    @Operation(summary = "[관리자] Agent Prompt 생성", description = "새로운 Agent Prompt를 등록합니다.")
+    @Operation(summary = "Agent Prompt 생성", description = "새로운 Agent Prompt를 등록합니다.")
     @ApiResponse(responseCode = "201", description = "Agent Prompt 생성 성공")
     public ResponseEntity<BaseResponse<AgentPromptResponse>> createAgentPrompt(
         @Valid @RequestBody AgentPromptUpsertRequest request) {
@@ -64,7 +64,7 @@ public class AgentPromptController {
     }
 
     @PutMapping("/{agentPromptNo}")
-    @Operation(summary = "[관리자] Agent Prompt 수정", description = "Agent Prompt 정보를 수정합니다.")
+    @Operation(summary = "Agent Prompt 수정", description = "Agent Prompt 정보를 수정합니다.")
     @ApiResponse(responseCode = "200", description = "Agent Prompt 수정 성공")
     public ResponseEntity<BaseResponse<AgentPromptResponse>> updateAgentPrompt(
         @PathVariable UUID agentPromptNo,
@@ -75,7 +75,7 @@ public class AgentPromptController {
     }
 
     @DeleteMapping("/{agentPromptNo}")
-    @Operation(summary = "[관리자] Agent Prompt 삭제", description = "Agent Prompt를 삭제합니다.")
+    @Operation(summary = "Agent Prompt 삭제", description = "Agent Prompt를 삭제합니다.")
     @ApiResponse(responseCode = "204", description = "Agent Prompt 삭제 성공")
     public ResponseEntity<Void> deleteAgentPrompt(@PathVariable UUID agentPromptNo) {
         agentPromptService.deleteAgentPrompt(agentPromptNo);

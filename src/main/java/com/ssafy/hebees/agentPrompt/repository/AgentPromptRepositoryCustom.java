@@ -8,5 +8,5 @@ public interface AgentPromptRepositoryCustom {
 
     boolean existsByNameIgnoreCase(String name, UUID agentPromptNo);
 
-    Optional<AgentPrompt> findByName(String name);
+    Optional<AgentPrompt> findByNameIgnoreCase(String name);
 }

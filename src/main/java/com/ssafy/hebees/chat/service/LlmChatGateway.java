@@ -19,9 +19,11 @@ import com.ssafy.hebees.ragsetting.entity.Strategy;
 import com.ssafy.hebees.agentPrompt.repository.AgentPromptRepository;
 import com.ssafy.hebees.llmKey.repository.LlmKeyRepository;
 import com.ssafy.hebees.ragsetting.repository.StrategyRepository;
+import jakarta.annotation.PostConstruct;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.BiFunction;
@@ -37,8 +39,8 @@ import org.springframework.util.StringUtils;
 @RequiredArgsConstructor
 public class LlmChatGateway {
 
-    private static final String LLM_PROMPT_NAME = "LLMPrompt";
-    private static final String DEFAULT_SYSTEM_PROMPT = """
+    private static final String PROMPT_NAME = "LLMPrompt";
+    private static final String PROMPT_FALLBACK = """
         당신은 한국어 사용자를 위한 전문 챗봇입니다.
         - 가능한 한 자연스럽고 공손한 한국어로 답변합니다.
         - 사용자의 질문 의도를 정확히 이해하려 노력하며, 필요한 경우 명확화를 요청합니다.
@@ -56,6 +58,22 @@ public class LlmChatGateway {
     private final GeminiProperties geminiProperties;
     private final AnthropicProperties anthropicProperties;
     private final RunpodProperties runpodProperties;
+
+
+    private AgentPrompt agentPrompt;
+
+    @PostConstruct
+    private void init() {
+        agentPrompt = agentPromptRepository.findByNameIgnoreCase(PROMPT_NAME)
+            .orElseGet(() -> {
+                AgentPrompt created = AgentPrompt.builder()
+                    .name(PROMPT_NAME)
+                    .content(PROMPT_FALLBACK)
+                    .llm(null)
+                    .build();
+                return agentPromptRepository.save(Objects.requireNonNull(created));
+            });
+    }
 
     public LlmChatResult chat(UUID userNo, UUID strategyNo, List<LlmChatMessage> messages) {
         if (userNo == null) {
@@ -160,16 +178,26 @@ public class LlmChatGateway {
         };
     }
 
-    private Optional<String> resolveSystemPrompt() {
-        Optional<String> savedPrompt = agentPromptRepository.findByName(LLM_PROMPT_NAME)
+    private Optional<String> resolveSystemPrompt(UUID llmNo) {
+        Optional<String> savedPrompt = Optional.empty();
+        if (llmNo != null) {
+            savedPrompt = agentPromptRepository
+                .findByNameIgnoreCase(PROMPT_NAME)
+                .map(AgentPrompt::getContent)
+                .filter(StringUtils::hasText);
+        }
+
+        if (savedPrompt.isEmpty()) {
+            savedPrompt = agentPromptRepository.findByNameIgnoreCase(PROMPT_NAME)
             .map(AgentPrompt::getContent)
             .filter(StringUtils::hasText);
+        }
 
         if (savedPrompt.isPresent()) {
             return savedPrompt;
         }
 
-        return Optional.of(DEFAULT_SYSTEM_PROMPT);
+        return Optional.of(PROMPT_FALLBACK);
     }
 
     private String resolveApiKey(UUID userNo, LlmProvider provider, Strategy strategy) {
@@ -281,12 +309,11 @@ public class LlmChatGateway {
         String model = resolveModel(provider, strategy);
         JsonNode parameter = strategy.getParameter();
 
+        UUID llmNo = strategy.getStrategyNo();
+
         List<LlmChatMessage> payloadMessages = new ArrayList<>();
         if (!containsSystemMessage(messages)) {
-            String systemPrompt = resolveSystemPrompt()
-                .map(String::strip)
-                .filter(StringUtils::hasText)
-                .orElse(null);
+            String systemPrompt = agentPrompt.getContent();
             if (StringUtils.hasText(systemPrompt)) {
                 payloadMessages.add(new LlmChatMessage("system", systemPrompt));
             }
