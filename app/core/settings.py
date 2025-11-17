@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     # OpenAI 설정
     openai_api_key: str = ""
 
+    # Qwen (Ollama) 설정 - DB에서 동적으로 업데이트됨
+    qwen_base_url: str = "http://apik.co.kr:11434/"
+
     # MongoDB 설정
     mongo_host: str = "database-mongodb"
     mongo_port: int = 27017

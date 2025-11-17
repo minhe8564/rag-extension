@@ -45,36 +45,80 @@ def get_qwen_token_counter() -> Optional[Callable]:
     """
     Qwen 모델용 토큰 카운터 생성
     Ollama qwen3-vl 등 Qwen 계열 모델에 사용
+    
+    주의: transformers의 경고를 완전히 억제하기 위해 로깅 레벨 조정 및 
+    토크나이저 내부 속성을 수정합니다.
     """
     if not TRANSFORMERS_AVAILABLE:
         logger.warning("transformers not available. Cannot create Qwen token counter.")
         return None
     
     try:
+        # transformers 로깅 레벨 조정 (경고 억제)
+        import logging
+        transformers_logger = logging.getLogger("transformers")
+        original_level = transformers_logger.level
+        transformers_logger.setLevel(logging.ERROR)  # ERROR 이상만 출력
+        
         # Qwen 2.5 계열 토크나이저 로드 (Ollama qwen3-vl 대응)
         tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2.5-7B")
         
         # max_length를 매우 큰 값으로 설정하여 토큰 길이 제한 경고 방지
         if hasattr(tokenizer, 'model_max_length'):
             original_max_length = tokenizer.model_max_length
-            tokenizer.model_max_length = 10**9  # 매우 큰 값으로 설정
+            # 매우 큰 값으로 설정 (실제로는 토큰 수만 세므로 제한이 필요 없음)
+            tokenizer.model_max_length = 1_000_000  # 100만 토큰으로 설정
             logger.debug(f"Qwen tokenizer max_length set to {tokenizer.model_max_length} (original: {original_max_length})")
+        
+        # 토크나이저 내부 속성도 수정 (더 확실한 경고 억제)
+        if hasattr(tokenizer, 'tokenizer'):
+            # tokenizers 라이브러리의 내부 속성도 수정
+            if hasattr(tokenizer.tokenizer, 'model'):
+                if hasattr(tokenizer.tokenizer.model, 'max_length'):
+                    tokenizer.tokenizer.model.max_length = 1_000_000
         
         # LangChain이 요구하는 token_counter 함수 형태로 반환
         def token_counter(text: str) -> int:
             # 토큰 카운터는 단순히 토큰 수를 세는 것이므로, truncation과 max_length를 명시적으로 설정
-            # warnings를 억제하여 경고 메시지 방지
+            # warnings와 로깅을 완전히 억제하여 경고 메시지 방지
             import warnings
-            with warnings.catch_warnings():
-                warnings.filterwarnings("ignore", category=UserWarning)
-                # truncation=False로 설정하여 경고 방지
-                tokens = tokenizer.encode(
-                    text, 
-                    add_special_tokens=False,
-                    truncation=False,
-                    max_length=None
-                )
-            return len(tokens)
+            import os
+            
+            # 환경 변수로 transformers 경고 비활성화
+            os.environ["TOKENIZERS_PARALLELISM"] = "false"
+            
+            # transformers 로깅 임시 비활성화 (경고 메시지 억제)
+            original_log_level = transformers_logger.level
+            transformers_logger.setLevel(logging.ERROR)  # ERROR 이상만 출력
+            
+            try:
+                with warnings.catch_warnings():
+                    # 모든 경고 무시
+                    warnings.simplefilter("ignore")
+                    warnings.filterwarnings("ignore", category=UserWarning)
+                    warnings.filterwarnings("ignore", message=".*sequence length.*")
+                    warnings.filterwarnings("ignore", message=".*max_length.*")
+                    warnings.filterwarnings("ignore", message=".*Token indices.*")
+                    warnings.filterwarnings("ignore", message=".*longer than.*")
+                    
+                    # truncation=False, max_length를 매우 큰 값으로 명시적으로 설정
+                    # 실제로는 토큰 수만 세므로 truncation이 필요 없음
+                    tokens = tokenizer.encode(
+                        text, 
+                        add_special_tokens=False,
+                        truncation=False,
+                        max_length=1_000_000,  # 명시적으로 매우 큰 값 설정
+                        return_tensors=None  # 리스트로 반환
+                    )
+                    return len(tokens)
+            except Exception as encode_error:
+                # 인코딩 실패 시 경고만 로그하고 휴리스틱 사용
+                logger.debug(f"Token encoding failed, using heuristic: {encode_error}")
+                # 휴리스틱: 대략적인 토큰 수 추정 (한국어 기준 약 4자당 1토큰)
+                return max(1, int(len(text) / 4))
+            finally:
+                # 로깅 레벨 복원
+                transformers_logger.setLevel(original_log_level)
         
         logger.debug("Qwen token counter created successfully")
         return token_counter

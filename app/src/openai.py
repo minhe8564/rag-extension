@@ -689,7 +689,7 @@ class Openai(BaseGenerationStrategy):
             
             # 스트림 태스크 완료 대기
             await stream_task
-
+            
             # 스트리밍 완료 후 처리
             response_time_ms = int((time.time() * 1000) - response_start_time)
             
