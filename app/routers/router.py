@@ -5,6 +5,7 @@ from app.schemas.response.errorResponse import ErrorResponse
 from app.middleware.metrics_middleware import with_query_embedding_metrics
 from typing import Dict, Any
 import importlib
+import asyncio
 from loguru import logger
 
 router = APIRouter(tags=["query-embedding"])
@@ -21,17 +22,18 @@ def get_strategy(strategy_name: str, parameters: Dict[Any, Any] = None) -> Any:
     Returns:
         전략 클래스 인스턴스
     """
+    strategy_module_name = f"app.src.{strategy_name}"
+    if strategy_name == "e5Large":
+        strategy_class_name = "E5Large"
+    else:
+        strategy_class_name = strategy_name[0].upper() + strategy_name[1:] if strategy_name else ""
+    
     try:
-        # 전략명으로 모듈 import (예: "e5Large" -> app.src.e5Large)
-        strategy_module_name = f"app.src.{strategy_name}"
         logger.debug(f"Attempting to import module: {strategy_module_name}")
         
         strategy_module = importlib.import_module(strategy_module_name)
         logger.debug(f"Module imported successfully: {strategy_module_name}, available attributes: {dir(strategy_module)}")
         
-        # 전략 클래스 가져오기 (파일명과 클래스명이 전략명과 동일)
-        # 전략명의 첫 글자만 대문자로 변환 (예: "e5Large" -> "E5Large")
-        strategy_class_name = strategy_name[0].upper() + strategy_name[1:] if strategy_name else ""
         logger.debug(f"Looking for class: {strategy_class_name} in module {strategy_module_name}")
         
         if not hasattr(strategy_module, strategy_class_name):
@@ -91,8 +93,10 @@ async def query_embedding_process(request: QueryEmbeddingProcessRequest):
         # 전략 로드
         strategy = get_strategy(strategy_name, parameters)
 
-        # embed() 메서드 호출
-        result = strategy.embed(query)
+        if asyncio.iscoroutinefunction(strategy.embed):
+            result = await strategy.embed(query)
+        else:
+            result = strategy.embed(query)
 
         # Response 생성
         response = QueryEmbeddingProcessResponse(
