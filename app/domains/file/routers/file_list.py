@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.schemas import BaseResponse, Pagination
 from ..schemas.response.files import FileListItem
-from ..services.file_list import list_files_by_offer
+from ..services.file_list import list_files_by_collection
 
 
 router = APIRouter(prefix="/files", tags=["File"])
@@ -33,7 +33,7 @@ async def list_my_files(
     limit = pageSize
     offset = (pageNum - 1) * pageSize
 
-    items, total_items = await list_files_by_offer(
+    items, total_items = await list_files_by_collection(
         session,
         user_no=x_user_uuid,
         limit=limit,

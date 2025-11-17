@@ -11,7 +11,7 @@ from ..schemas.response.files import FileListItem
 from ....core.utils.uuid_utils import _uuid_str_to_bytes, _bytes_to_uuid_str, _get_offer_no_by_user
 
 
-async def list_files_by_offer(
+async def list_files_by_collection(
     session: AsyncSession,
     *,
     user_no: str,
@@ -21,57 +21,53 @@ async def list_files_by_offer(
 ) -> tuple[list[FileListItem], int]:
     user_no_bytes = _uuid_str_to_bytes(user_no)
     offer_no = await _get_offer_no_by_user(session, user_no_bytes)
-
-    # Resolve latest collection for this offer_no
-    coll_stmt = (
+    collection_no_subq = (
         select(Collection.collection_no)
         .where(Collection.offer_no == offer_no)
         .order_by(Collection.version.desc())
         .limit(1)
+        .scalar_subquery()
     )
-    coll_res = await session.execute(coll_stmt)
-    collection_no_bytes = coll_res.scalar_one_or_none()
 
-    # If no collection exists for this offer, return empty results
-    if collection_no_bytes is None:
-        return [], 0
+    category_no_bytes: Optional[bytes] = _uuid_str_to_bytes(category_no) if category_no else None
 
-    # Total count for pagination
-    count_stmt = select(func.count()).select_from(File).where(File.collection_no == collection_no_bytes)
-    if category_no:
-        count_stmt = count_stmt.where(File.file_category_no == _uuid_str_to_bytes(category_no))
-
-    res_total = await session.execute(count_stmt)
-    total_items = int(res_total.scalar() or 0)
-
-    # Paged items
+    # Single query using window function to get total count alongside paged rows
     stmt = (
-        select(File)
-        .where(File.collection_no == collection_no_bytes)
-        .order_by(File.created_at.desc())
-        .limit(limit)
-        .offset(offset)
+        select(
+            File,
+            func.count().over().label("total_count"),
+        )
+        .where(File.collection_no == collection_no_subq)
     )
-    if category_no:
-        stmt = stmt.where(File.file_category_no == _uuid_str_to_bytes(category_no))
+    if category_no_bytes is not None:
+        stmt = stmt.where(File.file_category_no == category_no_bytes)
+
+    stmt = stmt.order_by(File.created_at.desc()).limit(limit).offset(offset)
 
     res = await session.execute(stmt)
-    rows = list(res.scalars().all())
+    records = list(res.all())
+
+    if not records:
+        # No files (either no collection or empty collection)
+        return [], 0
+
+    # total_count is the same for all rows due to window function
+    total_items = int(records[0].total_count or 0)
 
     items: list[FileListItem] = []
-    for row in rows:
+    for file_row, _total in records:
         items.append(
             FileListItem(
-                fileNo=_bytes_to_uuid_str(row.file_no),
-                name=row.name,
-                size=row.size,
-                type=row.type,
-                bucket=row.bucket,
-                path=row.path,
-                status=row.status,
-                categoryNo=_bytes_to_uuid_str(row.file_category_no),
-                collectionNo=_bytes_to_uuid_str(row.collection_no) if row.collection_no else None,
-                createdAt=row.created_at,
+                fileNo=_bytes_to_uuid_str(file_row.file_no),
+                name=file_row.name,
+                size=file_row.size,
+                type=file_row.type,
+                bucket=file_row.bucket,
+                path=file_row.path,
+                status=file_row.status,
+                categoryNo=_bytes_to_uuid_str(file_row.file_category_no),
+                collectionNo=_bytes_to_uuid_str(file_row.collection_no) if file_row.collection_no else None,
+                createdAt=file_row.created_at,
             )
         )
 
