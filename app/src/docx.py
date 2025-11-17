@@ -1,6 +1,8 @@
 from .base import BaseExtractionStrategy
 from typing import Dict, Any
 from loguru import logger
+import os
+from app.service.minio_client import ensure_bucket, put_object_bytes
 
 try:
     from docx import Document
@@ -66,17 +68,19 @@ class Docx(BaseExtractionStrategy):
             # 전체 텍스트 합치기
             full_text = "\n".join(paragraphs)
             
-            return {
-                "type": "docs",
-                "content": full_text,
-                "paragraphs": paragraphs,
-                "tables": tables_text,
-                "strategy": "basic",
-                "parameters": self.parameters,
-                "paragraph_count": len(paragraphs),
-                "table_count": len(tables_text),
-                "length": len(full_text)
-            }
+            # MinIO 업로드
+            try:
+                user_id = (self.parameters.get("user_id") or "unknown-user") if isinstance(self.parameters, dict) else "unknown-user"
+                file_name = (self.parameters.get("file_name") or "extracted.docx") if isinstance(self.parameters, dict) else "extracted.docx"
+                base_name = os.path.splitext(file_name)[0] or "extracted"
+                object_name = f"{user_id}/{base_name}.txt"
+                bucket = "ingest"
+                ensure_bucket(bucket)
+                put_object_bytes(bucket, object_name, full_text.encode("utf-8"), content_type="text/plain; charset=utf-8")
+                return {"full_text": full_text, "bucket": bucket, "path": object_name}
+            except Exception as e:
+                logger.warning(f"[BasicDocs] MinIO upload failed: {e}")
+                return {"full_text": full_text}
         except Exception as e:
             logger.error(f"[BasicDocs] Error extracting DOCX: {str(e)}")
             raise

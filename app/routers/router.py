@@ -1,10 +1,10 @@
 from fastapi import APIRouter, HTTPException, Header
 from app.schemas.request.extractRequest import ExtractProcessRequest
-from app.schemas.response.extractProcessResponse import ExtractProcessResponse, ExtractProcessResult, Page
+from app.schemas.response.extractProcessResponse import ExtractProcessResponse, ExtractProcessResult
 from app.schemas.response.errorResponse import ErrorResponse
 from app.middleware.metrics_middleware import with_extract_metrics
 from app.service.extract_service import ExtractService
-from typing import Optional, Dict, Any
+from typing import Dict, Any
 import importlib
 import time
 from loguru import logger
@@ -77,7 +77,7 @@ async def extract_process(
     request: ExtractProcessRequest, 
     x_user_role: str | None = Header(default=None, alias="x-user-role"), 
     x_user_uuid: str | None = Header(default=None, alias="x-user-uuid"), 
-    authorization: str | None = Header(default=None, alias="Authorization")
+    x_offer_no: str | None = Header(default=None, alias="x-offer-no"),
 ):
     """
     Extract /process 엔드포인트
@@ -100,24 +100,18 @@ async def extract_process(
             request=request,
             x_user_role=x_user_role,
             x_user_uuid=x_user_uuid,
+            x_offer_no=x_offer_no,
             progress_pusher=progress_pusher,
         )
 
-        result = processed["result"]
         file_name = processed["file_name"]
         file_ext = processed["file_ext"]
         strategy_name = processed["strategy"]
         parameters = processed["strategy_parameter"]
+        bucket = processed.get("bucket")
+        path = processed.get("path")
 
-        # Response 생성 (원본 parameters 사용 - progress_cb 없음)
-        pages = [
-            Page(
-                page=page.get("page", i + 1),
-                content=page.get("content", "")
-            )
-            for i, page in enumerate(result.get("pages", []))
-        ]
-        
+        # Response 생성
         response = ExtractProcessResponse(
             status=200,
             code="OK",
@@ -126,10 +120,10 @@ async def extract_process(
             result=ExtractProcessResult(
                 fileName=file_name,
                 fileType=file_ext,
-                pages=pages,
-                total_pages=result.get("total_pages", len(pages)),
                 strategy=strategy_name,
-                strategyParameter=parameters  # 원본 parameters 사용 (progress_cb 없음)
+                strategyParameter=parameters,  # 원본 parameters 사용 (progress_cb 없음)
+                bucket=bucket,
+                path=path,
             )
         )
         
@@ -139,7 +133,7 @@ async def extract_process(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Unexpected error in extract_process: {type(e).__name__}: {str(e)}", exc_info=True)
+        logger.exception("Unexpected error in extract_process: {}: {}", type(e).__name__, e)
         error_response = ErrorResponse(
             status=500,
             code="INTERNAL_ERROR",

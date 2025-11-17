@@ -1,6 +1,8 @@
 from .base import BaseExtractionStrategy
 from typing import Dict, Any, List
 from loguru import logger
+import os
+from app.service.minio_client import ensure_bucket, put_object_bytes
 
 try:
     from openpyxl import load_workbook
@@ -92,17 +94,19 @@ class Openpyxl(BaseExtractionStrategy):
             # 전체 텍스트 합치기
             full_text = "\n\n".join([sheet["content"] for sheet in sheets_text])
             
-            return {
-                "type": "xlsx",
-                "content": full_text,
-                "sheets": sheets_data,
-                "sheets_text": sheets_text,
-                "sheet_names": workbook.sheetnames,
-                "sheet_count": len(workbook.sheetnames),
-                "strategy": "basic",
-                "parameters": self.parameters,
-                "length": len(full_text)
-            }
+            # MinIO 업로드
+            try:
+                user_id = (self.parameters.get("user_id") or "unknown-user") if isinstance(self.parameters, dict) else "unknown-user"
+                file_name = (self.parameters.get("file_name") or "extracted.xlsx") if isinstance(self.parameters, dict) else "extracted.xlsx"
+                base_name = os.path.splitext(file_name)[0] or "extracted"
+                object_name = f"{user_id}/{base_name}.txt"
+                bucket = "ingest"
+                ensure_bucket(bucket)
+                put_object_bytes(bucket, object_name, full_text.encode("utf-8"), content_type="text/plain; charset=utf-8")
+                return {"full_text": full_text, "bucket": bucket, "path": object_name}
+            except Exception as e:
+                logger.warning(f"[BasicXlsx] MinIO upload failed: {e}")
+                return {"full_text": full_text}
         except Exception as e:
             logger.error(f"[BasicXlsx] Error extracting XLSX: {str(e)}")
             raise
