@@ -4,6 +4,7 @@ from typing import Optional
 from decimal import Decimal
 from ...constants import DEFAULT_CHAIN_SUMMARY_PROMPT
 from ...constants import DEFAULT_CHAIN_SUMMARY_PROMPT
+from ...constants import DEFAULT_CHAIN_SUMMARY_PROMPT
 
 
 class StoreInfo(BaseModel):
@@ -126,6 +127,9 @@ class ProductData(BaseModel):
 class ChainSummaryDataRequest(BaseModel):
     """체인 매출 데이터 요청 스키마 (info, sales, week, customer, product를 포함)"""
     
+class ChainSummaryDataRequest(BaseModel):
+    """체인 매출 데이터 요청 스키마 (info, sales, week, customer, product를 포함)"""
+    
     info: StoreInfo = Field(..., description="매장 정보")
     sales: SalesData = Field(..., description="월별 매출 데이터")
     week: WeekData = Field(..., description="요일/시간대별 방문 및 매출 데이터")
@@ -137,17 +141,76 @@ class ChainSummaryRequest(BaseModel):
     """
     체인 매니저 매출 요약 리포트 생성 요청 스키마
 
-    custom_prompt와 json을 포함하는 최상위 요청 구조
+    custom_prompt와 json_content를 포함하는 최상위 요청 구조
     """
     custom_prompt: Optional[str] = Field(
         default=None,
         description="AI 인사이트 생성을 위한 커스텀 프롬프트 (선택사항). 미입력 시 기본 프롬프트 사용"
     )
-    json: ChainSummaryDataRequest = Field(..., description="매장 정보와 매출 데이터를 포함한 데이터 객체")
+    json_content: ChainSummaryDataRequest = Field(..., alias="json", description="매장 정보와 매출 데이터를 포함한 데이터 객체")
 
     class Config:
+        populate_by_name = True  # alias와 원본 필드명 둘 다 허용
         json_schema_extra = {
             "example": {
+                "custom_prompt": DEFAULT_CHAIN_SUMMARY_PROMPT,
+                "json": {
+                    "info": {
+                        "안경원명": "히비스 안경원",
+                        "매장번호": "02-1234-1234",
+                        "대표자명": "김안경"
+                    },
+                    "sales": {
+                        "name": "작년부터 지난달까지",
+                        "data": [
+                            {
+                                "년월": "2024-02",
+                                "판매금액": 50807800,
+                                "할인액": 1022800,
+                                "결제금액": 50208000,
+                                "판매 수": 487,
+                                "반품 수": None,
+                                "납부 수": 51
+                            }
+                        ]
+                    },
+                    "week": {
+                        "name": "지난달 일~토",
+                        "data": [
+                            {
+                                "W": "3",
+                                "WEEK": "화",
+                                "HOUR": "15",
+                                "방문수": 7,
+                                "판매금액": 1111000
+                            }
+                        ]
+                    },
+                    "customer": {
+                        "name": "3개월 고객 연령대,신규/재방문",
+                        "data": [
+                            {
+                                "년월": "2025-07",
+                                "AGE": 2,
+                                "첫방문여부": 0,
+                                "건수": 19,
+                                "판매금액": 1698000
+                            }
+                        ]
+                    },
+                    "product": {
+                        "name": "지난달 브랜드,상품구분별 상품정보",
+                        "data": [
+                            {
+                                "상품명": "스타일 선글라스",
+                                "판매 수": 1,
+                                "판매금액합": 49000,
+                                "브랜드명": "",
+                                "상품구분": "선글라스/안경테"
+                            }
+                        ]
+                    }
+                }
                 "custom_prompt": DEFAULT_CHAIN_SUMMARY_PROMPT,
                 "json": {
                     "info": {
