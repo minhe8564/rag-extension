@@ -85,33 +85,29 @@ export default function ChatbotUsageRealtime() {
     };
 
     sources.realtimeUsage.addEventListener('init', (event) => {
-      console.log('🔥 SSE onmessage RAW:', event);
-
       const e = event as MessageEvent;
       const InitData = JSON.parse(e.data) as initData;
-      const initBuckets = InitData.buckets.map((bucket) => [
-        new Date(bucket.timestamp).getTime(),
-        bucket.requestCount,
-      ]);
+      console.log('🔥 SSE onmessage PARSED:', InitData);
+      const initTime = new Date(InitData.timestamp).getTime();
+      const initRequestCount = InitData.requestCount;
 
       const chart = chartRef.current;
       if (chart) {
         const series = chart.series[0];
-        series.setData(initBuckets, true);
+        series.setData([[initTime, initRequestCount]], true);
       }
     });
 
     sources.realtimeUsage.addEventListener('update', (event) => {
-      console.log('🔥 SSE onmessage RAW:', event);
-
       const e = event as MessageEvent;
       const LiveData = JSON.parse(e.data) as updateData;
-      const updateBuckets = new Date(LiveData.timestamp).getTime();
+      console.log('🔥 SSE onmessage PARSED (live):', LiveData);
+      const updateTime = new Date(LiveData.timestamp).getTime();
       const updateRequestCount = LiveData.requestCount;
 
       const chart = chartRef.current;
       const series = chart?.series[0];
-      series?.addPoint([updateBuckets, updateRequestCount], true, series.data.length >= 6);
+      series?.addPoint([updateTime, updateRequestCount], true, series.data.length >= 6);
     });
 
     return () => {
