@@ -43,12 +43,6 @@ export default function ColSection({ selectedCollection, onCollectionSelect }: C
   });
 
   useEffect(() => {
-    if (collectionsResult) {
-      console.log('📌 Collections Response:', collectionsResult);
-    }
-  }, [collectionsResult]);
-
-  useEffect(() => {
     if (docs && selectedCollection) {
       setDocsByCollection((prev) => ({
         ...prev,

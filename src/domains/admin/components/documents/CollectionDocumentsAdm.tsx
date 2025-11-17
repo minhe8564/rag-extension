@@ -3,10 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import clsx from 'clsx';
 import type { Collection } from '@/domains/admin/components/rag-test/types';
 import { getDocInCollections } from '@/domains/admin/api/documents.api';
-import type {
-  documentDatatype,
-  getDocumentsInCollection,
-} from '@/domains/admin/types/documents.types';
+import type { documentDatatype } from '@/domains/admin/types/documents.types';
 import { FolderOpen, RefreshCw } from 'lucide-react';
 import UploadedFileList from '@/shared/components/file/UploadedFileList';
 

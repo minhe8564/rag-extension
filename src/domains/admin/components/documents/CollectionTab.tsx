@@ -14,9 +14,7 @@ export default function CollectionTab() {
 
   // 문서 다운로드
   const handleDownload = async (fileNo: string) => {
-    console.log('Downloading fileNo:', fileNo);
     const doc = selectedDocs.find((m) => m.id === fileNo);
-    console.log('Document found:', doc);
     const fallbackName = doc?.name || `${fileNo}.bin`;
 
     try {
@@ -35,7 +33,6 @@ export default function CollectionTab() {
       a.remove();
       URL.revokeObjectURL(blobUrl);
     } catch (error) {
-      console.error('File download failed:', error);
       const signedUrl = await getPresignedUrl(fileNo, { inline: false });
       window.open(signedUrl, '_blank');
     }

@@ -115,9 +115,6 @@ export function useIngestNotifyStream({
         const parsed = parseData<IngestSummaryResponse>(evt.data);
         if (!parsed) return;
 
-        // 디버깅 로그
-        console.log('[SSE] ingest event received:', parsed);
-
         setConnected(true);
         setLastError(null);
         if (onMessageRef.current) {
@@ -148,7 +145,6 @@ export function useIngestNotifyStream({
 
     es.onopen = () => {
       if (cancelled) return;
-      console.log('[SSE] ingest stream opened');
       setConnected(true);
       setLastError(null);
     };
