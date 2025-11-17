@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     def allowed_origins_list(self) -> List[str]:
         return [origin.strip() for origin in self.allowed_origins.split(",")]
 
+    # External Provider URLs
+    marker_provider_url: str = "https://e508kqibffcog4-8000.proxy.runpod.net"
+    yolo_provider_url: str = "https://7g415voh7b00k4-7002.proxy.runpod.net"
+
     # Logging
     logging_level: str = "INFO"
     log_file_enabled: bool = False

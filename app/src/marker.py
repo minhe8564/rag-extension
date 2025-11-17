@@ -65,9 +65,10 @@ except ImportError:
     logger.warning("openai not available. Image captioning will be skipped.")
 
 from app.service.minio_client import ensure_bucket, put_object_bytes
+from app.config import settings
 
-MARKER_BASE_URL = os.getenv("MARKER_BASE_URL", "https://e508kqibffcog4-8000.proxy.runpod.net")
-YOLO_BASE_URL = os.getenv("YOLO_BASE_URL", "https://7g415voh7b00k4-7002.proxy.runpod.net")
+# MARKER_BASE_URL과 YOLO_BASE_URL은 settings에서 동적으로 가져옴 (DB에서 업데이트됨)
+# 모듈 레벨 상수 대신 함수 내에서 settings를 직접 참조
 YOLO_CONF = float(os.getenv("YOLO_CONF", "0.4"))
 DPI = int(os.getenv("MARKER_DPI", "200"))
 ENABLE_CAPTIONS = os.getenv("ENABLE_CAPTIONS", "true").lower() == "true"
@@ -141,7 +142,7 @@ class Marker(BaseExtractionStrategy):
 
     def _call_marker_extract_md(self, file_path: str) -> Dict[str, Any]:
         """Marker extract-md API 호출 (PDF/비-PDF 모두 지원)"""
-        url = f"{MARKER_BASE_URL}/api/v1/marker/extract-md"
+        url = f"{settings.marker_provider_url}/api/v1/marker/extract-md"
         logger.info(f"[Marker] POST {url} | file={os.path.basename(file_path)}")
         filename = os.path.basename(file_path)
         with open(file_path, "rb") as f:
@@ -166,7 +167,7 @@ class Marker(BaseExtractionStrategy):
         if not presigned_url:
             # fallback: marker의 convert-to-pdf 사용
             try:
-                url = f"{MARKER_BASE_URL}/api/v1/marker/convert-to-pdf"
+                url = f"{settings.marker_provider_url}/api/v1/marker/convert-to-pdf"
                 filename = os.path.basename(file_path)
                 with open(file_path, "rb") as f:
                     files = {"file": (filename, f, "application/octet-stream")}
@@ -216,7 +217,7 @@ class Marker(BaseExtractionStrategy):
 
     def _call_yolo_bboxes(self, images: List[Tuple[int, np.ndarray]], conf: float = YOLO_CONF) -> List[Dict[str, Any]]:
         """YOLO 서비스 호출"""
-        url = f"{YOLO_BASE_URL}/api/v1/yolo/detect-bboxes"
+        url = f"{settings.yolo_provider_url}/api/v1/yolo/detect-bboxes"
         pages = []
         files = []
         
