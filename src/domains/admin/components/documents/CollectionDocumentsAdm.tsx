@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import clsx from 'clsx';
 import type { Collection } from '@/domains/admin/components/rag-test/types';
-import { Folder, RefreshCw } from 'lucide-react';
+import { FolderOpen, RefreshCw } from 'lucide-react';
 import UploadedFileList from '@/shared/components/file/UploadedFileList';
 
 export type DocItem = {
@@ -67,7 +67,7 @@ export default function CollectionDocumentsAdm({
       <div className="flex items-center justify-between border border-gray-200 p-4 rounded-lg">
         <div className="flex items-center gap-4">
           <div className="flex p-4 items-center justify-center rounded-lg bg-[var(--color-hebees)] text-white">
-            <Folder size={24} />
+            <FolderOpen size={24} />
           </div>
           <span className="text-xl font-semibold text-gray-900">{collection.name}</span>
         </div>

@@ -81,11 +81,10 @@ export default function CollectionTab() {
 
   return (
     <div className="flex gap-4">
-      {/* 왼쪽 1/3: ColList */}
       <div className="w-1/5 flex-shrink-0">
         <ColList onCollectionSelect={handleCollectionSelect} />
       </div>
-      {/* 오른쪽 2/3: CollectionDocuments 또는 빈 공간 */}
+
       <div className="w-4/5 flex-shrink-0">
         {selectedCollection ? (
           <CollectionDocumentsAdm

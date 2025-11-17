@@ -1,19 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import {
-  FolderOpen,
-  // FileText,
-  // ChevronLeft,
-  // ChevronRight,
-  // ChevronDown,
-  // ChevronRight as ChevronRightIcon,
-  // Trash2,
-  // Download,
-} from 'lucide-react';
+import { FolderOpen } from 'lucide-react';
 import { getCollections, getDocInCollections } from '@/domains/admin/api/documents.api';
 import type { documentDatatype } from '@/domains/admin/types/documents.types';
-// import { deleteFile, downloadFile } from '@/shared/api/file.api';
-// import { toast } from 'react-toastify';
 import type { Collection } from '@/domains/admin/components/rag-test/types';
 import type { DocItem } from '@/domains/admin/components/rag-test/CollectionDocuments';
 
