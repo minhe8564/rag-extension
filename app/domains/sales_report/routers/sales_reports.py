@@ -17,6 +17,7 @@ from app.domains.sales_report.exceptions import (
     LLMServiceError,
     RunpodNotFoundError
 )
+from app.domains.sales_report.services.llm.validators import CustomPromptValidator
 
 
 router = APIRouter(prefix="/sales-reports", tags=["sales-reports"])
@@ -25,7 +26,8 @@ router = APIRouter(prefix="/sales-reports", tags=["sales-reports"])
 @router.post("/store-summary", response_model=BaseResponse[Result[StoreSummaryData]])
 async def generate_store_summary(
     request: StoreSummaryRequest,
-    report_date: Optional[date] = Query(None, description="일별 리포트 기준일 (YYYY-MM-DD, 선택사항)"),
+    start_date: Optional[date] = Query(None, description="조회 시작일 (YYYY-MM-DD, 선택사항)"),
+    end_date: Optional[date] = Query(None, description="조회 종료일 (YYYY-MM-DD, 선택사항)"),
     skip_ai: bool = Query(True, description="AI 요약 생략 여부 (기본값: True)"),
     db: AsyncSession = Depends(get_db)
 ):
@@ -37,47 +39,70 @@ async def generate_store_summary(
 
     Args:
         request: 매장 정보와 거래 데이터를 포함한 요청 바디
-        report_date: 일별 리포트 기준일 (선택사항, 지정 시 일별 리포트 포함)
+        start_date: 조회 시작일 (선택사항)
+        end_date: 조회 종료일 (선택사항)
         skip_ai: AI 요약 생략 여부 (True: 즉시 응답, False: AI 요약 포함하여 40-50초 소요)
         db: DB 세션
 
     Returns:
-        매출 리포트 (report_date 지정 시 일별+월별, 미지정 시 월별만)
+        매출 리포트 (기간별 집계 데이터, daily_report는 최대 매출일 기준)
 
     Example Request:
-        POST /api/v1/sales-reports/store-summary?report_date=2025-10-15&skip_ai=true
+        POST /api/v1/sales-reports/store-summary?start_date=2025-10-01&end_date=2025-10-31&skip_ai=true
 
         Body:
         {
-            "info": {
-                "안경원명": "행복안경원",
-                "매장번호": "02-1234-5678",
-                "대표자명": "홍길동"
-            },
-            "data": [
-                {
-                    "판매일자": "2025-10-15",
-                    "고객명": "김철수",
-                    "카드": 150000,
-                    "현금": 0,
-                    "현금영수": 0,
-                    "상품권금액": 0,
-                    "미수금액": 0
-                }
-            ]
+            "custom_prompt": "JSON 형식으로 한국어로만 작성해주세요...",
+            "json": {
+                "info": {
+                    "안경원명": "행복안경원",
+                    "매장번호": "02-1234-5678",
+                    "대표자명": "홍길동"
+                },
+                "data": [
+                    {
+                        "판매일자": "2025-10-15",
+                        "고객명": "김철수",
+                        "카드": 150000,
+                        "현금": 0,
+                        "현금영수": 0,
+                        "상품권금액": 0,
+                        "미수금액": 0
+                    }
+                ]
+            }
         }
     """
     try:
+        # 커스텀 프롬프트 검증
+        validated_prompt = None
+
+        if request.custom_prompt:
+            level, sanitized, message = CustomPromptValidator.validate_and_sanitize(
+                request.custom_prompt
+            )
+
+            if level == "danger":
+                # 위험 패턴 감지 → 즉시 거부
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"커스텀 프롬프트 검증 실패: {message}"
+                )
+            else:  # level == "ok"
+                # 정상 → 사용
+                validated_prompt = sanitized
+
         service = StoreSummaryService(db=db)
 
         # 전달받은 데이터로 리포트 생성 (외부 API 호출 없음)
         report = await service.generate_report_from_data(
-            store_info=request.info,
-            transactions=request.data,
-            report_date=report_date,  # Query 파라미터로 받은 값 사용
-            year_month=request.year_month,
+            store_info=request.json.info,
+            transactions=request.json.data,
+            start_date=start_date,  # Query 파라미터로 받은 시작일
+            end_date=end_date,  # Query 파라미터로 받은 종료일
+            year_month=request.json.year_month,
             include_ai_summary=not skip_ai,
-            custom_prompt=request.custom_prompt  # Request Body에서 받은 커스텀 프롬프트 전달
+            custom_prompt=validated_prompt  # 검증된 프롬프트 전달
         )
 
         # BaseResponse로 감싸서 반환
@@ -138,11 +163,30 @@ async def generate_chain_summary(
 
         Body:
         {
-            "sales_history": [...],
-            "weekly_pattern": [...],
-            "hourly_pattern": [...],
-            "customer_demographics": [...],
-            "visitor_stats": [...]
+            "custom_prompt": "JSON 형식으로 한국어로만 작성해주세요...",
+            "json": {
+                "info": {
+                    "안경원명": "히비스 안경원",
+                    "매장번호": "02-1234-1234",
+                    "대표자명": "김안경"
+                },
+                "sales": {
+                    "name": "작년부터 지난달까지",
+                    "data": [...]
+                },
+                "week": {
+                    "name": "지난달 일~토",
+                    "data": [...]
+                },
+                "customer": {
+                    "name": "3개월 고객 연령대,신규/재방문",
+                    "data": [...]
+                },
+                "product": {
+                    "name": "지난달 브랜드,상품구분별 상품정보",
+                    "data": [...]
+                }
+            }
         }
     """
     try:
@@ -150,11 +194,11 @@ async def generate_chain_summary(
 
         # 체인 매출 분석 생성
         analysis = await service.generate_chain_analysis(
-            info=request.info.model_dump(),
-            sales_data=request.sales.data,
-            week_data=request.week.data,
-            customer_data=request.customer.data,
-            product_data=request.product.data,
+            info=request.json.info.model_dump(),
+            sales_data=request.json.sales.data,
+            week_data=request.json.week.data,
+            customer_data=request.json.customer.data,
+            product_data=request.json.product.data,
             include_ai_insights=not skip_ai,
             custom_prompt=request.custom_prompt  # Request Body에서 받은 커스텀 프롬프트 전달
         )
