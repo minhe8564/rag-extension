@@ -24,6 +24,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -119,6 +122,16 @@ public class AnthropicChatClient implements LlmChatClient {
                 throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
             }
             return parseResponse(response.getBody());
+        } catch (HttpStatusCodeException e) {
+            logHttpStatusException(e);
+            HttpStatusCode status = e.getStatusCode();
+            if (status.value() == HttpStatus.TOO_MANY_REQUESTS.value() || status.is5xxServerError()) {
+                throw new BusinessException(ErrorCode.SERVICE_UNAVAILABLE);
+            }
+            if (status.is4xxClientError()) {
+                throw new BusinessException(ErrorCode.BAD_REQUEST);
+            }
+            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
         } catch (RestClientException | JsonProcessingException e) {
             log.error("Anthropic API 호출 실패", e);
             throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
@@ -197,6 +210,11 @@ public class AnthropicChatClient implements LlmChatClient {
         }
 
         return new LlmChatResult("assistant", text, inputTokens, outputTokens, totalTokens, null);
+    }
+
+    private void logHttpStatusException(HttpStatusCodeException e) {
+        log.warn("Anthropic API 오류 응답: status={}, body={}", e.getStatusCode(),
+            e.getResponseBodyAsString());
     }
 
     private String extractSystemPrompt(List<LlmChatMessage> messages) {

@@ -40,6 +40,7 @@ public enum ErrorCode {
     USER_ROLE_IN_USE(HttpStatus.CONFLICT, "사용 중인 사용자 역할은 삭제할 수 없습니다"),
 
     // 서버 오류 (500)
+    SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "외부 서비스가 일시적으로 응답하지 않습니다. 잠시 후 다시 시도해주세요."),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 내부 오류가 발생했습니다");
 
     private final HttpStatus status;

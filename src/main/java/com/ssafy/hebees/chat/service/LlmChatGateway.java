@@ -98,13 +98,18 @@ public class LlmChatGateway {
         long startedAt = System.nanoTime();
         LlmChatResult result;
         LlmChatClient client = context.client();
-        if (client instanceof StreamingLlmChatClient streamingClient) {
-            result = streamingClient.stream(context.request(), onPartial);
-        } else {
-            result = client.chat(context.request());
-            if (result != null && StringUtils.hasText(result.content()) && onPartial != null) {
-                onPartial.accept(result.content());
+        try {
+            if (client instanceof StreamingLlmChatClient streamingClient) {
+                result = streamingClient.stream(context.request(), onPartial);
+            } else {
+                result = client.chat(context.request());
+                if (result != null && StringUtils.hasText(result.content()) && onPartial != null) {
+                    onPartial.accept(result.content());
+                }
             }
+        } catch (Exception ex) {
+            logInvocationFailure(context, ex);
+            throw ex;
         }
         long responseTimeMs = Duration.ofNanos(System.nanoTime() - startedAt).toMillis();
 
@@ -264,7 +269,13 @@ public class LlmChatGateway {
     ) {
         InvocationContext context = prepareInvocation(strategyNo, messages, apiKeyResolver);
         long startedAt = System.nanoTime();
-        LlmChatResult result = context.client().chat(context.request());
+        LlmChatResult result;
+        try {
+            result = context.client().chat(context.request());
+        } catch (Exception ex) {
+            logInvocationFailure(context, ex);
+            throw ex;
+        }
         long responseTimeMs = Duration.ofNanos(System.nanoTime() - startedAt).toMillis();
 
         if (result == null || !StringUtils.hasText(result.content())) {
@@ -282,6 +293,16 @@ public class LlmChatGateway {
             result.totalTokens(),
             responseTimeMs
         );
+    }
+
+    private void logInvocationFailure(InvocationContext context, Exception ex) {
+        Strategy strategy = context.strategy();
+        log.error("LLM 호출 실패 - provider={}, strategyNo={}, strategyCode={}, strategyName={}",
+            context.provider(),
+            strategy != null ? strategy.getStrategyNo() : null,
+            strategy != null ? strategy.getCode() : null,
+            strategy != null ? strategy.getName() : null,
+            ex);
     }
 
     private InvocationContext prepareInvocation(
