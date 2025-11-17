@@ -24,7 +24,8 @@ class QueryService:
         Query 요청 처리 V2 
         - userNo로 OFFER_NO, ROLE 조회
         - ROLE에 따라 컬렉션명 생성 (USER: h{offerNo}_{version}, ADMIN: publicRetina_{version})
-        - QUERY_GROUP에서 IS_DEFAULT=TRUE 파라미터 로드
+        - QUERY_GROUP에서 IS_DEFAULT=TRUE 파라미터 로드 (retrieval, reranking, prompting)
+        - STRATEGY 테이블에서 LLM_NO로 generation_parameter 로드
         - query-embedding -> search (필요시 public 파티션 추가 검색) -> cross-encoder -> generation(ollama)
         - generation 호출 시 sessionNo/userNo/llmNo 전달 (Mongo 저장 메타)
         """
@@ -76,12 +77,11 @@ class QueryService:
 
         logger.info("Resolved collection(s): primary={}, public={}", collection_name, public_collection_name)
 
-        # 2) QUERY_GROUP에서 기본 파라미터 로드
+        # 2) QUERY_GROUP에서 기본 파라미터 로드 (generation 제외)
         qg_stmt = text(
             "SELECT "
             "`RETRIEVAL_PARAMETER` AS retrieval, "
             "`RERANKING_PARAMETER` AS reranking, "
-            "`GENERATION_PARAMETER` AS generation, "
             "`USER_PROMPTING_PARAMETER` AS user_prompting, "
             "`SYSTEM_PROMPTING_PARAMETER` AS system_prompting "
             "FROM `QUERY_GROUP` WHERE `IS_DEFAULT` = TRUE ORDER BY `CREATED_AT` DESC LIMIT 1"
@@ -98,9 +98,27 @@ class QueryService:
                 return {}
         retrieval_param = _parse_json(getattr(qg_row, "retrieval", None) if qg_row else None)
         reranking_param = _parse_json(getattr(qg_row, "reranking", None) if qg_row else None)
-        generation_param = _parse_json(getattr(qg_row, "generation", None) if qg_row else None)
         user_prompting_param = _parse_json(getattr(qg_row, "user_prompting", None) if qg_row else None)
         system_prompting_param = _parse_json(getattr(qg_row, "system_prompting", None) if qg_row else None)
+        
+        # 2-1) STRATEGY 테이블에서 LLM_NO로 generation_parameter 가져오기
+        generation_param = {}
+        if request.llmNo:
+            try:
+                strategy_stmt = text(
+                    "SELECT `PARAMETER` AS parameter "
+                    "FROM `STRATEGY` WHERE `STRATEGY_NO` = UUID_TO_BIN(:llm_no) LIMIT 1"
+                )
+                strategy_res = await db.execute(strategy_stmt, {"llm_no": request.llmNo})
+                strategy_row = strategy_res.first()
+                if strategy_row:
+                    generation_param = _parse_json(getattr(strategy_row, "parameter", None))
+                    logger.info("Loaded generation parameter from STRATEGY table for llmNo: {}", request.llmNo)
+                else:
+                    logger.warning("STRATEGY not found for llmNo: {}, using defaults", request.llmNo)
+            except Exception as e:
+                logger.error(f"Failed to load generation parameter from STRATEGY: {e}", exc_info=True)
+                logger.warning("Using default generation parameters")
 
         retrieval_strategy = (retrieval_param.get("type") or "basic").strip()
         reranking_strategy = (reranking_param.get("type") or "crossEncoder").strip()
@@ -230,6 +248,8 @@ class QueryService:
         """
         Query 요청 처리 V2 (스트리밍 버전)
         - process_query_v2와 동일하지만 generation을 스트리밍으로 호출
+        - QUERY_GROUP에서 기본 파라미터 로드 (retrieval, reranking, prompting)
+        - STRATEGY 테이블에서 LLM_NO로 generation_parameter 로드
         """
         logger.info("Starting query pipeline V2 (stream) for query: {}", request.query)
 
@@ -278,12 +298,11 @@ class QueryService:
 
         logger.info("Resolved collection(s): primary={}, public={}", collection_name, public_collection_name)
 
-        # 2) QUERY_GROUP에서 기본 파라미터 로드
+        # 2) QUERY_GROUP에서 기본 파라미터 로드 (generation 제외)
         qg_stmt = text(
             "SELECT "
             "`RETRIEVAL_PARAMETER` AS retrieval, "
             "`RERANKING_PARAMETER` AS reranking, "
-            "`GENERATION_PARAMETER` AS generation, "
             "`USER_PROMPTING_PARAMETER` AS user_prompting, "
             "`SYSTEM_PROMPTING_PARAMETER` AS system_prompting "
             "FROM `QUERY_GROUP` WHERE `IS_DEFAULT` = TRUE ORDER BY `CREATED_AT` DESC LIMIT 1"
@@ -300,9 +319,27 @@ class QueryService:
                 return {}
         retrieval_param = _parse_json(getattr(qg_row, "retrieval", None) if qg_row else None)
         reranking_param = _parse_json(getattr(qg_row, "reranking", None) if qg_row else None)
-        generation_param = _parse_json(getattr(qg_row, "generation", None) if qg_row else None)
         user_prompting_param = _parse_json(getattr(qg_row, "user_prompting", None) if qg_row else None)
         system_prompting_param = _parse_json(getattr(qg_row, "system_prompting", None) if qg_row else None)
+        
+        # 2-1) STRATEGY 테이블에서 LLM_NO로 generation_parameter 가져오기
+        generation_param = {}
+        if request.llmNo:
+            try:
+                strategy_stmt = text(
+                    "SELECT `PARAMETER` AS parameter "
+                    "FROM `STRATEGY` WHERE `STRATEGY_NO` = UUID_TO_BIN(:llm_no) LIMIT 1"
+                )
+                strategy_res = await db.execute(strategy_stmt, {"llm_no": request.llmNo})
+                strategy_row = strategy_res.first()
+                if strategy_row:
+                    generation_param = _parse_json(getattr(strategy_row, "parameter", None))
+                    logger.info("Loaded generation parameter from STRATEGY table for llmNo: {}", request.llmNo)
+                else:
+                    logger.warning("STRATEGY not found for llmNo: {}, using defaults", request.llmNo)
+            except Exception as e:
+                logger.error(f"Failed to load generation parameter from STRATEGY: {e}", exc_info=True)
+                logger.warning("Using default generation parameters")
 
         retrieval_strategy = (retrieval_param.get("type") or "basic").strip()
         reranking_strategy = (reranking_param.get("type") or "crossEncoder").strip()
