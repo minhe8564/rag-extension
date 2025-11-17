@@ -282,6 +282,36 @@ class GatewayClient:
             )
             response.raise_for_status()
             return response.json()
+    
+    async def request_generation_stream(
+        self,
+        query: str,
+        retrieved_chunks: List[Dict[str, Any]],
+        strategy: str,
+        parameters: dict,
+        extra_headers: Dict[str, Any] = None
+    ):
+        """Generation 컨테이너로 스트리밍 요청 - 서비스 간 직접 통신"""
+        logger.debug(f"POST {self.generation_direct_url}/stream | generationStrategy={strategy} (streaming)")
+        stream_url = f"{self.generation_direct_url}/stream"
+        headers = {k: v for k, v in (extra_headers or {}).items() if v}
+        headers["Accept"] = "text/event-stream"
+        
+        async with httpx.AsyncClient(timeout=httpx.Timeout(connect=30.0, read=None, write=120.0, pool=30.0)) as client:
+            async with client.stream(
+                "POST",
+                stream_url,
+                headers=headers,
+                json={
+                    "query": query,
+                    "retrievedChunks": retrieved_chunks,
+                    "generationStrategy": strategy,
+                    "generationParameter": parameters
+                }
+            ) as response:
+                response.raise_for_status()
+                async for chunk in response.aiter_bytes():
+                    yield chunk
 
     async def upload_files(self, files: list) -> Dict[Any, Any]:
         """게이트웨이를 통해 파일 컨테이너로 전송하여 MinIO에 업로드하고 파일 ID 반환"""
