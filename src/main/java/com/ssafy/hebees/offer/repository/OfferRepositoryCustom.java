@@ -25,4 +25,3 @@ public interface OfferRepositoryCustom {
      */
     boolean existsByBusinessNoWithQueryDSL(String businessNo);
 }
-

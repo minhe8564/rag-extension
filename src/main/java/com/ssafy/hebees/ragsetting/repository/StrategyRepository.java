@@ -1,7 +1,6 @@
 package com.ssafy.hebees.ragsetting.repository;
 
 import com.ssafy.hebees.ragsetting.entity.Strategy;
-import com.ssafy.hebees.ragsetting.entity.StrategyType;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -15,4 +14,5 @@ public interface StrategyRepository extends JpaRepository<Strategy, UUID> {
 
     Optional<Strategy> findByNameAndCodeStartingWith(String name, String code);
 
+    List<Strategy> findByCodeStartingWith(String code);
 }

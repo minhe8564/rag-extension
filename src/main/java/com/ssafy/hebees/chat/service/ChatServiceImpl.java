@@ -13,7 +13,7 @@ import com.ssafy.hebees.common.dto.PageRequest;
 import com.ssafy.hebees.common.dto.PageResponse;
 import com.ssafy.hebees.common.exception.BusinessException;
 import com.ssafy.hebees.common.exception.ErrorCode;
-import com.ssafy.hebees.common.util.UserValidationUtil;
+import com.ssafy.hebees.common.util.ValidationUtil;
 import com.ssafy.hebees.ragsetting.entity.QueryGroup;
 import com.ssafy.hebees.ragsetting.entity.Strategy;
 import com.ssafy.hebees.ragsetting.repository.QueryGroupRepository;
@@ -46,7 +46,7 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     public ListResponse<SessionResponse> getSessions(UUID userNo, SessionSearchRequest request) {
-        UUID owner = UserValidationUtil.requireUser(userNo);
+        UUID owner = ValidationUtil.require(userNo);
 
         String keyword = request.query() != null ? request.query().strip() : null;
 
@@ -110,7 +110,7 @@ public class ChatServiceImpl implements ChatService {
             title = title.strip();
         }
 
-        UUID owner = UserValidationUtil.requireUser(userNo);
+        UUID owner = ValidationUtil.require(userNo);
 
         String llmInput = request.llm();
         UUID llmNo;
@@ -184,7 +184,7 @@ public class ChatServiceImpl implements ChatService {
     }
 
     private Session getOwnedSession(UUID userNo, UUID sessionNo) {
-        UUID owner = UserValidationUtil.requireUser(userNo);
+        UUID owner = ValidationUtil.require(userNo);
         UUID id = requireSessionNo(sessionNo);
 
         Session session = sessionRepository.findBySessionNo(id)

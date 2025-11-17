@@ -21,10 +21,10 @@ public record TrendKeywordListRequest(
     public static final int DEFAULT_TOP_K = 50;
 
     public TrendKeywordListRequest {
-        if (scale == null) {
+        if (scale == null || scale < 1) {
             scale = DEFAULT_SCALE;
         }
-        if (topK == null) {
+        if (topK == null || topK < 1) {
             topK = DEFAULT_TOP_K;
         }
     }

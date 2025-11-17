@@ -9,10 +9,10 @@ import com.ssafy.hebees.chat.dto.response.MessageResponse;
 import com.ssafy.hebees.chat.entity.MessageRole;
 import com.ssafy.hebees.chat.entity.Session;
 import com.ssafy.hebees.chat.repository.SessionRepository;
-import com.ssafy.hebees.common.util.ValidationUtil;
 import com.ssafy.hebees.common.exception.BusinessException;
 import com.ssafy.hebees.common.exception.ErrorCode;
-import com.ssafy.hebees.ragsetting.entity.Strategy;
+import com.ssafy.hebees.common.util.ValidationUtil;
+import com.ssafy.hebees.dashboard.service.GenerationHistoryStreamPublisher;
 import com.ssafy.hebees.ragsetting.repository.StrategyRepository;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -34,6 +34,7 @@ public class ChatAskServiceImpl implements ChatAskService {
     private final MessageService messageService;
     private final LlmChatGateway llmChatGateway;
     private final StrategyRepository strategyRepository;
+    private final GenerationHistoryStreamPublisher generationHistoryStreamPublisher;
 
     @Override
     public AskResponse ask(UUID userNo, UUID sessionNo, AskRequest request) {
@@ -51,6 +52,8 @@ public class ChatAskServiceImpl implements ChatAskService {
         }
 
         session.updateLastRequestedAt(LocalDateTime.now());
+
+        generationHistoryStreamPublisher.publishQuery(userNo, sessionNo, sanitizedQuery);
 
         // 사용자 메시지 저장
         messageService.createMessage(sessionNo,
@@ -71,17 +74,47 @@ public class ChatAskServiceImpl implements ChatAskService {
         }
 
         UUID llmNo = request.llmNo();
-        if(StringUtils.hasText(request.model())){
+        if (StringUtils.hasText(request.model())) {
             llmNo = strategyRepository.findByNameAndCodeStartingWith(request.model(), "GEN")
-                .orElseThrow(()->new BusinessException(ErrorCode.BAD_REQUEST)).getStrategyNo();
+                .orElseThrow(() -> new BusinessException(ErrorCode.BAD_REQUEST)).getStrategyNo();
         }
 
-        LlmChatResult llmResult = llmChatGateway.chat(userNo, llmNo, llmMessages);
+        LlmChatResult llmResult;
+        try {
+            llmResult = llmChatGateway.chat(userNo, llmNo, llmMessages);
+        } catch (BusinessException e) {
+            generationHistoryStreamPublisher.publishError(
+                userNo,
+                sessionNo,
+                llmNo,
+                sanitizedQuery,
+                e.getErrorCode(),
+                e
+            );
+            throw e;
+        } catch (RuntimeException e) {
+            generationHistoryStreamPublisher.publishError(
+                userNo,
+                sessionNo,
+                llmNo,
+                sanitizedQuery,
+                ErrorCode.INTERNAL_SERVER_ERROR,
+                e
+            );
+            throw e;
+        }
         String answer = Optional.ofNullable(llmResult.content()).orElse("");
+
+        generationHistoryStreamPublisher.publishMetrics(
+            userNo,
+            sessionNo,
+            llmNo,
+            llmResult
+        );
 
         MessageResponse aiMessage = messageService.createMessage(sessionNo,
             buildAiMessage(
-                request.llmNo(),
+                llmNo,
                 answer,
                 llmResult.inputTokens(),
                 llmResult.outputTokens(),

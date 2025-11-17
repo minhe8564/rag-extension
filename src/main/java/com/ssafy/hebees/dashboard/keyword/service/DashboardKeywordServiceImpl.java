@@ -2,27 +2,30 @@ package com.ssafy.hebees.dashboard.keyword.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.ssafy.hebees.chat.client.RunpodClient;
-import com.ssafy.hebees.chat.client.dto.RunpodChatMessage;
-import com.ssafy.hebees.chat.client.dto.RunpodChatResult;
-import com.ssafy.hebees.dashboard.keyword.dto.request.TrendKeywordCreateRequest;
-import com.ssafy.hebees.dashboard.keyword.dto.request.TrendKeywordListRequest;
+import com.ssafy.hebees.agentPrompt.entity.AgentPrompt;
+import com.ssafy.hebees.agentPrompt.repository.AgentPromptRepository;
+import com.ssafy.hebees.chat.client.dto.LlmChatMessage;
+import com.ssafy.hebees.chat.client.dto.LlmChatResult;
+import com.ssafy.hebees.chat.service.LlmChatGateway;
+import com.ssafy.hebees.common.exception.BusinessException;
+import com.ssafy.hebees.common.exception.ErrorCode;
 import com.ssafy.hebees.dashboard.dto.response.Timeframe;
-import com.ssafy.hebees.dashboard.keyword.dto.response.TrendKeywordListResponse.TrendKeyword;
-import com.ssafy.hebees.dashboard.keyword.dto.response.TrendKeywordCreateResponse;
+import com.ssafy.hebees.dashboard.keyword.dto.request.TrendKeywordListRequest;
+import com.ssafy.hebees.dashboard.keyword.dto.request.TrendKeywordRegisterRequest;
 import com.ssafy.hebees.dashboard.keyword.dto.response.TrendKeywordListResponse;
-import com.ssafy.hebees.dashboard.entity.KeywordAggregateDaily;
+import com.ssafy.hebees.dashboard.keyword.dto.response.TrendKeywordListResponse.TrendKeyword;
+import com.ssafy.hebees.dashboard.keyword.dto.response.TrendKeywordRegisterResponse;
+import com.ssafy.hebees.dashboard.keyword.entity.KeywordAggregateDaily;
 import com.ssafy.hebees.dashboard.keyword.repository.KeywordAggregateDailyRepository;
-import com.ssafy.hebees.ragsetting.entity.AgentPrompt;
-import com.ssafy.hebees.ragsetting.repository.AgentPromptRepository;
+import com.ssafy.hebees.ragsetting.entity.Strategy;
+import com.ssafy.hebees.ragsetting.repository.StrategyRepository;
+import jakarta.annotation.PostConstruct;
 import java.time.LocalDate;
-import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -32,21 +35,39 @@ import org.springframework.util.StringUtils;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
+@Transactional()
 public class DashboardKeywordServiceImpl implements DashboardKeywordService {
 
+    private static final String KEYWORD_STRATEGY_NAME = "GPT-4o";
+    private static final String KEYWORD_STRATEGY_CODE_PREFIX = "GEN";
+
     private final KeywordAggregateDailyRepository keywordAggregateDailyRepository;
-    private final RunpodClient runpodClient;
-    private final ObjectMapper objectMapper;
+    private final LlmChatGateway llmChatGateway;
     private final AgentPromptRepository agentPromptRepository;
+    private final StrategyRepository strategyRepository;
+    private final ObjectMapper objectMapper;
+
+    private UUID keywordStrategyNo;
+
+    @PostConstruct
+    public void initKeywordStrategyNo() {
+        keywordStrategyNo = strategyRepository.findByNameAndCodeStartingWith(
+                KEYWORD_STRATEGY_NAME,
+                KEYWORD_STRATEGY_CODE_PREFIX
+            )
+            .map(Strategy::getStrategyNo)
+            .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
+    }
+
 
     @Override
-    public TrendKeywordListResponse getTrendKeywords(TrendKeywordListRequest request) {
+    @Transactional(readOnly = true)
+    public TrendKeywordListResponse getKeywords(TrendKeywordListRequest request) {
         LocalDate end = LocalDate.now();
         LocalDate start = end.minusDays(request.scale() - 1);
 
-        List<TrendKeyword> topKeywords = keywordAggregateDailyRepository.sumTopKeywords(start, end,
-            request.topK());
+        List<TrendKeyword> topKeywords = keywordAggregateDailyRepository
+            .sumTopKeywords(start, end, request.topK());
 
         if (topKeywords.isEmpty()) {
             return new TrendKeywordListResponse(new Timeframe(start, end), List.of());
@@ -57,8 +78,11 @@ public class DashboardKeywordServiceImpl implements DashboardKeywordService {
         long diff = Math.max(1, max - min);
 
         List<TrendKeyword> normalized = topKeywords.stream()
-            .map(keyword -> new TrendKeyword(keyword.text(), keyword.count(),
-                (float) (keyword.count() - min) / diff))
+            .map(keyword -> new TrendKeyword(
+                keyword.text(),
+                keyword.count(),
+                (float) (keyword.count() - min) / diff
+            ))
             .toList();
 
         return new TrendKeywordListResponse(new Timeframe(start, end), normalized);
@@ -66,27 +90,25 @@ public class DashboardKeywordServiceImpl implements DashboardKeywordService {
 
     @Override
     @Transactional
-    public TrendKeywordCreateResponse recordTrendKeywords(TrendKeywordCreateRequest request) {
+    public TrendKeywordRegisterResponse registerKeywords(TrendKeywordRegisterRequest request) {
         String query = request.query();
         if (!StringUtils.hasText(query)) {
-            return TrendKeywordCreateResponse.of(List.of());
+            return toResponse(List.of());
         }
 
         LocalDate today = LocalDate.now();
         Set<String> extracted = extractKeywords(query);
         Set<String> normalizedKeywords = new LinkedHashSet<>();
 
+        // 키워드 추출에 성공하면 키워드를 그렇지 않다면 쿼리를 등록
         if (extracted.isEmpty()) {
-            String fallback = normalizeKeyword(query);
-            if (StringUtils.hasText(fallback)) {
-                normalizedKeywords.add(fallback);
-            }
-        } else {
-            for (String raw : extracted) {
-                String keyword = normalizeKeyword(raw);
-                if (StringUtils.hasText(keyword)) {
-                    normalizedKeywords.add(keyword);
-                }
+            extracted.add(query);
+        }
+
+        for (String raw : extracted) {
+            String keyword = normalizeKeyword(raw);
+            if (StringUtils.hasText(keyword)) {
+                normalizedKeywords.add(keyword);
             }
         }
 
@@ -106,29 +128,29 @@ public class DashboardKeywordServiceImpl implements DashboardKeywordService {
                 );
         }
 
-        return TrendKeywordCreateResponse.of(List.copyOf(normalizedKeywords));
+        return toResponse(List.copyOf(normalizedKeywords));
     }
 
     private Set<String> extractKeywords(String query) {
-        String prompt = "You are a Korean keyword extractor. Read the user's sentence and return only the core keywords in a JSON array with 1 to 7 items. Example: [\"keyword1\", \"keyword2\"]. Do not include any unnecessary explanations.";
-
-        AgentPrompt agentPrompt = agentPromptRepository.findByName("KeywordExtraction")
-            .orElse(null);
-        if (agentPrompt != null && StringUtils.hasText(agentPrompt.getContent())) {
-            prompt = agentPrompt.getContent();
-        }
+        String prompt = agentPromptRepository.findByName("KeywordExtraction")
+            .map(AgentPrompt::getContent)
+            .orElse(
+                "You are a Korean keyword extractor. Read the user's sentence and return only the core keywords as a comma-separated list (CSV) with 1 to 7 items. Example: keyword1, keyword2. Do not include any explanations, numbering, or additional text.");
 
         try {
-            RunpodChatResult result = runpodClient.chat(List.of(
-                RunpodChatMessage.of("system", prompt),
-                RunpodChatMessage.of("user", query)
-            ));
-
+            UUID llmNo = keywordStrategyNo;
+            LlmChatResult result = llmChatGateway
+                .chatWithSystem(llmNo,
+                    List.of(
+                        new LlmChatMessage("system", prompt),
+                        new LlmChatMessage("user", query)
+                    )
+                );
             String content = result != null ? result.content() : null;
             log.info("키워드 추출 에이전트 답변: content={}", content);
             return parseKeywordContent(content);
         } catch (Exception e) {
-            log.warn("Runpod 키워드 추출 실패: {}", e.getMessage());
+            log.warn("LLM 키워드 추출 실패: {}", e.getMessage());
             return Set.of();
         }
     }
@@ -139,6 +161,7 @@ public class DashboardKeywordServiceImpl implements DashboardKeywordService {
         }
 
         String trimmed = content.trim();
+
         try {
             JsonNode node = objectMapper.readTree(trimmed);
             if (node.isArray()) {
@@ -153,17 +176,11 @@ public class DashboardKeywordServiceImpl implements DashboardKeywordService {
                 }
                 return keywords;
             }
-        } catch (Exception ignored) {
-            // fall through to heuristic parsing
+        } catch (Exception e) {
+            log.warn("키워드 JSON 파싱 실패: {}", e.getMessage());
         }
 
-        String normalized = trimmed.replaceAll("[\\[\\]\"']", "");
-        Set<String> keywords = Arrays.stream(normalized.split("[\\n,]"))
-            .map(this::normalizeKeyword)
-            .filter(StringUtils::hasText)
-            .collect(Collectors.toCollection(LinkedHashSet::new));
-
-        return keywords;
+        return Set.of();
     }
 
     private String normalizeKeyword(String keyword) {
@@ -177,6 +194,7 @@ public class DashboardKeywordServiceImpl implements DashboardKeywordService {
         return trimmed;
     }
 
+    private static TrendKeywordRegisterResponse toResponse(List<String> keywords) {
+        return new TrendKeywordRegisterResponse(keywords);
+    }
 }
-
-
