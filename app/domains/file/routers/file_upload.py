@@ -13,7 +13,7 @@ from ..schemas.response.upload_files import FileUploadBatchResult
 from ..services.call_ingest import call_ingest
 from ..schemas.request.upload_files import FileUploadRequest
 from ..services.upload import upload_files as upload_files_service
-from app.core.clients.redis_client import get_redis_client
+from app.core.clients.redis_client import get_redis_client, get_metrics_redis_client
 from app.core.config.settings import settings
 from importlib import import_module
 
@@ -83,6 +83,39 @@ async def upload_file(
     except Exception:
         logger.exception("Upload failed")
         raise
+
+    # 업로드 메트릭 이벤트를 Redis (DB 8) 스트림에 기록
+    try:
+        metrics_redis = get_metrics_redis_client()
+    except Exception:
+        metrics_redis = None
+        logger.exception("Failed to get metrics Redis client")
+
+    if metrics_redis is not None:
+        now_iso = datetime.now(timezone.utc).isoformat()
+        now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+        try:
+            for idx, uploaded in enumerate(batch_meta.files):
+                await metrics_redis.xadd(
+                    UPLOAD_STREAM_KEY,
+                    fields={
+                        "eventType": "UPLOAD",
+                        "userId": x_user_uuid,
+                        "role": role_upper,
+                        "fileNo": str(uploaded.fileNo),
+                        "fileName": uploaded.fileName,
+                        "fileCategory": str(request.category or ""),
+                        "bucket": batch_meta.bucket or "",
+                        "size": str(file_sizes[idx]),
+                        "autoIngest": "true" if autoIngest else "false",
+                        "uploadedAt": now_iso,
+                        "ts": str(now_ms),
+                    },
+                    maxlen=2000,
+                    approximate=True,
+                )
+        except Exception:
+            logger.exception("Failed to publish upload event to Redis stream")
 
     # ingest 옵션이 true일 때만 수행
     if autoIngest:
