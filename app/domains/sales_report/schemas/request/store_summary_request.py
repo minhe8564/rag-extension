@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field, model_validator
 from typing import List, Any, Optional
 from datetime import datetime
 from ...constants import DEFAULT_STORE_SUMMARY_PROMPT
+from ...constants import DEFAULT_STORE_SUMMARY_PROMPT
 
 
 class StoreInfoRequest(BaseModel):
@@ -29,10 +30,10 @@ class TransactionRequest(BaseModel):
         extra = "allow"  # 추가 필드 허용
 
 
-class StoreSummaryRequest(BaseModel):
+class StoreSummaryDataRequest(BaseModel):
     """
-    개별 안경원 매출 요약 리포트 생성 요청 스키마
-
+    매출 데이터 요청 스키마 (info와 data를 포함)
+    
     AdminSchool API에서 가져온 전체 데이터를 그대로 전달
     year_month가 없으면 data 배열의 첫 번째 거래 날짜에서 자동 추출
     """
@@ -79,37 +80,52 @@ class StoreSummaryRequest(BaseModel):
 
         return self
 
+
+class StoreSummaryRequest(BaseModel):
+    """
+    개별 안경원 매출 요약 리포트 생성 요청 스키마
+
+    custom_prompt와 json을 포함하는 최상위 요청 구조
+    """
+    custom_prompt: Optional[str] = Field(
+        default=None,
+        description="AI 요약 생성을 위한 커스텀 프롬프트 (선택사항). 미입력 시 기본 프롬프트 사용"
+    )
+    json: StoreSummaryDataRequest = Field(..., description="매장 정보와 거래 데이터를 포함한 데이터 객체")
+
     class Config:
         json_schema_extra = {
             "example": {
-                "info": {
-                    "store_name": "행복안경원",
-                    "store_phone": "02-1234-5678",
-                    "owner_name": "홍길동"
-                },
-                "data": [
-                    {
-                        "거래일시": "2024-11-01 10:30:00",
-                        "고객명": "김철수",
-                        "카드": 150000,
-                        "현금": 0,
-                        "현금영수": 0,
-                        "상품권금액": 0,
-                        "미수금": 0,
-                        "고객연락처": "010-1234-5678"
+                "custom_prompt": DEFAULT_STORE_SUMMARY_PROMPT,
+                "json": {
+                    "info": {
+                        "안경원명": "행복안경원",
+                        "매장번호": "02-1234-5678",
+                        "대표자명": "홍길동"
                     },
-                    {
-                        "거래일시": "2024-11-02 14:20:00",
-                        "고객명": "이영희",
-                        "카드": 0,
-                        "현금": 200000,
-                        "현금영수": 200000,
-                        "상품권금액": 0,
-                        "미수금": 0,
-                        "고객연락처": "010-9876-5432"
-                    }
-                ],
-                "year_month": "2024-11",
-                "custom_prompt": DEFAULT_STORE_SUMMARY_PROMPT
+                    "data": [
+                        {
+                            "거래일시": "2024-11-01 10:30:00",
+                            "고객명": "김철수",
+                            "카드": 150000,
+                            "현금": 0,
+                            "현금영수": 0,
+                            "상품권금액": 0,
+                            "미수금": 0,
+                            "고객연락처": "010-1234-5678"
+                        },
+                        {
+                            "거래일시": "2024-11-02 14:20:00",
+                            "고객명": "이영희",
+                            "카드": 0,
+                            "현금": 200000,
+                            "현금영수": 200000,
+                            "상품권금액": 0,
+                            "미수금": 0,
+                            "고객연락처": "010-9876-5432"
+                        }
+                    ],
+                    "year_month": "2024-11"
+                }
             }
         }

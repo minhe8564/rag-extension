@@ -14,8 +14,9 @@ logger = logging.getLogger(__name__)
 class QwenLLMProvider(BaseLLMProvider):
     """Qwen3 (Ollama) LLM 제공자
 
-    기존 StoreLLMClient, ChainLLMClient 코드를 그대로 이관하여
-    Qwen 기반 AI 요약 생성 기능 제공
+    템플릿 메서드 패턴 준수:
+    - 베이스 클래스의 generate_store_summary() 사용
+    - Qwen 전용 구현만 제공 (프롬프트 템플릿, API 호출)
     """
 
     def __init__(self, base_url: str):
@@ -28,7 +29,11 @@ class QwenLLMProvider(BaseLLMProvider):
         self.timeout = 120.0  # LLM 응답은 시간이 걸릴 수 있음
         self.model = "qwen3-vl:8b"
 
-    async def generate_store_summary(
+    # ==========================================
+    # 추상 메서드 구현 (Qwen 전용)
+    # ==========================================
+
+    def _create_default_store_prompt(
         self,
         store_name: str,
         total_sales: Decimal,
@@ -37,89 +42,41 @@ class QwenLLMProvider(BaseLLMProvider):
         returning_customer_rate: Decimal,
         new_customers_count: int,
         avg_transaction_amount: Decimal,
-        total_receivables: Decimal,
-        top_customers: list,
         peak_sales_date: str,
         peak_sales_amount: Decimal,
-        custom_prompt: Optional[str] = None
-    ) -> Dict:
-        """매장 요약 생성 (기존 StoreLLMClient.generate_sales_summary 로직)"""
+        period: Optional[str] = None
+    ) -> str:
+        """Qwen 스타일 기본 프롬프트 (기존 _create_store_prompt)"""
+        return self._create_store_prompt(
+            store_name, total_sales, payment_breakdown,
+            cash_receipt_amount, returning_customer_rate,
+            new_customers_count, avg_transaction_amount,
+            peak_sales_date, peak_sales_amount, period
+        )
 
-        # 프롬프트 생성 (커스텀 프롬프트 우선, 없으면 기본 프롬프트)
-        if custom_prompt:
-            prompt = self._create_custom_store_prompt(
-                custom_prompt, store_name, total_sales, payment_breakdown,
-                cash_receipt_amount, returning_customer_rate,
-                new_customers_count, avg_transaction_amount,
-                total_receivables, top_customers,
-                peak_sales_date, peak_sales_amount
-            )
-        else:
-            prompt = self._create_store_prompt(
-                store_name, total_sales, payment_breakdown,
-                cash_receipt_amount, returning_customer_rate,
-                new_customers_count, avg_transaction_amount,
-                total_receivables, top_customers,
-                peak_sales_date, peak_sales_amount
-            )
-
-        # LLM API 호출
-        try:
-            response_text = await self._call_ollama_api(prompt)
-            insights = self._parse_insights(response_text)
-            return insights
-        except Exception as e:
-            error_type = type(e).__name__
-            error_msg = str(e) if str(e) else "알 수 없는 오류"
-            logger.error(f"Qwen 매장 요약 생성 실패 [{error_type}]: {error_msg}", exc_info=True)
-            return {
-                "sales_summary": f"AI 요약 생성에 실패했습니다 ({error_type}: {error_msg})",
-                "sales_strategies": ["데이터를 분석하여 전략을 수립해주세요."],
-                "marketing_strategies": ["고객 데이터를 기반으로 마케팅을 계획해주세요."]
-            }
-
-    async def generate_chain_insights(
+    def _create_default_chain_prompt(
         self,
         analysis_period,
         store_performance,
         product_insights,
         time_patterns,
         customer_analysis,
-        visit_sales_patterns,
-        custom_prompt: Optional[str] = None
-    ) -> Dict:
-        """체인 인사이트 생성 (기존 ChainLLMClient 로직)"""
+        visit_sales_patterns
+    ) -> str:
+        """Qwen 스타일 체인 프롬프트 (기존 _create_chain_prompt)"""
+        return self._create_chain_prompt(
+            analysis_period, store_performance,
+            product_insights, time_patterns,
+            customer_analysis, visit_sales_patterns
+        )
 
-        # 프롬프트 생성 (커스텀 프롬프트 우선, 없으면 기본 프롬프트)
-        if custom_prompt:
-            prompt = self._create_custom_chain_prompt(
-                custom_prompt, analysis_period, store_performance,
-                product_insights, time_patterns,
-                customer_analysis, visit_sales_patterns
-            )
-        else:
-            prompt = self._create_chain_prompt(
-                analysis_period, store_performance,
-                product_insights, time_patterns,
-                customer_analysis, visit_sales_patterns
-            )
+    async def _call_llm_api(self, prompt: str) -> str:
+        """Ollama API 호출 (기존 _call_ollama_api)"""
+        return await self._call_ollama_api(prompt)
 
-        try:
-            raw_response = await self._call_ollama_api(prompt)
-            insights = self._parse_hybrid_response(raw_response)
-
-            return {
-                "sales_summary": insights.get("sales_summary", ""),
-                "sales_strategies": insights.get("sales_strategies", []),
-                "marketing_strategies": insights.get("marketing_strategies", [])
-            }
-        except Exception as e:
-            logger.error(f"Qwen 체인 인사이트 생성 실패: {e}", exc_info=True)
-            return {
-                "sales_summary": f"AI 인사이트 생성에 실패했습니다: {str(e)}",
-                "sales_strategies": [],
-                "marketing_strategies": []
-            }
+    # ==========================================
+    # Qwen 전용 헬퍼 메서드 (기존 로직 유지)
+    # ==========================================
 
     # === Ollama API 호출 메서드 ===
 
@@ -212,40 +169,33 @@ class QwenLLMProvider(BaseLLMProvider):
         returning_customer_rate: Decimal,
         new_customers_count: int,
         avg_transaction_amount: Decimal,
-        total_receivables: Decimal,
-        top_customers: list,
         peak_sales_date: str,
-        peak_sales_amount: Decimal
+        peak_sales_amount: Decimal,
+        period: Optional[str] = None
     ) -> str:
         """매장 프롬프트 생성 (기존 StoreLLMClient._create_prompt)"""
-
-        # Top 고객 텍스트 생성 (상위 3명만)
-        top_customers_text = ""
-        for customer in top_customers[:3]:
-            top_customers_text += f"- {customer['customer_name']}: {int(customer['total_amount']):,}원 (구매 {customer['transaction_count']}회)\n"
 
         # 결제 수단 텍스트 생성
         payment_text = f"카드 {float(payment_breakdown['card'])*100:.0f}%, "
         payment_text += f"현금 {float(payment_breakdown['cash'])*100:.0f}%, "
         payment_text += f"상품권 {float(payment_breakdown['voucher'])*100:.0f}%"
 
+        # 기간 텍스트 생성
+        period_text = period if period else "이번 달"
+
         prompt = f"""당신은 안경원 매출 분석 전문가입니다. 아래 데이터를 바탕으로 매출 요약과 전략을 제안해주세요.
 
 # 매장 정보
 - 안경원명: {store_name}
 
-# 이번 달 매출 데이터
+# {period_text} 매출 데이터
 - 총 판매금액: {int(total_sales):,}원
 - 평균 객단가: {int(avg_transaction_amount):,}원
 - 신규 고객 수: {new_customers_count}명
 - 재방문 고객 비율: {float(returning_customer_rate)*100:.1f}%
 - 결제 수단 비율: {payment_text}
 - 현금영수증 발급 금액: {int(cash_receipt_amount):,}원
-- 총 미수금액: {int(total_receivables):,}원
 - 매출 피크일: {peak_sales_date} ({int(peak_sales_amount):,}원)
-
-# 구매 Top 고객 (상위 3명)
-{top_customers_text}
 
 # 요청사항
 아래 두 가지 형식 중 하나로 **바로** 한국어로만 작성해주세요. 영어 사고 과정은 절대 쓰지 마세요.
@@ -253,7 +203,7 @@ class QwenLLMProvider(BaseLLMProvider):
 **형식 1 (JSON - 권장)**:
 ```json
 {{
-  "sales_summary": "이번 달 매출의 주요 특징과 인사이트를 2-3문장으로 요약",
+  "sales_summary": "{period_text}의 매출 주요 특징과 인사이트를 2-3문장으로 요약",
   "sales_strategies": [
     "구체적인 매출 증대 전략 1",
     "구체적인 매출 증대 전략 2",
@@ -269,7 +219,7 @@ class QwenLLMProvider(BaseLLMProvider):
 
 **형식 2 (텍스트)**:
 매출 요약:
-(이번 달 매출의 주요 특징과 인사이트를 2-3문장으로 요약)
+({period_text}의 매출 주요 특징과 인사이트를 2-3문장으로 요약)
 
 추천 매출 전략:
 1. (구체적인 매출 증대 전략 1)
@@ -436,8 +386,6 @@ class QwenLLMProvider(BaseLLMProvider):
 
         # 2단계: 텍스트 파싱 fallback
         return self._parse_text_format(response_text)
-
-    # _normalize_insights() → BaseLLMProvider로 이동됨 (중복 제거)
 
     def _parse_text_format(self, text: str) -> Dict:
         """텍스트 형식 응답 파싱"""
@@ -615,8 +563,3 @@ class QwenLLMProvider(BaseLLMProvider):
                     items.append(item)
 
         return items
-
-    # === 커스텀 프롬프트 메서드 ===
-    # _create_custom_store_prompt() → BaseLLMProvider로 이동됨 (중복 제거)
-
-    # _create_custom_chain_prompt() → BaseLLMProvider로 이동됨 (중복 제거)

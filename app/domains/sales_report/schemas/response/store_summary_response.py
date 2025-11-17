@@ -35,6 +35,20 @@ class ReceivableCustomer(BaseModel):
     receivable_amount: Decimal = Field(..., description="미수금액")
 
 
+class DailySalesTrend(BaseModel):
+    """일별 매출 추이 (차트용)"""
+    sale_date: date = Field(..., description="날짜")
+    sales_amount: Decimal = Field(..., description="당일 매출액")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "sale_date": "2024-11-01",
+                "sales_amount": "850000"
+            }
+        }
+
+
 # ============== 일별 리포트 ==============
 
 class DailySalesReport(BaseModel):
@@ -76,7 +90,7 @@ class DailySalesReport(BaseModel):
 
 class MonthlySalesReport(BaseModel):
     """월별 매출 리포트"""
-    year_month: str = Field(..., description="리포트 기준 년월 (YYYY-MM)")
+    period: str = Field(..., description="리포트 기간 (예: 2024-11-01 ~ 2024-11-30 또는 2024-11)")
 
     # 💰 총 판매금액
     total_sales: Decimal = Field(..., description="총 판매금액")
@@ -96,21 +110,17 @@ class MonthlySalesReport(BaseModel):
     # 💵 평균 판매금액
     avg_transaction_amount: Decimal = Field(..., description="평균 판매금액 (객단가)")
 
-    # 🧾 총 미수금액 / 명단
-    total_receivables: Decimal = Field(..., description="총 미수금액")
-    receivable_customers: List[ReceivableCustomer] = Field(..., description="미수금 고객 명단")
-
-    # 🏆 구매 Top 고객 (월: 10명)
-    top_customers: List[TopCustomer] = Field(..., description="구매 Top 10 고객")
-
     # 📅 매출 피크일
     peak_sales_date: date = Field(..., description="매출 피크일")
     peak_sales_amount: Decimal = Field(..., description="피크일 판매금액")
 
+    # 📈 일별 매출 추이 (차트용)
+    daily_sales_trend: List[DailySalesTrend] = Field(..., description="해당 월의 일별 매출 추이")
+
     class Config:
         json_schema_extra = {
             "example": {
-                "year_month": "2024-11",
+                "period": "2024-11-01 ~ 2024-11-30",
                 "total_sales": "45000000",
                 "payment_breakdown": {
                     "card": "0.75",
@@ -121,23 +131,18 @@ class MonthlySalesReport(BaseModel):
                 "returning_customer_rate": "0.65",
                 "new_customers_count": 43,
                 "avg_transaction_amount": "375000",
-                "total_receivables": "5000000",
-                "receivable_customers": [
-                    {
-                        "customer_name": "김철수",
-                        "receivable_amount": "1500000"
-                    }
-                ],
-                "top_customers": [
-                    {
-                        "rank": 1,
-                        "customer_name": "홍길동",
-                        "total_amount": "5000000",
-                        "transaction_count": 12
-                    }
-                ],
                 "peak_sales_date": "2024-11-15",
-                "peak_sales_amount": "2500000"
+                "peak_sales_amount": "2500000",
+                "daily_sales_trend": [
+                    {
+                        "date": "2024-11-01",
+                        "sales_amount": "850000"
+                    },
+                    {
+                        "date": "2024-11-02",
+                        "sales_amount": "920000"
+                    }
+                ]
             }
         }
 

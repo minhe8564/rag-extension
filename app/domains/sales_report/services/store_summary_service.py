@@ -25,6 +25,7 @@ from app.domains.sales_report.schemas.response.store_summary_response import (
     PaymentBreakdown,
     TopCustomer,
     ReceivableCustomer,
+    DailySalesTrend,
     LLMInsights,
     Metadata,
 )
@@ -99,7 +100,8 @@ class StoreSummaryService:
         self,
         store_info: StoreInfoRequest,
         transactions: List[dict],
-        report_date: Optional[date] = None,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
         year_month: Optional[str] = None,
         include_ai_summary: bool = False,
         custom_prompt: Optional[str] = None
@@ -110,7 +112,8 @@ class StoreSummaryService:
         Args:
             store_info: 매장 정보 (Pydantic 모델)
             transactions: 거래 데이터 리스트
-            report_date: 일별 리포트 기준일 (None이면 생략)
+            start_date: 조회 시작일 (None이면 생략)
+            end_date: 조회 종료일 (None이면 생략)
             year_month: 월별 리포트 기준 년월 (None이면 생략)
             include_ai_summary: AI 요약 포함 여부 (기본값: False)
             custom_prompt: AI 요약 생성을 위한 커스텀 프롬프트 (선택사항)
@@ -121,15 +124,30 @@ class StoreSummaryService:
         # 매장 정보 변환 (Pydantic → Response 모델)
         store_info_response = self._convert_store_info(store_info)
 
-        # 일별 리포트 생성
-        daily_report = None
-        if report_date:
-            daily_report = self._generate_daily_report(transactions, report_date)
+        # 기간별 거래 데이터 필터링
+        period_transactions = self._filter_transactions_by_period(
+            transactions, start_date, end_date
+        )
 
-        # 월별 리포트 생성
+        # 일별 리포트 생성 (최대 매출일 기준)
+        daily_report = None
+        if start_date and end_date:
+            daily_report = self._generate_daily_report_from_period(period_transactions)
+
+        # 월별 리포트 생성 (기간별 집계)
         monthly_report = None
-        if year_month:
-            monthly_report = self._generate_monthly_report(transactions, year_month)
+        if year_month or (start_date and end_date):
+            # year_month가 있으면 기존 로직, 없으면 기간 기반 집계
+            if year_month:
+                monthly_report = self._generate_monthly_report_from_period(
+                    period_transactions, year_month, start_date, end_date
+                )
+            else:
+                # start_date, end_date 기반으로 year_month 자동 생성
+                derived_year_month = start_date.strftime("%Y-%m") if start_date else None
+                monthly_report = self._generate_monthly_report_from_period(
+                    period_transactions, derived_year_month, start_date, end_date
+                )
 
         # AI 인사이트 및 메타데이터 생성 (요청 시에만)
         llm_insights = None
@@ -171,6 +189,143 @@ class StoreSummaryService:
             store_name=store_info.store_name,
             store_phone=store_info.store_phone,
             owner_name=store_info.owner_name
+        )
+
+    def _filter_transactions_by_period(
+        self,
+        transactions: List[dict],
+        start_date: Optional[date],
+        end_date: Optional[date]
+    ) -> List[dict]:
+        """
+        시작일과 종료일 사이의 거래 데이터 필터링
+
+        Args:
+            transactions: 전체 거래 데이터
+            start_date: 시작일 (None이면 필터링 안함)
+            end_date: 종료일 (None이면 필터링 안함)
+
+        Returns:
+            필터링된 거래 데이터
+        """
+        if not start_date or not end_date:
+            return transactions
+
+        start_str = start_date.strftime("%Y-%m-%d")
+        end_str = end_date.strftime("%Y-%m-%d")
+
+        return [
+            t for t in transactions
+            if start_str <= t.get("판매일자", "") <= end_str
+            and t.get("판매유형") == "판매"
+        ]
+
+    def _generate_daily_report_from_period(
+        self,
+        transactions: List[dict]
+    ) -> Optional[DailySalesReport]:
+        """
+        기간 내에서 최대 매출일을 찾아 일별 리포트 생성
+
+        Args:
+            transactions: 기간별로 필터링된 거래 데이터
+
+        Returns:
+            최대 매출일 기준 일별 리포트
+        """
+        if not transactions:
+            return None
+
+        # 날짜별 매출 집계
+        daily_sales = defaultdict(Decimal)
+        for t in transactions:
+            date_str = t.get("판매일자", "")
+            if date_str:
+                amount = Decimal(str(t.get("판매금액", 0)))
+                daily_sales[date_str] += amount
+
+        if not daily_sales:
+            return None
+
+        # 최대 매출일 찾기
+        peak_date_str, _ = max(daily_sales.items(), key=lambda x: x[1])
+        peak_date = datetime.strptime(peak_date_str, "%Y-%m-%d").date()
+
+        # 최대 매출일의 일별 리포트 생성
+        return self._generate_daily_report(transactions, peak_date)
+
+    def _generate_monthly_report_from_period(
+        self,
+        transactions: List[dict],
+        year_month: Optional[str],
+        start_date: Optional[date],
+        end_date: Optional[date]
+    ) -> Optional[MonthlySalesReport]:
+        """
+        기간별 월별 리포트 생성 (기간 내 전체 집계)
+
+        Args:
+            transactions: 기간별로 필터링된 거래 데이터
+            year_month: 리포트 기준 년월 (표시용)
+            start_date: 시작일
+            end_date: 종료일
+
+        Returns:
+            기간별 집계 월별 리포트
+        """
+        if not transactions:
+            # 데이터 없으면 기본값 반환
+            return self._create_empty_monthly_report(
+                year_month or (start_date.strftime("%Y-%m") if start_date else "")
+            )
+
+        # 💰 총 판매금액
+        total_sales = sum(Decimal(str(t.get("판매금액", 0))) for t in transactions)
+
+        # 💳 결제 수단 비율
+        payment_breakdown = self._calculate_payment_breakdown(transactions)
+
+        # 🧾 현금영수증 발급 금액
+        cash_receipt_amount = sum(Decimal(str(t.get("현금영수", 0))) for t in transactions)
+
+        # 👥 재방문 고객 비율
+        returning_rate = self._calculate_returning_customer_rate(transactions)
+
+        # 👤 신규 고객 수
+        new_customers_count = len([
+            t for t in transactions if t.get("첫방문여부") == "첫방문"
+        ])
+
+        # 💵 평균 판매금액
+        avg_amount = total_sales / len(transactions) if transactions else Decimal("0")
+
+        # 📅 매출 피크일
+        peak_date, peak_amount = self._find_peak_sales_date(transactions)
+
+        # 📈 일별 매출 추이 (기간 전체)
+        daily_sales_trend = self._calculate_daily_sales_trend_from_period(
+            transactions, start_date, end_date
+        )
+
+        # 기간 문자열 생성
+        if start_date and end_date:
+            period = f"{start_date.strftime('%Y-%m-%d')} ~ {end_date.strftime('%Y-%m-%d')}"
+        elif year_month:
+            period = year_month
+        else:
+            period = ""
+
+        return MonthlySalesReport(
+            period=period,
+            total_sales=total_sales,
+            payment_breakdown=payment_breakdown,
+            cash_receipt_amount=cash_receipt_amount,
+            returning_customer_rate=returning_rate,
+            new_customers_count=new_customers_count,
+            avg_transaction_amount=avg_amount,
+            peak_sales_date=peak_date,
+            peak_sales_amount=peak_amount,
+            daily_sales_trend=daily_sales_trend
         )
 
     def _generate_daily_report(
@@ -272,28 +427,23 @@ class StoreSummaryService:
         # 💵 평균 판매금액
         avg_amount = total_sales / len(monthly_transactions) if monthly_transactions else Decimal("0")
 
-        # 🧾 총 미수금액 / 명단
-        total_receivables, receivable_customers = self._calculate_receivables(monthly_transactions)
-
-        # 🏆 구매 Top 고객 (월: 10명)
-        top_customers = self._calculate_top_customers(monthly_transactions, limit=10)
-
         # 📅 매출 피크일
         peak_date, peak_amount = self._find_peak_sales_date(monthly_transactions)
 
+        # 📈 일별 매출 추이
+        daily_sales_trend = self._calculate_daily_sales_trend(monthly_transactions, year_month)
+
         return MonthlySalesReport(
-            year_month=year_month,
+            period=year_month,
             total_sales=total_sales,
             payment_breakdown=payment_breakdown,
             cash_receipt_amount=cash_receipt_amount,
             returning_customer_rate=returning_rate,
             new_customers_count=new_customers_count,
             avg_transaction_amount=avg_amount,
-            total_receivables=total_receivables,
-            receivable_customers=receivable_customers,
-            top_customers=top_customers,
             peak_sales_date=peak_date,
-            peak_sales_amount=peak_amount
+            peak_sales_amount=peak_amount,
+            daily_sales_trend=daily_sales_trend
         )
 
     def _calculate_payment_breakdown(self, transactions: List[dict]) -> PaymentBreakdown:
@@ -424,10 +574,82 @@ class StoreSummaryService:
 
         return peak_date, peak_amount
 
-    def _create_empty_monthly_report(self, year_month: str) -> MonthlySalesReport:
+    def _calculate_daily_sales_trend(
+        self,
+        transactions: List[dict],
+        year_month: str
+    ) -> List[DailySalesTrend]:
+        """
+        일별 매출 추이 계산
+
+        Args:
+            transactions: 해당 월의 거래 데이터
+            year_month: 년월 (YYYY-MM)
+
+        Returns:
+            List[DailySalesTrend]: 날짜별로 정렬된 일별 매출 추이
+        """
+        # 날짜별 매출 집계
+        daily_sales = defaultdict(Decimal)
+
+        for t in transactions:
+            date_str = t.get("판매일자", "")
+            if date_str and date_str.startswith(year_month):
+                amount = Decimal(str(t.get("판매금액", 0)))
+                daily_sales[date_str] += amount
+
+        # 날짜순으로 정렬하여 반환
+        sorted_sales = sorted(daily_sales.items(), key=lambda x: x[0])
+
+        return [
+            DailySalesTrend(
+                sale_date=datetime.strptime(date_str, "%Y-%m-%d").date(),
+                sales_amount=amount
+            )
+            for date_str, amount in sorted_sales
+        ]
+
+    def _calculate_daily_sales_trend_from_period(
+        self,
+        transactions: List[dict],
+        start_date: Optional[date],
+        end_date: Optional[date]
+    ) -> List[DailySalesTrend]:
+        """
+        기간별 일별 매출 추이 계산
+
+        Args:
+            transactions: 기간별로 필터링된 거래 데이터
+            start_date: 시작일
+            end_date: 종료일
+
+        Returns:
+            List[DailySalesTrend]: 날짜별로 정렬된 일별 매출 추이
+        """
+        # 날짜별 매출 집계
+        daily_sales = defaultdict(Decimal)
+
+        for t in transactions:
+            date_str = t.get("판매일자", "")
+            if date_str:
+                amount = Decimal(str(t.get("판매금액", 0)))
+                daily_sales[date_str] += amount
+
+        # 날짜순으로 정렬하여 반환
+        sorted_sales = sorted(daily_sales.items(), key=lambda x: x[0])
+
+        return [
+            DailySalesTrend(
+                sale_date=datetime.strptime(date_str, "%Y-%m-%d").date(),
+                sales_amount=amount
+            )
+            for date_str, amount in sorted_sales
+        ]
+
+    def _create_empty_monthly_report(self, period: str) -> MonthlySalesReport:
         """빈 월별 리포트 생성"""
         return MonthlySalesReport(
-            year_month=year_month,
+            period=period,
             total_sales=Decimal("0"),
             payment_breakdown=PaymentBreakdown(
                 card=Decimal("0"),
@@ -438,11 +660,9 @@ class StoreSummaryService:
             returning_customer_rate=Decimal("0"),
             new_customers_count=0,
             avg_transaction_amount=Decimal("0"),
-            total_receivables=Decimal("0"),
-            receivable_customers=[],
-            top_customers=[],
             peak_sales_date=date.today(),
-            peak_sales_amount=Decimal("0")
+            peak_sales_amount=Decimal("0"),
+            daily_sales_trend=[]
         )
 
     async def _generate_ai_summary(
@@ -470,16 +690,6 @@ class StoreSummaryService:
 
             # === 2. AI 인사이트 생성 (제공자 무관) ===
 
-            # Top 고객 데이터 변환 (Pydantic 모델 → dict)
-            top_customers_dict = [
-                {
-                    "customer_name": customer.customer_name,
-                    "total_amount": customer.total_amount,
-                    "transaction_count": customer.transaction_count
-                }
-                for customer in monthly_report.top_customers
-            ]
-
             # 결제 수단 비율 변환 (카드, 현금, 상품권만)
             payment_breakdown_dict = {
                 "card": monthly_report.payment_breakdown.card,
@@ -496,10 +706,9 @@ class StoreSummaryService:
                 returning_customer_rate=monthly_report.returning_customer_rate,
                 new_customers_count=monthly_report.new_customers_count,
                 avg_transaction_amount=monthly_report.avg_transaction_amount,
-                total_receivables=monthly_report.total_receivables,
-                top_customers=top_customers_dict,
                 peak_sales_date=str(monthly_report.peak_sales_date),
                 peak_sales_amount=monthly_report.peak_sales_amount,
+                period=monthly_report.period,  # 리포트 기간 전달
                 custom_prompt=custom_prompt  # 커스텀 프롬프트 전달
             )
 

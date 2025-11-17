@@ -2,14 +2,19 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Optional
 from decimal import Decimal
-import re
-import json
+import logging
+
+from .utils import PromptBuilder, LLMResponseNormalizer
+
+logger = logging.getLogger(__name__)
 
 
 class BaseLLMProvider(ABC):
     """LLM 제공자 추상 인터페이스
 
-    모든 LLM 제공자(Qwen, GPT 등)는 이 인터페이스를 구현해야 함
+    템플릿 메서드 패턴 적용:
+    - 베이스 클래스: 전체 흐름 정의 (프롬프트 생성 → API 호출 → 정규화)
+    - 서브 클래스: 구체적 구현 제공 (프롬프트 템플릿, API 호출)
     """
 
     def __init__(self, **kwargs):
@@ -21,7 +26,10 @@ class BaseLLMProvider(ABC):
         """
         pass
 
-    @abstractmethod
+    # ==========================================
+    # 템플릿 메서드 (공통 흐름 정의)
+    # ==========================================
+
     async def generate_store_summary(
         self,
         store_name: str,
@@ -31,14 +39,18 @@ class BaseLLMProvider(ABC):
         returning_customer_rate: Decimal,
         new_customers_count: int,
         avg_transaction_amount: Decimal,
-        total_receivables: Decimal,
-        top_customers: list,
         peak_sales_date: str,
         peak_sales_amount: Decimal,
+        period: Optional[str] = None,
         custom_prompt: Optional[str] = None
     ) -> Dict:
         """
-        매장 매출 요약 생성
+        매장 매출 요약 생성 (템플릿 메서드)
+
+        흐름:
+        1. 프롬프트 생성 (커스텀 vs 기본)
+        2. LLM API 호출
+        3. 응답 파싱 및 정규화
 
         Args:
             store_name: 안경원명
@@ -48,11 +60,10 @@ class BaseLLMProvider(ABC):
             returning_customer_rate: 재방문 고객 비율
             new_customers_count: 신규 고객 수
             avg_transaction_amount: 평균 판매금액
-            total_receivables: 총 미수금액
-            top_customers: Top 고객 리스트
             peak_sales_date: 매출 피크일
             peak_sales_amount: 피크일 판매금액
-            custom_prompt: 커스텀 프롬프트 (선택사항)
+            period: 리포트 기간 (예: "2024-11-01 ~ 2024-11-30")
+            custom_prompt: 커스텀 프롬프트 (선택사항, 이미 검증됨)
 
         Returns:
             Dict: {
@@ -61,9 +72,53 @@ class BaseLLMProvider(ABC):
                 "marketing_strategies": List[str]
             }
         """
-        pass
+        # 1. 프롬프트 생성 (분기 로직을 베이스에서 처리)
+        if custom_prompt:
+            # 커스텀 프롬프트 사용
+            data_context = PromptBuilder.build_store_context(
+                store_name=store_name,
+                total_sales=total_sales,
+                payment_breakdown=payment_breakdown,
+                cash_receipt_amount=cash_receipt_amount,
+                returning_customer_rate=returning_customer_rate,
+                new_customers_count=new_customers_count,
+                avg_transaction_amount=avg_transaction_amount,
+                peak_sales_date=peak_sales_date,
+                peak_sales_amount=peak_sales_amount,
+                period=period
+            )
+            prompt = PromptBuilder.merge_custom_prompt(
+                custom_prompt=custom_prompt,
+                data_context=data_context,
+                period=period
+            )
+        else:
+            # 기본 프롬프트 사용 (각 프로바이더의 구현 호출)
+            prompt = self._create_default_store_prompt(
+                store_name=store_name,
+                total_sales=total_sales,
+                payment_breakdown=payment_breakdown,
+                cash_receipt_amount=cash_receipt_amount,
+                returning_customer_rate=returning_customer_rate,
+                new_customers_count=new_customers_count,
+                avg_transaction_amount=avg_transaction_amount,
+                peak_sales_date=peak_sales_date,
+                peak_sales_amount=peak_sales_amount,
+                period=period
+            )
 
-    @abstractmethod
+        # 2. LLM API 호출 (각 프로바이더의 구현 호출)
+        try:
+            response_text = await self._call_llm_api(prompt)
+        except Exception as e:
+            logger.error(f"LLM API 호출 실패: {e}", exc_info=True)
+            # 실패 시 기본 응답 반환
+            return LLMResponseNormalizer.DEFAULT_RESPONSE
+
+        # 3. 응답 파싱 및 정규화
+        parsed = self._parse_response(response_text)
+        return LLMResponseNormalizer.normalize_insights(parsed)
+
     async def generate_chain_insights(
         self,
         analysis_period,
@@ -75,7 +130,7 @@ class BaseLLMProvider(ABC):
         custom_prompt: Optional[str] = None
     ) -> Dict:
         """
-        체인 매출 인사이트 생성
+        체인 매출 인사이트 생성 (템플릿 메서드)
 
         Args:
             analysis_period: 분석 기간
@@ -93,55 +148,50 @@ class BaseLLMProvider(ABC):
                 "marketing_strategies": List[str]
             }
         """
-        pass
+        # 1. 프롬프트 생성
+        if custom_prompt:
+            # 커스텀 프롬프트 사용
+            data_context = PromptBuilder.build_chain_context(
+                analysis_period=analysis_period,
+                store_performance=store_performance,
+                product_insights=product_insights,
+                time_patterns=time_patterns,
+                customer_analysis=customer_analysis,
+                visit_sales_patterns=visit_sales_patterns
+            )
+            prompt = PromptBuilder.merge_custom_chain_prompt(
+                custom_prompt=custom_prompt,
+                data_context=data_context
+            )
+        else:
+            # 기본 프롬프트 사용
+            prompt = self._create_default_chain_prompt(
+                analysis_period=analysis_period,
+                store_performance=store_performance,
+                product_insights=product_insights,
+                time_patterns=time_patterns,
+                customer_analysis=customer_analysis,
+                visit_sales_patterns=visit_sales_patterns
+            )
+
+        # 2. LLM API 호출
+        try:
+            response_text = await self._call_llm_api(prompt)
+        except Exception as e:
+            logger.error(f"LLM API 호출 실패: {e}", exc_info=True)
+            return LLMResponseNormalizer.DEFAULT_RESPONSE
+
+        # 3. 응답 파싱 및 정규화
+        parsed = self._parse_response(response_text)
+        return LLMResponseNormalizer.normalize_insights(parsed)
 
     # ==========================================
-    # 공통 유틸리티 메서드 (중복 제거)
+    # 추상 메서드 (각 프로바이더가 구현)
     # ==========================================
 
-    def _normalize_insights(self, parsed: Dict) -> Dict:
-        """
-        LLM 응답 형식 정규화
-
-        LLM이 {"전략": "내용"} 형식으로 응답하는 경우를 "내용" 문자열로 변환
-        """
-        # sales_summary 정규화
-        sales_summary = parsed.get("sales_summary", "")
-        if isinstance(sales_summary, dict):
-            # dict인 경우 모든 값을 문자열로 결합
-            sales_summary = " ".join(str(v) for v in sales_summary.values())
-
-        # sales_strategies 정규화
-        sales_strategies = parsed.get("sales_strategies", [])
-        normalized_sales = []
-        for item in sales_strategies:
-            if isinstance(item, dict):
-                # {"전략": "내용"} → "내용"
-                strategy_text = item.get("전략") or item.get("strategy") or " ".join(str(v) for v in item.values())
-                normalized_sales.append(str(strategy_text))
-            else:
-                normalized_sales.append(str(item))
-
-        # marketing_strategies 정규화
-        marketing_strategies = parsed.get("marketing_strategies", [])
-        normalized_marketing = []
-        for item in marketing_strategies:
-            if isinstance(item, dict):
-                # {"전략": "내용"} → "내용"
-                strategy_text = item.get("전략") or item.get("strategy") or " ".join(str(v) for v in item.values())
-                normalized_marketing.append(str(strategy_text))
-            else:
-                normalized_marketing.append(str(item))
-
-        return {
-            "sales_summary": str(sales_summary),
-            "sales_strategies": normalized_sales if normalized_sales else ["데이터를 분석하여 매출 전략을 수립해주세요."],
-            "marketing_strategies": normalized_marketing if normalized_marketing else ["고객 데이터를 기반으로 마케팅을 계획해주세요."]
-        }
-
-    def _create_custom_store_prompt(
+    @abstractmethod
+    def _create_default_store_prompt(
         self,
-        custom_prompt: str,
         store_name: str,
         total_sales: Decimal,
         payment_breakdown: dict,
@@ -149,56 +199,20 @@ class BaseLLMProvider(ABC):
         returning_customer_rate: Decimal,
         new_customers_count: int,
         avg_transaction_amount: Decimal,
-        total_receivables: Decimal,
-        top_customers: list,
         peak_sales_date: str,
-        peak_sales_amount: Decimal
+        peak_sales_amount: Decimal,
+        period: Optional[str] = None
     ) -> str:
-        """커스텀 프롬프트에 데이터 바인딩 (안전한 방식)"""
+        """
+        기본 매장 프롬프트 생성 (프로바이더별 구현)
 
-        # Top 고객 텍스트 생성
-        top_customers_text = ""
-        for customer in top_customers[:3]:
-            top_customers_text += f"- {customer['customer_name']}: {int(customer['total_amount']):,}원 (구매 {customer['transaction_count']}회)\n"
+        각 프로바이더는 자신의 스타일에 맞는 프롬프트 템플릿 제공
+        """
+        pass
 
-        # 결제 수단 텍스트 생성
-        payment_text = f"카드 {float(payment_breakdown['card'])*100:.0f}%, "
-        payment_text += f"현금 {float(payment_breakdown['cash'])*100:.0f}%, "
-        payment_text += f"상품권 {float(payment_breakdown['voucher'])*100:.0f}%"
-
-        # 매출 데이터 컨텍스트 생성
-        sales_context = f"""
-# 매장 정보
-- 안경원명: {store_name}
-
-# 이번 달 매출 데이터
-- 총 판매금액: {int(total_sales):,}원
-- 평균 객단가: {int(avg_transaction_amount):,}원
-- 신규 고객 수: {new_customers_count}명
-- 재방문 고객 비율: {float(returning_customer_rate)*100:.1f}%
-- 결제 수단 비율: {payment_text}
-- 현금영수증 발급 금액: {int(cash_receipt_amount):,}원
-- 총 미수금액: {int(total_receivables):,}원
-- 매출 피크일: {peak_sales_date} ({int(peak_sales_amount):,}원)
-
-# 구매 Top 고객 (상위 3명)
-{top_customers_text}
-"""
-
-        # 커스텀 프롬프트 + 데이터 컨텍스트 결합
-        full_prompt = f"""당신은 안경원 매출 분석 전문가입니다. 아래 데이터를 바탕으로 분석해주세요.
-
-{sales_context}
-
-# 사용자 요청사항
-{custom_prompt}
-"""
-
-        return full_prompt
-
-    def _create_custom_chain_prompt(
+    @abstractmethod
+    def _create_default_chain_prompt(
         self,
-        custom_prompt: str,
         analysis_period,
         store_performance,
         product_insights,
@@ -206,76 +220,44 @@ class BaseLLMProvider(ABC):
         customer_analysis,
         visit_sales_patterns
     ) -> str:
-        """체인 커스텀 프롬프트에 데이터 바인딩 (안전한 방식)"""
+        """
+        기본 체인 프롬프트 생성 (프로바이더별 구현)
+        """
+        pass
 
-        # 매장별 성과 텍스트
-        store_text = ""
-        for perf in store_performance[:3]:
-            store_text += f"- {perf.store_name}: {int(perf.total_revenue):,}원 (객단가 {int(perf.avg_transaction_value):,}원)\n"
+    @abstractmethod
+    async def _call_llm_api(self, prompt: str) -> str:
+        """
+        LLM API 호출 (프로바이더별 구현)
 
-        # 베스트 상품 텍스트
-        product_text = ""
-        for product in product_insights.top_products[:5]:
-            product_text += f"- {product.product_name} ({product.brand_name}): {int(product.total_revenue):,}원 (매출비중 {product.revenue_share}%)\n"
+        Args:
+            prompt: 생성된 프롬프트
 
-        # 베스트 브랜드 텍스트
-        brand_text = ""
-        for brand in product_insights.top_brands[:5]:
-            brand_text += f"- {brand.brand_name}: {int(brand.total_revenue):,}원 (매출비중 {brand.revenue_share}%)\n"
+        Returns:
+            str: LLM 응답 텍스트
+        """
+        pass
 
-        # 상품 구분별 매출 텍스트
-        category_text = ""
-        for category in product_insights.category_revenues[:5]:
-            category_text += f"- {category.category_name}: {int(category.total_revenue):,}원 (매출비중 {category.revenue_share}%, 판매수량 {category.quantity_sold}개)\n"
+    # ==========================================
+    # 공통 헬퍼 메서드
+    # ==========================================
 
-        # 시간 패턴 텍스트
-        time_text = f"최고 매출: {time_patterns.peak_insights.best_day} {time_patterns.peak_insights.best_time}\n"
-        time_text += f"최저 매출: {time_patterns.peak_insights.worst_day} {time_patterns.peak_insights.worst_time}"
+    def _parse_response(self, response: str) -> Dict:
+        """
+        응답 파싱 (공통 로직)
 
-        # 고객 분석 텍스트
-        customer_text = f"주력 연령대: {customer_analysis.key_segments.dominant_age_group}\n"
-        customer_text += f"객단가 최고: {customer_analysis.key_segments.highest_avg_purchase_age}"
+        JSON 추출 시도 → 실패 시 기본 구조 반환
+        """
+        # JSON 추출 시도
+        parsed = LLMResponseNormalizer.extract_json_from_text(response)
 
-        # 방문-매출 효율 텍스트
-        efficiency_text = ""
-        for pattern in visit_sales_patterns[:5]:
-            efficiency_text += f"- {pattern.day_name} {pattern.hour}시: 방문당 {int(pattern.revenue_per_visit):,}원 (방문 {pattern.total_visits}명, 매출 {int(pattern.total_revenue):,}원)\n"
+        if parsed:
+            return parsed
 
-        # 체인 매출 데이터 컨텍스트 생성
-        chain_context = f"""
-# 분석 기간
-- 분석 대상 월: {analysis_period.current_month}
-- 전월: {analysis_period.last_month}
-
-# 매장별 성과 (상위 3개)
-{store_text}
-
-# 베스트 상품 (상위 5개)
-{product_text}
-
-# 베스트 브랜드 (상위 5개)
-{brand_text}
-
-# 상품 구분별 매출 (상위 5개)
-{category_text}
-
-# 시간 패턴
-{time_text}
-
-# 고객 분석
-{customer_text}
-
-# 방문-매출 효율 (상위 5개)
-{efficiency_text}
-"""
-
-        # 커스텀 프롬프트 + 데이터 컨텍스트 결합
-        full_prompt = f"""당신은 체인 안경원 매출 분석 전문가입니다. 아래 데이터를 바탕으로 분석해주세요.
-
-{chain_context}
-
-# 사용자 요청사항
-{custom_prompt}
-"""
-
-        return full_prompt
+        # JSON 추출 실패 시 텍스트 파싱 시도 (기본 구조)
+        logger.warning("JSON 추출 실패, 기본 구조 반환")
+        return {
+            "sales_summary": response[:200] if response else "",
+            "sales_strategies": [],
+            "marketing_strategies": []
+        }
