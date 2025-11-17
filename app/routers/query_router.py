@@ -1,10 +1,12 @@
 from fastapi import APIRouter, HTTPException, Depends, Header
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.schemas.request.queryProcessV2Request import QueryProcessV2Request
 from app.schemas.response.queryProcessResponse import QueryProcessResponse, QueryProcessResult
 from app.schemas.response.errorResponse import ErrorResponse
 from app.service.query_service import QueryService
+from typing import AsyncIterator
 from loguru import logger
 
 
@@ -59,6 +61,61 @@ async def query(
         raise HTTPException(status_code=404, detail=error_response.dict())
     except Exception as e:
         logger.error(f"Error in query processing: {str(e)}", exc_info=True)
+        error_response = ErrorResponse(
+            status=500,
+            code="INTERNAL_ERROR",
+            message=f"Internal server error: {str(e)}",
+            isSuccess=False,
+            result={}
+        )
+        raise HTTPException(status_code=500, detail=error_response.dict())
+
+
+@router.post("/process/stream")
+async def query_stream(
+    request: QueryProcessV2Request,
+    db: AsyncSession = Depends(get_db),
+    x_user_role: str | None = Header(default=None, alias="x-user-role"),
+    x_user_uuid: str | None = Header(default=None, alias="x-user-uuid"),
+    authorization: str | None = Header(default=None, alias="Authorization")
+):
+    """Query 요청 처리 V2 (스트리밍 버전): /process와 동작은 동일하지만 응답을 스트리밍으로 전달"""
+    try:
+        logger.info("Received query stream request V2: {}", request.query)
+        logger.info("x-user-role: {}", x_user_role)
+        logger.info("x-user-uuid: {}", x_user_uuid)
+        
+        async def stream_generator() -> AsyncIterator[bytes]:
+            """스트리밍 응답 생성기"""
+            try:
+                async for chunk in query_service.process_query_v2_stream(
+                    request=request,
+                    db=db,
+                    x_user_role=x_user_role,
+                    x_user_uuid=x_user_uuid,
+                    authorization=authorization
+                ):
+                    yield chunk
+            except ValueError as e:
+                logger.error(f"Value error in query stream processing: {str(e)}")
+                error_data = f'event: error\ndata: {{"message":"{str(e)}"}}\n\n'
+                yield error_data.encode('utf-8')
+            except Exception as e:
+                logger.error(f"Error in query stream processing: {str(e)}", exc_info=True)
+                error_data = f'event: error\ndata: {{"message":"Internal server error: {str(e)}"}}\n\n'
+                yield error_data.encode('utf-8')
+        
+        return StreamingResponse(
+            content=stream_generator(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no"
+            }
+        )
+    except Exception as e:
+        logger.error(f"Error setting up query stream: {str(e)}", exc_info=True)
         error_response = ErrorResponse(
             status=500,
             code="INTERNAL_ERROR",
