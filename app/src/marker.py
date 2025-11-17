@@ -65,7 +65,7 @@ except ImportError:
     logger.warning("openai not available. Image captioning will be skipped.")
 
 from app.service.minio_client import ensure_bucket, put_object_bytes
-from app.config import settings
+from app.core.settings import settings
 
 # MARKER_BASE_URL과 YOLO_BASE_URL은 settings에서 동적으로 가져옴 (DB에서 업데이트됨)
 # 모듈 레벨 상수 대신 함수 내에서 settings를 직접 참조
@@ -539,10 +539,77 @@ class Marker(BaseExtractionStrategy):
         with open(path, "rb") as f:
             return base64.b64encode(f.read()).decode("utf-8")
 
-    def _openai_caption_one_image(self, image_path: str, lang: str = "ko", model: str = "gpt-4o-mini") -> Tuple[str, Dict[str, int]]:
-        """단일 이미지에 대해 캡션 생성"""
-        if not OPENAI_AVAILABLE:
+    def _qwen3_caption_one_image(self, image_path: str, lang: str = "ko") -> Tuple[str, Dict[str, int]]:
+        """Qwen3 (Ollama)를 사용하여 단일 이미지에 대해 캡션 생성 (fallback)"""
+        try:
+            import httpx
+            base_url = settings.qwen_base_url.rstrip("/")
+            url = f"{base_url}/api/chat"
+            
+            b64 = self._b64_of_image(image_path)
+            sys_prompt = (
+                f"당신은 과학 문서 전문 기술 작가입니다. "
+                f"{lang}로 간결하고 정확한 캡션을 작성하세요. "
+                f"불확실한 경우 시각적으로 관찰 가능한 요소만 설명하세요."
+            )
+            user_prompt = "이미지를 보고 핵심 내용만 1~2문장으로 설명해 주세요. (단위/축/범례/구성요소가 보이면 언급)"
+            
+            payload = {
+                "model": "qwen3-vl:8b",
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": sys_prompt
+                    },
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": user_prompt
+                            },
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/png;base64,{b64}"
+                                }
+                            }
+                        ]
+                    }
+                ],
+                "stream": False,
+                "options": {
+                    "temperature": 0.2,
+                    "num_predict": 180
+                }
+            }
+            
+            with httpx.Client(timeout=120.0) as client:
+                response = client.post(url, json=payload)
+                response.raise_for_status()
+                result = response.json()
+                
+                if "message" in result:
+                    message = result["message"]
+                    caption = message.get("content", "").strip()
+                    usage_dict = {
+                        "prompt_tokens": 0,  # Ollama는 토큰 사용량을 직접 제공하지 않을 수 있음
+                        "completion_tokens": 0,
+                        "total_tokens": 0,
+                    }
+                    return caption, usage_dict
+                else:
+                    logger.warning(f"Qwen3 응답 형식 오류: {result}")
+                    return "", {}
+        except Exception as e:
+            logger.warning(f"Qwen3 caption 실패({image_path}): {e}")
             return "", {}
+    
+    def _openai_caption_one_image(self, image_path: str, lang: str = "ko", model: str = "gpt-4o") -> Tuple[str, Dict[str, int]]:
+        """단일 이미지에 대해 캡션 생성 (OpenAI 우선, 실패 시 Qwen3 fallback)"""
+        if not OPENAI_AVAILABLE:
+            logger.info("OpenAI not available, using Qwen3 fallback")
+            return self._qwen3_caption_one_image(image_path, lang=lang)
         
         try:
             client = OpenAI()
@@ -578,10 +645,22 @@ class Marker(BaseExtractionStrategy):
             }
             return caption, usage_dict
         except Exception as e:
-            logger.warning(f"OpenAI caption 실패({image_path}): {e}")
-            return "", {}
+            # TPM 문제나 기타 OpenAI 오류 시 Qwen3 fallback 사용
+            error_msg = str(e).lower()
+            is_tpm_error = "tpm" in error_msg or "rate limit" in error_msg or "quota" in error_msg
+            if is_tpm_error:
+                logger.warning(f"OpenAI TPM/quota 오류 감지, Qwen3 fallback 사용: {e}")
+            else:
+                logger.warning(f"OpenAI caption 실패, Qwen3 fallback 사용: {e}")
+            
+            # Qwen3 fallback 시도
+            try:
+                return self._qwen3_caption_one_image(image_path, lang=lang)
+            except Exception as fallback_error:
+                logger.error(f"Qwen3 fallback도 실패({image_path}): {fallback_error}")
+                return "", {}
 
-    def _caption_figures(self, det_items: List[Dict[str, Any]], cache_path: Path, lang: str = "ko", model: str = "gpt-4o-mini") -> Tuple[Dict[str, str], Dict[str, Any]]:
+    def _caption_figures(self, det_items: List[Dict[str, Any]], cache_path: Path, lang: str = "ko", model: str = "gpt-4o") -> Tuple[Dict[str, str], Dict[str, Any]]:
         """figure 자산들에 대해 캡션을 생성"""
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         try:
@@ -822,7 +901,7 @@ class Marker(BaseExtractionStrategy):
             captions: Dict[str, str] = {}
             if ENABLE_CAPTIONS and OPENAI_AVAILABLE:
                 cap_cache = temp_dir / "manifests" / f"{safe_stem}-captions.json"
-                captions, cap_stats = self._caption_figures(det_items, cap_cache, lang="ko", model="gpt-4o-mini")
+                captions, cap_stats = self._caption_figures(det_items, cap_cache, lang="ko", model="gpt-4o")
                 logger.info(f"[Captions] Generated {cap_stats['images_captions']}/{cap_stats['images_total']} captions")
             else:
                 logger.info("[Captions] Skipped (disabled or OpenAI not available)")
