@@ -3,8 +3,6 @@ from pydantic import BaseModel, Field, model_validator
 from typing import List, Any, Optional
 from datetime import datetime
 from ...constants import DEFAULT_STORE_SUMMARY_PROMPT
-from ...constants import DEFAULT_STORE_SUMMARY_PROMPT
-from ...constants import DEFAULT_STORE_SUMMARY_PROMPT
 
 
 class StoreInfoRequest(BaseModel):
@@ -32,7 +30,6 @@ class TransactionRequest(BaseModel):
 
 
 class StoreSummaryDataRequest(BaseModel):
-class StoreSummaryDataRequest(BaseModel):
     """
     매출 데이터 요청 스키마 (info와 data를 포함)
     
@@ -44,10 +41,6 @@ class StoreSummaryDataRequest(BaseModel):
     info: StoreInfoRequest = Field(..., description="매장 정보")
     data: List[dict] = Field(..., description="거래 데이터 리스트")
     year_month: Optional[str] = Field(None, description="리포트 기준 년월 (YYYY-MM), 미입력 시 자동 추출")
-    custom_prompt: Optional[str] = Field(
-        default=None,
-        description="AI 요약 생성을 위한 커스텀 프롬프트 (선택사항). 미입력 시 기본 프롬프트 사용"
-    )
 
     @model_validator(mode='after')
     def extract_year_month(self):
@@ -101,37 +94,6 @@ class StoreSummaryRequest(BaseModel):
         populate_by_name = True  # alias와 원본 필드명 둘 다 허용
         json_schema_extra = {
             "example": {
-                "custom_prompt": DEFAULT_STORE_SUMMARY_PROMPT,
-                "json": {
-                    "info": {
-                        "안경원명": "행복안경원",
-                        "매장번호": "02-1234-5678",
-                        "대표자명": "홍길동"
-                    },
-                    "data": [
-                        {
-                            "거래일시": "2024-11-01 10:30:00",
-                            "고객명": "김철수",
-                            "카드": 150000,
-                            "현금": 0,
-                            "현금영수": 0,
-                            "상품권금액": 0,
-                            "미수금": 0,
-                            "고객연락처": "010-1234-5678"
-                        },
-                        {
-                            "거래일시": "2024-11-02 14:20:00",
-                            "고객명": "이영희",
-                            "카드": 0,
-                            "현금": 200000,
-                            "현금영수": 200000,
-                            "상품권금액": 0,
-                            "미수금": 0,
-                            "고객연락처": "010-9876-5432"
-                        }
-                    ],
-                    "year_month": "2024-11"
-                }
                 "custom_prompt": DEFAULT_STORE_SUMMARY_PROMPT,
                 "json": {
                     "info": {
