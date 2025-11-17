@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Optional
+from typing import Optional, List
 from pathlib import Path
 
 BASE_DIR = Path(__file__).parent.parent.parent
@@ -9,6 +9,18 @@ class Settings(BaseSettings):
     app_name: str = "HEBEES Extract Service"
     host: str = "0.0.0.0"
     port: int = 8000
+
+    # CORS
+    allowed_origins: str = "http://localhost:5173,http://localhost:3000"
+
+    @property
+    def allowed_origins_list(self) -> List[str]:
+        return [origin.strip() for origin in self.allowed_origins.split(",")]
+
+    # External Provider URLs
+    marker_provider_url: str = "https://e508kqibffcog4-8000.proxy.runpod.net"
+    yolo_provider_url: str = "https://7g415voh7b00k4-7002.proxy.runpod.net"
+    qwen_base_url: str = "http://apik.co.kr:11434/"  # Qwen (Ollama) 설정 - DB에서 동적으로 업데이트됨
 
     # MinIO 설정
     minio_host: str

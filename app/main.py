@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from loguru import logger
 from . import __version__, __title__, __description__
-from .config import settings
+from .core.settings import settings
 from datetime import datetime
 from .routers import router
 from .core.openapi import custom_openapi
@@ -42,11 +42,23 @@ async def lifespan(app: FastAPI):
                     f"DB에서 RUNPOD를 찾을 수 없습니다 (NAME='YOLO'). "
                     f"기본값 사용: {settings.yolo_provider_url}"
                 )
+            
+            # QWEN3 주소 조회
+            qwen_address = await RunpodService.get_address_by_name(db, "qwen3")
+            if qwen_address:
+                settings.qwen_base_url = qwen_address
+                logger.info(f"RUNPOD 주소로 qwen_base_url 업데이트: {qwen_address}")
+            else:
+                logger.warning(
+                    f"DB에서 RUNPOD를 찾을 수 없습니다 (NAME='qwen3'). "
+                    f"기본값 사용: {settings.qwen_base_url}"
+                )
     except Exception as e:
         logger.error(
             f"RUNPOD 정보 조회 실패. 기본값 사용: "
             f"marker={settings.marker_provider_url}, "
             f"yolo={settings.yolo_provider_url}, "
+            f"qwen={settings.qwen_base_url}, "
             f"오류: {e}",
             exc_info=True
         )
