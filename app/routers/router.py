@@ -1,12 +1,14 @@
 from fastapi import APIRouter, HTTPException, Header
+from fastapi.responses import StreamingResponse
 from app.schemas.request.generationRequest import GenerationProcessRequest
 from app.schemas.response.generationProcessResponse import GenerationProcessResponse, GenerationProcessResult, Citation
 from app.schemas.response.errorResponse import ErrorResponse
 from app.core.memory_manager import get_memory_manager
 from app.middleware.metrics_middleware import with_generation_metrics
 from app.service.history_stream_service import get_history_stream_service
-from typing import Dict, Any
+from typing import Dict, Any, AsyncIterator
 import importlib
+import json
 from loguru import logger
 
 router = APIRouter(tags=["generation"])
@@ -212,6 +214,157 @@ async def generation_process(
         raise HTTPException(status_code=e.status_code, detail=error_response.dict())
     except Exception as e:
         logger.error(f"Error processing generation: {str(e)}", exc_info=True)
+        error_response = ErrorResponse(
+            status=500,
+            code="INTERNAL_ERROR",
+            message=f"Internal server error: {str(e)}",
+            isSuccess=False,
+            result={}
+        )
+        raise HTTPException(status_code=500, detail=error_response.dict())
+
+
+@router.post("/process/stream")
+@with_generation_metrics
+async def generation_process_stream(
+    request: GenerationProcessRequest,
+    x_user_role: str | None = Header(default=None, alias="x-user-role"),
+    x_user_uuid: str | None = Header(default=None, alias="x-user-uuid")
+):
+    """Generation /process/stream 엔드포인트 - SSE 스트리밍"""
+    try:
+        query = request.query
+        retrieved_chunks = request.retrievedChunks
+        strategy_name = request.generationStrategy
+        parameters = request.generationParameter
+
+        # History 관련 파라미터 (ingest에서 전달된 값 사용)
+        user_no_param = None
+        session_no_param = None
+        llm_no_param = None
+        try:
+            if isinstance(parameters, dict):
+                user_no_param = parameters.get("userNo")
+                session_no_param = parameters.get("sessionNo")
+                llm_no_param = parameters.get("llmNo")
+        except Exception:
+            pass
+        userNo = user_no_param or request.userId
+        sessionNo = session_no_param or request.sessionId
+
+        logger.info(
+            f"Processing generation stream: query={query[:50]}..., {len(retrieved_chunks)} chunks, "
+            f"strategy={strategy_name}, userNo={userNo}, sessionNo={sessionNo}"
+        )
+
+        if not query or not query.strip():
+            raise HTTPException(status_code=400, detail="query cannot be empty")
+
+        # Redis Stream에 질의 기록
+        try:
+            history_stream_service = get_history_stream_service()
+            history_stream_service.append_user_query(
+                query=query,
+                user_id=str(userNo) if userNo else None,
+                session_id=str(sessionNo) if sessionNo else None,
+                strategy=strategy_name,
+            )
+        except Exception as stream_error:
+            logger.warning(f"Failed to append query to Redis stream: {stream_error}")
+
+        # 전략 로드
+        strategy = get_strategy(strategy_name, parameters)
+
+        # Memory 생성 (userNo와 sessionNo가 있으면 항상 사용)
+        memory = None
+        if userNo and sessionNo:
+            try:
+                memory_manager = get_memory_manager()
+                try:
+                    memory_manager.set_request_context(
+                        str(userNo),
+                        str(sessionNo),
+                        session_no=session_no_param,
+                        user_no=user_no_param,
+                        llm_no=llm_no_param,
+                    )
+                    memory_manager.set_pending_ai_payload(
+                        str(userNo),
+                        str(sessionNo),
+                        llm_no=llm_no_param
+                    )
+                except Exception as ctx_err:
+                    logger.warning(f"Failed to set request context for memory: {ctx_err}")
+                
+                llm = None
+                if hasattr(strategy, 'llm'):
+                    llm = strategy.llm
+                
+                memory = memory_manager.get_or_create_memory(
+                    user_id=str(userNo),
+                    session_id=str(sessionNo),
+                    llm=llm
+                )
+                if memory is None:
+                    logger.warning(f"Memory initialization returned None. History will be disabled. userNo={userNo}, sessionNo={sessionNo}")
+                else:
+                    logger.info(f"Memory initialized successfully: strategy=summary_buffer (fixed), userNo={userNo}, sessionNo={sessionNo}")
+            except Exception as e:
+                logger.error(f"Failed to initialize memory: {e}", exc_info=True)
+                logger.warning("Continuing without history...")
+        else:
+            logger.info("userNo or sessionNo is missing. Memory will not be used.")
+
+        # 요청 헤더 전달
+        forward_headers = {
+            "x-user-role": x_user_role,
+            "x-user-uuid": x_user_uuid,
+        }
+
+        async def stream_generator() -> AsyncIterator[bytes]:
+            """스트리밍 응답 생성기"""
+            try:
+                # strategy.generate_stream 호출
+                stream = strategy.generate_stream(
+                    query=query,
+                    retrieved_chunks=retrieved_chunks,
+                    memory=memory,
+                    user_id=str(userNo) if userNo else None,
+                    session_id=str(sessionNo) if sessionNo else None,
+                    request_headers={k: v for k, v in forward_headers.items() if v}
+                )
+                
+                # 스트리밍 데이터 전송 (generate_stream이 이미 init과 update를 전송함)
+                async for chunk in stream:
+                    yield chunk.encode('utf-8')
+                
+            except Exception as e:
+                logger.error(f"Error in stream generation: {str(e)}", exc_info=True)
+                error_data = {
+                    "message": str(e)
+                }
+                yield f"event: error\ndata: {json.dumps(error_data, ensure_ascii=False)}\n\n".encode('utf-8')
+
+        return StreamingResponse(
+            content=stream_generator(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no"
+            }
+        )
+    except HTTPException as e:
+        error_response = ErrorResponse(
+            status=e.status_code,
+            code="VALIDATION_ERROR" if e.status_code == 400 else "NOT_FOUND" if e.status_code == 404 else "INTERNAL_ERROR",
+            message=str(e.detail),
+            isSuccess=False,
+            result={}
+        )
+        raise HTTPException(status_code=e.status_code, detail=error_response.dict())
+    except Exception as e:
+        logger.error(f"Error processing generation stream: {str(e)}", exc_info=True)
         error_response = ErrorResponse(
             status=500,
             code="INTERNAL_ERROR",
