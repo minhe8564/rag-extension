@@ -158,9 +158,9 @@ export default function ReferencedDocsPanel({
                                 {d.type}
                               </span>
                             ) : null}
-                            <span className="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500">
+                            {/* <span className="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500">
                               #{d.index}
-                            </span>
+                            </span> */}
                           </div>
                           {d.snippet ? (
                             <div
