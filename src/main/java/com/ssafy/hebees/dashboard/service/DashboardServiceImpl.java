@@ -9,7 +9,6 @@ import com.ssafy.hebees.dashboard.repository.DocumentAggregateHourlyRepository;
 import com.ssafy.hebees.dashboard.repository.ErrorAggregateHourlyRepository;
 import com.ssafy.hebees.dashboard.repository.UserAggregateHourlyRepository;
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,9 +29,9 @@ public class DashboardServiceImpl implements DashboardService {
         Window window = Window.current();
 
         Long current = userAggregateHourlyRepository.sumAccessUserCountBetween(
-            window.currentWindowStart(), window.referenceHour());
+            window.currentStart(), window.currentEnd());
         Long previous = userAggregateHourlyRepository.sumAccessUserCountBetween(
-            window.previousWindowStart(), window.currentWindowStart());
+            window.previousStart(), window.currentStart());
 
         return toChange24hResponse(
             current != null ? current : 0L,
@@ -45,9 +44,9 @@ public class DashboardServiceImpl implements DashboardService {
         Window window = Window.current();
 
         Long current = documentAggregateHourlyRepository.sumUploadCountBetween(
-            window.currentWindowStart(), window.referenceHour());
+            window.currentStart(), window.currentEnd());
         Long previous = documentAggregateHourlyRepository.sumUploadCountBetween(
-            window.previousWindowStart(), window.currentWindowStart());
+            window.previousStart(), window.currentStart());
 
         return toChange24hResponse(
             current != null ? current : 0L,
@@ -60,9 +59,9 @@ public class DashboardServiceImpl implements DashboardService {
         Window window = Window.current();
 
         Long current = errorAggregateHourlyRepository.sumTotalErrorCountBetween(
-            window.currentWindowStart(), window.referenceHour());
+            window.currentStart(), window.currentEnd());
         Long previous = errorAggregateHourlyRepository.sumTotalErrorCountBetween(
-            window.previousWindowStart(), window.currentWindowStart());
+            window.previousStart(), window.currentStart());
 
         return toChange24hResponse(
             current != null ? current : 0L,
@@ -105,19 +104,17 @@ public class DashboardServiceImpl implements DashboardService {
         );
     }
 
-    private record Window(
-        LocalDateTime now,
-        LocalDateTime referenceHour,
-        LocalDateTime currentWindowStart,
-        LocalDateTime previousWindowStart
-    ) {
+    private record Window(LocalDateTime now, LocalDateTime currentStart, LocalDateTime currentEnd) {
 
         private static Window current() {
             LocalDateTime now = LocalDateTime.now();
-            LocalDateTime referenceHour = now.truncatedTo(ChronoUnit.HOURS);
-            LocalDateTime currentWindowStart = referenceHour.minusHours(HOURS_24);
-            LocalDateTime previousWindowStart = currentWindowStart.minusHours(HOURS_24);
-            return new Window(now, referenceHour, currentWindowStart, previousWindowStart);
+            LocalDateTime currentStart = now.toLocalDate().atStartOfDay();
+            LocalDateTime currentEnd = currentStart.plusDays(1);
+            return new Window(now, currentStart, currentEnd);
+        }
+
+        private LocalDateTime previousStart() {
+            return currentStart.minusDays(1);
         }
     }
 
