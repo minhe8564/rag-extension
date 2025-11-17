@@ -23,11 +23,20 @@ type Props = {
   onRename?: (id: string, nextName: string) => void;
   autoResolve?: 'none' | 'overwrite' | 'rename';
   showStatus?: boolean;
+  pagination?: {
+    pageNum: number;
+    totalPages: number;
+    hasPrev: boolean;
+    hasNext: boolean;
+    isLoading: boolean;
+    onPageChange: (page: number) => void;
+    className?: string;
+  };
 };
 
 export default function UploadedFileList({
   docs,
-  pageSize = 5,
+  pageSize = 20,
   onDownload,
   onDelete,
   brand = 'hebees',
@@ -36,6 +45,7 @@ export default function UploadedFileList({
   onRename,
   autoResolve = 'none',
   showStatus = true,
+  pagination,
 }: Props) {
   const [fileType, setFileType] = useState<'all' | UploadedDoc['type']>('all');
   const [page, setPage] = useState(1);
@@ -269,7 +279,16 @@ export default function UploadedFileList({
           </div>
 
           <div className="flex items-center justify-center gap-5 py-3 text-sm">
-            <Pagination pageNum={safePage} totalPages={totalPages} onPageChange={setPage} />
+            {pagination && pagination.totalPages > 1 && !hideFooter && (
+              <Pagination
+                pageNum={pagination.pageNum}
+                totalPages={pagination.totalPages}
+                hasPrev={pagination.hasPrev}
+                hasNext={pagination.hasNext}
+                isLoading={pagination.isLoading}
+                onPageChange={pagination.onPageChange}
+              />
+            )}
           </div>
         </>
       )}

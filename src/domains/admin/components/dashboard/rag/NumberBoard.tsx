@@ -143,13 +143,6 @@ export default function NumberBoard() {
           ? 'text-rose-600 bg-rose-50 border-rose-100'
           : 'text-slate-500 bg-slate-50 border-slate-100';
 
-    const subtitle =
-      key === 'user'
-        ? 'RAG 챗봇 사용자'
-        : key === 'document'
-          ? '업로드된 전체 문서'
-          : '발생한 전체 오류';
-
     const asOf = trend?.asOf ?? total?.asOf;
 
     return (

@@ -4,7 +4,6 @@ import { fetchMyDocumentsNormalized, getPresignedUrl, deleteFile } from '@/share
 import type { MyDoc } from '@/shared/types/file.types';
 import UploadedFileList from '@/shared/components/file/UploadedFileList';
 import type { UploadedDoc } from '@/shared/types/file.types';
-import Pagination from '@/shared/components/Pagination';
 import { RefreshCw } from 'lucide-react';
 import { toast } from 'react-toastify';
 import ConfirmModal from '@/shared/components/ConfirmModal';
@@ -184,32 +183,26 @@ export default function MyDocsTab() {
         ) : (
           <UploadedFileList
             docs={uploadedDocs}
-            pageSize={Math.max(1, uploadedDocs.length || 1)}
             brand="retina"
-            // hideFooter
             onDownload={handleDownload}
             onDelete={requestDelete}
             showStatus={true}
-          />
-        )}
+            pagination={{
+              pageNum,
+              totalPages,
+              hasPrev: pageNum > 1,
+              hasNext: hasNext || pageNum < totalPages,
+              isLoading: loading || deleting,
+              onPageChange: (newPage: number) => {
+                const isNextClick = newPage === pageNum + 1;
+                if (newPage < 1) return;
+                if (!isNextClick && newPage > totalPages) return;
+                if (isNextClick && !(hasNext || pageNum < totalPages)) return;
 
-        {totalPages > 1 && (
-          <Pagination
-            pageNum={pageNum}
-            totalPages={totalPages}
-            hasPrev={pageNum > 1}
-            hasNext={hasNext || pageNum < totalPages}
-            isLoading={loading || deleting}
-            onPageChange={(newPage) => {
-              const isNextClick = newPage === pageNum + 1;
-              if (newPage < 1) return;
-              if (!isNextClick && newPage > totalPages) return;
-              if (isNextClick && !(hasNext || pageNum < totalPages)) return;
-
-              setPageNum(newPage);
-              window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+                setPageNum(newPage);
+                window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+              },
             }}
-            className="mt-4"
           />
         )}
       </div>
