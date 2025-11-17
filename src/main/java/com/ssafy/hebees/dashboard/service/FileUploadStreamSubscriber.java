@@ -1,7 +1,6 @@
-package com.ssafy.hebees.ingest.service;
+package com.ssafy.hebees.dashboard.service;
 
 import com.ssafy.hebees.common.subscriber.BaseRedisStreamSubscriber;
-import com.ssafy.hebees.dashboard.service.DashboardMetricStreamService;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -14,8 +13,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class FileUploadStreamSubscriber extends BaseRedisStreamSubscriber {
 
-    private static final String STREAM_KEY = "ingest:uploads";
-    private static final String GROUP_NAME = "backend-ingest-uploads";
+    private static final String STREAM_KEY = "upload:files";
+    private static final String GROUP_NAME = "backend-upload-files";
 
     private final DashboardMetricStreamService dashboardMetricStreamService;
 
