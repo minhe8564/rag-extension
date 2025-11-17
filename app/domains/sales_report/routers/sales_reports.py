@@ -76,7 +76,8 @@ async def generate_store_summary(
             transactions=request.data,
             report_date=report_date,  # Query 파라미터로 받은 값 사용
             year_month=request.year_month,
-            include_ai_summary=not skip_ai
+            include_ai_summary=not skip_ai,
+            custom_prompt=request.custom_prompt  # Request Body에서 받은 커스텀 프롬프트 전달
         )
 
         # BaseResponse로 감싸서 반환
@@ -154,7 +155,8 @@ async def generate_chain_summary(
             week_data=request.week.data,
             customer_data=request.customer.data,
             product_data=request.product.data,
-            include_ai_insights=not skip_ai
+            include_ai_insights=not skip_ai,
+            custom_prompt=request.custom_prompt  # Request Body에서 받은 커스텀 프롬프트 전달
         )
 
         # BaseResponse로 감싸서 반환
