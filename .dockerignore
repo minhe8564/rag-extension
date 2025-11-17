@@ -49,7 +49,8 @@ Jenkinsfile
 .gitlab/
 
 # Development
-.env
+# .env 파일은 Docker 이미지에 포함하도록 설정 (필수 환경변수 포함)
+# .env
 .env.local
 .env.*.local
 *.log

@@ -1696,14 +1696,52 @@ def upload_pdf_to_minio(
         with open(pdf_path, 'rb') as file_data:
             file_size = pdf_file.stat().st_size
             
+            # 파일명 추출 및 안전한 인코딩
+            # MinIO 메타데이터는 latin-1만 지원하므로 Content-Disposition을 안전하게 설정
+            filename = pdf_file.name
+            filename_base = pdf_file.stem
+            filename_ext = pdf_file.suffix
+            
+            # Content-Disposition 헤더 설정 (다운로드 강제)
+            # MinIO 메타데이터는 latin-1로 인코딩되므로 한글 파일명을 ASCII로 변환
+            # 방법: 한글을 언더스코어로 대체하거나 ASCII만 유지
+            try:
+                # ASCII 문자만 유지하고, 한글은 언더스코어로 대체
+                safe_filename_base = ''.join(c if ord(c) < 128 else '_' for c in filename_base)
+                # 모든 문자가 한글이면 기본 이름 사용
+                if not safe_filename_base or safe_filename_base == '_' * len(safe_filename_base):
+                    safe_filename_base = "file"
+                safe_filename = f"{safe_filename_base}{filename_ext}"
+            except:
+                safe_filename = f"file{filename_ext}"
+            
+            # Content-Disposition 헤더 (latin-1 호환)
+            # attachment: 브라우저에서 다운로드
+            content_disposition = f'attachment; filename="{safe_filename}"'
+            
             # MinIO에 업로드
-            client.put_object(
-                bucket_name=bucket,
-                object_name=object_name,
-                data=file_data,
-                length=file_size,
-                content_type='application/pdf'
-            )
+            # 메타데이터는 latin-1로 인코딩되므로 ASCII만 사용
+            try:
+                client.put_object(
+                    bucket_name=bucket,
+                    object_name=object_name,
+                    data=file_data,
+                    length=file_size,
+                    content_type='application/pdf',
+                    metadata={
+                        'Content-Disposition': content_disposition
+                    }
+                )
+            except UnicodeEncodeError:
+                # 여전히 인코딩 오류가 발생하면 Content-Disposition 없이 업로드
+                logger.warning(f"Content-Disposition 설정 실패 (한글 파일명), 메타데이터 없이 업로드: {filename}")
+                client.put_object(
+                    bucket_name=bucket,
+                    object_name=object_name,
+                    data=file_data,
+                    length=file_size,
+                    content_type='application/pdf'
+                )
             
             # 전체 URL 생성
             base_url = settings.minio_base_url.rstrip('/')
