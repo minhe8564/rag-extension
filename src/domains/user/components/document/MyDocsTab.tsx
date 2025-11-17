@@ -8,8 +8,7 @@ import { RefreshCw } from 'lucide-react';
 import { toast } from 'react-toastify';
 import ConfirmModal from '@/shared/components/ConfirmModal';
 import { formatCreatedAt } from '@/shared/utils/date';
-
-const PAGE_SIZE = 20;
+import { Loader2 } from 'lucide-react';
 
 export default function MyDocsTab() {
   const [myDocs, setMyDocs] = useState<MyDoc[]>([]);
@@ -40,7 +39,7 @@ export default function MyDocsTab() {
       try {
         const { items, total, totalPages, hasNext } = await fetchMyDocumentsNormalized({
           pageNum,
-          pageSize: PAGE_SIZE,
+          pageSize: 20,
         });
         if (!active || myReqId !== reqSeq.current) return;
 
@@ -179,10 +178,14 @@ export default function MyDocsTab() {
         </div>
 
         {loading ? (
-          <div className="py-12 text-center text-gray-500">불러오는 중…</div>
+          <div className="flex items-center justify-center py-8 text-gray-500">
+            <Loader2 size={18} className="mr-2 animate-spin" />
+            불러오는 중…
+          </div>
         ) : (
           <UploadedFileList
             docs={uploadedDocs}
+            pageSize={20}
             brand="retina"
             onDownload={handleDownload}
             onDelete={requestDelete}

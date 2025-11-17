@@ -139,6 +139,7 @@ export function CreateCollectionForm({
         />
 
         <UploadedFileList
+          pageSize={5}
           docs={uploadedDocs}
           onDownload={handleDownload}
           onDelete={handleDelete}

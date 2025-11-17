@@ -14,7 +14,7 @@ import type { UploadedDoc } from '@/shared/types/file.types';
 
 type Props = {
   docs: UploadedDoc[];
-  pageSize?: number;
+  pageSize: number;
   onDownload?: (id: string) => void;
   onDelete?: (ids: string[]) => void;
   brand?: 'hebees' | 'retina';
@@ -36,7 +36,7 @@ type Props = {
 
 export default function UploadedFileList({
   docs,
-  pageSize = 20,
+  pageSize,
   onDownload,
   onDelete,
   brand = 'hebees',

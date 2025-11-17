@@ -84,7 +84,6 @@ export default function UploadTab() {
       if (successCount > 0) {
         toast.success(`문서 ${successCount}개 업로드 완료!`);
         setUploadedDocs((prev) => prev.filter((d) => !(selectedIds.includes(d.id) && d.fileNo)));
-
         setSelectedIds([]);
       }
     } catch {
@@ -142,6 +141,7 @@ export default function UploadTab() {
 
       <UploadedFileList
         docs={uploadedDocs}
+        pageSize={20}
         onDownload={handleDownload}
         onDelete={handleDelete}
         onRename={handleRename}

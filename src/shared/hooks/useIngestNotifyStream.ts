@@ -13,6 +13,18 @@ function isMessageEventString(evt: unknown): evt is MessageEvent<string> {
 
 type ESListener = Parameters<EventSourcePolyfill['addEventListener']>[1];
 
+export type IngestNotifyMessage =
+  | { completed: number }
+  | {
+      status?: number;
+      result?: {
+        total?: number;
+        completed?: number;
+        successCount?: number;
+        failedCount?: number;
+      };
+    };
+
 function parseData<T>(raw: string): T | null {
   try {
     return JSON.parse(raw) as T;
@@ -21,21 +33,21 @@ function parseData<T>(raw: string): T | null {
   }
 }
 
-export interface UseIngestNotifyStreamOptions {
+export interface UseIngestNotifyStreamOptions<T = IngestSummaryResponse> {
   accessToken?: string;
   enabled?: boolean;
   urlOverride?: string;
-  onMessage?: (data: IngestSummaryResponse) => void;
+  onMessage?: (data: T) => void;
   onError?: (e: Event) => void;
 }
 
-export function useIngestNotifyStream({
+export function useIngestNotifyStream<T = IngestSummaryResponse>({
   accessToken,
   enabled = true,
   urlOverride,
   onMessage,
   onError,
-}: UseIngestNotifyStreamOptions) {
+}: UseIngestNotifyStreamOptions<T>) {
   const [connected, setConnected] = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
 
@@ -44,10 +56,10 @@ export function useIngestNotifyStream({
     payload?: ESListener;
     error?: ESListener;
   }>({});
-  const onMessageRef = useRef<typeof onMessage>();
+
+  const onMessageRef = useRef<((data: T) => void) | undefined>();
   const onErrorRef = useRef<typeof onError>();
 
-  // 최신 콜백을 ref에만 저장 (deps에 안 넣음)
   useEffect(() => {
     onMessageRef.current = onMessage;
   }, [onMessage]);
@@ -66,7 +78,6 @@ export function useIngestNotifyStream({
   );
 
   useEffect(() => {
-    // 토큰 없거나 꺼져 있으면 정리만
     if (!token || !enabled) {
       if (esRef.current && listenerRef.current.payload && listenerRef.current.error) {
         esRef.current.removeEventListener('ingest-summary-completed', listenerRef.current.payload);
@@ -112,7 +123,7 @@ export function useIngestNotifyStream({
     const payloadListener: ESListener = {
       handleEvent(evt: Event) {
         if (!isMessageEventString(evt)) return;
-        const parsed = parseData<IngestSummaryResponse>(evt.data);
+        const parsed = parseData<T>(evt.data);
         if (!parsed) return;
 
         setConnected(true);

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import Tooltip from '@/shared/components/controls/Tooltip';
 import clsx from 'clsx';
+import { Loader2 } from 'lucide-react';
 import { useReferencedDocsStore } from '@/shared/store/useReferencedDocsStore';
 
 type Props = {
@@ -162,7 +163,10 @@ export default function ReferencedDocsPanel({
               </button>
             </div>
           ) : isFetching && !data ? (
-            <div className="rounded-md border bg-white p-3 text-sm text-gray-500">불러오는 중…</div>
+            <div className="flex items-center justify-center py-8 text-gray-500">
+              <Loader2 size={18} className="mr-2 animate-spin" />
+              불러오는 중…
+            </div>
           ) : (
             <ul className="space-y-2">
               {docs.map((d) => {
@@ -191,9 +195,9 @@ export default function ReferencedDocsPanel({
                                 {d.type}
                               </span>
                             ) : null}
-                            <span className="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500">
+                            {/* <span className="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500">
                               #{d.index}
-                            </span>
+                            </span> */}
                           </div>
                           {d.snippet ? (
                             <div

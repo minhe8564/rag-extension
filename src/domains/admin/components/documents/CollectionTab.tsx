@@ -48,7 +48,7 @@ export default function CollectionTab() {
         const isSuccess = data.deleted;
 
         if (!isSuccess) {
-          toast.error('서버에서 문서를 삭제하지 못했습니다 ❌');
+          toast.error('서버에서 문서를 삭제하지 못했습니다.');
           return;
         }
       }
@@ -57,9 +57,9 @@ export default function CollectionTab() {
       queryClient.invalidateQueries({ queryKey: ['docs', selectedCollection.id] });
       // 선택된 문서 목록도 업데이트
       setSelectedDocs((prev) => prev.filter((d) => !ids.includes(d.id)));
-      toast.success('삭제 완료 ✅');
+      toast.success('삭제 완료했습니다.');
     } catch (error) {
-      toast.error('삭제 실패 ❌');
+      toast.error('삭제 실패했습니다.');
       console.error('파일 삭제 오류:', error);
     }
   };

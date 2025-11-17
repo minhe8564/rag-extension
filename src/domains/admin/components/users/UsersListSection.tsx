@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { RotateCw } from 'lucide-react';
+import { RefreshCw, Loader2 } from 'lucide-react';
 import { getUsers, type User } from '@/domains/admin/api/user.api';
 import Pagination from '@/shared/components/Pagination';
 import Select from '@/shared/components/controls/Select';
@@ -63,7 +63,7 @@ export default function UsersListSection() {
           onClick={loadUsers}
           disabled={loading}
         >
-          <RotateCw
+          <RefreshCw
             size={16}
             strokeWidth={2}
             className={loading ? 'animate-spin text-gray-400' : 'text-gray-600'}
@@ -120,7 +120,10 @@ export default function UsersListSection() {
             {loading ? (
               <tr>
                 <td colSpan={5} className="text-center py-6">
-                  불러오는 중...
+                  <div className="flex items-center justify-center py-8 text-gray-500">
+                    <Loader2 size={18} className="mr-2 animate-spin" />
+                    불러오는 중…
+                  </div>
                 </td>
               </tr>
             ) : paginatedUsers.length === 0 ? (
