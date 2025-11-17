@@ -9,6 +9,7 @@ import json
 import asyncio
 from datetime import datetime
 from zoneinfo import ZoneInfo
+from app.core.settings import settings
 
 # ✅ LangChain - Ollama 통합
 from langchain_ollama import ChatOllama
@@ -31,9 +32,9 @@ class Ollama(BaseGenerationStrategy):
     def __init__(self, parameters: Dict[Any, Any] = None):
         super().__init__(parameters)
 
-        # ✅ 설정값 로드
+        # ✅ 설정값 로드 - DB에서 가져온 qwen_base_url 사용 (기본값으로 폴백)
         self.model_name = self.parameters.get("model_name", "qwen3-vl:8b")
-        self.base_url = self.parameters.get("base_url", "http://apik.co.kr:11434/")
+        self.base_url = self.parameters.get("base_url", settings.qwen_base_url)
         self.temperature = self.parameters.get("temperature", 0.1)
 
         logger.info(f"[Ollama] Initializing LLM: {self.model_name} at {self.base_url}")
