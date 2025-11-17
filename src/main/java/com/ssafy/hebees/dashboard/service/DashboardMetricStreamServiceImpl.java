@@ -124,15 +124,16 @@ public class DashboardMetricStreamServiceImpl implements DashboardMetricStreamSe
     }
 
     private long fetchMetricValue(MetricType type) {
-        LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime startOfToday = LocalDate.now().atStartOfDay();
+        LocalDateTime endOfToday = startOfToday.plusDays(1);
         return switch (type) {
-            case ACCESS_USERS -> userAggregateHourlyRepository.sumAccessUserCountBetween(startOfDay,
-                now);
-            case UPLOAD_DOCUMENTS -> documentAggregateHourlyRepository.sumUploadCountBetween(
-                startOfDay, now);
+            case ACCESS_USERS -> defaultIfNull(
+                userAggregateHourlyRepository.sumAccessUserCountBetween(startOfToday, endOfToday));
+            case UPLOAD_DOCUMENTS -> defaultIfNull(
+                documentAggregateHourlyRepository.sumUploadCountBetween(startOfToday, endOfToday));
             case ERRORS ->
-                errorAggregateHourlyRepository.sumTotalErrorCountBetween(startOfDay, now);
+                defaultIfNull(errorAggregateHourlyRepository.sumTotalErrorCountBetween(
+                    startOfToday, endOfToday));
         };
     }
 
@@ -171,53 +172,58 @@ public class DashboardMetricStreamServiceImpl implements DashboardMetricStreamSe
 
     private AccessUserEvent buildAccessUserEvent(long todayTotal) {
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime startOfDay = now.toLocalDate().atStartOfDay();
-        LocalDateTime startOfYesterday = startOfDay.minusDays(1);
+        LocalDateTime startOfToday = now.toLocalDate().atStartOfDay();
+        LocalDateTime startOfYesterday = startOfToday.minusDays(1);
 
-        long yesterdayTotal = userAggregateHourlyRepository
-            .sumAccessUserCountBetween(startOfYesterday, startOfDay);
+        long normalizedTodayTotal = defaultIfNull(todayTotal);
+        long yesterdayTotal = defaultIfNull(userAggregateHourlyRepository
+            .sumAccessUserCountBetween(startOfYesterday, startOfToday));
         long totalAccessUsers = userAggregateHourlyRepository.sumAccessUserCount();
 
         double deltaPct = yesterdayTotal != 0
-            ? (double) (todayTotal - yesterdayTotal) / yesterdayTotal
+            ? (double) (normalizedTodayTotal - yesterdayTotal) / yesterdayTotal
             : Double.POSITIVE_INFINITY;
 
         TrendDirection direction = TrendDirection.of(deltaPct);
-        return AccessUserEvent.of(todayTotal, totalAccessUsers, deltaPct, direction);
+        return AccessUserEvent.of(normalizedTodayTotal, totalAccessUsers, deltaPct, direction);
     }
 
     private UploadDocumentEvent buildUploadDocumentEvent(long todayTotal) {
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime startOfDay = now.toLocalDate().atStartOfDay();
-        LocalDateTime startOfYesterday = startOfDay.minusDays(1);
+        LocalDateTime startOfToday = now.toLocalDate().atStartOfDay();
+        LocalDateTime endOfToday = startOfToday.plusDays(1);
+        LocalDateTime startOfYesterday = startOfToday.minusDays(1);
 
-        long yesterdayTotal = documentAggregateHourlyRepository
-            .sumUploadCountBetween(startOfYesterday, startOfDay);
+        long normalizedTodayTotal = defaultIfNull(todayTotal);
+        long yesterdayTotal = defaultIfNull(documentAggregateHourlyRepository
+            .sumUploadCountBetween(startOfYesterday, startOfToday));
         long totalUploadedDocs = documentAggregateHourlyRepository.sumUploadCount();
 
         double deltaPct = yesterdayTotal != 0
-            ? (double) (todayTotal - yesterdayTotal) / yesterdayTotal
+            ? (double) (normalizedTodayTotal - yesterdayTotal) / yesterdayTotal
             : Double.POSITIVE_INFINITY;
 
         TrendDirection direction = TrendDirection.of(deltaPct);
-        return UploadDocumentEvent.of(todayTotal, totalUploadedDocs, deltaPct, direction);
+        return UploadDocumentEvent.of(normalizedTodayTotal, totalUploadedDocs, deltaPct, direction);
     }
 
     private ErrorEvent buildErrorEvent(long todayTotal) {
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime startOfDay = now.toLocalDate().atStartOfDay();
-        LocalDateTime startOfYesterday = startOfDay.minusDays(1);
+        LocalDateTime startOfToday = now.toLocalDate().atStartOfDay();
+        LocalDateTime endOfToday = startOfToday.plusDays(1);
+        LocalDateTime startOfYesterday = startOfToday.minusDays(1);
 
-        long yesterdayTotal = errorAggregateHourlyRepository
-            .sumTotalErrorCountBetween(startOfYesterday, startOfDay);
+        long normalizedTodayTotal = defaultIfNull(todayTotal);
+        long yesterdayTotal = defaultIfNull(errorAggregateHourlyRepository
+            .sumTotalErrorCountBetween(startOfYesterday, startOfToday));
         long totalError = errorAggregateHourlyRepository.sumTotalErrorCount();
 
         double deltaPct = yesterdayTotal != 0
-            ? (double) (todayTotal - yesterdayTotal) / yesterdayTotal
+            ? (double) (normalizedTodayTotal - yesterdayTotal) / yesterdayTotal
             : Double.POSITIVE_INFINITY;
 
         TrendDirection direction = TrendDirection.of(deltaPct);
-        return ErrorEvent.of(todayTotal, totalError, deltaPct, direction);
+        return ErrorEvent.of(normalizedTodayTotal, totalError, deltaPct, direction);
     }
 
     private void removeEmitter(MetricType type, SseEmitter emitter) {
@@ -243,6 +249,10 @@ public class DashboardMetricStreamServiceImpl implements DashboardMetricStreamSe
             return Integer.MIN_VALUE;
         }
         return (int) value;
+    }
+
+    private long defaultIfNull(Long value) {
+        return value != null ? value : 0L;
     }
 
     private enum MetricType {
