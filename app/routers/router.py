@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Header
 from app.schemas.request.chunkingRequest import ChunkingProcessRequest
 from app.schemas.response.chunkingProcessResponse import ChunkingProcessResponse, ChunkingProcessResult, Chunk
 from app.schemas.response.errorResponse import ErrorResponse
@@ -69,45 +69,38 @@ def get_strategy(strategy_name: str, parameters: Dict[Any, Any] = None) -> Any:
 
 @router.post("/process")
 @with_chunking_metrics
-async def chunking_process(request: ChunkingProcessRequest):
+async def chunking_process(
+    request: ChunkingProcessRequest,
+    x_user_role: str | None = Header(default=None, alias="x-user-role"),
+    x_user_uuid: str | None = Header(default=None, alias="x-user-uuid"),
+):
     """
     Chunking /process 엔드포인트
     - chunkingStrategy로 전략 클래스 선택
     - chunk() 메서드 호출하여 pages를 청크로 나누기
     """
     try:
-        pages = request.pages
         strategy_name = request.chunkingStrategy
         parameters = request.chunkingParameter
+        bucket = (request.bucket or "").strip()
+        path = (request.path or "").strip()
 
-        logger.info(f"Processing chunking: {len(pages)} pages with strategy: {strategy_name}")
+        logger.info(f"Processing chunking: bucket={bucket}, path={path}, strategy={strategy_name}")
 
-        # 페이지 데이터 검증
-        if not pages:
-            raise HTTPException(
-                status_code=400,
-                detail="pages cannot be empty"
-            )
-        
-        # 각 페이지가 올바른 형식인지 확인
-        for idx, page in enumerate(pages):
-            if not isinstance(page, dict):
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Page at index {idx} must be a dictionary"
-                )
-            if "content" not in page:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Page at index {idx} must have 'content' field"
-                )
+        # 필수값 검증
+        if not bucket or not path:
+            raise HTTPException(status_code=400, detail="bucket and path are required")
 
         # 전략 로드
         logger.info(f"Chunking strategy: {strategy_name}, parameters: {parameters}")
         strategy = get_strategy(strategy_name, parameters)
 
-        # chunk() 메서드 호출
-        chunks = strategy.chunk(pages)
+        # 전략 내부에서 presigned 다운로드 수행
+        request_headers = {
+            "x-user-role": x_user_role or "",
+            "x-user-uuid": x_user_uuid or "",
+        }
+        chunks = strategy.chunk(bucket=bucket, path=path, request_headers=request_headers)
         
         # Response 생성
         chunk_list = [

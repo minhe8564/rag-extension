@@ -5,9 +5,11 @@ Chunking Strategy 모듈
 
 from .base import BaseChunkingStrategy
 from .fixed import Fixed
+from .md import Md
 
 __all__ = [
     "BaseChunkingStrategy",
-    "Fixed"
+    "Fixed",
+    "Md"
 ]
 

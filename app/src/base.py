@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from loguru import logger
 
 
@@ -11,15 +11,17 @@ class BaseChunkingStrategy(ABC):
         logger.info(f"Initialized {self.__class__.__name__} with parameters: {self.parameters}")
     
     @abstractmethod
-    def chunk(self, pages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def chunk(self, bucket: str, path: str, request_headers: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
         """
-        페이지 데이터를 청크로 나누기
+        원격 저장소 객체(bucket/path)를 presigned URL로 다운로드하여 청킹
         
         Args:
-            pages: 페이지 리스트, 각 페이지는 {"page": int, "content": str} 형식
+            bucket: 버킷 이름 (예: "ingest")
+            path:   객체 키 (예: "user/abc.md")
+            request_headers: 호출자 헤더(예: x-user-uuid, x-user-role)
         
         Returns:
-            청크 리스트, 각 청크는 {"doc_id": str, "page": int, "chunk_id": int, "text": str} 형식
+            청크 리스트, 각 청크는 {"page": int, "chunk_id": int, "text": str} 형식
         """
-        pass
+        raise NotImplementedError()
 
