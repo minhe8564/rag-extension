@@ -61,7 +61,8 @@ public class GeminiChatClient implements LlmChatClient {
             : "v1beta";
 
         String url = String.format("%s/%s/models/%s:generateContent", baseUrl, version, model);
-        UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(Objects.requireNonNull(url))
+        UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(
+                Objects.requireNonNull(url))
             .queryParam("key", apiKey);
 
         ObjectNode payload = objectMapper.createObjectNode();

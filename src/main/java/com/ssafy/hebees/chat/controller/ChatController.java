@@ -213,6 +213,25 @@ public class ChatController {
             ));
     }
 
+    @PostMapping("/ask")
+    @Operation(summary = "일반 LLM 챗봇에게 질문하기", description = "일반 LLM 챗봇에게 질문을 합니다.")
+    @ApiResponse(responseCode = "200", description = "일반 LLM 챗봇에게 질문을 성공하였습니다.")
+    public ResponseEntity<BaseResponse<AskResponse>> ask(
+        @Valid @RequestBody AskRequest request
+    ) {
+        UUID userNo = SecurityUtil.getCurrentUserUuid()
+            .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_ACCESS_TOKEN));
+
+        AskResponse response = chatAskService.ask(userNo, request.sessionNo(), request);
+
+        return ResponseEntity.ok(
+            BaseResponse.of(
+                HttpStatus.OK,
+                response,
+                "일반 LLM 챗봇에게 질문을 성공하였습니다."
+            ));
+    }
+
     @PostMapping("/sessions/{sessionNo}/messages")
     @Operation(summary = "[관리자] 메시지 생성", description = "세션에 메시지를 추가합니다.")
     @ApiResponse(responseCode = "201", description = "메시지 생성 성공")

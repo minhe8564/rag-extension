@@ -5,6 +5,7 @@ import com.ssafy.hebees.chat.dto.request.MessageErrorSearchRequest;
 import com.ssafy.hebees.chat.dto.response.MessageErrorCreateResponse;
 import com.ssafy.hebees.chat.dto.response.MessageErrorResponse;
 import com.ssafy.hebees.chat.entity.MessageError;
+import com.ssafy.hebees.chat.entity.MessageErrorType;
 import com.ssafy.hebees.chat.entity.Session;
 import com.ssafy.hebees.chat.event.MessageErrorCreatedEvent;
 import com.ssafy.hebees.chat.repository.MessageErrorRepository;
@@ -34,7 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
+@Transactional
 public class MessageErrorServiceImpl implements MessageErrorService {
 
     private final MessageErrorRepository messageErrorRepository;
@@ -43,36 +44,29 @@ public class MessageErrorServiceImpl implements MessageErrorService {
     private final ApplicationEventPublisher eventPublisher;
 
     @Override
-    @Transactional
-    public MessageErrorCreateResponse createMessageError(UUID userNo,
-        MessageErrorCreateRequest request) {
-        UUID requester = ValidationUtil.require(userNo);
-        UUID sessionId = ValidationUtil.require(request.sessionNo());
+    public MessageErrorCreateResponse createError(MessageErrorCreateRequest request) {
+        UUID sessionNo = ValidationUtil.require(request.sessionNo());
 
-        Session session = sessionRepository.findBySessionNo(sessionId)
+        Session session = sessionRepository.findBySessionNo(sessionNo)
             .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
 
-        if (!Objects.equals(session.getUserNo(), requester)) {
-            log.warn("메시지 에러 로그 생성 권한 없음: requester={}, owner={}, sessionNo={}", requester,
-                session.getUserNo(), sessionId);
-            throw new BusinessException(ErrorCode.OWNER_ACCESS_DENIED);
-        }
+        String message = ValidationUtil.require(request.message());
 
-        String message = request.message();
-
-        MessageError error = toMessageError(request, session, message);
+        MessageError error = toMessageError(request.type(), session, message);
         MessageError saved = messageErrorRepository.save(error);
 
-        log.info("메시지 에러 로그 생성: userNo={}, sessionNo={}, errorNo={}", requester, sessionId,
-            saved.getMessageErrorNo());
+        log.info("메시지 에러 로그 생성: sessionNo={}, errorNo={}",
+            sessionNo, saved.getMessageErrorNo());
 
         eventPublisher.publishEvent(new MessageErrorCreatedEvent(saved.getType()));
 
         return MessageErrorCreateResponse.of(saved);
     }
 
+    // TODO: 남겨?
     @Override
-    public PageResponse<MessageErrorResponse> listMessageErrors(PageRequest pageRequest,
+    @Transactional(readOnly = true)
+    public PageResponse<MessageErrorResponse> listErrors(PageRequest pageRequest,
         MessageErrorSearchRequest searchRequest) {
 
         PageRequest effectivePage = pageRequest != null ? pageRequest : PageRequest.defaultPage();
@@ -141,24 +135,24 @@ public class MessageErrorServiceImpl implements MessageErrorService {
     }
 
     @Override
-    @Transactional
-    public void deleteMessageError(UUID errorMessageNo) {
-        UUID targetId = ValidationUtil.require(errorMessageNo);
+    public void deleteError(UUID errorNo) {
+        ValidationUtil.require(errorNo);
 
-        MessageError error = messageErrorRepository.findById(targetId)
+        MessageError error = messageErrorRepository.findById(errorNo)
             .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
 
         messageErrorRepository.delete(error);
-        log.info("메시지 에러 로그 삭제: errorNo={}, sessionNo={}, userNo={}", targetId,
-            error.getSessionNo(), error.getUserNo());
     }
 
-    private static MessageError toMessageError(MessageErrorCreateRequest request, Session session,
-        String message) {
+    private static MessageError toMessageError(
+        MessageErrorType type,
+        Session session,
+        String message
+    ) {
         return MessageError.builder()
             .sessionNo(session.getSessionNo())
             .userNo(session.getUserNo())
-            .type(request.type())
+            .type(type)
             .message(message)
             .build();
     }
