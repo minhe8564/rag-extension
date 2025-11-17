@@ -89,10 +89,6 @@ export default function VecProcess({
     }
   }, [isUploadDone]);
 
-  // useEffect(() => {
-  //   console.log('🔥 progressData:', progressData);
-  // }, [progressData]);
-
   const items = progressData?.data ?? [];
 
   //fileNo → fileName 매핑
@@ -107,10 +103,6 @@ export default function VecProcess({
     if (!progressData) return;
     if (!isUploadDone) return;
 
-    console.log('🟦 API progressData:', progressData);
-    progressData?.data?.forEach((item: any) => {
-      console.log(`🟩 API item:`, item.fileNo, item.fileName, item.status);
-    });
     const initial: Record<string, FileState> = {};
 
     items.forEach((item: VectorizationItem) => {
@@ -240,7 +232,6 @@ export default function VecProcess({
         const payload: IngestStreamSummary = JSON.parse(msg.data);
         setSummary(payload);
         if (payload.completed === payload.total) {
-          console.log('🎉 모든 ingest run 완료 → SSE 연결 종료');
           toast.success('모든 파일이 업로드 되었습니다!');
 
           eventSource.close();

@@ -87,9 +87,7 @@ export default function ChatbotUsageRealtime() {
     sources.realtimeUsage.addEventListener('init', (event) => {
       const e = event as MessageEvent;
       const InitData = JSON.parse(e.data) as initData;
-      console.log('🔥 SSE onmessage PARSED:', InitData);
       const initTime = new Date(InitData.timestamp).getTime() + 9 * 60 * 60 * 1000;
-      console.log('initTime:', initTime);
       const initRequestCount = InitData.requestCount;
 
       const chart = chartRef.current;
@@ -102,7 +100,6 @@ export default function ChatbotUsageRealtime() {
     sources.realtimeUsage.addEventListener('update', (event) => {
       const e = event as MessageEvent;
       const LiveData = JSON.parse(e.data) as updateData;
-      console.log('🔥 SSE onmessage PARSED (live):', LiveData);
       const updateTime = new Date(LiveData.timestamp).getTime() + 9 * 60 * 60 * 1000;
       const updateRequestCount = LiveData.requestCount;
 

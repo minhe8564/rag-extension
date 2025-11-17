@@ -33,7 +33,6 @@ export default function CollectionTab() {
       a.remove();
       URL.revokeObjectURL(blobUrl);
     } catch (error) {
-      console.error('File download failed:', error);
       const signedUrl = await getPresignedUrl(fileNo, { inline: false });
       window.open(signedUrl, '_blank');
     }
@@ -72,11 +71,8 @@ export default function CollectionTab() {
   };
 
   // ColList에서 선택된 컬렉션 정보 받기
-  const handleCollectionSelect = (collection: Collection | null, docs: DocItem[]) => {
+  const handleCollectionSelect = (collection: Collection | null) => {
     setSelectedCollection(collection);
-    console.log('선택된 컬렉션:', collection);
-    console.log('선택된 문서들:', docs);
-    setSelectedDocs(docs);
   };
 
   return (
@@ -89,10 +85,10 @@ export default function CollectionTab() {
         {selectedCollection ? (
           <CollectionDocumentsAdm
             collection={selectedCollection}
-            docs={selectedDocs}
             onDownload={handleDownload}
             onDelete={handleDelete}
             onRefresh={handleRefresh}
+            setSelectedDocs={setSelectedDocs}
           />
         ) : (
           <div className="rounded-2xl border bg-white p-8 shadow-sm flex items-center justify-center h-full min-h-[400px]">

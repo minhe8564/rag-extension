@@ -1,13 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { FolderOpen } from 'lucide-react';
-import { getCollections, getDocInCollections } from '@/domains/admin/api/documents.api';
-import type { documentDatatype } from '@/domains/admin/types/documents.types';
+import { getCollections } from '@/domains/admin/api/documents.api';
 import type { Collection } from '@/domains/admin/components/rag-test/types';
-import type { DocItem } from '@/domains/admin/components/rag-test/CollectionDocuments';
 
 type ColListProps = {
-  onCollectionSelect?: (collection: Collection | null, docs: DocItem[]) => void;
+  onCollectionSelect?: (collection: Collection | null) => void;
 };
 
 export default function ColList({ onCollectionSelect }: ColListProps) {
@@ -39,45 +37,27 @@ export default function ColList({ onCollectionSelect }: ColListProps) {
     } as Collection;
   }, [selectedCollectionForView, collections]);
 
-  // 선택된 컬렉션의 문서 쿼리
-  const { data: selectedCollectionDocsData } = useQuery({
-    queryKey: ['docs', selectedCollectionForView],
-    queryFn: () => getDocInCollections(selectedCollectionForView!),
-    select: (res: { data: unknown }) => {
-      const d = res.data;
-      if (Array.isArray(d)) return d;
-      if (Array.isArray((d as { data?: unknown })?.data)) return (d as { data: unknown[] }).data;
-      if (Array.isArray((d as { items?: unknown })?.items))
-        return (d as { items: unknown[] }).items;
-      return [];
-    },
-    enabled: !!selectedCollectionForView,
-  });
-
-  // documentDatatype을 DocItem으로 변환
-  const convertToDocItems = (docs: documentDatatype[]): DocItem[] => {
-    return docs.map((doc) => ({
-      id: doc.fileNo,
-      name: doc.name,
-      sizeKB: Number(doc.size) / 1024,
-      createdAt: doc.createdAt,
-      categoryNo: doc.categoryNo || undefined,
-      type: doc.type || 'txt',
-      status: doc.status,
-    }));
-  };
-
-  const selectedCollectionDocs = useMemo(() => {
-    if (!selectedCollectionDocsData) return [];
-    return convertToDocItems(selectedCollectionDocsData);
-  }, [selectedCollectionDocsData]);
+  // // 선택된 컬렉션의 문서 쿼리
+  // const { data: selectedCollectionDocsData } = useQuery({
+  //   queryKey: ['docs', selectedCollectionForView],
+  //   queryFn: () => getDocInCollections(selectedCollectionForView!),
+  //   select: (res: { data: unknown }) => {
+  //     const d = res.data;
+  //     if (Array.isArray(d)) return d;
+  //     if (Array.isArray((d as { data?: unknown })?.data)) return (d as { data: unknown[] }).data;
+  //     if (Array.isArray((d as { items?: unknown })?.items))
+  //       return (d as { items: unknown[] }).items;
+  //     return [];
+  //   },
+  //   enabled: !!selectedCollectionForView,
+  // });
 
   // 부모 컴포넌트에 선택된 컬렉션 정보 전달
   useEffect(() => {
     if (onCollectionSelect) {
-      onCollectionSelect(selectedCollectionData, selectedCollectionDocs);
+      onCollectionSelect(selectedCollectionData);
     }
-  }, [selectedCollectionData, selectedCollectionDocs, onCollectionSelect]);
+  }, [selectedCollectionData, onCollectionSelect]);
 
   return (
     <section className="flex flex-col w-full rounded-xl border-gray-200 bg-white box-border space-y-3 flex-shrink-0 [scrollbar-gutter:stable]">
