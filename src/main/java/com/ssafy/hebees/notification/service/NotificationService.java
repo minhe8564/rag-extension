@@ -63,7 +63,7 @@ public class NotificationService {
         }
 
         User userRef = userRepository.getReferenceById(userNo);
-        String title = "문서 수집이 완료되었습니다.";
+        String title = "문서 업로드가 완료되었습니다.";
 
         Notification notification = Notification.builder()
             .user(userRef)
