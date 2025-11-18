@@ -94,3 +94,47 @@ def humanize_count(value: Any, unit: str = "명") -> str:
         return f"{int(float(value))}{unit}"
     except (ValueError, TypeError):
         return str(value)
+
+
+def format_date_range_korean(value: Any) -> str:
+    """
+    날짜 범위를 한국어 형식으로 변환
+
+    Args:
+        value: 날짜 범위 문자열 (YYYY-MM-DD ~ YYYY-MM-DD 또는 YYYY-MM)
+
+    Returns:
+        한국어 포맷 문자열 (예: "2024년 10월 15일 ~ 2024년 11월 14일")
+
+    Examples:
+        >>> format_date_range_korean("2024-10-15 ~ 2024-11-14")
+        '2024년 10월 15일 ~ 2024년 11월 14일'
+        >>> format_date_range_korean("2024-10")
+        '2024년 10월'
+    """
+    try:
+        if isinstance(value, str):
+            # 범위 형식인 경우 (YYYY-MM-DD ~ YYYY-MM-DD)
+            if '~' in value:
+                parts = value.split('~')
+                start_date = parts[0].strip()
+                end_date = parts[1].strip()
+
+                # 시작일 포맷팅
+                start_parts = start_date.split('-')
+                start_formatted = f"{start_parts[0]}년 {int(start_parts[1])}월 {int(start_parts[2])}일"
+
+                # 종료일 포맷팅
+                end_parts = end_date.split('-')
+                end_formatted = f"{end_parts[0]}년 {int(end_parts[1])}월 {int(end_parts[2])}일"
+
+                return f"{start_formatted} ~ {end_formatted}"
+
+            # 단일 월 형식인 경우 (YYYY-MM)
+            elif len(value) == 7 and value[4] == '-':
+                parts = value.split('-')
+                return f"{parts[0]}년 {int(parts[1])}월"
+
+        return str(value)
+    except (ValueError, IndexError, AttributeError):
+        return str(value)

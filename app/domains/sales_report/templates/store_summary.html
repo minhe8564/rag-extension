@@ -64,7 +64,7 @@
                     <div class="flex items-center gap-2">
                         <h1 class="text-xl font-bold text-slate-900">{{ report.store_info.store_name }}</h1>
                     </div>
-                    <span class="metric-badge metric-badge-info">{{ report.monthly_report.period }}</span>
+                    <span class="metric-badge metric-badge-info">{{ report.monthly_report.period | format_date_range_korean }}</span>
                 </div>
                 <div class="flex items-center gap-6 text-sm text-slate-600">
                     <div class="flex items-center gap-2">
@@ -95,61 +95,6 @@
                 </svg>
                 이번 달 매출 요약
             </h2>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <!-- 총 판매금액 -->
-                <div class="bg-slate-50 rounded-lg border border-slate-200 p-4">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-xs font-medium text-slate-500 uppercase tracking-wider">총 판매금액</span>
-                    </div>
-                    <div class="text-2xl font-bold text-slate-900">{{ report.monthly_report.total_sales | humanize_currency }}</div>
-                </div>
-
-                <!-- 평균 객단가 -->
-                <div class="bg-slate-50 rounded-lg border border-slate-200 p-4">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-xs font-medium text-slate-500 uppercase tracking-wider">평균 객단가</span>
-                    </div>
-                    <div class="text-2xl font-bold text-slate-900">{{ report.monthly_report.avg_transaction_amount | humanize_currency }}</div>
-                </div>
-
-                <!-- 신규 고객 수 -->
-                <div class="bg-slate-50 rounded-lg border border-slate-200 p-4">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-xs font-medium text-slate-500 uppercase tracking-wider">신규 고객 수</span>
-                    </div>
-                    <div class="text-2xl font-bold text-slate-900">{{ report.monthly_report.new_customers_count | humanize_count }}</div>
-                </div>
-
-                <!-- 현금영수증 -->
-                <div class="bg-slate-50 rounded-lg border border-slate-200 p-4">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-xs font-medium text-slate-500 uppercase tracking-wider">현금영수증 발급액</span>
-                    </div>
-                    <div class="text-2xl font-bold text-slate-900">{{ report.monthly_report.cash_receipt_amount | humanize_currency }}</div>
-                </div>
-
-                <!-- 재방문 고객 비율 -->
-                <div class="bg-slate-50 rounded-lg border border-slate-200 p-4">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-xs font-medium text-slate-500 uppercase tracking-wider">재방문 고객 비율</span>
-                    </div>
-                    <div class="text-2xl font-bold text-slate-900">{{ report.monthly_report.returning_customer_rate | humanize_percentage }}</div>
-                </div>
-
-                <!-- 매출 피크일 -->
-                <div class="bg-slate-50 rounded-lg border border-slate-200 p-4">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-xs font-medium text-slate-500 uppercase tracking-wider">매출 피크일</span>
-                    </div>
-                    <div class="flex items-baseline gap-2">
-                        <div class="text-2xl font-bold text-slate-900">{{ report.monthly_report.peak_sales_date | format_date_korean }}</div>
-                        <div class="text-sm text-slate-500">{{ report.monthly_report.peak_sales_amount | humanize_currency }}</div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
         <!-- AI 인사이트 -->
         <section>
             <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-200 overflow-hidden">
@@ -203,6 +148,61 @@
                             </div>
                             {% endfor %}
                         </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <br>
+        
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- 총 판매금액 -->
+                <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg border-2 border-blue-200 p-4 hover:shadow-md transition-shadow">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-medium text-blue-700 uppercase tracking-wider">총 판매금액</span>
+                    </div>
+                    <div class="text-2xl font-bold text-blue-900">{{ report.monthly_report.total_sales | humanize_currency }}</div>
+                </div>
+
+                <!-- 평균 객단가 -->
+                <div class="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg border-2 border-emerald-200 p-4 hover:shadow-md transition-shadow">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-medium text-emerald-700 uppercase tracking-wider">평균 객단가</span>
+                    </div>
+                    <div class="text-2xl font-bold text-emerald-900">{{ report.monthly_report.avg_transaction_amount | humanize_currency }}</div>
+                </div>
+
+                <!-- 신규 고객 수 -->
+                <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg border-2 border-purple-200 p-4 hover:shadow-md transition-shadow">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-medium text-purple-700 uppercase tracking-wider">신규 고객 수</span>
+                    </div>
+                    <div class="text-2xl font-bold text-purple-900">{{ report.monthly_report.new_customers_count | humanize_count }}</div>
+                </div>
+
+                <!-- 현금영수증 -->
+                <div class="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg border-2 border-amber-200 p-4 hover:shadow-md transition-shadow">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-medium text-amber-700 uppercase tracking-wider">현금영수증 발급액</span>
+                    </div>
+                    <div class="text-2xl font-bold text-amber-900">{{ report.monthly_report.cash_receipt_amount | humanize_currency }}</div>
+                </div>
+
+                <!-- 재방문 고객 비율 -->
+                <div class="bg-gradient-to-br from-rose-50 to-rose-100 rounded-lg border-2 border-rose-200 p-4 hover:shadow-md transition-shadow">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-medium text-rose-700 uppercase tracking-wider">재방문 고객 비율</span>
+                    </div>
+                    <div class="text-2xl font-bold text-rose-900">{{ report.monthly_report.returning_customer_rate | humanize_percentage }}</div>
+                </div>
+
+                <!-- 매출 피크일 -->
+                <div class="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-lg border-2 border-indigo-200 p-4 hover:shadow-md transition-shadow">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-medium text-indigo-700 uppercase tracking-wider">매출 피크일</span>
+                    </div>
+                    <div class="flex items-baseline gap-2">
+                        <div class="text-2xl font-bold text-indigo-900">{{ report.monthly_report.peak_sales_date | format_date_korean }}</div>
+                        <div class="text-sm text-indigo-600">{{ report.monthly_report.peak_sales_amount | humanize_currency }}</div>
                     </div>
                 </div>
             </div>
