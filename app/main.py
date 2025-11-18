@@ -34,13 +34,21 @@ app.openapi_schema = None
 app.openapi = lambda: custom_openapi(app)
 
 # CORS 설정
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.allowed_origins_list,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+cors_kwargs = {
+    "allow_credentials": True,
+    "allow_methods": ["*"],
+    "allow_headers": ["*"],
+}
+
+# 일반 도메인
+if settings.allowed_origins_list:
+    cors_kwargs["allow_origins"] = settings.allowed_origins_list
+
+# 와일드카드 도메인 (정규식)
+if settings.allowed_origin_regex_list:
+    cors_kwargs["allow_origin_regex"] = "|".join(settings.allowed_origin_regex_list)
+
+app.add_middleware(CORSMiddleware, **cors_kwargs)
 
 # Register global exception handlers (BaseResponse-style)
 register_exception_handlers(app)
