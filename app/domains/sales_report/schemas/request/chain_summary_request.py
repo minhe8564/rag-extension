@@ -1,7 +1,6 @@
 """Chain Summary Request Schemas"""
 from pydantic import BaseModel, Field
 from typing import Optional
-from decimal import Decimal
 from app.core.types import IntFromStr
 from ...constants import DEFAULT_CHAIN_SUMMARY_PROMPT
 
