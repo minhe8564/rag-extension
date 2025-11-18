@@ -1,6 +1,7 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
 from pathlib import Path
+import re
 
 BASE_DIR = Path(__file__).parent.parent.parent
 
@@ -14,7 +15,44 @@ class Settings(BaseSettings):
 
     @property
     def allowed_origins_list(self) -> List[str]:
-        return [origin.strip() for origin in self.allowed_origins.split(",")]
+        """일반 도메인만 반환 (와일드카드 제외)"""
+        origins = []
+        for origin in self.allowed_origins.split(","):
+            origin = origin.strip()
+            # 와일드카드 패턴이 아닌 경우만 추가
+            if origin and "*" not in origin:
+                origins.append(origin)
+        return origins
+
+    @property
+    def allowed_origin_regex_list(self) -> List[str]:
+        """와일드카드 패턴을 정규식으로 변환하여 반환"""
+        regex_patterns = []
+        for origin in self.allowed_origins.split(","):
+            origin = origin.strip()
+            if not origin:
+                continue
+            
+            # 와일드카드 패턴 감지 (*.domain.com 형식)
+            if origin.startswith("*."):
+                # *.beta9.kr -> https?://.*\.beta9\.kr
+                domain = origin[2:]  # *. 제거
+                # 프로토콜이 없는 경우 http/https 모두 지원
+                regex = f"https?://.*\\.{re.escape(domain)}"
+                regex_patterns.append(regex)
+            elif "*" in origin:
+                # 다른 와일드카드 패턴 처리 (예: https://*.beta9.kr)
+                # 프로토콜이 있는 경우
+                if origin.startswith("http://*."):
+                    domain = origin[8:]  # http://*. 제거
+                    regex = f"http://.*\\.{re.escape(domain)}"
+                    regex_patterns.append(regex)
+                elif origin.startswith("https://*."):
+                    domain = origin[9:]  # https://*. 제거
+                    regex = f"https://.*\\.{re.escape(domain)}"
+                    regex_patterns.append(regex)
+        
+        return regex_patterns
 
     # JWT 설정
     jwt_secret: str
