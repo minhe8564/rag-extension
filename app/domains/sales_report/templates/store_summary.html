@@ -102,7 +102,7 @@
                     <div class="flex items-center justify-between mb-2">
                         <span class="text-xs font-medium text-slate-500 uppercase tracking-wider">총 판매금액</span>
                     </div>
-                    <div class="text-2xl font-bold text-slate-900">{{ "{:,}".format(report.monthly_report.total_sales|int) }}원</div>
+                    <div class="text-2xl font-bold text-slate-900">{{ report.monthly_report.total_sales | humanize_currency }}</div>
                 </div>
 
                 <!-- 평균 객단가 -->
@@ -110,7 +110,7 @@
                     <div class="flex items-center justify-between mb-2">
                         <span class="text-xs font-medium text-slate-500 uppercase tracking-wider">평균 객단가</span>
                     </div>
-                    <div class="text-2xl font-bold text-slate-900">{{ "{:,}".format(report.monthly_report.avg_transaction_amount|int) }}원</div>
+                    <div class="text-2xl font-bold text-slate-900">{{ report.monthly_report.avg_transaction_amount | humanize_currency }}</div>
                 </div>
 
                 <!-- 신규 고객 수 -->
@@ -118,7 +118,7 @@
                     <div class="flex items-center justify-between mb-2">
                         <span class="text-xs font-medium text-slate-500 uppercase tracking-wider">신규 고객 수</span>
                     </div>
-                    <div class="text-2xl font-bold text-slate-900">{{ report.monthly_report.new_customers_count }}명</div>
+                    <div class="text-2xl font-bold text-slate-900">{{ report.monthly_report.new_customers_count | humanize_count }}</div>
                 </div>
 
                 <!-- 현금영수증 -->
@@ -126,7 +126,7 @@
                     <div class="flex items-center justify-between mb-2">
                         <span class="text-xs font-medium text-slate-500 uppercase tracking-wider">현금영수증 발급액</span>
                     </div>
-                    <div class="text-2xl font-bold text-slate-900">{{ "{:,}".format(report.monthly_report.cash_receipt_amount|int) }}원</div>
+                    <div class="text-2xl font-bold text-slate-900">{{ report.monthly_report.cash_receipt_amount | humanize_currency }}</div>
                 </div>
 
                 <!-- 재방문 고객 비율 -->
@@ -134,7 +134,7 @@
                     <div class="flex items-center justify-between mb-2">
                         <span class="text-xs font-medium text-slate-500 uppercase tracking-wider">재방문 고객 비율</span>
                     </div>
-                    <div class="text-2xl font-bold text-slate-900">{{ "%.1f"|format((report.monthly_report.returning_customer_rate|float) * 100) }}%</div>
+                    <div class="text-2xl font-bold text-slate-900">{{ report.monthly_report.returning_customer_rate | humanize_percentage }}</div>
                 </div>
 
                 <!-- 매출 피크일 -->
@@ -143,8 +143,8 @@
                         <span class="text-xs font-medium text-slate-500 uppercase tracking-wider">매출 피크일</span>
                     </div>
                     <div class="flex items-baseline gap-2">
-                        <div class="text-2xl font-bold text-slate-900">{{ report.monthly_report.peak_sales_date[5:7] }}월 {{ report.monthly_report.peak_sales_date[8:10] }}일</div>
-                        <div class="text-sm text-slate-500">{{ "{:,}".format(report.monthly_report.peak_sales_amount|int) }}원</div>
+                        <div class="text-2xl font-bold text-slate-900">{{ report.monthly_report.peak_sales_date | format_date_korean }}</div>
+                        <div class="text-sm text-slate-500">{{ report.monthly_report.peak_sales_amount | humanize_currency }}</div>
                     </div>
                 </div>
             </div>
@@ -215,7 +215,7 @@
                     <h3 class="text-base font-semibold text-slate-900 flex items-center gap-2">
                         <span class="text-xl">📅</span>
                         기간별 TOP 매출일 상세 리포트
-                        <span class="ml-2 px-2.5 py-0.5 bg-violet-600 text-white text-xs font-medium rounded-full">{{ report.monthly_report.peak_sales_date[5:7] }}월 {{ report.monthly_report.peak_sales_date[8:10] }}일</span>
+                        <span class="ml-2 px-2.5 py-0.5 bg-violet-600 text-white text-xs font-medium rounded-full">{{ report.monthly_report.peak_sales_date | format_date_korean }}</span>
                     </h3>
                     <p class="text-xs text-slate-600 mt-1">매출 피크일 데이터를 기반으로 한 상세 분석</p>
                 </div>
@@ -227,21 +227,21 @@
                             <div class="flex items-center justify-between mb-2">
                                 <span class="text-xs font-medium text-slate-500 uppercase tracking-wider">일 매출액</span>
                             </div>
-                            <div class="text-xl font-bold text-slate-900">{{ "{:,}".format(report.daily_report.total_sales|int) }}원</div>
+                            <div class="text-xl font-bold text-slate-900">{{ report.daily_report.total_sales | humanize_currency }}</div>
                         </div>
 
                         <div class="bg-slate-50 rounded-lg border border-slate-200 p-4">
                             <div class="flex items-center justify-between mb-2">
                                 <span class="text-xs font-medium text-slate-500 uppercase tracking-wider">평균 객단가</span>
                             </div>
-                            <div class="text-xl font-bold text-slate-900">{{ "{:,}".format(report.daily_report.avg_transaction_amount|int) }}원</div>
+                            <div class="text-xl font-bold text-slate-900">{{ report.daily_report.avg_transaction_amount | humanize_currency }}</div>
                         </div>
 
                         <div class="bg-slate-50 rounded-lg border border-slate-200 p-4">
                             <div class="flex items-center justify-between mb-2">
                                 <span class="text-xs font-medium text-slate-500 uppercase tracking-wider">신규 고객</span>
                             </div>
-                            <div class="text-xl font-bold text-slate-900">{{ report.daily_report.new_customers_count }}명</div>
+                            <div class="text-xl font-bold text-slate-900">{{ report.daily_report.new_customers_count | humanize_count }}</div>
                         </div>
                     </div>
 
@@ -268,8 +268,8 @@
                                             <span class="inline-flex items-center justify-center w-7 h-7 rounded-full {% if loop.index == 1 %}bg-amber-400 text-amber-900{% elif loop.index == 2 %}bg-slate-300 text-slate-700{% else %}bg-orange-400 text-orange-900{% endif %} font-bold text-xs">{{ loop.index }}</span>
                                         </td>
                                         <td class="px-4 py-3 font-medium text-slate-900">{{ customer.customer_name }}</td>
-                                        <td class="px-4 py-3 text-right font-semibold text-slate-900">{{ "{:,}".format(customer.total_amount|int) }}원</td>
-                                        <td class="px-4 py-3 text-right text-slate-600">{{ customer.visit_count }}회</td>
+                                        <td class="px-4 py-3 text-right font-semibold text-slate-900">{{ customer.total_amount | humanize_currency }}</td>
+                                        <td class="px-4 py-3 text-right text-slate-600">{{ customer.transaction_count | humanize_count("회") }}</td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>

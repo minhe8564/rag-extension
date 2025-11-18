@@ -22,6 +22,12 @@ from app.domains.sales_report.exceptions import (
     RunpodNotFoundError
 )
 from app.domains.sales_report.services.llm.validators import CustomPromptValidator
+from app.domains.sales_report.utils.template_filters import (
+    humanize_currency,
+    humanize_percentage,
+    format_date_korean,
+    humanize_count
+)
 
 
 router = APIRouter(prefix="/sales-reports", tags=["sales-reports"])
@@ -30,23 +36,11 @@ router = APIRouter(prefix="/sales-reports", tags=["sales-reports"])
 templates_dir = Path(__file__).parent.parent / "templates"
 templates = Jinja2Templates(directory=str(templates_dir))
 
-
-def convert_for_template(obj: Any) -> Any:
-    """
-    Pydantic 모델 데이터를 Jinja2 템플릿에서 사용 가능하도록 변환
-    - Decimal → float 변환
-    - date → ISO 형식 문자열 변환 (YYYY-MM-DD)
-    """
-    if isinstance(obj, Decimal):
-        return float(obj)
-    elif isinstance(obj, date):
-        return obj.isoformat()  # date → "YYYY-MM-DD" 문자열 변환
-    elif isinstance(obj, dict):
-        return {key: convert_for_template(value) for key, value in obj.items()}
-    elif isinstance(obj, list):
-        return [convert_for_template(item) for item in obj]
-    else:
-        return obj
+# Jinja2 커스텀 필터 등록
+templates.env.filters['humanize_currency'] = humanize_currency
+templates.env.filters['humanize_percentage'] = humanize_percentage
+templates.env.filters['format_date_korean'] = format_date_korean
+templates.env.filters['humanize_count'] = humanize_count
 
 
 @router.post("/store-summary", response_model=BaseResponse[Result[StoreSummaryData]])
@@ -271,14 +265,13 @@ async def generate_store_summary_html(
         )
 
         # HTML 템플릿에 데이터 주입하여 반환
-        report_data = report.model_dump(mode='python')  # date 객체를 유지하여 템플릿에서 strftime() 사용 가능
-        report_data = convert_for_template(report_data)  # Decimal → float 변환 (Jinja2 호환성)
-
+        # mode='json': Decimal → float, date → ISO 문자열로 자동 변환
+        # 템플릿에서는 커스텀 필터(humanize_currency, format_date_korean 등)로 포맷팅
         return templates.TemplateResponse(
             "store_summary.html",
             {
                 "request": fastapi_request,
-                "report": report_data
+                "report": report.model_dump(mode='json')
             }
         )
 
