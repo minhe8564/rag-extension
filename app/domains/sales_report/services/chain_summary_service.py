@@ -2,7 +2,7 @@
 import logging
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from decimal import Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
 from collections import defaultdict
@@ -31,6 +31,57 @@ from app.domains.sales_report.services.llm.factory import LLMProviderFactory
 from app.domains.sales_report.exceptions import LLMServiceError, RunpodNotFoundError
 
 logger = logging.getLogger(__name__)
+
+
+def safe_to_numeric(value: Any, default: float = 0.0) -> Union[int, float]:
+    """
+    문자열, 정수, 실수(Double/Float)를 안전하게 숫자로 변환하는 헬퍼 함수
+    float 값이 들어오면 float로 유지, int 값이 들어오면 int로 유지
+    
+    Args:
+        value: 변환할 값 (str, int, float, Decimal, None 등)
+        default: 변환 실패 시 기본값 (기본값: 0.0)
+    
+    Returns:
+        Union[int, float]: 변환된 숫자 값 (원래 타입 유지)
+        - float 값이면 float 반환
+        - int 값이면 int 반환
+    """
+    if value is None:
+        return default
+    
+    # 이미 정수면 그대로 반환
+    if isinstance(value, int):
+        return value
+    
+    # 실수(Double/Float) 처리 - float로 유지
+    if isinstance(value, (float, Decimal)):
+        try:
+            return float(value)
+        except (ValueError, TypeError, OverflowError):
+            logger.warning(f"실수를 변환할 수 없음: {value}, 기본값 {default} 사용")
+            return default
+    
+    # 문자열 처리
+    if isinstance(value, str):
+        # 빈 문자열 처리
+        if not value.strip():
+            return default
+        
+        try:
+            # float로 변환 시도 (소수점 포함 여부 확인)
+            float_val = float(value)
+            # 정수로 표현 가능하면 int로 반환, 아니면 float로 반환
+            if float_val.is_integer():
+                return int(float_val)
+            return float_val
+        except (ValueError, TypeError, OverflowError):
+            logger.warning(f"문자열을 숫자로 변환할 수 없음: {value}, 기본값 {default} 사용")
+            return default
+    
+    # 기타 타입은 기본값 반환
+    logger.warning(f"지원하지 않는 타입: {type(value)} (값: {value}), 기본값 {default} 사용")
+    return default
 
 
 # 연령대 코드 매핑
@@ -242,11 +293,11 @@ class ChainSummaryService:
 
         # Pydantic 모델에서 필드 직접 접근
         total_revenue = Decimal(str(latest_data.결제금액))
-        total_transactions = int(latest_data.판매_수)
+        total_transactions = safe_to_numeric(latest_data.판매_수)
 
         # 객단가 계산 (결제금액 / 판매_수)
         if total_transactions > 0:
-            avg_value = total_revenue / Decimal(total_transactions)
+            avg_value = total_revenue / Decimal(str(total_transactions))
         else:
             avg_value = Decimal("0")
 
@@ -274,7 +325,7 @@ class ChainSummaryService:
             product_name = item.상품명 or "알 수 없음"
             brand_name = item.브랜드명 or "알 수 없음"
             product_category = item.상품구분 or "알 수 없음"
-            quantity = int(item.판매_수)
+            quantity = safe_to_numeric(item.판매_수)
 
             # 빈 문자열도 "알 수 없음"으로 처리
             if not product_name.strip():
@@ -291,7 +342,7 @@ class ChainSummaryService:
                 total_revenue=revenue,
                 revenue_share=Decimal("0"),  # 나중에 계산
                 quantity_sold=quantity,
-                avg_price=revenue / quantity if quantity > 0 else Decimal("0")
+                avg_price=revenue / Decimal(str(quantity)) if quantity > 0 else Decimal("0")
             ))
 
         # 매출 비중 계산
@@ -321,7 +372,7 @@ class ChainSummaryService:
                 brand = "알 수 없음"
 
             revenue = Decimal(str(item.판매금액합))
-            quantity = int(item.판매_수)
+            quantity = safe_to_numeric(item.판매_수)
 
             brand_agg[brand]["revenue"] += revenue
             brand_agg[brand]["quantity"] += quantity
@@ -355,7 +406,7 @@ class ChainSummaryService:
                 category = "알 수 없음"
 
             revenue = Decimal(str(item.판매금액합))
-            quantity = int(item.판매_수)
+            quantity = safe_to_numeric(item.판매_수)
 
             category_agg[category]["revenue"] += revenue
             category_agg[category]["quantity"] += quantity
@@ -394,7 +445,7 @@ class ChainSummaryService:
         hourly_agg = defaultdict(lambda: Decimal("0"))
 
         for item in week_data:
-            day_code = int(item.W)
+            day_code = safe_to_numeric(item.W)
             hour = item.HOUR or ""  # None 처리
             revenue = Decimal(str(item.판매금액))
 
@@ -405,9 +456,10 @@ class ChainSummaryService:
         # 요일별 패턴
         weekly_patterns = []
         for day_code, revenue in weekly_agg.items():
+            day_code_int = int(day_code) if isinstance(day_code, float) and day_code.is_integer() else day_code
             weekly_patterns.append(WeeklyPattern(
                 day_code=day_code,
-                day_name=DAY_CODE_MAPPING.get(day_code, "알 수 없음"),
+                day_name=DAY_CODE_MAPPING.get(day_code_int, "알 수 없음"),
                 revenue=revenue,
                 revenue_rank=0
             ))
@@ -457,8 +509,8 @@ class ChainSummaryService:
         age_agg = defaultdict(lambda: {"건수": 0, "판매금액": Decimal("0")})
 
         for item in customer_data:
-            age_code = int(item.AGE)
-            count = int(item.건수)
+            age_code = safe_to_numeric(item.AGE)
+            count = safe_to_numeric(item.건수)
             revenue = Decimal(str(item.판매금액))
 
             age_agg[age_code]["건수"] += count
@@ -469,11 +521,12 @@ class ChainSummaryService:
         for age_code, data in age_agg.items():
             count = data["건수"]
             revenue = data["판매금액"]
-            avg_amount = revenue / count if count > 0 else Decimal("0")
+            avg_amount = revenue / Decimal(str(count)) if count > 0 else Decimal("0")
 
+            age_code_int = int(age_code) if isinstance(age_code, float) and age_code.is_integer() else age_code
             demographics.append(CustomerDemographic(
                 age_code=age_code,
-                age_group=AGE_CODE_MAPPING.get(age_code, "알 수 없음"),
+                age_group=AGE_CODE_MAPPING.get(age_code_int, "알 수 없음"),
                 purchase_count=count,
                 avg_purchase_amount=avg_amount,
                 total_revenue=revenue,
@@ -504,13 +557,14 @@ class ChainSummaryService:
         patterns = []
 
         for item in week_data:
-            day_code = int(item.W)
-            day_name = DAY_CODE_MAPPING.get(day_code, "알 수 없음")
+            day_code = safe_to_numeric(item.W)
+            day_code_int = int(day_code) if isinstance(day_code, float) and day_code.is_integer() else day_code
+            day_name = DAY_CODE_MAPPING.get(day_code_int, "알 수 없음")
             hour = item.HOUR or ""  # None 처리
-            visits = int(item.방문수)
+            visits = safe_to_numeric(item.방문수)
             revenue = Decimal(str(item.판매금액))
 
-            revenue_per_visit = revenue / visits if visits > 0 else Decimal("0")
+            revenue_per_visit = revenue / Decimal(str(visits)) if visits > 0 else Decimal("0")
 
             patterns.append(VisitSalesPattern(
                 day_name=day_name,
