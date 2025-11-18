@@ -26,6 +26,7 @@ from app.domains.sales_report.utils.template_filters import (
     humanize_currency,
     humanize_percentage,
     format_date_korean,
+    format_date_range_korean,
     humanize_count
 )
 
@@ -40,6 +41,7 @@ templates = Jinja2Templates(directory=str(templates_dir))
 templates.env.filters['humanize_currency'] = humanize_currency
 templates.env.filters['humanize_percentage'] = humanize_percentage
 templates.env.filters['format_date_korean'] = format_date_korean
+templates.env.filters['format_date_range_korean'] = format_date_range_korean
 templates.env.filters['humanize_count'] = humanize_count
 
 
