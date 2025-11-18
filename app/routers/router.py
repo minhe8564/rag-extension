@@ -1,10 +1,13 @@
 from fastapi import APIRouter, HTTPException, Depends, Header
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
 from app.schemas.request.embeddingRequest import EmbeddingProcessRequest
+from app.schemas.request.imageEmbeddingRequest import ImageEmbeddingProcessRequest
 from app.schemas.response.embeddingProcessResponse import EmbeddingProcessResponse, EmbeddingProcessResult
 from app.schemas.response.errorResponse import ErrorResponse
 from app.service.milvus_service import MilvusService
 from app.service.ingest_progress_client import IngestProgressClient
+from app.service.runpod_service import RunpodService
 from app.core.settings import settings
 from app.models.database import get_db
 from app.models.collection import Collection
@@ -569,6 +572,262 @@ async def embedding_process(
         raise HTTPException(status_code=e.status_code, detail=error_response.dict())
     except Exception as e:
         logger.exception("Error processing embedding: {}", e)
+        error_response = ErrorResponse(
+            status=500,
+            code="INTERNAL_ERROR",
+            message=f"Internal server error: {str(e)}",
+            isSuccess=False,
+            result={}
+        )
+        raise HTTPException(status_code=500, detail=error_response.dict())
+
+
+@router.post("/process/image")
+@with_embedding_metrics
+async def image_embedding_process(
+    request: ImageEmbeddingProcessRequest,
+    db: AsyncSession = Depends(get_db),
+    x_user_role: str | None = Header(default=None, alias="x-user-role"),
+    x_user_uuid: str | None = Header(default=None, alias="x-user-uuid")
+):
+    """
+    Image Embedding /process/image 엔드포인트
+    - 문서의 FILE_NO와 USER_NO로 이미지 FILE_NO 조회
+    - hebees-python-backend에서 presigned URL 받아오기
+    - RUNPOD EMBEDDING으로 이미지 임베딩 요청
+    - Milvus에 이미지 임베딩 저장 (이미지 컬렉션)
+    """
+    try:
+        file_no = request.fileNo
+        user_no = request.userNo
+        collection_name = request.collectionName
+        collection_no = request.collectionNo
+        bucket = (request.bucket or request.partition or "").strip().lower() if request.bucket or request.partition else None
+        
+        logger.info(f"Processing image embedding: fileNo={file_no}, userNo={user_no}, collection={collection_name}")
+        
+        # 1) DB에서 이미지 FILE_NO 조회
+        image_file_stmt = text(
+            "SELECT `FILE_NO`, `NAME`, `DESCRIPTION` "
+            "FROM `FILE` "
+            "WHERE `USER_NO` = UUID_TO_BIN(:user_no) AND `SOURCE_NO` = UUID_TO_BIN(:file_no)"
+        )
+        image_res = await db.execute(image_file_stmt, {"user_no": user_no, "file_no": file_no})
+        image_rows = image_res.fetchall()
+        
+        if not image_rows:
+            logger.warning(f"No images found for fileNo={file_no}, userNo={user_no}")
+            return EmbeddingProcessResponse(
+                status=200,
+                code="OK",
+                message="이미지가 없습니다.",
+                isSuccess=True,
+                result=EmbeddingProcessResult(
+                    count=0,
+                    embedding_dimension=0,
+                    collectionName=collection_name,
+                    strategy="image",
+                    strategyParameter={}
+                )
+            )
+        
+        logger.info(f"Found {len(image_rows)} images to embed")
+        
+        # 2) hebees-python-backend에서 presigned URL 받아오기
+        image_urls: List[str] = []
+        image_data: List[Dict[str, Any]] = []
+        
+        for idx, row in enumerate(image_rows):
+            image_file_no = row[0]  # FILE_NO (BINARY)
+            image_file_name = row[1] if len(row) > 1 else f"image_{idx}.png"  # FILE_NAME
+            image_description = row[2] if len(row) > 2 else ""  # DESCRIPTION
+            
+            # BINARY를 UUID 문자열로 변환
+            try:
+                if isinstance(image_file_no, bytes):
+                    image_file_no_str = str(uuid.UUID(bytes=image_file_no))
+                else:
+                    image_file_no_str = str(image_file_no)
+            except Exception:
+                image_file_no_str = str(image_file_no)
+            
+            try:
+                # Presigned URL 받아오기
+                presigned_url = f"http://hebees-python-backend:8000/api/v1/files/{image_file_no_str}/presigned"
+                headers = {}
+                if x_user_uuid:
+                    headers["x-user-uuid"] = x_user_uuid
+                if x_user_role:
+                    headers["x-user-role"] = x_user_role
+                
+                async with httpx.AsyncClient(timeout=3600.0) as client:
+                    presigned_resp = await client.get(presigned_url, headers=headers)
+                    presigned_resp.raise_for_status()
+                    presigned_data = presigned_resp.json()
+                    url = (presigned_data.get("result", {}).get("data", {}) or {}).get("url") or presigned_data.get("url") or ""
+                    
+                    if url:
+                        image_urls.append(url)
+                        image_data.append({
+                            "file_no": image_file_no_str,
+                            "file_name": image_file_name or f"image_{idx}.png",
+                            "description": image_description or "",
+                            "index_no": idx
+                        })
+                        logger.debug(f"Got presigned URL for image {idx}: {image_file_name}")
+                    else:
+                        logger.warning(f"Failed to get presigned URL for image {idx}: {image_file_no_str}")
+            except Exception as e:
+                logger.warning(f"Failed to get presigned URL for image {idx} ({image_file_no_str}): {e}")
+                continue
+        
+        if not image_urls:
+            logger.warning("No valid presigned URLs obtained")
+            return EmbeddingProcessResponse(
+                status=200,
+                code="OK",
+                message="유효한 이미지 URL을 가져올 수 없습니다.",
+                isSuccess=True,
+                result=EmbeddingProcessResult(
+                    count=0,
+                    embedding_dimension=0,
+                    collectionName=collection_name,
+                    strategy="image",
+                    strategyParameter={}
+                )
+            )
+        
+        # 3) RUNPOD EMBEDDING 주소 가져오기
+        embedding_address = settings.embedding_provider_url
+        
+        # 4) RUNPOD EMBEDDING으로 이미지 임베딩 요청
+        embedding_url = f"{embedding_address.rstrip('/')}/api/v1/embedding/images"
+        model_name = "sentence-transformers/clip-ViT-B-32-multilingual-v1"
+        
+        payload = {
+            "image_urls": image_urls,
+            "models": [model_name]
+        }
+        
+        logger.info(f"Requesting image embeddings: url={embedding_url}, images={len(image_urls)}")
+        
+        try:
+            async with httpx.AsyncClient(timeout=3600.0, follow_redirects=True) as client:
+                embedding_resp = await client.post(embedding_url, json=payload)
+                embedding_resp.raise_for_status()
+                embedding_data = embedding_resp.json()
+                
+                # 응답 파싱
+                result_data = ((embedding_data or {}).get("result") or {}).get("data") or {}
+                embeddings_map = result_data.get("embeddings") or {}
+                vectors = embeddings_map.get(model_name) or []
+                
+                if not isinstance(vectors, list) or len(vectors) != len(image_urls):
+                    raise ValueError(f"Invalid embeddings format: got {len(vectors) if isinstance(vectors, list) else 0} for {len(image_urls)} images")
+                
+                logger.info(f"Received {len(vectors)} image embeddings")
+        except Exception as e:
+            logger.error(f"Image embedding request failed: {str(e)}", exc_info=True)
+            raise HTTPException(
+                status_code=500,
+                detail=ErrorResponse(
+                    status=500,
+                    code="EMBEDDING_ERROR",
+                    message=f"이미지 임베딩 요청 실패: {str(e)}",
+                    isSuccess=False,
+                    result={}
+                ).dict()
+            )
+        
+        # 5) Milvus에 저장
+        if collection_name and vectors:
+            try:
+                milvus_service = MilvusService(
+                    host=settings.milvus_host,
+                    port=settings.milvus_port,
+                )
+                
+                # 벡터 차원 확인
+                vector_dim = len(vectors[0]) if vectors else 512
+                
+                # 컬렉션 확인 및 생성
+                _, is_newly_created = milvus_service.ensure_collection(collection_name, vector_dim)
+                
+                # publicRetina_image의 경우 파티션 생성
+                if "publicRetina_image" in collection_name:
+                    try:
+                        milvus_service.ensure_partitions(collection_name, ["public", "hebees"])
+                    except Exception as pe:
+                        logger.warning(f"Partition ensure failed: {str(pe)}")
+                
+                # 임베딩 데이터 준비
+                now = datetime.utcnow().isoformat()
+                milvus_data = []
+                
+                for idx, (vector, img_info) in enumerate(zip(vectors, image_data)):
+                    # metadata 구성
+                    metadata = {
+                        "FILE_NAME": img_info.get("file_name", f"image_{idx}.png"),
+                        "INDEX_NO": img_info.get("index_no", idx),
+                        "CREATED_AT": now,
+                        "UPDATED_AT": now
+                    }
+                    
+                    milvus_data.append({
+                        "file_no": file_no,  # 문서의 FILE_NO
+                        "text": img_info.get("description", ""),  # DESCRIPTION을 TEXT 필드에 저장
+                        "vector": vector,
+                        "metadata": metadata,
+                    })
+                
+                # 파티션 결정 (publicRetina_image의 경우)
+                target_partition = None
+                if "publicRetina_image" in collection_name and bucket in {"public", "hebees"}:
+                    target_partition = bucket
+                
+                # Milvus에 삽입
+                milvus_service.insert_embeddings(
+                    collection_name=collection_name,
+                    embeddings=milvus_data,
+                    vector_dim=vector_dim,
+                    partition_name=target_partition
+                )
+                
+                logger.info(f"Inserted {len(milvus_data)} image embeddings into Milvus collection '{collection_name}'" + (f" (partition: {target_partition})" if target_partition else ""))
+                
+            except Exception as e:
+                logger.error(f"Failed to insert image embeddings into Milvus: {str(e)}", exc_info=True)
+                raise HTTPException(
+                    status_code=500,
+                    detail=ErrorResponse(
+                        status=500,
+                        code="MILVUS_ERROR",
+                        message=f"Milvus 저장 실패: {str(e)}",
+                        isSuccess=False,
+                        result={}
+                    ).dict()
+                )
+        
+        # Response 생성
+        response = EmbeddingProcessResponse(
+            status=200,
+            code="OK",
+            message="요청에 성공하였습니다.",
+            isSuccess=True,
+            result=EmbeddingProcessResult(
+                count=len(vectors) if vectors else 0,
+                embedding_dimension=len(vectors[0]) if vectors and vectors[0] else 0,
+                collectionName=collection_name,
+                strategy="image",
+                strategyParameter={"model": model_name}
+            )
+        )
+        return response
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Error processing image embedding: {}", e)
         error_response = ErrorResponse(
             status=500,
             code="INTERNAL_ERROR",
