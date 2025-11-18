@@ -341,6 +341,40 @@ async def ingest_process(
                     bucket=bucket,
                     extra_headers={"x-user-role": user_role}
                 )
+                
+                # 3-1) Image Embedding (이미지 컬렉션에 저장)
+                # 컬렉션 이름에서 이미지 컬렉션 이름 생성: h{offerNo}_{versionNo} -> h{offerNo}_image_{versionNo}
+                # 또는 publicRetina_{versionNo} -> publicRetina_image_{versionNo}
+                image_collection_name = None
+                if collection_name:
+                    if collection_name.startswith("h") and "_" in collection_name:
+                        # h{offerNo}_{versionNo} 형식
+                        parts = collection_name.rsplit("_", 1)
+                        if len(parts) == 2:
+                            image_collection_name = f"{parts[0]}_image_{parts[1]}"
+                    elif collection_name.startswith("publicRetina_"):
+                        # publicRetina_{versionNo} 형식
+                        image_collection_name = collection_name.replace("publicRetina_", "publicRetina_image_", 1)
+                
+                if image_collection_name:
+                    try:
+                        logger.info(f"Processing image embedding for collection: {image_collection_name}")
+                        await gateway_client.request_image_embedding(
+                            file_no=file_no,
+                            user_no=user_uuid,
+                            collection_name=image_collection_name,
+                            collection_no=collection_no_bytes.hex() if collection_no_bytes else None,
+                            bucket=bucket,
+                            partition=bucket,  # publicRetina_image의 경우 파티션 사용
+                            extra_headers={
+                                "x-user-role": user_role,
+                                "x-user-uuid": user_uuid
+                            }
+                        )
+                        logger.info(f"Image embedding completed for collection: {image_collection_name}")
+                    except Exception as img_e:
+                        logger.warning(f"Image embedding failed (continuing): {img_e}", exc_info=True)
+                        # 이미지 임베딩 실패해도 전체 프로세스는 계속 진행
 
                 # 파일별 STATUS = COMPLETED
                 try:

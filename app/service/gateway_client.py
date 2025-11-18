@@ -21,6 +21,7 @@ class GatewayClient:
         self.extraction_direct_url = f"{self.extract_service_url}/process"
         self.chunking_direct_url = f"{self.chunking_service_url}/process"
         self.embedding_direct_url = f"{self.embedding_service_url}/process"
+        self.embedding_image_direct_url = f"{self.embedding_service_url}/process/image"
         self.query_embedding_direct_url = f"{self.query_embedding_service_url}/process"
         self.search_direct_url = f"{self.search_service_url}/process"
         self.cross_encoder_direct_url = f"{self.cross_encoder_service_url}/process"
@@ -189,6 +190,37 @@ class GatewayClient:
             
             response = await client.post(
                 self.embedding_direct_url,
+                json=request_data,
+                headers={k: v for k, v in (extra_headers or {}).items() if v}
+            )
+            response.raise_for_status()
+            return response.json()
+
+    async def request_image_embedding(
+        self,
+        file_no: str,
+        user_no: str,
+        collection_name: str,
+        collection_no: str = None,
+        bucket: str = None,
+        partition: str = None,
+        extra_headers: Dict[str, Any] = None
+    ) -> Dict[Any, Any]:
+        """Image Embedding 컨테이너로 요청 - 서비스 간 직접 통신"""
+        logger.debug(f"POST {self.embedding_image_direct_url} | fileNo={file_no}, userNo={user_no}, collection={collection_name}")
+        async with httpx.AsyncClient(timeout=3600.0) as client:
+            # Embedding 서비스에 직접 접근 (서비스 간 통신이므로 인증 불필요)
+            request_data = {
+                "fileNo": file_no,
+                "userNo": user_no,
+                "collectionName": collection_name,
+                "collectionNo": collection_no,
+                "bucket": bucket,
+                "partition": partition
+            }
+            
+            response = await client.post(
+                self.embedding_image_direct_url,
                 json=request_data,
                 headers={k: v for k, v in (extra_headers or {}).items() if v}
             )
