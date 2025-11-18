@@ -21,7 +21,6 @@ from app.domains.sales_report.exceptions import (
     RunpodNotFoundError
 )
 from app.domains.sales_report.services.llm.validators import CustomPromptValidator
-from app.domains.sales_report.services.llm.validators import CustomPromptValidator
 
 
 router = APIRouter(prefix="/sales-reports", tags=["sales-reports"])

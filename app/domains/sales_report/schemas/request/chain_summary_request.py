@@ -1,9 +1,7 @@
 """Chain Summary Request Schemas"""
 from pydantic import BaseModel, Field
 from typing import Optional
-from decimal import Decimal
-from ...constants import DEFAULT_CHAIN_SUMMARY_PROMPT
-from ...constants import DEFAULT_CHAIN_SUMMARY_PROMPT
+from app.core.types import IntFromStr
 from ...constants import DEFAULT_CHAIN_SUMMARY_PROMPT
 
 
@@ -17,12 +15,12 @@ class StoreInfo(BaseModel):
 class MonthlySalesRecord(BaseModel):
     """월별 매출 레코드"""
     년월: str = Field(..., description="년월 (YYYY-MM)")
-    판매금액: int = Field(..., ge=0, description="판매금액")
-    할인액: int = Field(0, ge=0, description="할인액")
-    결제금액: int = Field(..., ge=0, description="결제금액 (실판매금액)")
-    판매_수: int = Field(..., ge=0, description="판매 수", alias="판매 수")
-    반품_수: Optional[int] = Field(None, ge=0, description="반품 수", alias="반품 수")
-    납부_수: int = Field(0, ge=0, description="납부 수", alias="납부 수")
+    판매금액: IntFromStr = Field(..., ge=0, description="판매금액")
+    할인액: IntFromStr = Field(0, ge=0, description="할인액")
+    결제금액: IntFromStr = Field(..., ge=0, description="결제금액 (실판매금액)")
+    판매_수: IntFromStr = Field(..., ge=0, description="판매 수", alias="판매 수")
+    반품_수: Optional[IntFromStr] = Field(None, ge=0, description="반품 수", alias="반품 수")
+    납부_수: IntFromStr = Field(0, ge=0, description="납부 수", alias="납부 수")
 
     class Config:
         populate_by_name = True  # alias와 원본 필드명 둘 다 허용
@@ -44,8 +42,8 @@ class WeeklyPatternRecord(BaseModel):
     W: str = Field(..., description="요일 코드 (1=일요일, 2=월요일, ..., 7=토요일)")
     WEEK: str = Field(..., description="요일명 (일, 월, 화, 수, 목, 금, 토)")
     HOUR: str = Field(..., description="시간대 (0-23)")
-    방문수: int = Field(..., ge=0, description="방문 수")
-    판매금액: int = Field(..., ge=0, description="판매 금액")
+    방문수: IntFromStr = Field(..., ge=0, description="방문 수")
+    판매금액: IntFromStr = Field(..., ge=0, description="판매 금액")
 
     class Config:
         json_schema_extra = {
@@ -62,10 +60,10 @@ class WeeklyPatternRecord(BaseModel):
 class CustomerDemographicRecord(BaseModel):
     """고객 연령대별 레코드"""
     년월: str = Field(..., description="년월 (YYYY-MM)")
-    AGE: int = Field(..., ge=-1, le=9, description="연령 코드 (-1=미분류, 0=10대미만, 1=10대, 2=20대, ..., 9=90대)")
-    첫방문여부: int = Field(..., ge=0, le=1, description="첫방문 여부 (0=재방문, 1=첫방문)")
-    건수: int = Field(..., ge=0, description="구매 건수")
-    판매금액: int = Field(..., ge=0, description="판매 금액")
+    AGE: IntFromStr = Field(..., ge=-1, le=9, description="연령 코드 (-1=미분류, 0=10대미만, 1=10대, 2=20대, ..., 9=90대)")
+    첫방문여부: IntFromStr = Field(..., ge=0, le=1, description="첫방문 여부 (0=재방문, 1=첫방문)")
+    건수: IntFromStr = Field(..., ge=0, description="구매 건수")
+    판매금액: IntFromStr = Field(..., ge=0, description="판매 금액")
 
     class Config:
         json_schema_extra = {
@@ -82,8 +80,8 @@ class CustomerDemographicRecord(BaseModel):
 class ProductRecord(BaseModel):
     """상품별 판매 레코드"""
     상품명: Optional[str] = Field(None, description="상품명")
-    판매_수: int = Field(..., ge=0, description="판매 수량", alias="판매 수")
-    판매금액합: int = Field(..., ge=0, description="판매 금액 합계")
+    판매_수: IntFromStr = Field(..., ge=0, description="판매 수량", alias="판매 수")
+    판매금액합: IntFromStr = Field(..., ge=0, description="판매 금액 합계")
     브랜드명: str = Field("", description="브랜드명 (없으면 빈 문자열)")
     상품구분: str = Field(..., description="상품 구분 (예: 선글라스/안경테, 콘택트렌즈, 안경렌즈)")
 
