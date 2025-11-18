@@ -5,9 +5,11 @@ Query Embedding Strategy 모듈
 
 from .base import BaseQueryEmbeddingStrategy
 from .e5Large import E5Large
+from .mclip import Mclip
 
 __all__ = [
     "BaseQueryEmbeddingStrategy",
-    "E5Large"
+    "E5Large",
+    "Mclip"
 ]
 

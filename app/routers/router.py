@@ -16,7 +16,7 @@ def get_strategy(strategy_name: str, parameters: Dict[Any, Any] = None) -> Any:
     전략 이름으로 전략 클래스 동적 로드 및 인스턴스 생성
     
     Args:
-        strategy_name: 전략 이름 (예: "e5Large")
+        strategy_name: 전략 이름 (예: "e5Large", "mclip")
         parameters: 전략 파라미터
     
     Returns:
@@ -25,6 +25,8 @@ def get_strategy(strategy_name: str, parameters: Dict[Any, Any] = None) -> Any:
     strategy_module_name = f"app.src.{strategy_name}"
     if strategy_name == "e5Large":
         strategy_class_name = "E5Large"
+    elif strategy_name == "mclip":
+        strategy_class_name = "Mclip"
     else:
         strategy_class_name = strategy_name[0].upper() + strategy_name[1:] if strategy_name else ""
     
@@ -124,6 +126,71 @@ async def query_embedding_process(request: QueryEmbeddingProcessRequest):
         raise HTTPException(status_code=e.status_code, detail=error_response.dict())
     except Exception as e:
         logger.error(f"Error processing query embedding: {str(e)}", exc_info=True)
+        error_response = ErrorResponse(
+            status=500,
+            code="INTERNAL_ERROR",
+            message=f"Internal server error: {str(e)}",
+            isSuccess=False,
+            result={}
+        )
+        raise HTTPException(status_code=500, detail=error_response.dict())
+
+
+@router.post("/process/image")
+@with_query_embedding_metrics
+async def query_embedding_process_image(request: QueryEmbeddingProcessRequest):
+    """
+    Query Embedding /process/image 엔드포인트
+    - queryEmbeddingStrategy로 전략 클래스 선택 (mclip 등)
+    - embed() 메서드 호출하여 image를 임베딩으로 변환
+    """
+    try:
+        query = request.query  # 이미지 URL 또는 이미지 데이터
+        strategy_name = request.queryEmbeddingStrategy
+        parameters = request.queryEmbeddingParameter
+
+        logger.info(f"Processing image embedding: {query[:50]}... with strategy: {strategy_name}")
+
+        if not query or not query.strip():
+            raise HTTPException(
+                status_code=400,
+                detail="query (image) cannot be empty"
+            )
+
+        # 전략 로드
+        strategy = get_strategy(strategy_name, parameters)
+
+        if asyncio.iscoroutinefunction(strategy.embed):
+            result = await strategy.embed(query)
+        else:
+            result = strategy.embed(query)
+
+        # Response 생성
+        response = QueryEmbeddingProcessResponse(
+            status=200,
+            code="OK",
+            message="요청에 성공하였습니다.",
+            isSuccess=True,
+            result=QueryEmbeddingProcessResult(
+                query=result["query"],
+                embedding=result["embedding"],
+                dimension=result["dimension"],
+                strategy=result["strategy"],
+                parameters=result["parameters"]
+            )
+        )
+        return response
+    except HTTPException as e:
+        error_response = ErrorResponse(
+            status=e.status_code,
+            code="VALIDATION_ERROR" if e.status_code == 400 else "NOT_FOUND" if e.status_code == 404 else "INTERNAL_ERROR",
+            message=str(e.detail),
+            isSuccess=False,
+            result={}
+        )
+        raise HTTPException(status_code=e.status_code, detail=error_response.dict())
+    except Exception as e:
+        logger.error(f"Error processing image embedding: {str(e)}", exc_info=True)
         error_response = ErrorResponse(
             status=500,
             code="INTERNAL_ERROR",
