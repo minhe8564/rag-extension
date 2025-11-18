@@ -2,8 +2,7 @@
 from pydantic import BaseModel, Field
 from typing import Optional
 from decimal import Decimal
-from ...constants import DEFAULT_CHAIN_SUMMARY_PROMPT
-from ...constants import DEFAULT_CHAIN_SUMMARY_PROMPT
+from app.core.schemas.mixins import AutoIntConversionMixin
 from ...constants import DEFAULT_CHAIN_SUMMARY_PROMPT
 
 
@@ -14,7 +13,7 @@ class StoreInfo(BaseModel):
     대표자명: str = Field(..., description="대표자 이름")
 
 
-class MonthlySalesRecord(BaseModel):
+class MonthlySalesRecord(AutoIntConversionMixin, BaseModel):
     """월별 매출 레코드"""
     년월: str = Field(..., description="년월 (YYYY-MM)")
     판매금액: int = Field(..., ge=0, description="판매금액")
@@ -39,7 +38,7 @@ class MonthlySalesRecord(BaseModel):
         }
 
 
-class WeeklyPatternRecord(BaseModel):
+class WeeklyPatternRecord(AutoIntConversionMixin, BaseModel):
     """요일/시간대별 패턴 레코드"""
     W: str = Field(..., description="요일 코드 (1=일요일, 2=월요일, ..., 7=토요일)")
     WEEK: str = Field(..., description="요일명 (일, 월, 화, 수, 목, 금, 토)")
@@ -59,7 +58,7 @@ class WeeklyPatternRecord(BaseModel):
         }
 
 
-class CustomerDemographicRecord(BaseModel):
+class CustomerDemographicRecord(AutoIntConversionMixin, BaseModel):
     """고객 연령대별 레코드"""
     년월: str = Field(..., description="년월 (YYYY-MM)")
     AGE: int = Field(..., ge=-1, le=9, description="연령 코드 (-1=미분류, 0=10대미만, 1=10대, 2=20대, ..., 9=90대)")
@@ -79,7 +78,7 @@ class CustomerDemographicRecord(BaseModel):
         }
 
 
-class ProductRecord(BaseModel):
+class ProductRecord(AutoIntConversionMixin, BaseModel):
     """상품별 판매 레코드"""
     상품명: Optional[str] = Field(None, description="상품명")
     판매_수: int = Field(..., ge=0, description="판매 수량", alias="판매 수")

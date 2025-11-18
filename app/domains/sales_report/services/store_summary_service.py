@@ -9,11 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
-from app.domains.sales_report.services.adminschool_client import AdminSchoolClient
 from app.domains.sales_report.services.llm.factory import LLMProviderFactory
 from app.domains.sales_report.exceptions import (
-    ExternalAPIError,
-    DataValidationError,
     LLMServiceError,
     RunpodNotFoundError
 )
@@ -36,65 +33,7 @@ class StoreSummaryService:
     """매출 리포트 생성 서비스"""
 
     def __init__(self, db: Optional[AsyncSession] = None):
-        self.client = AdminSchoolClient()
         self.db = db
-
-    async def generate_report(
-        self,
-        store_id: str,
-        report_date: Optional[date] = None,
-        year_month: Optional[str] = None,
-        include_ai_summary: bool = False
-    ) -> StoreSummaryResponse:
-        """
-        매출 리포트 생성
-
-        Args:
-            store_id: 안경원 ID
-            report_date: 일별 리포트 기준일 (None이면 생략)
-            year_month: 월별 리포트 기준 년월 (None이면 생략)
-            include_ai_summary: AI 요약 포함 여부 (기본값: False)
-
-        Returns:
-            StoreSummaryResponse: 통합 리포트
-        """
-        # 외부 API 데이터 조회
-        raw_data = await self.client.fetch_sales_data(store_id)
-
-        # 매장 정보 추출
-        store_info = self._extract_store_info(raw_data["info"])
-
-        # 일별 리포트 생성
-        daily_report = None
-        if report_date:
-            daily_report = self._generate_daily_report(raw_data["data"], report_date)
-
-        # 월별 리포트 생성
-        monthly_report = None
-        if year_month:
-            monthly_report = self._generate_monthly_report(raw_data["data"], year_month)
-
-        # AI 인사이트 및 메타데이터 생성 (요청 시에만)
-        llm_insights = None
-        metadata = None
-        if include_ai_summary and monthly_report and self.db:
-            start_time = time.time()
-            llm_insights, model_name = await self._generate_ai_summary(store_info, monthly_report)
-            generation_time_ms = int((time.time() - start_time) * 1000)
-
-            if llm_insights and model_name:
-                metadata = Metadata(
-                    ai_model=model_name,
-                    generation_time_ms=generation_time_ms
-                )
-
-        return StoreSummaryResponse(
-            store_info=store_info,
-            daily_report=daily_report,
-            monthly_report=monthly_report,
-            llm_insights=llm_insights,
-            metadata=metadata
-        )
 
     async def generate_report_from_data(
         self,
@@ -173,14 +112,6 @@ class StoreSummaryService:
             monthly_report=monthly_report,
             llm_insights=llm_insights,
             metadata=metadata
-        )
-
-    def _extract_store_info(self, info_data: dict) -> StoreInfo:
-        """매장 정보 추출 (한글/영문 필드명 모두 지원) - 기존 API용"""
-        return StoreInfo(
-            store_name=info_data.get("안경원명") or info_data.get("store_name", ""),
-            store_phone=info_data.get("매장번호") or info_data.get("store_phone", ""),
-            owner_name=info_data.get("대표자명") or info_data.get("owner_name", "")
         )
 
     def _convert_store_info(self, store_info: StoreInfoRequest) -> StoreInfo:
