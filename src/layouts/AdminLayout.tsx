@@ -16,18 +16,24 @@ import {
 import Tooltip from '@/shared/components/controls/Tooltip';
 import ChatList from '@/shared/components/chat/list/ChatList';
 import ChatSearchModal from '@/shared/components/chat/layout/ChatSearchModal';
+import { AlertModal } from '@/layouts/AlertModal';
 import HebeesLogo from '@/assets/hebees-logo.png';
 import Select from '@/shared/components/controls/Select';
 import type { Option } from '@/shared/components/controls/Select';
 import { getMyLlmKeys } from '@/shared/api/llm.api';
 import type { MyLlmKeyResponse, MyLlmKeyListResponse } from '@/shared/types/llm.types';
-import { useChatModelStore } from '@/shared/store/useChatModelStore';
 
 import { useAuthStore } from '@/domains/auth/store/auth.store';
+import { useChatModelStore } from '@/shared/store/useChatModelStore';
 import { useIngestNotifyStream } from '@/shared/hooks/useIngestNotifyStream';
 import type { IngestSummaryResponse } from '@/shared/types/ingest.types';
 import { useNotificationStore } from '@/shared/store/useNotificationStore';
 import { useIngestStreamStore } from '@/shared/store/useIngestStreamStore';
+import {
+  useNotificationsQuery,
+  useMarkReadMutation,
+  useDeleteNotificationMutation,
+} from '@/shared/hooks/useNotificationQuery';
 
 const labelCls = (isOpen: boolean) =>
   'ml-2 whitespace-nowrap transition-[max-width,opacity,transform] duration-300 ' +
@@ -72,22 +78,32 @@ export default function AdminLayout() {
 
   const [modelOptions, setModelOptions] = useState<Option[]>([]);
   const { selectedModel, setSelectedModel } = useChatModelStore();
+  const [alertModal, setAlertModal] = useState(false);
 
   const accessToken = useAuthStore((s) => s.accessToken);
   const addIngestNotification = useNotificationStore((s) => s.addIngestNotification);
-  const hasUnread = useNotificationStore((s) => s.hasUnread);
-  const markAllRead = useNotificationStore((s) => s.markAllRead);
 
   const enabled = useIngestStreamStore((s) => s.enabled);
   const setEnabled = useIngestStreamStore((s) => s.setEnabled);
+  const realtime = useNotificationStore((s) => s.realtime);
+
+  // 알림 쿼리
+  const { data } = useNotificationsQuery({ cursor: '', limit: '20' }, alertModal);
+
+  const notifications = [...realtime, ...(data?.data ?? [])];
+  const { mutate: markAsRead } = useMarkReadMutation();
+  const { mutate: deleteNoti } = useDeleteNotificationMutation();
+  const hasUnreadRealtime = useNotificationStore((s) => s.hasUnreadRealtime);
+
+  useEffect(() => {
+    setEnabled(true);
+  }, []);
 
   const handleBellClick = () => {
-    if (hasUnread) {
-      markAllRead();
-    }
+    useNotificationStore.getState().clearRealtime();
     // 완료 뱃지 초기화
     setCompletedCount(0);
-    // TODO: Admin용 알림 리스트 열기 등
+    setAlertModal((prev) => !prev);
   };
 
   function extractCompleted(data: IngestSummaryResponse): number | null {
@@ -105,12 +121,9 @@ export default function AdminLayout() {
       if (completed !== null) {
         setCompletedCount(completed);
       }
-
-      setEnabled(false);
     },
     onError: (e) => {
       console.error('Admin Ingest SSE error: ', e);
-      setEnabled(false);
     },
   });
 
@@ -403,8 +416,7 @@ export default function AdminLayout() {
                   size={22}
                   className="text-gray-600 hover:text-gray-800 cursor-pointer transition-colors shake-hover"
                 />
-
-                {completedCount > 0 && (
+                {(completedCount > 0 || hasUnreadRealtime) && (
                   <span
                     className="
                       absolute -top-[4px] -right-[6px]
@@ -414,9 +426,16 @@ export default function AdminLayout() {
                       leading-none px-[4px]
                     "
                   >
-                    {completedCount}
+                    {completedCount || 1}
                   </span>
                 )}
+                <AlertModal
+                  isOpen={alertModal}
+                  onClose={() => setAlertModal(false)}
+                  notifications={notifications} // 알림 데이터 배열
+                  onRead={(no) => markAsRead(no)} // 개별 읽음 처리
+                  onDelete={(no) => deleteNoti(no)} // 개별 삭제 처리
+                />
               </div>
             </button>
           </Tooltip>
