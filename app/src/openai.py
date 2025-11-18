@@ -510,7 +510,8 @@ class Openai(BaseGenerationStrategy):
                 init_message = {
                     "messageNo": str(message_no),
                     "role": "ai",
-                    "createdAt": created_at
+                    "createdAt": created_at,
+                    "references": []  # documents가 없으므로 빈 references
                 }
                 yield f"event: init\ndata: {json.dumps(init_message, ensure_ascii=False)}\n\n"
                 
@@ -535,19 +536,6 @@ class Openai(BaseGenerationStrategy):
             # MESSAGE_NO 미리 생성 및 createdAt 생성
             message_no = uuid.uuid4()
             created_at = datetime.now(ZoneInfo("Asia/Seoul")).isoformat()
-            
-            # 맨 처음에 init 메시지 전송
-            init_message = {
-                "messageNo": str(message_no),
-                "role": "ai",
-                "createdAt": created_at
-            }
-            yield f"event: init\ndata: {json.dumps(init_message, ensure_ascii=False)}\n\n"
-            
-            # 응답 시간 측정 시작
-            response_start_time = time.time() * 1000
-            full_answer = ""
-            source_documents = documents  # 기본값으로 documents 사용
             
             # references 빌드 함수 (generate와 동일)
             def build_references_from_documents(source_docs: List[Any]) -> List[Dict[str, Any]]:
@@ -603,6 +591,23 @@ class Openai(BaseGenerationStrategy):
                         "snippet": str(text_value),
                     })
                 return refs
+
+            # references 미리 빌드 (event: init에 포함하기 위해)
+            initial_references = build_references_from_documents(documents)
+            
+            # 맨 처음에 init 메시지 전송
+            init_message = {
+                "messageNo": str(message_no),
+                "role": "ai",
+                "createdAt": created_at,
+                "references": initial_references
+            }
+            yield f"event: init\ndata: {json.dumps(init_message, ensure_ascii=False)}\n\n"
+            
+            # 응답 시간 측정 시작
+            response_start_time = time.time() * 1000
+            full_answer = ""
+            source_documents = documents  # 기본값으로 documents 사용
 
             # 스트리밍 시작
             if memory is not None:
