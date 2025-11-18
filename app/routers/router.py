@@ -769,6 +769,7 @@ async def image_embedding_process(
                     metadata = {
                         "FILE_NAME": img_info.get("file_name", f"image_{idx}.png"),
                         "INDEX_NO": img_info.get("index_no", idx),
+                        "IMAGE_FILE_NO": img_info.get("file_no", ""),  # 이미지의 FILE_NO
                         "CREATED_AT": now,
                         "UPDATED_AT": now
                     }
