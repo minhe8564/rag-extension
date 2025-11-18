@@ -1,6 +1,6 @@
 """Chain Summary Response Schemas"""
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Union
 from datetime import datetime
 from decimal import Decimal
 
@@ -16,7 +16,7 @@ class StorePerformance(BaseModel):
     """매장별 성과"""
     store_name: str = Field(..., description="매장명")
     total_revenue: Decimal = Field(..., description="총 매출액")
-    total_transactions: int = Field(..., description="총 거래 건수")
+    total_transactions: Union[int, float] = Field(..., description="총 거래 건수")
     avg_transaction_value: Decimal = Field(..., description="평균 객단가")
     growth_rate: Optional[Decimal] = Field(None, description="전월 대비 성장률 (%)")
 
@@ -28,7 +28,7 @@ class TopProduct(BaseModel):
     product_category: str = Field(..., description="상품 구분")
     total_revenue: Decimal = Field(..., description="총 매출액")
     revenue_share: Decimal = Field(..., description="매출 비중 (%)")
-    quantity_sold: int = Field(..., description="판매 수량")
+    quantity_sold: Union[int, float] = Field(..., description="판매 수량")
     avg_price: Decimal = Field(..., description="평균 판매가")
 
 
@@ -37,8 +37,8 @@ class TopBrand(BaseModel):
     brand_name: str = Field(..., description="브랜드명")
     total_revenue: Decimal = Field(..., description="총 매출액")
     revenue_share: Decimal = Field(..., description="매출 비중 (%)")
-    quantity_sold: int = Field(..., description="판매 수량")
-    brand_rank: int = Field(..., description="매출 순위")
+    quantity_sold: Union[int, float] = Field(..., description="판매 수량")
+    brand_rank: Union[int, float] = Field(..., description="매출 순위")
 
 
 class CategoryRevenue(BaseModel):
@@ -46,8 +46,8 @@ class CategoryRevenue(BaseModel):
     category_name: str = Field(..., description="상품 구분")
     total_revenue: Decimal = Field(..., description="총 매출액")
     revenue_share: Decimal = Field(..., description="매출 비중 (%)")
-    quantity_sold: int = Field(..., description="판매 수량")
-    category_rank: int = Field(..., description="매출 순위")
+    quantity_sold: Union[int, float] = Field(..., description="판매 수량")
+    category_rank: Union[int, float] = Field(..., description="매출 순위")
 
 
 class RevenueDistribution(BaseModel):
@@ -67,17 +67,17 @@ class ProductInsights(BaseModel):
 
 class WeeklyPattern(BaseModel):
     """요일별 패턴"""
-    day_code: int = Field(..., description="요일 코드 (1=일요일, 7=토요일)")
+    day_code: Union[int, float] = Field(..., description="요일 코드 (1=일요일, 7=토요일)")
     day_name: str = Field(..., description="요일명")
     revenue: Decimal = Field(..., description="매출액")
-    revenue_rank: int = Field(..., description="매출 순위")
+    revenue_rank: Union[int, float] = Field(..., description="매출 순위")
 
 
 class HourlyPattern(BaseModel):
     """시간대별 패턴"""
     time_slot: str = Field(..., description="시간대 (예: 14-16)")
     revenue: Decimal = Field(..., description="매출액")
-    revenue_rank: int = Field(..., description="매출 순위")
+    revenue_rank: Union[int, float] = Field(..., description="매출 순위")
 
 
 class PeakInsights(BaseModel):
@@ -97,9 +97,9 @@ class TimePatterns(BaseModel):
 
 class CustomerDemographic(BaseModel):
     """고객 연령대별 분석"""
-    age_code: int = Field(..., description="연령 코드 (-1=미분류, 0=10대미만, 1-9=연령대)")
+    age_code: Union[int, float] = Field(..., description="연령 코드 (-1=미분류, 0=10대미만, 1-9=연령대)")
     age_group: str = Field(..., description="연령대")
-    purchase_count: int = Field(..., description="구매 횟수")
+    purchase_count: Union[int, float] = Field(..., description="구매 횟수")
     avg_purchase_amount: Decimal = Field(..., description="평균 구매 금액")
     total_revenue: Decimal = Field(..., description="총 매출액")
     revenue_share: Decimal = Field(..., description="매출 비중 (%)")
@@ -121,10 +121,10 @@ class VisitSalesPattern(BaseModel):
     """방문-매출 효율 패턴"""
     day_name: str = Field(..., description="요일명")
     hour: str = Field(..., description="시간대")
-    total_visits: int = Field(..., description="총 방문 수")
+    total_visits: Union[int, float] = Field(..., description="총 방문 수")
     total_revenue: Decimal = Field(..., description="총 매출액")
     revenue_per_visit: Decimal = Field(..., description="방문당 평균 매출")
-    efficiency_rank: int = Field(..., description="효율성 순위")
+    efficiency_rank: Union[int, float] = Field(..., description="효율성 순위")
 
 
 class LLMInsights(BaseModel):
