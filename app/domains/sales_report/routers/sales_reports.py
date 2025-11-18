@@ -3,7 +3,8 @@ from fastapi import APIRouter, HTTPException, Query, Depends, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from datetime import date
-from typing import Optional
+from typing import Optional, Any
+from decimal import Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
 from pathlib import Path
 
@@ -21,6 +22,12 @@ from app.domains.sales_report.exceptions import (
     RunpodNotFoundError
 )
 from app.domains.sales_report.services.llm.validators import CustomPromptValidator
+from app.domains.sales_report.utils.template_filters import (
+    humanize_currency,
+    humanize_percentage,
+    format_date_korean,
+    humanize_count
+)
 
 
 router = APIRouter(prefix="/sales-reports", tags=["sales-reports"])
@@ -28,6 +35,12 @@ router = APIRouter(prefix="/sales-reports", tags=["sales-reports"])
 # 템플릿 디렉토리 설정
 templates_dir = Path(__file__).parent.parent / "templates"
 templates = Jinja2Templates(directory=str(templates_dir))
+
+# Jinja2 커스텀 필터 등록
+templates.env.filters['humanize_currency'] = humanize_currency
+templates.env.filters['humanize_percentage'] = humanize_percentage
+templates.env.filters['format_date_korean'] = format_date_korean
+templates.env.filters['humanize_count'] = humanize_count
 
 
 @router.post("/store-summary", response_model=BaseResponse[Result[StoreSummaryData]])
@@ -252,11 +265,13 @@ async def generate_store_summary_html(
         )
 
         # HTML 템플릿에 데이터 주입하여 반환
+        # mode='json': Decimal → float, date → ISO 문자열로 자동 변환
+        # 템플릿에서는 커스텀 필터(humanize_currency, format_date_korean 등)로 포맷팅
         return templates.TemplateResponse(
             "store_summary.html",
             {
                 "request": fastapi_request,
-                "report": report.model_dump(mode='json')  # Pydantic 모델을 JSON 직렬화 가능한 dict로 변환
+                "report": report.model_dump(mode='json')
             }
         )
 
