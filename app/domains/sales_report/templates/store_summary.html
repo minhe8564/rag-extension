@@ -87,14 +87,6 @@
     <!-- 메인 컨테이너 -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
-        <!-- 주요 메트릭 그리드 -->
-        <section>
-            <h2 class="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
-                <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                </svg>
-                이번 달 매출 요약
-            </h2>
         <!-- AI 인사이트 -->
         <section>
             <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-200 overflow-hidden">
@@ -152,8 +144,16 @@
                 </div>
             </div>
         </section>
-        <br>
-        
+
+        <!-- 주요 메트릭 그리드 -->
+        <section>
+            <h2 class="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                </svg>
+                이번 달 매출 요약
+            </h2>
+
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <!-- 총 판매금액 -->
                 <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg border-2 border-blue-200 p-4 hover:shadow-md transition-shadow">
@@ -359,6 +359,36 @@
             return (parseFloat(decimal) * 100).toFixed(1);
         }
 
+        // 날짜 범위 한국어 포맷팅 함수
+        function formatDateRangeKorean(dateRange) {
+            if (!dateRange || typeof dateRange !== 'string') return dateRange;
+
+            // 범위 형식인 경우 (YYYY-MM-DD ~ YYYY-MM-DD)
+            if (dateRange.includes('~')) {
+                const parts = dateRange.split('~');
+                const startDate = parts[0].trim();
+                const endDate = parts[1].trim();
+
+                // 시작일 포맷팅
+                const [startYear, startMonth, startDay] = startDate.split('-');
+                const startFormatted = `${startYear}년 ${parseInt(startMonth)}월 ${parseInt(startDay)}일`;
+
+                // 종료일 포맷팅
+                const [endYear, endMonth, endDay] = endDate.split('-');
+                const endFormatted = `${endYear}년 ${parseInt(endMonth)}월 ${parseInt(endDay)}일`;
+
+                return `${startFormatted} ~ ${endFormatted}`;
+            }
+
+            // 단일 월 형식인 경우 (YYYY-MM)
+            if (dateRange.length === 7 && dateRange[4] === '-') {
+                const [year, month] = dateRange.split('-');
+                return `${year}년 ${parseInt(month)}월`;
+            }
+
+            return dateRange;
+        }
+
         // Chart.js 글로벌 설정
         Chart.defaults.font.family = "'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
         Chart.defaults.font.size = 12;
@@ -370,10 +400,11 @@
             document.querySelector('header h1').textContent = storeInfo.store_name;
             document.querySelector('header .flex.items-center.gap-2 span:last-child').textContent = storeInfo.owner_name;
             document.querySelector('header .flex.items-center.gap-2:last-child span:last-child').textContent = storeInfo.store_phone;
-            document.querySelector('.metric-badge-info').textContent = monthlyReport.period;
+            document.querySelector('.metric-badge-info').textContent = formatDateRangeKorean(monthlyReport.period);
 
-            // 월별 요약 메트릭 업데이트
-            const metricCards = document.querySelectorAll('.bg-slate-50.rounded-lg.border');
+            // 월별 요약 메트릭 업데이트 (gradient 배경의 카드들)
+            const monthlySection = document.querySelector('main > section:nth-child(2)');
+            const metricCards = monthlySection.querySelectorAll('.grid > div');
             metricCards[0].querySelector('.text-2xl').textContent = formatNumber(monthlyReport.total_sales) + '원';
             metricCards[1].querySelector('.text-2xl').textContent = formatNumber(monthlyReport.avg_transaction_amount) + '원';
             metricCards[2].querySelector('.text-2xl').textContent = monthlyReport.new_customers_count + '명';
