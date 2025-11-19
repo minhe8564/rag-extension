@@ -7,6 +7,7 @@ import importlib
 import os
 import tempfile
 from urllib.parse import urlparse, unquote
+from pathlib import Path
 import httpx
 import uuid
 import hashlib
@@ -125,10 +126,12 @@ class ExtractService:
             forward_headers["x-user-uuid"] = x_user_uuid
         
         presigned_endpoint = f"http://hebees-python-backend:8000/api/v1/files/{file_no}/presigned"
-        tmp_path, file_name, file_ext = await self.download_file_via_presigned(file_no, presigned_endpoint, forward_headers)
+        tmp_path, downloaded_file_name, file_ext = await self.download_file_via_presigned(file_no, presigned_endpoint, forward_headers)
         if not file_ext:
             raise HTTPException(status_code=400, detail="파일 확장자를 확인할 수 없습니다.")
 
+        # request에서 받은 fileName 우선 사용, 없으면 다운로드한 파일명 사용
+        file_name = request.fileName if request.fileName else downloaded_file_name
         logger.info(f"Processing file: {file_name} (type: {file_ext}, path: {tmp_path}, strategy: {strategy_name})")
 
         # 2) 지원 타입 확인
@@ -224,7 +227,8 @@ class ExtractService:
                     for img in images:
                         try:
                             file_no_bytes = uuid.uuid4().bytes
-                            name = img.get("name") or ""
+                            # DB 저장용 이름 우선 사용, 없으면 기존 name 사용
+                            db_name = img.get("db_name") or img.get("name") or ""
                             obj = img.get("object_name") or ""
                             bkt = img.get("bucket") or INGEST_BUCKET
                             size = int(img.get("size") or 0)
@@ -236,12 +240,19 @@ class ExtractService:
                                 desc = captions.get(uid, "") or ""
                             if not desc:
                                 desc = f"Extracted image ({typ})"
+                            
+                            # 원본 파일명을 앞에 추가 (확장자 제거)
+                            original_doc_name = Path(file_name).stem if file_name else ""
+                            if original_doc_name and desc:
+                                desc = f"[{original_doc_name}] {desc}"
+                            elif original_doc_name:
+                                desc = f"[{original_doc_name}]"
 
                             p = {
                                 "file_no": file_no_bytes,
                                 "offer_no": offer_no[:10],
                                 "user_no": user_no_bytes,
-                                "name": name[:255],
+                                "name": db_name[:255],  # DB용 이름 사용
                                 "size": size,
                                 "type": typ[:20],
                                 "hash": hsh[:255],

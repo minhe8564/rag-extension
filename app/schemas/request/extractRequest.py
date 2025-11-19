@@ -5,6 +5,7 @@ from typing import Optional, Dict, Any
 class ExtractProcessRequest(BaseModel):
     """Extract /process 요청 스키마"""
     fileNo: Optional[str] = None
+    fileName: Optional[str] = None
     extractionStrategy: str
     extractionParameter: Dict[str, Any] = {}
 
