@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react';
-import { ArrowDown, ArrowUp, Square } from 'lucide-react';
+import { ArrowDown, ArrowUp } from 'lucide-react';
 import clsx from 'clsx';
 
 type ChatMode = 'llm' | 'rag';
@@ -12,7 +12,6 @@ type Props = {
   watch?: number;
   disabled?: boolean;
   loading?: boolean;
-  onStop?: () => void;
 };
 
 export default function ChatInput({
@@ -23,7 +22,6 @@ export default function ChatInput({
   watch,
   disabled = false,
   loading = false,
-  onStop,
 }: Props) {
   const [text, setText] = useState('');
   const composingRef = useRef(false);
@@ -36,8 +34,7 @@ export default function ChatInput({
   const trimmed = text.trim();
 
   const canSend = !disabled && !loading && trimmed.length > 0;
-  const isStopMode = !!onStop && loading;
-  const isButtonDisabled = disabled || (!isStopMode && !canSend);
+  const isButtonDisabled = disabled || !canSend;
 
   const send = () => {
     if (!canSend) return;
@@ -115,7 +112,6 @@ export default function ChatInput({
       }
     };
 
-    // handleScroll();
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
@@ -231,20 +227,9 @@ export default function ChatInput({
                 'disabled:opacity-50 disabled:cursor-not-allowed',
                 buttonColor
               )}
-              onClick={() => {
-                if (isStopMode) {
-                  onStop?.();
-                } else {
-                  send();
-                }
-              }}
-              aria-label={isStopMode ? '응답 중지' : '메시지 전송'}
+              onClick={send}
             >
-              {isStopMode ? (
-                <Square size={16} strokeWidth={3} className="text-white" />
-              ) : (
-                <ArrowUp size={20} strokeWidth={2} className="text-white" />
-              )}
+              <ArrowUp size={20} strokeWidth={2} className="text-white" />
             </button>
           </div>
         </div>

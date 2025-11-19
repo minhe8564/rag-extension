@@ -158,7 +158,7 @@ export default function ChatMessageItem({
           </Tooltip>
         )}
 
-        {!isUser && !isPendingAssistant && (
+        {!isPendingAssistant && (
           <Tooltip content={copied ? '복사 완료' : '답변 복사'} side="bottom">
             <button
               onClick={handleCopy}

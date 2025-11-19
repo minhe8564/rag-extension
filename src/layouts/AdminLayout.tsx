@@ -54,7 +54,7 @@ const MODEL_DESCRIPTIONS: Record<string, string> = {
   'Claude Sonnet 4': '복잡한 분석·글쓰기·요약에 강점',
 };
 
-export default function AdminLayout() {
+export default function UserLayout() {
   const [isOpen, setIsOpen] = useState(true);
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
@@ -77,31 +77,74 @@ export default function AdminLayout() {
   const isChatRoute = pathname.startsWith('/admin/chat/text');
 
   const [modelOptions, setModelOptions] = useState<Option[]>([]);
+  const [llmList, setLlmList] = useState<MyLlmKeyResponse[]>([]);
   const { selectedModel, setSelectedModel } = useChatModelStore();
   const [alertModal, setAlertModal] = useState(false);
+
+  const loadLlmKeys = useCallback(async () => {
+    try {
+      const res = await getMyLlmKeys();
+      const result = res.data.result as MyLlmKeyListResponse;
+      const list: MyLlmKeyResponse[] = result?.data ?? [];
+
+      const isQwen = (llmName: string | null | undefined): boolean => {
+        if (!llmName) return false;
+        const name = llmName.toLowerCase();
+        return name.includes('qwen');
+      };
+
+      const filteredList = list.filter((k) => isQwen(k.llmName) || k.hasKey);
+
+      const options: Option[] = filteredList
+        .map((k) => ({
+          value: k.llmName ?? '',
+          label: k.llmName ?? '',
+          desc: k.llmName ? (MODEL_DESCRIPTIONS[k.llmName] ?? '모델 설명 없음') : '모델 정보 없음',
+        }))
+        .filter((o) => o.value);
+
+      setModelOptions(options);
+      setLlmList(filteredList);
+
+      const { selectedModel: currentSelectedModel, setSelectedModel: setModel } =
+        useChatModelStore.getState();
+
+      let final = currentSelectedModel;
+      const found = filteredList.find((k) => k.llmName === final);
+
+      if (!found) {
+        final = filteredList[0]?.llmName;
+      }
+
+      if (final) {
+        const matched = filteredList.find((k) => k.llmName === final);
+        setModel(final, matched?.llmNo);
+      } else {
+        setModel(undefined, undefined);
+      }
+    } catch (err) {
+      console.error(err);
+      setModelOptions([]);
+      const { setSelectedModel: setModel } = useChatModelStore.getState();
+      setModel(undefined, undefined);
+    }
+  }, []);
 
   const accessToken = useAuthStore((s) => s.accessToken);
   const addIngestNotification = useNotificationStore((s) => s.addIngestNotification);
 
   const enabled = useIngestStreamStore((s) => s.enabled);
   const setEnabled = useIngestStreamStore((s) => s.setEnabled);
-  const realtime = useNotificationStore((s) => s.realtime);
 
   // 알림 쿼리
   const { data } = useNotificationsQuery({ cursor: '', limit: '20' }, alertModal);
-
-  const notifications = [...realtime, ...(data?.data ?? [])];
+  const notifications = data?.data ?? []; // 리스트
   const { mutate: markAsRead } = useMarkReadMutation();
   const { mutate: deleteNoti } = useDeleteNotificationMutation();
   const hasUnreadRealtime = useNotificationStore((s) => s.hasUnreadRealtime);
 
-  useEffect(() => {
-    setEnabled(true);
-  }, []);
-
   const handleBellClick = () => {
-    useNotificationStore.getState().clearRealtime();
-    // 완료 뱃지 초기화
+    // 완료 뱃지도 초기화
     setCompletedCount(0);
     setAlertModal((prev) => !prev);
   };
@@ -121,65 +164,18 @@ export default function AdminLayout() {
       if (completed !== null) {
         setCompletedCount(completed);
       }
+
+      setEnabled(false);
     },
     onError: (e) => {
-      console.error('Admin Ingest SSE error: ', e);
+      console.error('Ingest SSE error: ', e);
+      setEnabled(false);
     },
   });
 
-  const loadLlmKeys = useCallback(async () => {
-    try {
-      const res = await getMyLlmKeys();
-      const result = res.data.result as MyLlmKeyListResponse;
-      const list: MyLlmKeyResponse[] = result?.data ?? [];
-
-      const isQwen = (llmName: string | null | undefined): boolean => {
-        if (!llmName) return false;
-        const name = llmName.toLowerCase();
-        return name.includes('qwen');
-      };
-
-      const filteredList = list.filter((k) => isQwen(k.llmName) || k.hasKey);
-
-      const options = filteredList
-        .map((k) => ({
-          value: k.llmName ?? '',
-          label: k.llmName ?? '',
-          desc: k.llmName ? (MODEL_DESCRIPTIONS[k.llmName] ?? '모델 설명 없음') : '모델 정보 없음',
-        }))
-        .filter((o) => o.value);
-
-      setModelOptions(options);
-
-      // 필터링된 리스트를 기준으로 모델 선택
-      let final = selectedModel;
-      const found = filteredList.find((k) => k.llmName === final);
-
-      if (!found) {
-        final = filteredList[0]?.llmName;
-      }
-
-      if (final) {
-        const matched = filteredList.find((k) => k.llmName === final);
-        setSelectedModel(final, matched?.llmNo);
-      } else {
-        setSelectedModel(undefined, undefined);
-      }
-    } catch (err) {
-      console.error(err);
-      setModelOptions([]);
-      setSelectedModel(undefined, undefined);
-    }
-  }, [selectedModel, setSelectedModel]);
-
   useEffect(() => {
-    loadLlmKeys();
-  }, [loadLlmKeys]);
-
-  useEffect(() => {
-    if (isChatRoute) {
-      loadLlmKeys();
-    }
+    if (!isChatRoute) return;
+    void loadLlmKeys();
   }, [isChatRoute, loadLlmKeys]);
 
   return (
@@ -396,9 +392,11 @@ export default function AdminLayout() {
             <Select
               options={modelOptions}
               value={selectedModel}
-              onChange={(v) => setSelectedModel(v)}
+              onChange={(v) => {
+                const matched = llmList.find((k) => k.llmName === v);
+                setSelectedModel(v, matched?.llmNo);
+              }}
               className="w-[190px]"
-              placeholder="모델 선택"
             />
           )}
 

@@ -25,12 +25,24 @@ type Props = {
   references?: ReferencedDocument[];
 };
 
-const getIconByType = (type?: string) => {
+const getFileMeta = (type?: string) => {
   const t = (type || '').toLowerCase();
-  if (['pdf', 'doc', 'docx', 'md', 'txt', 'rtf', 'xls', 'xlsx', 'csv', 'ppt', 'pptx'].includes(t)) {
-    return <FileText size={16} className="text-gray-500" />;
+
+  let icon = <FileText size={16} className="text-gray-500" />;
+  let chipLabel = t ? t.toUpperCase() : '';
+  let chipClass = 'border-gray-200 bg-gray-50 text-gray-600';
+
+  if (t === 'pdf') {
+    icon = <FileText size={16} className="text-emerald-500" />;
+    chipLabel = 'PDF';
+    chipClass = 'border-emerald-100 bg-emerald-50 text-emerald-700';
+  } else if (t === 'png') {
+    icon = <File size={16} className="text-amber-500" />;
+    chipLabel = 'PNG';
+    chipClass = 'border-amber-100 bg-amber-50 text-amber-700';
   }
-  return <File size={16} className="text-gray-500" />;
+
+  return { icon, chipLabel, chipClass };
 };
 
 export default function ReferencedDocsPanel({
@@ -52,6 +64,7 @@ export default function ReferencedDocsPanel({
   const [open, setOpen] = useState(() => getInitialOpenState());
   const [hidden, setHidden] = useState(() => storedState?.hidden ?? false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [activeType, setActiveType] = useState<'all' | string>('all');
   const lastCountRef = useRef<number>(0);
 
   useEffect(() => {
@@ -94,18 +107,22 @@ export default function ReferencedDocsPanel({
     return (data ?? []) as ReferencedDocument[];
   }, [hasInlineReferences, references, data]);
 
-  // 탭용 상태: 전체 / pdf / png
-  const [activeTab, setActiveTab] = useState<'all' | 'pdf' | 'png'>('all');
+  // 실제 존재하는 타입만 추출해서 카테고리 필터용으로 사용
+  const availableTypes = useMemo(() => {
+    const set = new Set<string>();
+    docs.forEach((d) => {
+      if (d.type) {
+        set.add(d.type.toLowerCase());
+      }
+    });
+    return Array.from(set);
+  }, [docs]);
 
-  const pdfCount = docs.filter((d) => d.type?.toLowerCase() === 'pdf').length;
-  const pngCount = docs.filter((d) => d.type?.toLowerCase() === 'png').length;
-
-  const filteredDocs =
-    activeTab === 'pdf'
-      ? docs.filter((d) => d.type?.toLowerCase() === 'pdf')
-      : activeTab === 'png'
-        ? docs.filter((d) => d.type?.toLowerCase() === 'png')
-        : docs;
+  // 필터링된 문서 목록
+  const filteredDocs = useMemo(() => {
+    if (activeType === 'all') return docs;
+    return docs.filter((d) => (d.type || '').toLowerCase() === activeType);
+  }, [docs, activeType]);
 
   if (docs.length === 0) {
     return null;
@@ -183,54 +200,48 @@ export default function ReferencedDocsPanel({
         </div>
       </div>
 
-      {/* pdf / png 탭 */}
-      {open && (pdfCount > 0 || pngCount > 0) && (
-        <div className="flex items-center gap-1 px-3 pb-2 pt-1 text-[11px]">
-          <button
-            type="button"
-            onClick={() => setActiveTab('all')}
-            className={clsx(
-              'rounded-full px-2.5 py-1 border',
-              activeTab === 'all'
-                ? 'bg-white text-gray-900 border-gray-300 shadow-sm'
-                : 'bg-gray-100 text-gray-600 border-transparent hover:bg-gray-200'
-            )}
-          >
-            전체 <span className="ml-0.5 text-[10px] text-gray-400">{docs.length}</span>
-          </button>
-          {pdfCount > 0 && (
-            <button
-              type="button"
-              onClick={() => setActiveTab('pdf')}
-              className={clsx(
-                'rounded-full px-2.5 py-1 border',
-                activeTab === 'pdf'
-                  ? 'bg-white text-gray-900 border-gray-300 shadow-sm'
-                  : 'bg-gray-100 text-gray-600 border-transparent hover:bg-gray-200'
-              )}
-            >
-              PDF <span className="ml-0.5 text-[10px] text-gray-400">{pdfCount}</span>
-            </button>
-          )}
-          {pngCount > 0 && (
-            <button
-              type="button"
-              onClick={() => setActiveTab('png')}
-              className={clsx(
-                'rounded-full px-2.5 py-1 border',
-                activeTab === 'png'
-                  ? 'bg-white text-gray-900 border-gray-300 shadow-sm'
-                  : 'bg-gray-100 text-gray-600 border-transparent hover:bg-gray-200'
-              )}
-            >
-              PNG <span className="ml-0.5 text-[10px] text-gray-400">{pngCount}</span>
-            </button>
-          )}
-        </div>
-      )}
-
       {open && (
         <div className="px-3 pb-3">
+          {availableTypes.length > 0 && (
+            <div className="mb-2 flex items-center gap-1 overflow-x-autov py-1 -mx-1 px-1">
+              <button
+                type="button"
+                onClick={() => setActiveType('all')}
+                className={clsx(
+                  'inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium whitespace-nowrap transition-colors',
+                  activeType === 'all'
+                    ? 'border-gray-300 bg-white text-gray-900'
+                    : 'border-gray-200 bg-gray-50 text-gray-600 hover:bg-white'
+                )}
+              >
+                전체
+                <span className="ml-1 text-[10px] text-gray-400">({docs.length})</span>
+              </button>
+
+              {availableTypes.map((t) => {
+                const { chipLabel, chipClass } = getFileMeta(t);
+                const isActive = activeType === t;
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setActiveType((prev) => (prev === t ? 'all' : t))}
+                    className={clsx(
+                      'inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-medium whitespace-nowrap transition-colors',
+                      chipClass,
+                      isActive
+                        ? 'ring-1 ring-offset-1 ring-gray-300'
+                        : 'opacity-80 hover:opacity-100'
+                    )}
+                  >
+                    <span className="mr-1 h-1.5 w-1.5 rounded-full bg-current" />
+                    {chipLabel}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           {!hasInlineReferences && isError ? (
             <div className="rounded-md border bg-white p-3 text-sm text-red-600">
               참조 문서를 불러오지 못했어요.
@@ -249,6 +260,7 @@ export default function ReferencedDocsPanel({
                 const title = d.title?.trim() || d.name || `문서 #${d.index}`;
                 const docKey = `${d.fileNo ?? 'nofile'}-${d.index ?? idx}-${idx}`;
                 const isExpanded = expandedId === docKey;
+                const { icon, chipLabel, chipClass } = getFileMeta(d.type);
 
                 return (
                   <li
@@ -260,18 +272,25 @@ export default function ReferencedDocsPanel({
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-start gap-2 min-w-0">
-                        <div className="mt-0.5 shrink-0">{getIconByType(d.type)}</div>
+                        <div className="mt-0.5 shrink-0">{icon}</div>
                         <div className="min-w-0">
                           <div className="mb-3 flex items-center gap-2">
                             <div className="line-clamp-1 text-sm font-medium text-gray-800">
                               {title}
                             </div>
-                            {d.type ? (
-                              <span className="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500">
-                                {d.type}
+                            {d.type && (
+                              <span
+                                className={clsx(
+                                  'shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium border',
+                                  chipClass
+                                )}
+                              >
+                                <span className="mr-1 h-1.5 w-1.5 rounded-full bg-current" />
+                                {chipLabel}
                               </span>
-                            ) : null}
+                            )}
                           </div>
+
                           {d.snippet && (
                             <div
                               className={clsx(

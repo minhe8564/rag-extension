@@ -17,7 +17,7 @@ export function PipelineTooltip({ id, title, description, note, className }: Too
       role="tooltip"
       className={clsx(
         'pointer-events-none absolute left-1/2 top-full mt-3 -translate-x-1/2',
-        'z-999 w-full min-w-[200px] max-w-[480px] rounded-xl bg-[var(--overlay-90)] text-white',
+        'z-[9999] w-full min-w-[200px] max-w-[480px] rounded-xl bg-[var(--overlay-90)] text-white',
         'opacity-0 translate-y-1 scale-[0.99] transition-all duration-150',
         'group-hover:opacity-100 group-hover:translate-y-0 group-hover:scale-100',
         className

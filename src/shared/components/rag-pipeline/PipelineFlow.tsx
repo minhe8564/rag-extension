@@ -47,7 +47,7 @@ export default function PipelineFlow({ steps, activeId, onStepClick, className }
       />
 
       <div
-        className="grid gap-12 px-6 pt-4"
+        className="grid gap-12 px-6 pt-4 z-[999]"
         style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
       >
         {steps.map((s, i) => {
