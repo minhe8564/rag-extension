@@ -149,8 +149,13 @@ public class LlmChatGateway {
             String provider = extractText(parameter, "provider")
                 .orElseGet(() -> extractText(parameter, "vendor").orElse(null));
             if (StringUtils.hasText(provider)) {
-                return LlmProvider.fromIdentifier(provider)
+                LlmProvider resolved = LlmProvider.fromIdentifier(provider)
                     .orElseThrow(() -> new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR));
+                // RUNPOD 계열이나 ollama이면 GPT-4o로 처리
+                if (resolved == LlmProvider.RUNPOD) {
+                    return LlmProvider.CHATGPT;
+                }
+                return resolved;
             }
         }
 
@@ -160,7 +165,12 @@ public class LlmChatGateway {
             }
             Optional<LlmProvider> provider = LlmProvider.fromIdentifier(identifier);
             if (provider.isPresent()) {
-                return provider.get();
+                LlmProvider resolved = provider.get();
+                // RUNPOD 계열이나 ollama이면 GPT-4o로 처리
+                if (resolved == LlmProvider.RUNPOD) {
+                    return LlmProvider.CHATGPT;
+                }
+                return resolved;
             }
         }
 
@@ -330,7 +340,11 @@ public class LlmChatGateway {
         String model = resolveModel(provider, strategy);
         JsonNode parameter = strategy.getParameter();
 
+        // RUNPOD 계열이나 ollama가 GPT-4o로 처리될 때 llmNo를 특정 UUID로 설정
         UUID llmNo = strategy.getStrategyNo();
+        if (provider == LlmProvider.CHATGPT && isRunpodOrOllamaStrategy(strategy)) {
+            llmNo = UUID.fromString("b3f8bd78-520b-4e2e-b516-786f45fbe83a");
+        }
 
         List<LlmChatMessage> payloadMessages = new ArrayList<>();
         if (!containsSystemMessage(messages)) {
@@ -374,6 +388,33 @@ public class LlmChatGateway {
             }
         }
         return Optional.empty();
+    }
+
+    /**
+     * Strategy가 RUNPOD 계열이나 ollama인지 확인
+     */
+    private boolean isRunpodOrOllamaStrategy(Strategy strategy) {
+        JsonNode parameter = strategy.getParameter();
+        if (parameter != null) {
+            String provider = extractText(parameter, "provider")
+                .orElseGet(() -> extractText(parameter, "vendor").orElse(null));
+            if (StringUtils.hasText(provider)) {
+                String normalized = provider.toLowerCase();
+                return normalized.contains("runpod") || normalized.contains("ollama");
+            }
+        }
+
+        for (String identifier : List.of(strategy.getCode(), strategy.getName())) {
+            if (!StringUtils.hasText(identifier)) {
+                continue;
+            }
+            String normalized = identifier.toLowerCase();
+            if (normalized.contains("runpod") || normalized.contains("ollama")) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
 

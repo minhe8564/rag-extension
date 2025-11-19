@@ -13,7 +13,9 @@ import com.ssafy.hebees.common.exception.BusinessException;
 import com.ssafy.hebees.common.exception.ErrorCode;
 import com.ssafy.hebees.common.util.ValidationUtil;
 import com.ssafy.hebees.dashboard.service.GenerationHistoryStreamPublisher;
+import com.ssafy.hebees.ragsetting.entity.Strategy;
 import com.ssafy.hebees.ragsetting.repository.StrategyRepository;
+import com.fasterxml.jackson.databind.JsonNode;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -77,6 +79,12 @@ public class ChatAskServiceImpl implements ChatAskService {
         if (StringUtils.hasText(request.model())) {
             llmNo = strategyRepository.findByNameAndCodeStartingWith(request.model(), "GEN")
                 .orElseThrow(() -> new BusinessException(ErrorCode.BAD_REQUEST)).getStrategyNo();
+        }
+
+        // RUNPOD 계열이나 ollama가 GPT-4o로 처리될 때 llmNo를 특정 UUID로 설정
+        Strategy strategy = strategyRepository.findByStrategyNo(llmNo).orElse(null);
+        if (strategy != null && isRunpodOrOllamaStrategy(strategy)) {
+            llmNo = UUID.fromString("b3f8bd78-520b-4e2e-b516-786f45fbe83a");
         }
 
         LlmChatResult llmResult;
@@ -177,6 +185,47 @@ public class ChatAskServiceImpl implements ChatAskService {
             throw new BusinessException(ErrorCode.INPUT_BLANK);
         }
         return text.trim();
+    }
+
+    /**
+     * Strategy가 RUNPOD 계열이나 ollama인지 확인
+     */
+    private boolean isRunpodOrOllamaStrategy(Strategy strategy) {
+        JsonNode parameter = strategy.getParameter();
+        if (parameter != null) {
+            String provider = extractText(parameter, "provider")
+                .orElseGet(() -> extractText(parameter, "vendor").orElse(null));
+            if (StringUtils.hasText(provider)) {
+                String normalized = provider.toLowerCase();
+                return normalized.contains("runpod") || normalized.contains("ollama");
+            }
+        }
+
+        for (String identifier : List.of(strategy.getCode(), strategy.getName())) {
+            if (!StringUtils.hasText(identifier)) {
+                continue;
+            }
+            String normalized = identifier.toLowerCase();
+            if (normalized.contains("runpod") || normalized.contains("ollama")) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private Optional<String> extractText(JsonNode node, String fieldName) {
+        if (node == null || !StringUtils.hasText(fieldName)) {
+            return Optional.empty();
+        }
+        JsonNode value = node.path(fieldName);
+        if (value.isTextual()) {
+            String text = value.asText();
+            if (StringUtils.hasText(text)) {
+                return Optional.of(text);
+            }
+        }
+        return Optional.empty();
     }
 }
 
