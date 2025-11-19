@@ -1,0 +1,62 @@
+[project]
+name = "rag-data-yolo"
+version = "0.1.0"
+description = "RAG Data YOLO - Document Layout Object Detection (Figure/Table)"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi==0.116.2",
+    "pydantic-settings>=2.11.0",
+    "uvicorn[standard]>=0.38.0",
+    "python-multipart>=0.0.6",
+    "doclayout_yolo==0.0.2b1",
+    "ultralytics==8.0.227",
+    "opencv-python==4.12.0.88",
+    "numpy<2.2.6",
+    "httpx>=0.28.0",
+    "pillow>=10.4.0",
+    "huggingface-hub>=0.20.0",
+
+    # PyTorch - 플랫폼별로 자동 선택
+    # Mac (darwin): MPS 지원 버전 (기본 PyPI)
+    # Linux/Windows: 기본 PyPI에서 설치 (CUDA 버전이 필요하면 별도 설치 필요)
+    "torch==2.7.0; sys_platform == 'darwin'",
+    "torchvision>=0.22,<1; sys_platform == 'darwin'",
+    "torchaudio>=2.7,<3; sys_platform == 'darwin'",
+    # Linux/Windows: 기본 PyPI에서 설치
+    # CUDA 버전이 필요하면: uv pip install --index-url https://download.pytorch.org/whl/cu126 torch==2.7.0
+    "torch==2.7.0; sys_platform != 'darwin'",
+    "torchvision>=0.22,<1; sys_platform != 'darwin'",
+    "torchaudio>=2.7,<3; sys_platform != 'darwin'",
+]
+
+[project.optional-dependencies]
+# Linux/Windows에서 CUDA 버전이 필요한 경우:
+# uv sync --extra cuda
+cuda = [
+    "torch==2.7.0",
+    "torchvision>=0.22,<1",
+    "torchaudio>=2.7,<3",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+# CUDA 인덱스는 Linux/Windows에서 CUDA 버전이 필요한 경우에만 사용
+# Mac에서는 sources를 지정하지 않아 기본 PyPI에서 설치됨
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true
+
+# Windows/Linux에서 CUDA 12.6 버전 사용
+# Mac (darwin)에서는 기본 PyPI에서 설치됨
+# uv sources는 플랫폼별 marker를 지원하지 않으므로, Windows/Linux에서만 적용됨
+# Mac에서는 dependencies의 조건부 설치가 우선 적용되어 기본 PyPI에서 설치됨
+[tool.uv.sources]
+torch = [{ index = "pytorch-cu126" }]
+torchvision = [{ index = "pytorch-cu126" }]
+torchaudio = [{ index = "pytorch-cu126" }]
