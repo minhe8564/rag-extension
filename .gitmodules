@@ -20,10 +20,6 @@
 	path = embedding-repo
 	url = https://lab.ssafy.com/gd10080008/embedding-repo.git
 	branch = develop
-[submodule "query-embedding-repo"]
-	path = query-embedding-repo
-	url = https://lab.ssafy.com/gd10080008/query-embedding-repo.git
-	branch = develop
 [submodule "search-repo"]
 	path = search-repo
 	url = https://lab.ssafy.com/gd10080008/search-repo.git
