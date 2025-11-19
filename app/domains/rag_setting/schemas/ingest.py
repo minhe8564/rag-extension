@@ -24,7 +24,7 @@ class IngestGroupListResponse(BaseModel):
 
 class StrategyWithParameter(BaseModel):
     """전략 + 파라미터 아이템"""
-    no: str = Field(..., description="전략 ID (UUID)")
+    no: Optional[str] = Field(None, description="전략 ID (UUID). 없으면 기본 전략 사용")
     parameters: Optional[Dict[str, Any]] = Field(
         None,
         description="전략별 파라미터",
@@ -48,10 +48,10 @@ class IngestTemplateCreateRequest(BaseModel):
     """Ingest 템플릿 생성 요청"""
     name: str = Field(..., description="템플릿 이름", max_length=100)
     isDefault: bool = Field(False, description="기본 템플릿 여부")
-    extractions: List[StrategyWithParameter] = Field(..., description="추출 전략 목록")
-    chunking: StrategyWithParameter = Field(..., description="청킹 전략")
-    denseEmbeddings: List[StrategyWithParameter] = Field(..., description="밀집 임베딩 전략 목록")
-    sparseEmbedding: StrategyWithParameter = Field(..., description="희소 임베딩 전략")
+    extractions: Optional[List[StrategyWithParameter]] = Field(None, description="추출 전략 목록 (없으면 기본 전략 사용)")
+    chunking: Optional[StrategyWithParameter] = Field(None, description="청킹 전략 (없으면 기본 전략 사용)")
+    denseEmbeddings: Optional[List[StrategyWithParameter]] = Field(None, description="밀집 임베딩 전략 목록 (없으면 기본 전략 사용)")
+    sparseEmbedding: Optional[StrategyWithParameter] = Field(None, description="희소 임베딩 전략 (없으면 기본 전략 사용)")
 
     class Config:
         json_schema_extra = {

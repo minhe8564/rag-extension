@@ -15,23 +15,9 @@ router = APIRouter(prefix="/rag", tags=["RAG - Query Template Management"])
 @router.delete(
     "/query-templates/{queryNo}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="Query 템플릿 삭제 (관리자 전용)",
+    summary="[관리자] Query 템플릿 삭제",
     description="""
     Query 템플릿을 삭제합니다.
-
-    **권한**: 관리자(ADMIN)만 접근 가능합니다.
-
-    **Parameters**:
-    - `queryNo` (path): Query 템플릿 ID (UUID 형식)
-
-    **Response**:
-    - `204 NO_CONTENT`: 삭제 성공 (응답 본문 없음)
-
-    **Error Responses**:
-    - `400 BAD_REQUEST`: UUID 형식이 올바르지 않음
-    - `401 UNAUTHORIZED`: 인증 정보가 없거나 유효하지 않음
-    - `403 FORBIDDEN`: 관리자 권한이 없음
-    - `404 NOT_FOUND`: 대상 Query 템플릿을 찾을 수 없음
     """,
     responses={
         204: {

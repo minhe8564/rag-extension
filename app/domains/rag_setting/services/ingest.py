@@ -105,6 +105,33 @@ async def verify_strategy_exists(
     return result.scalar_one_or_none()
 
 
+async def get_default_ingest_template(
+    session: AsyncSession,
+) -> Optional[IngestGroup]:
+    """
+    is_default=1인 Ingest 템플릿 조회
+
+    Args:
+        session: 데이터베이스 세션
+
+    Returns:
+        IngestGroup 객체 또는 None (기본 템플릿이 없는 경우)
+    """
+    query = (
+        select(IngestGroup)
+        .where(IngestGroup.is_default.is_(True))
+        .options(
+            selectinload(IngestGroup.chunking_strategy),
+            selectinload(IngestGroup.sparse_embedding_strategy),
+            selectinload(IngestGroup.extraction_groups).selectinload(ExtractionGroup.extraction_strategy),
+            selectinload(IngestGroup.embedding_groups).selectinload(EmbeddingGroup.embedding_strategy),
+        )
+        .limit(1)
+    )
+    result = await session.execute(query)
+    return result.scalar_one_or_none()
+
+
 def _apply_allowed_overrides(
     allowed: Dict[str, Any],
     target: Dict[str, Any],
@@ -147,8 +174,8 @@ async def create_ingest_template(
     session: AsyncSession,
     name: str,
     is_default: bool,
-    extractions: List[Dict[str, Any]],
-    chunking: Dict[str, Any],
+    extractions: Optional[List[Dict[str, Any]]],
+    chunking: Optional[Dict[str, Any]],
     dense_embeddings: Optional[List[Dict[str, Any]]] = None,
     sparse_embedding: Optional[Dict[str, Any]] = None,
 ) -> str:
@@ -159,10 +186,10 @@ async def create_ingest_template(
         session: 데이터베이스 세션
         name: 템플릿 이름
         is_default: 기본 템플릿 여부
-        extractions: 추출 전략 목록
-        chunking: 청킹 전략 정보
-        dense_embeddings: 밀집 임베딩 전략 목록
-        sparse_embedding: 희소(대표) 임베딩 전략 정보
+        extractions: 추출 전략 목록 (없으면 기본 전략 사용)
+        chunking: 청킹 전략 정보 (없으면 기본 전략 사용)
+        dense_embeddings: 밀집 임베딩 전략 목록 (없으면 기본 전략 사용)
+        sparse_embedding: 희소(대표) 임베딩 전략 정보 (없으면 기본 전략 사용)
 
     Returns:
         생성된 Ingest 템플릿 ID (UUID 문자열)
@@ -170,53 +197,50 @@ async def create_ingest_template(
     Raises:
         HTTPException: 전략을 찾을 수 없거나 유형이 일치하지 않는 경우
     """
-    if not extractions:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="추출 전략은 최소 1개 이상이어야 합니다."
-        )
+    # 기본 템플릿 조회
+    default_template = await get_default_ingest_template(session)
 
-    if sparse_embedding is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="sparseEmbedding 전략 정보가 필요합니다."
-        )
+    # 청킹 전략 확인 또는 기본 전략 가져오기
+    if chunking and chunking.get("no"):
+        chunking_no = chunking.get("no")
+        chunking_strategy = await verify_strategy_exists(session, chunking_no)
+        if not chunking_strategy:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"청킹 전략을 찾을 수 없습니다: {chunking_no}"
+            )
+    else:
+        if not default_template or not default_template.chunking_strategy:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="기본 Ingest 템플릿 또는 기본 청킹 전략을 찾을 수 없습니다."
+            )
+        chunking_strategy = default_template.chunking_strategy
+        chunking_no = binary_to_uuid(chunking_strategy.strategy_no)
+        if not chunking:
+            chunking = {}
+        chunking["no"] = chunking_no
 
-    if not chunking:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="chunking 전략 정보가 필요합니다."
-        )
-
-    dense_embeddings = dense_embeddings or []
-
-    # 전략 존재 여부 확인
-    chunking_no = chunking.get("no")
-    if not chunking_no:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="chunking 전략 ID가 누락되었습니다."
-        )
-    chunking_strategy = await verify_strategy_exists(session, chunking_no)
-    if not chunking_strategy:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"청킹 전략을 찾을 수 없습니다: {chunking_no}"
-        )
-
-    sparse_no = sparse_embedding.get("no")
-    if not sparse_no:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="sparseEmbedding 전략 ID가 누락되었습니다."
-        )
-
-    sparse_strategy = await verify_strategy_exists(session, sparse_no)
-    if not sparse_strategy:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"희소 임베딩 전략을 찾을 수 없습니다: {sparse_no}"
-        )
+    # 희소 임베딩 전략 확인 또는 기본 전략 가져오기
+    if sparse_embedding and sparse_embedding.get("no"):
+        sparse_no = sparse_embedding.get("no")
+        sparse_strategy = await verify_strategy_exists(session, sparse_no)
+        if not sparse_strategy:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"희소 임베딩 전략을 찾을 수 없습니다: {sparse_no}"
+            )
+    else:
+        if not default_template or not default_template.sparse_embedding_strategy:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="기본 Ingest 템플릿 또는 기본 희소 임베딩 전략을 찾을 수 없습니다."
+            )
+        sparse_strategy = default_template.sparse_embedding_strategy
+        sparse_no = binary_to_uuid(sparse_strategy.strategy_no)
+        if not sparse_embedding:
+            sparse_embedding = {}
+        sparse_embedding["no"] = sparse_no
 
     if (sparse_strategy.code or "").upper() != "EMB_SPARSE":
         raise HTTPException(
@@ -243,7 +267,7 @@ async def create_ingest_template(
         is_default=is_default,
         chunking_strategy_no=chunking_strategy.strategy_no,
         chunking_parameter=build_strategy_parameters(
-            chunking_strategy, chunking.get("parameters")
+            chunking_strategy, chunking.get("parameters") if chunking else None
         ),
         sparse_embedding_strategy_no=sparse_strategy.strategy_no,
         sparse_embedding_parameter=sparse_parameters,
@@ -252,62 +276,104 @@ async def create_ingest_template(
     session.add(ingest_group)
 
     # 추출 전략 그룹 생성
-    for extraction in extractions:
-        extraction_no = extraction.get("no")
-        if not extraction_no:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="추출 전략 ID가 누락되었습니다."
-            )
-        extraction_strategy = await verify_strategy_exists(session, extraction_no)
-        if not extraction_strategy:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"추출 전략을 찾을 수 없습니다: {extraction_no}"
-            )
+    if extractions:
+        for extraction in extractions:
+            extraction_no = extraction.get("no")
+            if extraction_no:
+                extraction_strategy = await verify_strategy_exists(session, extraction_no)
+                if not extraction_strategy:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"추출 전략을 찾을 수 없습니다: {extraction_no}"
+                    )
+            else:
+                # 기본 템플릿에서 추출 전략 가져오기
+                if not default_template or not default_template.extraction_groups:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail="기본 Ingest 템플릿 또는 기본 추출 전략을 찾을 수 없습니다."
+                    )
+                # 첫 번째 추출 전략 사용 (또는 모든 추출 전략 사용)
+                extraction_strategy = default_template.extraction_groups[0].extraction_strategy
+                extraction_no = binary_to_uuid(extraction_strategy.strategy_no)
+                extraction["no"] = extraction_no
 
-        extraction_group = ExtractionGroup(
-            name=extraction_strategy.name,
-            extraction_strategy_no=extraction_strategy.strategy_no,
-            extraction_parameter=build_strategy_parameters(
-                extraction_strategy,
-                extraction.get("parameters"),
-            ),
-        )
-        extraction_group.ingest_group = ingest_group
-        session.add(extraction_group)
+            extraction_group = ExtractionGroup(
+                name=extraction_strategy.name,
+                extraction_strategy_no=extraction_strategy.strategy_no,
+                extraction_parameter=build_strategy_parameters(
+                    extraction_strategy,
+                    extraction.get("parameters"),
+                ),
+            )
+            extraction_group.ingest_group = ingest_group
+            session.add(extraction_group)
+    else:
+        # 기본 템플릿에서 추출 전략 가져오기
+        if not default_template or not default_template.extraction_groups:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="기본 Ingest 템플릿 또는 기본 추출 전략을 찾을 수 없습니다."
+            )
+        for extraction_group in default_template.extraction_groups:
+            new_extraction_group = ExtractionGroup(
+                name=extraction_group.extraction_strategy.name,
+                extraction_strategy_no=extraction_group.extraction_strategy_no,
+                extraction_parameter=extraction_group.extraction_parameter,
+            )
+            new_extraction_group.ingest_group = ingest_group
+            session.add(new_extraction_group)
 
     # 임베딩 전략 그룹 생성 (dense only)
-    for embedding in dense_embeddings:
-        embedding_no = embedding.get("no")
-        if not embedding_no:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="임베딩 전략 ID가 누락되었습니다."
-            )
-        embedding_strategy = await verify_strategy_exists(session, embedding_no)
-        if not embedding_strategy:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"임베딩 전략을 찾을 수 없습니다: {embedding_no}"
-            )
+    if dense_embeddings:
+        for embedding in dense_embeddings:
+            embedding_no = embedding.get("no")
+            if embedding_no:
+                embedding_strategy = await verify_strategy_exists(session, embedding_no)
+                if not embedding_strategy:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"임베딩 전략을 찾을 수 없습니다: {embedding_no}"
+                    )
+            else:
+                # 기본 템플릿에서 임베딩 전략 가져오기
+                if not default_template or not default_template.embedding_groups:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail="기본 Ingest 템플릿 또는 기본 임베딩 전략을 찾을 수 없습니다."
+                    )
+                # 첫 번째 임베딩 전략 사용 (또는 모든 임베딩 전략 사용)
+                embedding_strategy = default_template.embedding_groups[0].embedding_strategy
+                embedding_no = binary_to_uuid(embedding_strategy.strategy_no)
+                embedding["no"] = embedding_no
 
-        if (embedding_strategy.code or "").upper() != "EMB_DENSE":
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="밀집 임베딩 전략은 STRATEGY.CODE가 EMB_DENSE인 항목만 사용할 수 있습니다."
-            )
+            if (embedding_strategy.code or "").upper() != "EMB_DENSE":
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="밀집 임베딩 전략은 STRATEGY.CODE가 EMB_DENSE인 항목만 사용할 수 있습니다."
+                )
 
-        embedding_group = EmbeddingGroup(
-            name=embedding_strategy.name,
-            embedding_strategy_no=embedding_strategy.strategy_no,
-            embedding_parameter=build_strategy_parameters(
-                embedding_strategy,
-                embedding.get("parameters"),
-            ),
-        )
-        embedding_group.ingest_group = ingest_group
-        session.add(embedding_group)
+            embedding_group = EmbeddingGroup(
+                name=embedding_strategy.name,
+                embedding_strategy_no=embedding_strategy.strategy_no,
+                embedding_parameter=build_strategy_parameters(
+                    embedding_strategy,
+                    embedding.get("parameters"),
+                ),
+            )
+            embedding_group.ingest_group = ingest_group
+            session.add(embedding_group)
+    else:
+        # 기본 템플릿에서 임베딩 전략 가져오기 (없어도 됨)
+        if default_template and default_template.embedding_groups:
+            for embedding_group in default_template.embedding_groups:
+                new_embedding_group = EmbeddingGroup(
+                    name=embedding_group.embedding_strategy.name,
+                    embedding_strategy_no=embedding_group.embedding_strategy_no,
+                    embedding_parameter=embedding_group.embedding_parameter,
+                )
+                new_embedding_group.ingest_group = ingest_group
+                session.add(new_embedding_group)
 
     await session.commit()
     await session.refresh(ingest_group)
@@ -698,11 +764,17 @@ async def partial_update_ingest_template(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"청킹 전략을 찾을 수 없습니다: {chunking_no}"
             )
-        ingest_group.chunking_strategy_no = chunking_strategy.strategy_no
+        chunking_binary = chunking_strategy.strategy_no
+        # 전략이 변경되었는지 확인
+        same_strategy = ingest_group.chunking_strategy_no == chunking_binary
+        existing_params = (
+            ingest_group.chunking_parameter if same_strategy else None
+        )
+        ingest_group.chunking_strategy_no = chunking_binary
         ingest_group.chunking_parameter = build_strategy_parameters(
             chunking_strategy,
             chunking.get("parameters"),
-            existing=ingest_group.chunking_parameter,
+            existing=existing_params,
         )
 
     if extractions is not None:
@@ -722,21 +794,32 @@ async def partial_update_ingest_template(
                     detail=f"추출 전략을 찾을 수 없습니다: {extraction_no}"
                 )
 
+            extraction_binary = extraction_strategy.strategy_no
+            # 전략이 변경되었는지 확인
+            if idx < len(existing_extraction_groups):
+                existing_group = existing_extraction_groups[idx]
+                same_strategy = existing_group.extraction_strategy_no == extraction_binary
+                existing_params = (
+                    existing_group.extraction_parameter if same_strategy else None
+                )
+            else:
+                existing_params = None
+
             parameters = build_strategy_parameters(
                 extraction_strategy,
                 extraction.get("parameters"),
-                existing=existing_extraction_groups[idx].extraction_parameter if idx < len(existing_extraction_groups) else None,
+                existing=existing_params,
             )
 
             if idx < len(existing_extraction_groups):
                 extraction_group = existing_extraction_groups[idx]
                 extraction_group.name = extraction_strategy.name
-                extraction_group.extraction_strategy_no = extraction_strategy.strategy_no
+                extraction_group.extraction_strategy_no = extraction_binary
                 extraction_group.extraction_parameter = parameters
             else:
                 extraction_group = ExtractionGroup(
                     name=extraction_strategy.name,
-                    extraction_strategy_no=extraction_strategy.strategy_no,
+                    extraction_strategy_no=extraction_binary,
                     extraction_parameter=parameters,
                 )
                 extraction_group.ingest_group = ingest_group
@@ -763,11 +846,17 @@ async def partial_update_ingest_template(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="희소 임베딩 전략은 STRATEGY.CODE가 EMB_SPARSE인 항목만 사용할 수 있습니다."
             )
-        ingest_group.sparse_embedding_strategy_no = sparse_strategy.strategy_no
+        sparse_binary = sparse_strategy.strategy_no
+        # 전략이 변경되었는지 확인
+        same_strategy = ingest_group.sparse_embedding_strategy_no == sparse_binary
+        existing_params = (
+            ingest_group.sparse_embedding_parameter if same_strategy else None
+        )
+        ingest_group.sparse_embedding_strategy_no = sparse_binary
         ingest_group.sparse_embedding_parameter = build_strategy_parameters(
             sparse_strategy,
             sparse_embedding.get("parameters"),
-            existing=ingest_group.sparse_embedding_parameter,
+            existing=existing_params,
         )
 
     if dense_embeddings is not None:
@@ -794,11 +883,16 @@ async def partial_update_ingest_template(
                     detail="밀집 임베딩 전략은 STRATEGY.CODE가 EMB_DENSE인 항목만 사용할 수 있습니다."
                 )
 
-            existing_params = (
-                existing_embedding_groups[idx].embedding_parameter
-                if idx < len(existing_embedding_groups)
-                else None
-            )
+            embedding_binary = embedding_strategy.strategy_no
+            # 전략이 변경되었는지 확인
+            if idx < len(existing_embedding_groups):
+                existing_group = existing_embedding_groups[idx]
+                same_strategy = existing_group.embedding_strategy_no == embedding_binary
+                existing_params = (
+                    existing_group.embedding_parameter if same_strategy else None
+                )
+            else:
+                existing_params = None
 
             parameters = build_strategy_parameters(
                 embedding_strategy,
@@ -809,12 +903,12 @@ async def partial_update_ingest_template(
             if idx < len(existing_embedding_groups):
                 embedding_group = existing_embedding_groups[idx]
                 embedding_group.name = embedding_strategy.name
-                embedding_group.embedding_strategy_no = embedding_strategy.strategy_no
+                embedding_group.embedding_strategy_no = embedding_binary
                 embedding_group.embedding_parameter = parameters
             else:
                 embedding_group = EmbeddingGroup(
                     name=embedding_strategy.name,
-                    embedding_strategy_no=embedding_strategy.strategy_no,
+                    embedding_strategy_no=embedding_binary,
                     embedding_parameter=parameters,
                 )
                 embedding_group.ingest_group = ingest_group
@@ -886,6 +980,13 @@ async def delete_ingest_template(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="대상을 찾을 수 없습니다."
+        )
+
+    # 기본 템플릿은 삭제할 수 없음
+    if ingest_group.is_default:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="기본 템플릿은 삭제할 수 없습니다."
         )
 
     # 템플릿 삭제

@@ -15,7 +15,7 @@ router = APIRouter(prefix="/rag", tags=["RAG - Ingest Template Management"])
 @router.delete(
     "/ingest-templates/{ingestNo}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="Ingest 템플릿 삭제 (관리자 전용)",
+    summary="[관리자] Ingest 템플릿 삭제",
     description="Ingest 템플릿을 삭제합니다. 관리자만 접근 가능합니다.",
 )
 async def delete_ingest_template_endpoint(

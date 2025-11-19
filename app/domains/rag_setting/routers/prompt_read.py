@@ -27,7 +27,7 @@ def _bytes_to_uuid_str(b: bytes) -> str:
 @router.get(
     "/prompts",
     response_model=BaseResponse[Result[list[PromptListItem]]],
-    summary="프롬프트 목록 조회",
+    summary="[관리자] 프롬프트 목록 조회",
     description="프롬프트 목록을 조회합니다. 관리자만 접근 가능합니다.",
     responses={
         200: {

@@ -18,7 +18,7 @@ router = APIRouter(prefix="/rag", tags=["RAG - Prompt Management"])
     "/prompts",
     response_model=BaseResponse[PromptCreateResponse],
     status_code=status.HTTP_201_CREATED,
-    summary="프롬프트 생성",
+    summary="[관리자] 프롬프트 생성",
     description="프롬프트를 생성합니다. 관리자만 접근 가능합니다.",
     responses={
         "201": {

@@ -38,6 +38,70 @@ async def verify_strategy_exists(
     return result.scalar_one_or_none()
 
 
+async def get_default_query_template(
+    session: AsyncSession,
+) -> Optional[QueryGroup]:
+    """
+    is_default=1인 Query 템플릿 조회
+
+    Args:
+        session: 데이터베이스 세션
+
+    Returns:
+        QueryGroup 객체 또는 None (기본 템플릿이 없는 경우)
+    """
+    query = (
+        select(QueryGroup)
+        .where(QueryGroup.is_default.is_(True))
+        .options(
+            selectinload(QueryGroup.transformation_strategy),
+            selectinload(QueryGroup.retrieval_strategy),
+            selectinload(QueryGroup.reranking_strategy),
+            selectinload(QueryGroup.system_prompting_strategy),
+            selectinload(QueryGroup.user_prompting_strategy),
+            selectinload(QueryGroup.generation_strategy),
+        )
+        .limit(1)
+    )
+    result = await session.execute(query)
+    return result.scalar_one_or_none()
+
+
+async def get_default_strategy_by_type(
+    session: AsyncSession,
+    strategy_type: str,
+) -> Optional[Strategy]:
+    """
+    is_default=1인 Query 템플릿에서 사용하는 전략을 기본 전략으로 조회
+
+    Args:
+        session: 데이터베이스 세션
+        strategy_type: 전략 타입 ("transformation", "retrieval", "reranking", "systemPrompt", "userPrompt", "generation")
+
+    Returns:
+        Strategy 객체 또는 None (기본 템플릿이 없거나 해당 전략이 없는 경우)
+    """
+    default_template = await get_default_query_template(session)
+    if not default_template:
+        return None
+
+    # 전략 타입에 따라 기본 템플릿에서 사용하는 전략 반환
+    if strategy_type == "transformation":
+        return default_template.transformation_strategy
+    elif strategy_type == "retrieval":
+        return default_template.retrieval_strategy
+    elif strategy_type == "reranking":
+        return default_template.reranking_strategy
+    elif strategy_type == "systemPrompt":
+        return default_template.system_prompting_strategy
+    elif strategy_type == "userPrompt":
+        return default_template.user_prompting_strategy
+    elif strategy_type == "generation":
+        return default_template.generation_strategy
+    else:
+        return None
+
+
 def _apply_allowed_overrides(
     allowed: Dict[str, Any],
     target: Dict[str, Any],
@@ -79,17 +143,17 @@ def build_strategy_parameters(
 async def create_query_template(
     session: AsyncSession,
     name: str,
-    transformation_no: str,
+    transformation_no: Optional[str],
     transformation_parameters: dict,
-    retrieval_no: str,
+    retrieval_no: Optional[str],
     retrieval_parameters: dict,
-    reranking_no: str,
+    reranking_no: Optional[str],
     reranking_parameters: dict,
-    system_prompt_no: str,
+    system_prompt_no: Optional[str],
     system_prompt_parameters: dict,
-    user_prompt_no: str,
+    user_prompt_no: Optional[str],
     user_prompt_parameters: dict,
-    generation_no: str,
+    generation_no: Optional[str],
     generation_parameters: dict,
     is_default: bool = False,
 ) -> str:
@@ -99,17 +163,17 @@ async def create_query_template(
     Args:
         session: 데이터베이스 세션
         name: 템플릿 이름
-        transformation_no: 변환 전략 ID
+        transformation_no: 변환 전략 ID (없으면 기본 전략 사용)
         transformation_parameters: 변환 전략 파라미터
-        retrieval_no: 검색 전략 ID
+        retrieval_no: 검색 전략 ID (없으면 기본 전략 사용)
         retrieval_parameters: 검색 전략 파라미터
-        reranking_no: 재순위화 전략 ID
+        reranking_no: 재순위화 전략 ID (없으면 기본 전략 사용)
         reranking_parameters: 재순위화 전략 파라미터
-        system_prompt_no: 시스템 프롬프트 전략 ID
+        system_prompt_no: 시스템 프롬프트 전략 ID (없으면 기본 전략 사용)
         system_prompt_parameters: 시스템 프롬프트 전략 파라미터
-        user_prompt_no: 사용자 프롬프트 전략 ID
+        user_prompt_no: 사용자 프롬프트 전략 ID (없으면 기본 전략 사용)
         user_prompt_parameters: 사용자 프롬프트 전략 파라미터
-        generation_no: 생성 전략 ID
+        generation_no: 생성 전략 ID (없으면 기본 전략 사용)
         generation_parameters: 생성 전략 파라미터
 
     Returns:
@@ -118,48 +182,107 @@ async def create_query_template(
     Raises:
         HTTPException: 전략을 찾을 수 없는 경우
     """
-    # 전략 존재 여부 확인
-    transformation_strategy = await verify_strategy_exists(session, transformation_no)
-    if not transformation_strategy:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"변환 전략을 찾을 수 없습니다: {transformation_no}"
-        )
+    # 변환 전략 확인 또는 기본 전략 가져오기
+    if transformation_no:
+        transformation_strategy = await verify_strategy_exists(session, transformation_no)
+        if not transformation_strategy:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"변환 전략을 찾을 수 없습니다: {transformation_no}"
+            )
+    else:
+        transformation_strategy = await get_default_strategy_by_type(session, "transformation")
+        if not transformation_strategy:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="기본 Query 템플릿 또는 기본 변환 전략을 찾을 수 없습니다."
+            )
+        transformation_no = binary_to_uuid(transformation_strategy.strategy_no)
 
-    retrieval_strategy = await verify_strategy_exists(session, retrieval_no)
-    if not retrieval_strategy:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"검색 전략을 찾을 수 없습니다: {retrieval_no}"
-        )
+    # 검색 전략 확인 또는 기본 전략 가져오기
+    if retrieval_no:
+        retrieval_strategy = await verify_strategy_exists(session, retrieval_no)
+        if not retrieval_strategy:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"검색 전략을 찾을 수 없습니다: {retrieval_no}"
+            )
+    else:
+        retrieval_strategy = await get_default_strategy_by_type(session, "retrieval")
+        if not retrieval_strategy:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="기본 Query 템플릿 또는 기본 검색 전략을 찾을 수 없습니다."
+            )
+        retrieval_no = binary_to_uuid(retrieval_strategy.strategy_no)
 
-    reranking_strategy = await verify_strategy_exists(session, reranking_no)
-    if not reranking_strategy:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"재순위화 전략을 찾을 수 없습니다: {reranking_no}"
-        )
+    # 재순위화 전략 확인 또는 기본 전략 가져오기
+    if reranking_no:
+        reranking_strategy = await verify_strategy_exists(session, reranking_no)
+        if not reranking_strategy:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"재순위화 전략을 찾을 수 없습니다: {reranking_no}"
+            )
+    else:
+        reranking_strategy = await get_default_strategy_by_type(session, "reranking")
+        if not reranking_strategy:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="기본 Query 템플릿 또는 기본 재순위화 전략을 찾을 수 없습니다."
+            )
+        reranking_no = binary_to_uuid(reranking_strategy.strategy_no)
 
-    system_prompt_strategy = await verify_strategy_exists(session, system_prompt_no)
-    if not system_prompt_strategy:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"시스템 프롬프트 전략을 찾을 수 없습니다: {system_prompt_no}"
-        )
+    # 시스템 프롬프트 전략 확인 또는 기본 전략 가져오기
+    if system_prompt_no:
+        system_prompt_strategy = await verify_strategy_exists(session, system_prompt_no)
+        if not system_prompt_strategy:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"시스템 프롬프트 전략을 찾을 수 없습니다: {system_prompt_no}"
+            )
+    else:
+        system_prompt_strategy = await get_default_strategy_by_type(session, "systemPrompt")
+        if not system_prompt_strategy:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="기본 Query 템플릿 또는 기본 시스템 프롬프트 전략을 찾을 수 없습니다."
+            )
+        system_prompt_no = binary_to_uuid(system_prompt_strategy.strategy_no)
 
-    user_prompt_strategy = await verify_strategy_exists(session, user_prompt_no)
-    if not user_prompt_strategy:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"사용자 프롬프트 전략을 찾을 수 없습니다: {user_prompt_no}"
-        )
+    # 사용자 프롬프트 전략 확인 또는 기본 전략 가져오기
+    if user_prompt_no:
+        user_prompt_strategy = await verify_strategy_exists(session, user_prompt_no)
+        if not user_prompt_strategy:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"사용자 프롬프트 전략을 찾을 수 없습니다: {user_prompt_no}"
+            )
+    else:
+        user_prompt_strategy = await get_default_strategy_by_type(session, "userPrompt")
+        if not user_prompt_strategy:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="기본 Query 템플릿 또는 기본 사용자 프롬프트 전략을 찾을 수 없습니다."
+            )
+        user_prompt_no = binary_to_uuid(user_prompt_strategy.strategy_no)
 
-    generation_strategy = await verify_strategy_exists(session, generation_no)
-    if not generation_strategy:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"생성 전략을 찾을 수 없습니다: {generation_no}"
-        )
+    # 생성 전략 확인 또는 기본 전략 가져오기
+    if generation_no:
+        generation_strategy = await verify_strategy_exists(session, generation_no)
+        if not generation_strategy:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"생성 전략을 찾을 수 없습니다: {generation_no}"
+            )
+    else:
+        generation_strategy = await get_default_strategy_by_type(session, "generation")
+        if not generation_strategy:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="기본 Query 템플릿 또는 기본 생성 전략을 찾을 수 없습니다."
+            )
+        generation_no = binary_to_uuid(generation_strategy.strategy_no)
 
     # 기존 기본 템플릿 해제
     if is_default:
@@ -540,6 +663,13 @@ async def delete_query_template(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="대상을 찾을 수 없습니다."
+        )
+
+    # 기본 템플릿은 삭제할 수 없음
+    if query_group.is_default:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="기본 템플릿은 삭제할 수 없습니다."
         )
 
     # Query 템플릿 삭제

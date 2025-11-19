@@ -162,7 +162,7 @@ async def update_ingest_template_endpoint(
 @router.put(
     "/ingest-templates/{ingestNo}",
     response_model=BaseResponse[IngestTemplateDetailResponse],
-    summary="Ingest 템플릿 부분 수정 (관리자 전용)",
+    summary="[관리자] Ingest 템플릿 부분 수정",
     description="Ingest 템플릿을 부분 수정합니다. 전달된 필드만 업데이트하며, 관리자만 접근 가능합니다.",
     responses={
         200: {
