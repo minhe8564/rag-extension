@@ -48,9 +48,9 @@ export default function NumberBoard() {
   useEffect(() => {
     if (currentData?.user?.data && currentData?.document?.data && currentData?.error?.data) {
       setIsSSEReady(true);
-      console.log(isSSEReady);
+      // console.log(isSSEReady);
     }
-    console.log(currentData);
+    // console.log(currentData);
   }, [currentData]);
 
   useEffect(() => {

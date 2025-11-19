@@ -30,14 +30,17 @@ export function useChatLogic() {
   const { sessionNo: paramsSessionNo } = useParams<{ sessionNo: string }>();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const derivedSessionNo = useDerivedSessionNo(location, searchParams, paramsSessionNo, 'user');
+  
+  // 현재 경로를 기반으로 owner 결정
+  const owner = location.pathname.startsWith('/admin') ? 'admin' : 'user';
+  const derivedSessionNo = useDerivedSessionNo(location, searchParams, paramsSessionNo, owner);
 
   const [currentSessionNo, setCurrentSessionNo] = useState<string | null>(derivedSessionNo);
   const [list, setList] = useState<UiMsg[]>([]);
   const [awaitingAssistant, setAwaitingAssistant] = useState(false);
   const [initialLoading, setInitialLoading] = useState<boolean>(Boolean(derivedSessionNo));
 
-  const ensureSession = useEnsureSession(setCurrentSessionNo, 'user');
+  const ensureSession = useEnsureSession(setCurrentSessionNo, owner);
   const sessionPromiseRef = useRef<Promise<string> | null>(null);
 
   const { selectedModel, selectedLlmNo, setSelectedModel } = useChatModelStore();
@@ -272,7 +275,12 @@ export function useChatLogic() {
         //
         // fillPendingAssistant(content, createdAt, messageNo);
         // LLM 모드: SSE 스트림으로 전환
-        const body: SendMessageRequest = { content: msg, model: llmName, sessionNo };
+        const body: SendMessageRequest = {
+          content: msg,
+          model: llmName,
+          llmNo: selectedLlmNo,
+          sessionNo,
+        };
         startLlmStream(body);
         // 나머지 응답 채우기는 위에서 만든 useEffect(answer/meta)에서 처리
       }

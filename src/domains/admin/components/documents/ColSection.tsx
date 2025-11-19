@@ -44,7 +44,7 @@ export default function ColSection({ selectedCollection, onCollectionSelect }: C
 
   useEffect(() => {
     if (collectionsResult) {
-      console.log('📌 Collections Response:', collectionsResult);
+      // console.log('📌 Collections Response:', collectionsResult);
     }
   }, [collectionsResult]);
 
