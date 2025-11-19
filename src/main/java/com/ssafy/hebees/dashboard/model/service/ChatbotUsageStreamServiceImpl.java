@@ -47,12 +47,20 @@ public class ChatbotUsageStreamServiceImpl implements ChatbotUsageStreamService 
 
     @Override
     public void recordChatbotRequest(UUID userNo, UUID sessionNo) {
-        incrementBucket(1L, sessionNo, userNo);
+        long bucketStart = incrementBucket(1L, sessionNo, userNo);
+        if (bucketStart >= 0) {
+            // 현재 버킷의 값을 즉시 조회하여 SSE 구독자에게 전송
+            broadcastCurrentBucket(bucketStart);
+        }
     }
 
     @Override
     public void recordChatbotRequests(long amount) {
-        incrementBucket(amount, null, null);
+        long bucketStart = incrementBucket(amount, null, null);
+        if (bucketStart >= 0) {
+            // 현재 버킷의 값을 즉시 조회하여 SSE 구독자에게 전송
+            broadcastCurrentBucket(bucketStart);
+        }
     }
 
     @Override
@@ -136,6 +144,40 @@ public class ChatbotUsageStreamServiceImpl implements ChatbotUsageStreamService 
         }
     }
 
+    private long getCurrentBucketCount(long bucketStart) {
+        String key = buildBucketKey(bucketStart);
+        try {
+            String raw = redisTemplate.opsForValue().get(key);
+            if (raw != null) {
+                try {
+                    return Long.parseLong(raw);
+                } catch (NumberFormatException e) {
+                    log.warn("Invalid chatbot request count for key {}: {}", key, raw);
+                }
+            }
+            return 0L;
+        } catch (Exception e) {
+            log.warn("Failed to fetch chatbot request count from Redis key {}: {}", key,
+                e.getMessage());
+            return 0L;
+        }
+    }
+
+    private void broadcastCurrentBucket(long bucketStart) {
+        if (subscribers.isEmpty()) {
+            return;
+        }
+        long count = getCurrentBucketCount(bucketStart);
+        LocalDateTime timestamp = LocalDateTime.ofInstant(
+            Instant.ofEpochSecond(bucketStart + BUCKET_SECONDS),
+            ZONE_ID
+        );
+        ChatbotRequestCountResponse snapshot = new ChatbotRequestCountResponse(
+            timestamp, safeToInt(count));
+        lastSnapshot.set(snapshot);
+        broadcast(snapshot);
+    }
+
     private void broadcast(ChatbotRequestCountResponse snapshot) {
         if (subscribers.isEmpty()) {
             return;
@@ -169,10 +211,10 @@ public class ChatbotUsageStreamServiceImpl implements ChatbotUsageStreamService 
         subscribers.remove(emitter);
     }
 
-    private void incrementBucket(long amount, UUID sessionNo, UUID userNo) {
+    private long incrementBucket(long amount, UUID sessionNo, UUID userNo) {
         if (amount <= 0) {
             log.debug("Ignored non-positive chatbot request amount: {}", amount);
-            return;
+            return -1L;
         }
 
         long bucketStart = currentBucketStart();
@@ -180,10 +222,12 @@ public class ChatbotUsageStreamServiceImpl implements ChatbotUsageStreamService 
         try {
             redisTemplate.opsForValue().increment(key, amount);
             redisTemplate.expire(key, KEY_TTL);
+            return bucketStart;
         } catch (Exception e) {
             log.warn(
                 "Failed to record chatbot requests: bucket={}, sessionNo={}, userNo={}, amount={}, reason={}",
                 bucketStart, sessionNo, userNo, amount, e.getMessage());
+            return -1L;
         }
     }
 
