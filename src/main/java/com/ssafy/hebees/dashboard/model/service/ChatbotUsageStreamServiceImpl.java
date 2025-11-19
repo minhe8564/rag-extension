@@ -1,12 +1,15 @@
 package com.ssafy.hebees.dashboard.model.service;
 
 import com.ssafy.hebees.common.util.MonitoringUtils;
+import com.ssafy.hebees.dashboard.dto.request.ChatbotRandomConfigRequest;
+import com.ssafy.hebees.dashboard.dto.response.ChatbotRandomConfigResponse;
 import com.ssafy.hebees.dashboard.dto.response.ChatbotRequestCountResponse;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArraySet;
@@ -39,6 +42,9 @@ public class ChatbotUsageStreamServiceImpl implements ChatbotUsageStreamService 
             0
         ));
     private final AtomicLong lastProcessedBucket = new AtomicLong(-1L);
+    private final AtomicReference<RandomConfig> randomConfig = new AtomicReference<>(
+        new RandomConfig(false, 0, 100));
+    private final Random random = new Random();
 
     public ChatbotUsageStreamServiceImpl(
         @Qualifier("dashboardRedisTemplate") StringRedisTemplate redisTemplate) {
@@ -73,13 +79,44 @@ public class ChatbotUsageStreamServiceImpl implements ChatbotUsageStreamService 
         emitter.onError(throwable -> removeSubscriber(emitter));
 
         ChatbotRequestCountResponse snapshot = lastSnapshot.get();
-        sendEvent(emitter, snapshot, "init", snapshot.timestamp());
+        ChatbotRequestCountResponse snapshotWithRandom = addRandomValueIfEnabled(snapshot);
+        sendEvent(emitter, snapshotWithRandom, "init", snapshot.timestamp());
 
         if (StringUtils.hasText(lastEventId)) {
             log.debug("Chatbot stream subscription resumed from event {}", lastEventId);
         }
 
         return emitter;
+    }
+
+    @Override
+    public ChatbotRandomConfigResponse setRandomConfig(ChatbotRandomConfigRequest request) {
+        RandomConfig config = new RandomConfig(
+            request.enabled() != null ? request.enabled() : false,
+            request.lower() != null ? request.lower() : 0,
+            request.upper() != null ? request.upper() : 100
+        );
+
+        // 유효성 검증
+        if (config.lower > config.upper) {
+            log.warn("Invalid random config: lower={} > upper={}, swapping values",
+                config.lower, config.upper);
+            int temp = config.lower;
+            config.lower = config.upper;
+            config.upper = temp;
+        }
+
+        randomConfig.set(config);
+        log.info("Chatbot random config updated: enabled={}, lower={}, upper={}",
+            config.enabled, config.lower, config.upper);
+
+        return new ChatbotRandomConfigResponse(config.enabled, config.lower, config.upper);
+    }
+
+    @Override
+    public ChatbotRandomConfigResponse getRandomConfig() {
+        RandomConfig config = randomConfig.get();
+        return new ChatbotRandomConfigResponse(config.enabled, config.lower, config.upper);
     }
 
     @Scheduled(initialDelay = BUCKET_MILLIS, fixedRate = BUCKET_MILLIS)
@@ -121,7 +158,9 @@ public class ChatbotUsageStreamServiceImpl implements ChatbotUsageStreamService 
             Instant.ofEpochSecond(bucketStart + BUCKET_SECONDS),
             ZONE_ID
         );
-        return new ChatbotRequestCountResponse(timestamp, safeToInt(count));
+        ChatbotRequestCountResponse snapshot = new ChatbotRequestCountResponse(timestamp,
+            safeToInt(count));
+        return addRandomValueIfEnabled(snapshot);
     }
 
     private long extractAndDeleteCount(String key) {
@@ -174,8 +213,9 @@ public class ChatbotUsageStreamServiceImpl implements ChatbotUsageStreamService 
         );
         ChatbotRequestCountResponse snapshot = new ChatbotRequestCountResponse(
             timestamp, safeToInt(count));
-        lastSnapshot.set(snapshot);
-        broadcast(snapshot);
+        ChatbotRequestCountResponse snapshotWithRandom = addRandomValueIfEnabled(snapshot);
+        lastSnapshot.set(snapshotWithRandom);
+        broadcast(snapshotWithRandom);
     }
 
     private void broadcast(ChatbotRequestCountResponse snapshot) {
@@ -187,9 +227,37 @@ public class ChatbotUsageStreamServiceImpl implements ChatbotUsageStreamService 
             ? snapshot.timestamp().toString()
             : Long.toString(System.currentTimeMillis());
 
+        ChatbotRequestCountResponse snapshotWithRandom = addRandomValueIfEnabled(snapshot);
         for (SseEmitter emitter : subscribers) {
-            sendEvent(emitter, snapshot, "update", eventId);
+            sendEvent(emitter, snapshotWithRandom, "update", eventId);
         }
+    }
+
+    private ChatbotRequestCountResponse addRandomValueIfEnabled(
+        ChatbotRequestCountResponse snapshot) {
+        RandomConfig config = randomConfig.get();
+        if (config.enabled) {
+            int randomValue = generateRandomValue(config.lower, config.upper);
+            int requestCountWithRandom = snapshot.requestCount() + randomValue;
+            return new ChatbotRequestCountResponse(
+                snapshot.timestamp(),
+                requestCountWithRandom
+            );
+        }
+        return snapshot;
+    }
+
+    private int generateRandomValue(int lower, int upper) {
+        if (lower > upper) {
+            log.warn("Invalid range: lower={}, upper={}, swapping values", lower, upper);
+            int temp = lower;
+            lower = upper;
+            upper = temp;
+        }
+        if (lower == upper) {
+            return lower;
+        }
+        return random.nextInt(upper - lower + 1) + lower;
     }
 
     private void sendEvent(SseEmitter emitter, ChatbotRequestCountResponse snapshot,
@@ -248,6 +316,19 @@ public class ChatbotUsageStreamServiceImpl implements ChatbotUsageStreamService 
             return Integer.MIN_VALUE;
         }
         return (int) value;
+    }
+
+    private static class RandomConfig {
+
+        final boolean enabled;
+        int lower;
+        int upper;
+
+        RandomConfig(boolean enabled, int lower, int upper) {
+            this.enabled = enabled;
+            this.lower = lower;
+            this.upper = upper;
+        }
     }
 }
 
