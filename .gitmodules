@@ -49,8 +49,3 @@
 	path = python-backend-repo
 	url = https://lab.ssafy.com/gd10080008/python-backend-repo.git
 	branch = develop
-[submodule "rag-embedding-model-runpod"]
-	path = rag-embedding-model-runpod
-	url = https://lab.ssafy.com/gd10080008/rag-extractor-deploy.git
-	branch = develop
-
