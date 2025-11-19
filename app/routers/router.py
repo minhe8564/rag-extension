@@ -9,6 +9,7 @@ from app.service.history_stream_service import get_history_stream_service
 from typing import Dict, Any, AsyncIterator
 import importlib
 import json
+import httpx
 from loguru import logger
 
 router = APIRouter(tags=["generation"])
@@ -67,9 +68,10 @@ async def generation_process(
     try:
         query = request.query
         retrieved_chunks = request.retrievedChunks
+        retrieved_chunks_image = request.retrievedChunksImage or []
         strategy_name = request.generationStrategy
         parameters = request.generationParameter
-
+        
         # History 관련 파라미터 (ingest에서 전달된 값 사용)
         # 우선순위: generationParameter.userNo/sessionNo/llmNo -> 요청 필드(userId/sessionId)
         user_no_param = None
@@ -86,8 +88,8 @@ async def generation_process(
         sessionNo = session_no_param or request.sessionId
 
         logger.info(
-            f"Processing generation: query={query[:50]}..., {len(retrieved_chunks)} chunks, "
-            f"strategy={strategy_name}, userNo={userNo}, sessionNo={sessionNo}"
+            f"Processing generation: query={query[:50]}..., {len(retrieved_chunks)} text chunks, "
+            f"{len(retrieved_chunks_image)} image chunks, strategy={strategy_name}, userNo={userNo}, sessionNo={sessionNo}"
         )
 
         if not query or not query.strip():
@@ -165,10 +167,11 @@ async def generation_process(
             memory=memory,
             user_id=str(userNo) if userNo else None,
             session_id=str(sessionNo) if sessionNo else None,
-            request_headers={k: v for k, v in forward_headers.items() if v}
+            request_headers={k: v for k, v in forward_headers.items() if v},
+            retrieved_chunks_image=retrieved_chunks_image if retrieved_chunks_image else None
         )
 
-        # citations 변환
+        # citations 변환 (text chunks)
         citations = [
             Citation(
                 text=citation.get("text", ""),
@@ -179,6 +182,68 @@ async def generation_process(
             for citation in result.get("citations", [])
         ]
 
+        # Image chunks에 대해 reference 생성 (presigned_url 가져오기)
+        image_references = []
+        if retrieved_chunks_image:
+            def _fetch_presigned(file_no: str, inline: bool = False) -> str:
+                if not file_no:
+                    return ""
+                inline_param = "true" if inline else "false"
+                url = f"http://hebees-python-backend:8000/api/v1/files/{file_no}/presigned?inline={inline_param}"
+                logger.info(f"[Generation] Fetching presigned URL for image (inline={inline_param}): {url}")
+                try:
+                    with httpx.Client(timeout=3600.0, follow_redirects=True) as client:
+                        headers = {}
+                        if x_user_uuid:
+                            headers["x-user-uuid"] = x_user_uuid
+                        if x_user_role:
+                            headers["x-user-role"] = x_user_role
+                        r = client.get(url, headers=headers)
+                        r.raise_for_status()
+                        presigned_url = ""
+                        try:
+                            data = r.json()
+                            presigned_url = (data.get("result", {}).get("data", {}) or {}).get("url") or data.get("url") or ""
+                        except Exception:
+                            presigned_url = r.text.strip().strip('"')
+                        if not presigned_url:
+                            logger.warning(f"[Generation] Presigned URL not resolved for image file_no: {file_no}")
+                            return ""
+                        logger.info(f"[Generation] Presigned URL fetched for image (inline={inline_param}): {presigned_url[:100]}...")
+                        return presigned_url
+                except Exception as e:
+                    logger.warning(f"[Generation] Presigned fetch failed for image file_no {file_no}: {e}")
+                    return ""
+            
+            for chunk in retrieved_chunks_image:
+                file_no = chunk.get("fileNo") or chunk.get("metadata", {}).get("file_no") or ""
+                file_name = chunk.get("fileName") or chunk.get("metadata", {}).get("metadata", {}).get("FILE_NAME") or ""
+                page = chunk.get("page", 1)
+                # 이미지 chunk의 text 가져오기 (이미지 설명/캡션)
+                image_text = chunk.get("text", "") or chunk.get("page_content", "") or ""
+                
+                # downloadUrl은 inline=false, snippet용은 inline=true
+                download_url = _fetch_presigned(str(file_no), inline=False) if file_no else ""
+                inline_url = _fetch_presigned(str(file_no), inline=True) if file_no else ""
+                
+                # snippet 형식: ![대체 이미지 텍스트](이미지 url)
+                alt_text = image_text if image_text else "이미지"
+                snippet = f"![{alt_text}]({inline_url})" if inline_url else (f"image: {image_text}" if image_text else "image")
+                
+                image_references.append({
+                    "fileNo": str(file_no) if file_no else "",
+                    "name": file_name,
+                    "title": file_name.rsplit('.', 1)[0] if '.' in file_name else file_name,
+                    "type": file_name.rsplit('.', 1)[-1].lower() if '.' in file_name else "",
+                    "index": int(page) if page else 1,
+                    "downloadUrl": download_url,
+                    "snippet": snippet
+                })
+        
+        # 기존 references에 image references 추가
+        existing_references = result.get("references", [])
+        all_references = existing_references + image_references
+
         # Response 생성 (messageNo/createdAt 포함)
         last_meta = {}
         try:
@@ -186,20 +251,26 @@ async def generation_process(
             last_meta = memory_manager.get_last_ai_message_meta(str(userNo), str(sessionNo))
         except Exception:
             last_meta = {}
+        
+        # references를 result에 포함시키기 위해 수정
+        result_with_references = dict(result)
+        result_with_references["references"] = all_references
+        
         response = GenerationProcessResponse(
             status=200,
             code="OK",
             message="요청에 성공하였습니다.",
             isSuccess=True,
             result=GenerationProcessResult(
-                query=result.get("query", query),
-                answer=result.get("answer", ""),
+                query=result_with_references.get("query", query),
+                answer=result_with_references.get("answer", ""),
                 citations=citations,
-                contexts_used=result.get("contexts_used", 0),
-                strategy=result.get("strategy", strategy_name),
-                parameters=result.get("parameters", parameters),
+                contexts_used=result_with_references.get("contexts_used", 0),
+                strategy=result_with_references.get("strategy", strategy_name),
+                parameters=result_with_references.get("parameters", parameters),
                 messageNo=last_meta.get("messageNo"),
-                createdAt=last_meta.get("createdAt")
+                createdAt=last_meta.get("createdAt"),
+                references=all_references
             )
         )
         return response
@@ -235,9 +306,10 @@ async def generation_process_stream(
     try:
         query = request.query
         retrieved_chunks = request.retrievedChunks
+        retrieved_chunks_image = request.retrievedChunksImage or []
         strategy_name = request.generationStrategy
         parameters = request.generationParameter
-
+        
         # History 관련 파라미터 (ingest에서 전달된 값 사용)
         user_no_param = None
         session_no_param = None
@@ -331,7 +403,8 @@ async def generation_process_stream(
                     memory=memory,
                     user_id=str(userNo) if userNo else None,
                     session_id=str(sessionNo) if sessionNo else None,
-                    request_headers={k: v for k, v in forward_headers.items() if v}
+                    request_headers={k: v for k, v in forward_headers.items() if v},
+                    retrieved_chunks_image=retrieved_chunks_image if retrieved_chunks_image else None
                 )
                 
                 # 스트리밍 데이터 전송 (generate_stream이 이미 init과 update를 전송함)

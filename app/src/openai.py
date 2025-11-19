@@ -155,18 +155,21 @@ class Openai(BaseGenerationStrategy):
         memory=None,
         user_id: Optional[str] = None,
         session_id: Optional[str] = None,
-        request_headers: Optional[Dict[str, str]] = None
+        request_headers: Optional[Dict[str, str]] = None,
+        retrieved_chunks_image: Optional[List[Dict[str, Any]]] = None
     ) -> Dict[Any, Any]:
         """
         ✅ LangChain 1.x 구조에 맞는 답변 생성
         - memory가 있으면 RunnableWithMessageHistory 사용
         - 없으면 create_stuff_documents_chain + create_retrieval_chain 조합
+        - 이미지 chunks도 처리 (gpt-4o 지원)
         """
         if not query or not query.strip():
             raise ValueError("Query cannot be empty")
 
         logger.info(
-            f"[OpenAI] Generating answer for query: {query[:50]}... with {len(retrieved_chunks)} chunks, memory={memory is not None}"
+            f"[OpenAI] Generating answer for query: {query[:50]}... with {len(retrieved_chunks)} text chunks, "
+            f"{len(retrieved_chunks_image) if retrieved_chunks_image else 0} image chunks, memory={memory is not None}"
         )
 
         try:
@@ -199,6 +202,73 @@ class Openai(BaseGenerationStrategy):
                     # also nest like milvus row
                     doc_meta["metadata"] = {"FILE_NAME": file_name}
                 documents.append(Document(page_content=text, metadata=doc_meta))
+
+            # ✅ 이미지 chunks 처리 (gpt-4o는 이미지 URL 지원)
+            if retrieved_chunks_image:
+                def _fetch_presigned_for_image(file_no: str, inline: bool = True) -> str:
+                    if not file_no:
+                        return ""
+                    inline_param = "true" if inline else "false"
+                    url = f"http://hebees-python-backend:8000/api/v1/files/{file_no}/presigned?inline={inline_param}"
+                    logger.info(f"[OpenAI] Fetching presigned URL for image (inline={inline_param}): {url}")
+                    try:
+                        with httpx.Client(timeout=3600.0, follow_redirects=True) as client:
+                            headers = {}
+                            if request_headers:
+                                if request_headers.get("x-user-uuid"):
+                                    headers["x-user-uuid"] = request_headers.get("x-user-uuid")
+                                if request_headers.get("x-user-role"):
+                                    headers["x-user-role"] = request_headers.get("x-user-role")
+                            r = client.get(url, headers=headers)
+                            r.raise_for_status()
+                            presigned_url = ""
+                            try:
+                                data = r.json()
+                                presigned_url = (data.get("result", {}).get("data", {}) or {}).get("url") or data.get("url") or ""
+                            except Exception:
+                                presigned_url = r.text.strip().strip('"')
+                            if not presigned_url:
+                                logger.warning(f"[OpenAI] Presigned URL not resolved for image file_no: {file_no}")
+                                return ""
+                            logger.info(f"[OpenAI] Presigned URL fetched for image (inline={inline_param}): {presigned_url[:100]}...")
+                            return presigned_url
+                    except Exception as e:
+                        logger.warning(f"[OpenAI] Presigned fetch failed for image file_no {file_no}: {e}")
+                        return ""
+                
+                for index, chunk in enumerate(retrieved_chunks_image):
+                    file_no = get_val(chunk, 'fileNo', None) or get_val(chunk, 'metadata', {}).get('file_no', '')
+                    file_name = get_val(chunk, 'fileName', None) or get_val(chunk, 'metadata', {}).get('metadata', {}).get('FILE_NAME', '')
+                    page_value = get_val(chunk, 'page', None)
+                    chunk_id_value = get_val(chunk, 'chunk_id', None)
+                    score_value = get_val(chunk, 'score', None)
+                    # 이미지 chunk의 원본 텍스트 가져오기 (snippet에 사용)
+                    image_text = get_val(chunk, 'text', None) or get_val(chunk, 'page_content', None) or ""
+                    
+                    page_number = int((page_value if page_value is not None else 1) or 1)
+                    chunk_identifier = int((chunk_id_value if chunk_id_value is not None else index) or index)
+                    score_number = float((score_value if score_value is not None else 0.0) or 0.0)
+                    
+                    # presigned_url 가져오기 (LLM에 보낼 URL은 inline=true)
+                    image_url = _fetch_presigned_for_image(str(file_no), inline=True) if file_no else ""
+                    
+                    if image_url:
+                        # 이미지 URL을 page_content에 포함 (gpt-4o는 이미지 URL 지원)
+                        doc_meta = {
+                            "page": page_number,
+                            "chunk_id": chunk_identifier,
+                            "score": score_number,
+                            "is_image": True,
+                            "image_url": image_url,
+                            "image_text": image_text  # 원본 텍스트 저장 (snippet에 사용)
+                        }
+                        if file_no:
+                            doc_meta["file_no"] = file_no
+                        if file_name:
+                            doc_meta["metadata"] = {"FILE_NAME": file_name}
+                        # gpt-4o는 이미지 URL을 텍스트로 인식하므로, 이미지 URL을 page_content에 포함
+                        documents.append(Document(page_content=f"[이미지: {image_url}]", metadata=doc_meta))
+                        logger.info(f"[OpenAI] Added image document: file_no={file_no}, url={image_url[:50]}...")
 
             if not documents:
                 logger.warning("[OpenAI] No documents retrieved")
@@ -250,12 +320,13 @@ class Openai(BaseGenerationStrategy):
 
             def build_references_from_documents(source_documents: List[Any]) -> List[Dict[str, Any]]:
                 refs: List[Dict[str, Any]] = []
-                def _fetch_presigned(file_no: str) -> str:
+                def _fetch_presigned(file_no: str, inline: bool = False) -> str:
                     if not file_no:
                         return ""
+                    inline_param = "true" if inline else "false"
                     # Internal backend URL
-                    url = f"http://hebees-python-backend:8000/api/v1/files/{file_no}/presigned"
-                    logger.info(f"[OpenAI] Fetching presigned URL: {url}")
+                    url = f"http://hebees-python-backend:8000/api/v1/files/{file_no}/presigned?inline={inline_param}"
+                    logger.info(f"[OpenAI] Fetching presigned URL (inline={inline_param}): {url}")
                     try:
                         with httpx.Client(timeout=10.0, follow_redirects=True) as client:
                             # Forward role/uuid headers only (internal communication)
@@ -276,7 +347,7 @@ class Openai(BaseGenerationStrategy):
                             if not presigned_url:
                                 logger.warning(f"[OpenAI] Presigned URL not resolved for {file_no}")
                                 return ""
-                            logger.info("presigned URL fetched")
+                            logger.info(f"presigned URL fetched (inline={inline_param})")
                             logger.info(f"presigned URL: {presigned_url}")
                             return presigned_url
                     except Exception as e:
@@ -297,7 +368,24 @@ class Openai(BaseGenerationStrategy):
                         page_number = int(page_value)
                     except Exception:
                         page_number = 1
-                    download_url = _fetch_presigned(str(file_no)) if file_no else ""
+                    
+                    # 이미지 문서인지 확인
+                    is_image = meta.get('is_image', False)
+                    
+                    if is_image:
+                        # 이미지 문서: downloadUrl은 inline=false, snippet은 inline=true로 받은 URL 사용
+                        download_url = _fetch_presigned(str(file_no), inline=False) if file_no else ""
+                        inline_url = _fetch_presigned(str(file_no), inline=True) if file_no else ""
+                        # snippet 형식: ![대체 이미지 텍스트](이미지 url)
+                        # metadata에서 원본 이미지 텍스트 가져오기 (image_text 필드)
+                        image_text = meta.get('image_text', '') or ''
+                        alt_text = image_text if image_text else (text_value.replace('[이미지: ', '').replace(']', '') if text_value.startswith('[이미지:') else '이미지')
+                        snippet = f"![{alt_text}]({inline_url})" if inline_url else (image_text if image_text else text_value)
+                    else:
+                        # 일반 문서: 기존 방식 유지
+                        download_url = _fetch_presigned(str(file_no), inline=False) if file_no else ""
+                        snippet = str(text_value)
+                    
                     refs.append({
                         "fileNo": str(file_no) if file_no else "",
                         "name": base_name,            # swap: store full filename with extension
@@ -305,7 +393,7 @@ class Openai(BaseGenerationStrategy):
                         "type": file_ext,
                         "index": page_number,
                         "downloadUrl": download_url,
-                        "snippet": str(text_value),
+                        "snippet": snippet,
                     })
                 return refs
 
@@ -441,7 +529,8 @@ class Openai(BaseGenerationStrategy):
         memory=None,
         user_id: Optional[str] = None,
         session_id: Optional[str] = None,
-        request_headers: Optional[Dict[str, str]] = None
+        request_headers: Optional[Dict[str, str]] = None,
+        retrieved_chunks_image: Optional[List[Dict[str, Any]]] = None
     ) -> AsyncIterator[str]:
         """
         스트리밍 방식으로 답변 생성
@@ -449,12 +538,14 @@ class Openai(BaseGenerationStrategy):
         - 맨 처음에 init 메시지 전송 (messageNo, role, createdAt)
         - 이후 각 토큰을 update 메시지로 전송
         - 완료 후 MongoDB에 저장
+        - 이미지 chunks도 처리 (gpt-4o 지원)
         """
         if not query or not query.strip():
             raise ValueError("Query cannot be empty")
 
         logger.info(
-            f"[OpenAI] Generating stream answer for query: {query[:50]}... with {len(retrieved_chunks)} chunks, memory={memory is not None}"
+            f"[OpenAI] Generating stream answer for query: {query[:50]}... with {len(retrieved_chunks)} text chunks, "
+            f"{len(retrieved_chunks_image) if retrieved_chunks_image else 0} image chunks, memory={memory is not None}"
         )
 
         try:
@@ -486,6 +577,71 @@ class Openai(BaseGenerationStrategy):
                 if file_name:
                     doc_meta["metadata"] = {"FILE_NAME": file_name}
                 documents.append(Document(page_content=text, metadata=doc_meta))
+
+            # ✅ 이미지 chunks 처리 (generate와 동일)
+            if retrieved_chunks_image:
+                def _fetch_presigned_for_image(file_no: str, inline: bool = True) -> str:
+                    if not file_no:
+                        return ""
+                    inline_param = "true" if inline else "false"
+                    url = f"http://hebees-python-backend:8000/api/v1/files/{file_no}/presigned?inline={inline_param}"
+                    logger.info(f"[OpenAI] Fetching presigned URL for image (stream, inline={inline_param}): {url}")
+                    try:
+                        with httpx.Client(timeout=3600.0, follow_redirects=True) as client:
+                            headers = {}
+                            if request_headers:
+                                if request_headers.get("x-user-uuid"):
+                                    headers["x-user-uuid"] = request_headers.get("x-user-uuid")
+                                if request_headers.get("x-user-role"):
+                                    headers["x-user-role"] = request_headers.get("x-user-role")
+                            r = client.get(url, headers=headers)
+                            r.raise_for_status()
+                            presigned_url = ""
+                            try:
+                                data = r.json()
+                                presigned_url = (data.get("result", {}).get("data", {}) or {}).get("url") or data.get("url") or ""
+                            except Exception:
+                                presigned_url = r.text.strip().strip('"')
+                            if not presigned_url:
+                                logger.warning(f"[OpenAI] Presigned URL not resolved for image file_no (stream): {file_no}")
+                                return ""
+                            logger.info(f"[OpenAI] Presigned URL fetched for image (stream, inline={inline_param}): {presigned_url[:100]}...")
+                            return presigned_url
+                    except Exception as e:
+                        logger.warning(f"[OpenAI] Presigned fetch failed for image file_no (stream) {file_no}: {e}")
+                        return ""
+                
+                for index, chunk in enumerate(retrieved_chunks_image):
+                    file_no = get_val(chunk, 'fileNo', None) or get_val(chunk, 'metadata', {}).get('file_no', '')
+                    file_name = get_val(chunk, 'fileName', None) or get_val(chunk, 'metadata', {}).get('metadata', {}).get('FILE_NAME', '')
+                    page_value = get_val(chunk, 'page', None)
+                    chunk_id_value = get_val(chunk, 'chunk_id', None)
+                    score_value = get_val(chunk, 'score', None)
+                    # 이미지 chunk의 원본 텍스트 가져오기 (snippet에 사용)
+                    image_text = get_val(chunk, 'text', None) or get_val(chunk, 'page_content', None) or ""
+                    
+                    page_number = int((page_value if page_value is not None else 1) or 1)
+                    chunk_identifier = int((chunk_id_value if chunk_id_value is not None else index) or index)
+                    score_number = float((score_value if score_value is not None else 0.0) or 0.0)
+                    
+                    # presigned_url 가져오기 (LLM에 보낼 URL은 inline=true)
+                    image_url = _fetch_presigned_for_image(str(file_no), inline=True) if file_no else ""
+                    
+                    if image_url:
+                        doc_meta = {
+                            "page": page_number,
+                            "chunk_id": chunk_identifier,
+                            "score": score_number,
+                            "is_image": True,
+                            "image_url": image_url,
+                            "image_text": image_text  # 원본 텍스트 저장 (snippet에 사용)
+                        }
+                        if file_no:
+                            doc_meta["file_no"] = file_no
+                        if file_name:
+                            doc_meta["metadata"] = {"FILE_NAME": file_name}
+                        documents.append(Document(page_content=f"[이미지: {image_url}]", metadata=doc_meta))
+                        logger.info(f"[OpenAI] Added image document (stream): file_no={file_no}, url={image_url[:50]}...")
 
             # documents가 없을 때 처리
             if not documents:
@@ -537,13 +693,14 @@ class Openai(BaseGenerationStrategy):
             message_no = uuid.uuid4()
             created_at = datetime.now(ZoneInfo("Asia/Seoul")).isoformat()
             
-            # references 빌드 함수 (generate와 동일)
+            # references 빌드 함수 (init event 전에 미리 빌드하기 위해 먼저 정의)
             def build_references_from_documents(source_docs: List[Any]) -> List[Dict[str, Any]]:
                 refs: List[Dict[str, Any]] = []
-                def _fetch_presigned(file_no: str) -> str:
+                def _fetch_presigned(file_no: str, inline: bool = False) -> str:
                     if not file_no:
                         return ""
-                    url = f"http://hebees-python-backend:8000/api/v1/files/{file_no}/presigned"
+                    inline_param = "true" if inline else "false"
+                    url = f"http://hebees-python-backend:8000/api/v1/files/{file_no}/presigned?inline={inline_param}"
                     try:
                         with httpx.Client(timeout=10.0, follow_redirects=True) as client:
                             headers = {}
@@ -580,7 +737,24 @@ class Openai(BaseGenerationStrategy):
                         page_number = int(page_value)
                     except Exception:
                         page_number = 1
-                    download_url = _fetch_presigned(str(file_no)) if file_no else ""
+                    
+                    # 이미지 문서인지 확인
+                    is_image = meta.get('is_image', False)
+                    
+                    if is_image:
+                        # 이미지 문서: downloadUrl은 inline=false, snippet은 inline=true로 받은 URL 사용
+                        download_url = _fetch_presigned(str(file_no), inline=False) if file_no else ""
+                        inline_url = _fetch_presigned(str(file_no), inline=True) if file_no else ""
+                        # snippet 형식: ![대체 이미지 텍스트](이미지 url)
+                        # metadata에서 원본 이미지 텍스트 가져오기 (image_text 필드)
+                        image_text = meta.get('image_text', '') or ''
+                        alt_text = image_text if image_text else (text_value.replace('[이미지: ', '').replace(']', '') if text_value.startswith('[이미지:') else '이미지')
+                        snippet = f"![{alt_text}]({inline_url})" if inline_url else (image_text if image_text else text_value)
+                    else:
+                        # 일반 문서: 기존 방식 유지
+                        download_url = _fetch_presigned(str(file_no), inline=False) if file_no else ""
+                        snippet = str(text_value)
+                    
                     refs.append({
                         "fileNo": str(file_no) if file_no else "",
                         "name": base_name,
@@ -588,7 +762,7 @@ class Openai(BaseGenerationStrategy):
                         "type": file_ext,
                         "index": page_number,
                         "downloadUrl": download_url,
-                        "snippet": str(text_value),
+                        "snippet": snippet,
                     })
                 return refs
 
