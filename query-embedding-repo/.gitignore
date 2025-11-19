@@ -1,0 +1,12 @@
+# uv / venv / local caches
+.bin/
+.uv-cache/
+.cache/
+.venv/
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Do commit: pyproject.toml, uv.lock
+.env
