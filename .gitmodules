@@ -1,8 +1,3 @@
-[submodule "backend-repo"]
-	path = backend-repo
-	url = https://lab.ssafy.com/gd10080008/backend-repo.git
-	branch = develop
-
 [submodule "python-backend-repo"]
 	path = python-backend-repo
 	url = https://lab.ssafy.com/gd10080008/python-backend-repo.git
