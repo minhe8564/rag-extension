@@ -65,6 +65,7 @@ export default function UserLayout() {
   const isChatRoute = pathname.startsWith('/user/chat/text');
 
   const [modelOptions, setModelOptions] = useState<Option[]>([]);
+  const [llmList, setLlmList] = useState<MyLlmKeyResponse[]>([]);
   const { selectedModel, setSelectedModel } = useChatModelStore();
   const [alertModal, setAlertModal] = useState(false);
 
@@ -91,6 +92,7 @@ export default function UserLayout() {
         .filter((o) => o.value);
 
       setModelOptions(options);
+      setLlmList(filteredList);
 
       const { selectedModel: currentSelectedModel, setSelectedModel: setModel } =
         useChatModelStore.getState();
@@ -324,7 +326,10 @@ export default function UserLayout() {
             <Select
               options={modelOptions}
               value={selectedModel}
-              onChange={(v) => setSelectedModel(v)}
+              onChange={(v) => {
+                const matched = llmList.find((k) => k.llmName === v);
+                setSelectedModel(v, matched?.llmNo);
+              }}
               className="w-[190px]"
               placeholder="모델 선택"
             />
