@@ -27,7 +27,7 @@ router = APIRouter(prefix="/rag", tags=["RAG - Query Template Management"])
     "/query-templates",
     response_model=BaseResponse[Dict[str, Any]],
     status_code=status.HTTP_200_OK,
-    summary="Query 템플릿 목록 조회 (관리자 전용)",
+    summary="[관리자] Query 템플릿 목록 조회",
     description="Query 템플릿 목록을 조회합니다. 관리자만 접근 가능합니다.",
     responses={
         200: {

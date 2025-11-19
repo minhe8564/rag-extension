@@ -19,7 +19,7 @@ router = APIRouter(prefix="/rag", tags=["RAG - Prompt Management"])
 @router.put(
     "/prompts/{promptNo}",
     response_model=BaseResponse[PromptDetailResponse],
-    summary="프롬프트 수정",
+    summary="[관리자] 프롬프트 수정",
     description="프롬프트를 수정합니다. 관리자만 접근 가능합니다.",
     responses={
         "200": {

@@ -18,7 +18,7 @@ router = APIRouter(prefix="/rag", tags=["RAG - Ingest Template Management"])
     "/ingest-templates",
     response_model=BaseResponse[IngestTemplateCreateResponse],
     status_code=status.HTTP_201_CREATED,
-    summary="Ingest 템플릿 생성 (관리자 전용)",
+    summary="[관리자] Ingest 템플릿 생성",
     description="새로운 Ingest 템플릿을 생성합니다. 관리자만 접근 가능합니다.",
     responses={
         "201": {
@@ -48,14 +48,25 @@ async def create_ingest_template_endpoint(
     session: AsyncSession = Depends(get_db),
 ):
     """Ingest 템플릿 생성"""
-    extractions_payload = [
-        item.model_dump(exclude_none=True) for item in request.extractions
-    ]
-    chunking_payload = request.chunking.model_dump(exclude_none=True)
-    dense_embeddings_payload = [
-        item.model_dump(exclude_none=True) for item in request.denseEmbeddings
-    ]
-    sparse_embedding_payload = request.sparseEmbedding.model_dump(exclude_none=True)
+    extractions_payload = None
+    if request.extractions:
+        extractions_payload = [
+            item.model_dump(exclude_none=True) for item in request.extractions
+        ]
+    
+    chunking_payload = None
+    if request.chunking:
+        chunking_payload = request.chunking.model_dump(exclude_none=True)
+    
+    dense_embeddings_payload = None
+    if request.denseEmbeddings:
+        dense_embeddings_payload = [
+            item.model_dump(exclude_none=True) for item in request.denseEmbeddings
+        ]
+    
+    sparse_embedding_payload = None
+    if request.sparseEmbedding:
+        sparse_embedding_payload = request.sparseEmbedding.model_dump(exclude_none=True)
 
     try:
         ingest_no = await create_ingest_template(

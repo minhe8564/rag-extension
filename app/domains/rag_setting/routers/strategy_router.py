@@ -53,7 +53,7 @@ def _bytes_to_uuid_str(b: bytes) -> str:
 @router.get(
     "/strategies/types",
     response_model=BaseResponse[StrategyTypeListResponse],
-    summary="전략 유형 목록 조회 (관리자)",
+    summary="[관리자] 전략 유형 목록 조회",
     description="전략 유형 목록을 조회합니다.",
     responses={
         200: {
@@ -111,7 +111,7 @@ async def get_strategy_types(
     "/strategies/types",
     response_model=BaseResponse[StrategyTypeCreateResponse],
     status_code=status.HTTP_201_CREATED,
-    summary="전략 유형 생성 (관리자)",
+    summary="[관리자] 전략 유형 생성",
     description="새로운 전략 유형을 생성합니다.",
     responses={
         201: {
@@ -153,7 +153,7 @@ async def create_strategy_type(
 @router.put(
     "/strategies/types/{typeNo}",
     response_model=BaseResponse[StrategyTypeUpdateResponse],
-    summary="전략 유형 이름 수정 (관리자)",
+    summary="[관리자] 전략 유형 이름 수정",
     description="전략 유형 이름을 수정합니다.",
     responses={
         200: {
@@ -215,7 +215,7 @@ async def delete_strategy_type(
     "/strategies",
     response_model=BaseResponse[StrategyCreateResponse],
     status_code=status.HTTP_201_CREATED,
-    summary="전략 생성 (관리자)",
+    summary="[관리자] 전략 생성",
     description="새로운 RAG 전략을 생성합니다.",
     responses={
         200: {
@@ -271,7 +271,7 @@ async def create_strategy(
 @router.put(
     "/strategies/{strategyNo}",
     response_model=BaseResponse[StrategyUpdateResponse],
-    summary="전략 수정 (관리자)",
+    summary="[관리자] 전략 수정",
     description="전략 정보를 수정합니다.",
     responses={
         200: {
@@ -319,7 +319,7 @@ async def update_strategy(
 @router.delete(
     "/strategies/{strategyNo}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="전략 삭제 (관리자)",
+    summary="[관리자] 전략 삭제",
     description="특정 전략을 삭제합니다.",
 )
 async def delete_strategy(
@@ -336,7 +336,7 @@ async def delete_strategy(
 @router.get(
     "/strategies",
     response_model=BaseResponse[Dict[str, Any]],
-    summary="전략 목록 조회 (관리자)",
+    summary="[관리자] 전략 목록 조회",
     description="RAG 전략 목록을 조회합니다.",
     responses={
         200: {
@@ -431,7 +431,7 @@ async def get_strategies(
 @router.get(
     "/strategies/{strategyNo}",
     response_model=BaseResponse[StrategyDetailResponse],
-    summary="전략 상세 조회 (관리자)",
+    summary="[관리자] 전략 상세 조회",
     description="특정 전략의 상세 정보를 조회합니다.",
     responses={
         200: {

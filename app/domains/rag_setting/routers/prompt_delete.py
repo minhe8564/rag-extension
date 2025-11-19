@@ -15,7 +15,7 @@ router = APIRouter(prefix="/rag", tags=["RAG - Prompt Management"])
 @router.delete(
     "/prompts/{promptNo}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="프롬프트 삭제",
+    summary="[관리자] 프롬프트 삭제",
     description="프롬프트를 삭제합니다. 관리자만 접근 가능합니다.",
 )
 async def delete_prompt_endpoint(

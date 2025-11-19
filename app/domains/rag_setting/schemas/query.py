@@ -8,7 +8,7 @@ from .strategy import PaginationInfo
 
 class StrategyWithParameter(BaseModel):
     """전략 + 파라미터 아이템"""
-    no: str = Field(..., description="전략 ID (UUID)")
+    no: Optional[str] = Field(None, description="전략 ID (UUID). 없으면 기본 전략 사용")
     parameters: Optional[Dict[str, Any]] = Field(
         None,
         description="전략별 파라미터",
@@ -17,8 +17,10 @@ class StrategyWithParameter(BaseModel):
 
     @field_validator('no')
     @classmethod
-    def validate_uuid(cls, v: str) -> str:
+    def validate_uuid(cls, v: Optional[str]) -> Optional[str]:
         """UUID 형식 검증"""
+        if v is None:
+            return v
         try:
             uuid.UUID(v)
             return v
@@ -29,12 +31,12 @@ class StrategyWithParameter(BaseModel):
 class QueryTemplateCreateRequest(BaseModel):
     """Query 템플릿 생성 요청"""
     name: str = Field(..., description="템플릿 이름", max_length=100)
-    transformation: StrategyWithParameter = Field(..., description="변환 전략")
-    retrieval: StrategyWithParameter = Field(..., description="검색 전략")
-    reranking: StrategyWithParameter = Field(..., description="재순위화 전략")
-    systemPrompt: StrategyWithParameter = Field(..., description="시스템 프롬프트 전략")
-    userPrompt: StrategyWithParameter = Field(..., description="사용자 프롬프트 전략")
-    generation: StrategyWithParameter = Field(..., description="생성 전략")
+    transformation: Optional[StrategyWithParameter] = Field(None, description="변환 전략 (없으면 기본 전략 사용)")
+    retrieval: Optional[StrategyWithParameter] = Field(None, description="검색 전략 (없으면 기본 전략 사용)")
+    reranking: Optional[StrategyWithParameter] = Field(None, description="재순위화 전략 (없으면 기본 전략 사용)")
+    systemPrompt: Optional[StrategyWithParameter] = Field(None, description="시스템 프롬프트 전략 (없으면 기본 전략 사용)")
+    userPrompt: Optional[StrategyWithParameter] = Field(None, description="사용자 프롬프트 전략 (없으면 기본 전략 사용)")
+    generation: Optional[StrategyWithParameter] = Field(None, description="생성 전략 (없으면 기본 전략 사용)")
     isDefault: bool = Field(False, description="기본 템플릿 여부", json_schema_extra={"example": False})
 
     class Config:

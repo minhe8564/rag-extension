@@ -21,7 +21,7 @@ router = APIRouter(prefix="/rag", tags=["RAG - Query Template Management"])
     "/query-templates/{queryNo}",
     response_model=BaseResponse[QueryTemplateDetailResponse],
     status_code=status.HTTP_200_OK,
-    summary="Query 템플릿 부분 수정 (관리자 전용)",
+    summary="[관리자] Query 템플릿 부분 수정",
     description="Query 템플릿의 일부 필드를 수정합니다. 관리자만 접근 가능합니다.",
     responses={
         200: {  
