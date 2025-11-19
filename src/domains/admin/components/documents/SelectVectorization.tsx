@@ -50,7 +50,7 @@ export default function SelectVectorization({
       const groupedByCategoryAndCollection = finalSelectedFiles.reduce<Record<string, RawMyDoc[]>>(
         (acc, file) => {
           const categoryNo = file.categoryNo;
-          const bucket = file.collectionNo; // 👈 RawMyDoc에 있어야 함
+          const bucket = file.collectionNo; //  RawMyDoc에 있어야 함
 
           const key = `${categoryNo}__${bucket}`;
 
@@ -114,11 +114,6 @@ export default function SelectVectorization({
       setSelectedFile(null);
     }
   };
-
-  // const handleUpload = async () => {
-  //   const groupByCategory = UploadedFileList
-  // }
-  // 상위에서 finalSelectedFiles 변경 시 반영
 
   return (
     <section className="flex flex-col w-full p-4 border rounded-xl bg-white min-h-[475px]">
