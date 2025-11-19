@@ -76,19 +76,23 @@ class GatewayClient:
         file_no: str,
         extraction_strategy: str,
         extraction_params: dict,
-        extra_headers: Dict[str, Any] = None
+        extra_headers: Dict[str, Any] = None,
+        file_name: str = None
     ) -> Dict[Any, Any]:
         """Extraction 컨테이너로 요청 - fileNo 기반 /process 사용 (서비스 간 직접 통신)"""
-        logger.debug(f"POST {self.extraction_direct_url} | extractionStrategy={extraction_strategy} fileNo={file_no}")
+        logger.debug(f"POST {self.extraction_direct_url} | extractionStrategy={extraction_strategy} fileNo={file_no} fileName={file_name}")
         async with httpx.AsyncClient(timeout=3600.0) as client:
+            payload = {
+                "fileNo": file_no,
+                "extractionStrategy": extraction_strategy,
+                "extractionParameter": extraction_params or {}
+            }
+            if file_name:
+                payload["fileName"] = file_name
             response = await client.post(
                 self.extraction_direct_url,
                 headers={k: v for k, v in (extra_headers or {}).items() if v},
-                json={
-                    "fileNo": file_no,
-                    "extractionStrategy": extraction_strategy,
-                    "extractionParameter": extraction_params or {}
-                }
+                json=payload
             )
             response.raise_for_status()
             return response.json()

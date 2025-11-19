@@ -315,7 +315,8 @@ async def ingest_process(
                         "x-user-role": user_role,
                         "x-user-uuid": user_uuid,
                         "x-offer-no": request.offerNo
-                    }
+                    },
+                    file_name=file_name
                 )
                 
                 # 2) Chunk
