@@ -53,7 +53,7 @@ export function useChatScroll({ currentSessionNo, list, setList }: UseChatScroll
             content: m.content,
             createdAt: m.createdAt,
             messageNo: m.messageNo,
-            referencedDocuments: m.referencedDocuments,
+            references: m.references,
           })
         ) ?? [];
 

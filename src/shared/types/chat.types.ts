@@ -42,7 +42,7 @@ export interface MessageItem {
   role: ChatRole;
   content: string;
   createdAt: string;
-  referencedDocuments?: ReferencedDocument[];
+  references?: ReferencedDocument[];
 }
 
 export interface MessagePage {
@@ -75,6 +75,9 @@ export interface CreateSessionResult {
 export interface SendMessageRequest {
   content: string;
   model?: string;
+  llmNo?: string;
+  query?: string;
+  sessionNo?: string;
 }
 
 export interface SendMessageResult {

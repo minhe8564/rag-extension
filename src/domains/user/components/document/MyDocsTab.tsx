@@ -68,7 +68,7 @@ export default function MyDocsTab() {
         id: d.fileNo,
         fileNo: d.fileNo,
         name: d.name,
-        sizeKB: d.sizeKB,
+        sizeKB: d.sizeKB / 1024,
         createdAt: formatCreatedAt(d.createdAt),
         category: d.bucket ?? '기타',
         categoryId: d.categoryNo != null ? String(d.categoryNo) : undefined,
