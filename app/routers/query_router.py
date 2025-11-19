@@ -23,12 +23,12 @@ async def query(
     x_user_uuid: str | None = Header(default=None, alias="x-user-uuid"),
     authorization: str | None = Header(default=None, alias="Authorization")
 ):
-    """Query 요청 처리 V2: 사용자/관리자 분기, 기본 파라미터/전략 DB 조회, generation에 메타 전달"""
+    """Query 요청 처리: 사용자/관리자 분기, 기본 파라미터/전략 DB 조회, generation에 메타 전달"""
     try:
-        logger.info("Received query request V2: {}", request.query)
+        logger.info("Received query request: {}", request.query)
         logger.info("x-user-role: {}", x_user_role)
         logger.info("x-user-uuid: {}", x_user_uuid)
-        result = await query_service.process_query_v2(
+        result = await query_service.process_query(
             request=request,
             db=db,
             x_user_role=x_user_role,
@@ -79,16 +79,16 @@ async def query_stream(
     x_user_uuid: str | None = Header(default=None, alias="x-user-uuid"),
     authorization: str | None = Header(default=None, alias="Authorization")
 ):
-    """Query 요청 처리 V2 (스트리밍 버전): /process와 동작은 동일하지만 응답을 스트리밍으로 전달"""
+    """Query 요청 처리 (스트리밍 버전): /process와 동작은 동일하지만 응답을 스트리밍으로 전달"""
     try:
-        logger.info("Received query stream request V2: {}", request.query)
+        logger.info("Received query stream request: {}", request.query)
         logger.info("x-user-role: {}", x_user_role)
         logger.info("x-user-uuid: {}", x_user_uuid)
         
         async def stream_generator() -> AsyncIterator[bytes]:
             """스트리밍 응답 생성기"""
             try:
-                async for chunk in query_service.process_query_v2_stream(
+                async for chunk in query_service.process_query_stream(
                     request=request,
                     db=db,
                     x_user_role=x_user_role,
