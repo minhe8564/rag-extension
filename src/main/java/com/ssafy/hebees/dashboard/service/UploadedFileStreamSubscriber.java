@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
-public class FileUploadStreamSubscriber extends BaseRedisStreamSubscriber {
+public class UploadedFileStreamSubscriber extends BaseRedisStreamSubscriber {
 
     private static final String STREAM_KEY = "upload:files";
 
@@ -23,7 +23,7 @@ public class FileUploadStreamSubscriber extends BaseRedisStreamSubscriber {
     @Value("${ingest.upload.stream.block-timeout-ms:1000}")
     private long blockTimeoutMs;
 
-    public FileUploadStreamSubscriber(
+    public UploadedFileStreamSubscriber(
         @Qualifier("dashboardRedisTemplate") StringRedisTemplate redisTemplate,
         DashboardMetricStreamService dashboardMetricStreamService
     ) {
@@ -61,3 +61,4 @@ public class FileUploadStreamSubscriber extends BaseRedisStreamSubscriber {
         return blockTimeoutMs;
     }
 }
+
