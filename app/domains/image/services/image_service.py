@@ -32,7 +32,14 @@ logger = logging.getLogger(__name__)
 class ImageService:
     def __init__(self, minio_service: MinIOService):
         self.minio_service = minio_service
-        self.gemini_client = GeminiClient()
+        self._gemini_client: Optional[GeminiClient] = None
+    
+    @property
+    def gemini_client(self) -> GeminiClient:
+        """GeminiClient를 lazy initialization으로 생성 (이미지 생성 시에만 필요)"""
+        if self._gemini_client is None:
+            self._gemini_client = GeminiClient()
+        return self._gemini_client
     
     async def get_user_by_uuid(
         self,
@@ -275,12 +282,17 @@ class ImageService:
         if not file_category:
             raise ValueError("FILE_CATEGORY 테이블에 NAME이 '이미지'인 레코드가 없습니다. 먼저 생성해주세요.")
         
+        # bucket이 'image'인 파일만 조회
+        # 주의: self.minio_service.bucket_name이 빈 문자열이거나 다른 값일 수 있으므로
+        # DB에 실제 저장된 bucket 값('image')을 사용
+        bucket_filter = self.minio_service.bucket_name if self.minio_service.bucket_name else 'image'
         file_records = await FileRepository.find_by_user_no_and_category(
             db=db,
             user_no=user.user_no,
             file_category_no=file_category.file_category_no,
             limit=limit,
-            offset=offset
+            offset=offset,
+            bucket=bucket_filter
         )
         
         image_responses = []

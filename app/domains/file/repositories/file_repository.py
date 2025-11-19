@@ -25,14 +25,19 @@ class FileRepository:
         user_no: bytes,
         file_category_no: bytes,
         limit: Optional[int] = None,
-        offset: Optional[int] = None
+        offset: Optional[int] = None,
+        bucket: Optional[str] = None
     ) -> List[File]:
         query = (
             select(File)
             .where(File.user_no == user_no)
             .where(File.file_category_no == file_category_no)
-            .order_by(desc(File.created_at))
         )
+        
+        if bucket is not None:
+            query = query.where(File.bucket == bucket)
+        
+        query = query.order_by(desc(File.created_at))
         
         if limit is not None:
             query = query.limit(limit)
