@@ -1,0 +1,74 @@
+# Git
+.git
+.gitignore
+.gitmodules
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+*.whl
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.iml
+*.ipr
+*.iws
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation
+*.md
+README.md
+docs/
+
+# CI/CD
+Jenkinsfile
+.gitlab-ci.yml
+.gitlab/
+
+# Development
+# .env 파일은 Docker 이미지에 포함하도록 설정 (필수 환경변수 포함)
+# .env
+.env.local
+.env.*.local
+*.log
+
+# Testing
+tests/
+test_*.py
+*_test.py
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Project specific
+work/
+cache/
+*.pdf
+*.txt
+*.xlsx
+*.xls
