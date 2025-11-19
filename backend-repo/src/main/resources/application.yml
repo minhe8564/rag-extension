@@ -1,0 +1,65 @@
+spring:
+  application:
+    name: hebees-backend
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+  http:
+    client:
+      factory: simple
+  mvc:
+    servlet:
+      path: /api/v1
+  jpa:
+    open-in-view: false
+    hibernate:
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
+        jdbc:
+          time_zone: Asia/Seoul
+    show-sql: true
+
+cors:
+  allowed-origins:
+    - "http://localhost:5173"
+    - "https://dev.ragextension.shop"
+    - "https://www.ragextension.shop"
+    - "https://dev-spring.ragextension.shop"
+    - "https://spring.ragextension.shop"
+    - "http://localhost:7700"
+    - "https://starlits.beta9.kr"
+    - "https://k13s407.p.ssafy.io"
+
+springdoc:
+  swagger-ui:
+    persist-authorization: true
+
+# Runpod (Ollama) 설정
+runpod:
+  base-url: http://localhost # 기본값
+  model: qwen3-vl:8b
+  name: qwen3
+  # Runpod 공식 API 설정 (모니터링용)
+  api-key: "${RUNPOD_API_KEY:}"
+  api-base-url: https://api.runpod.io/graphql
+
+# Actuator 설정
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+  health:
+    db:
+      enabled: true
+    redis:
+      enabled: true
