@@ -39,6 +39,9 @@ public class DashboardKeywordServiceImpl implements DashboardKeywordService {
     private static final String PROMPT_NAME = "KeywordExtraction";
     private static final String PROMPT_FALLBACK = "You are a Korean keyword extractor. Read the user's sentence and return only the core keywords as a JSON array with 1 to 7 string items. Example: [\"keyword1\", \"keyword2\"]. Do not include any explanations, numbering, or additional text.";
 
+    private static final String KEYWORD_STRATEGY_NAME = "GPT-4o";
+    private static final String KEYWORD_STRATEGY_CODE_PREFIX = "GEN";
+
     private final KeywordAggregateDailyRepository keywordAggregateDailyRepository;
     private final LlmChatGateway llmChatGateway;
     private final AgentPromptRepository agentPromptRepository;
