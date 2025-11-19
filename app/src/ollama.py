@@ -7,6 +7,7 @@ import httpx
 import uuid
 import json
 import asyncio
+import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from app.core.settings import settings
@@ -207,9 +208,21 @@ class Ollama(BaseGenerationStrategy):
                             doc_meta["file_no"] = file_no
                         if file_name:
                             doc_meta["metadata"] = {"FILE_NAME": file_name}
-                        # qwen3-vl은 이미지 URL을 텍스트로 인식하므로, 이미지 URL을 page_content에 포함
-                        documents.append(Document(page_content=f"[이미지: {image_url}]", metadata=doc_meta))
-                        logger.info(f"[Ollama] Added image document: file_no={file_no}, url={image_url[:50]}...")
+                        # 이미지 URL과 캡션을 함께 전달
+                        # 캡션에서 [ ] 안의 파일명 추출하여 명시적으로 표시
+                        if image_text:
+                            file_name_match = re.match(r'^\[([^\]]+)\]\s*(.*)$', image_text)
+                            if file_name_match:
+                                extracted_file_name = file_name_match.group(1)  # [ ] 안의 파일명
+                                caption_content = file_name_match.group(2).strip()  # 나머지 캡션 내용
+                                page_content = f"[이미지: {image_url}]\n원본 파일: {extracted_file_name}\n캡션: {caption_content}"
+                            else:
+                                # [ ] 형식이 아닌 경우 기존 방식 유지
+                                page_content = f"[이미지: {image_url}]\n캡션: {image_text}"
+                        else:
+                            page_content = f"[이미지: {image_url}]"
+                        documents.append(Document(page_content=page_content, metadata=doc_meta))
+                        logger.info(f"[Ollama] Added image document: file_no={file_no}, url={image_url[:50]}..., caption={image_text[:50] if image_text else 'N/A'}...")
 
             # Allow zero-doc scenario (LLM will answer with empty context)
 
@@ -518,8 +531,21 @@ class Ollama(BaseGenerationStrategy):
                             doc_meta["file_no"] = file_no
                         if file_name:
                             doc_meta["metadata"] = {"FILE_NAME": file_name}
-                        documents.append(Document(page_content=f"[이미지: {image_url}]", metadata=doc_meta))
-                        logger.info(f"[Ollama] Added image document (stream): file_no={file_no}, url={image_url[:50]}...")
+                        # 이미지 URL과 캡션을 함께 전달
+                        # 캡션에서 [ ] 안의 파일명 추출하여 명시적으로 표시
+                        if image_text:
+                            file_name_match = re.match(r'^\[([^\]]+)\]\s*(.*)$', image_text)
+                            if file_name_match:
+                                extracted_file_name = file_name_match.group(1)  # [ ] 안의 파일명
+                                caption_content = file_name_match.group(2).strip()  # 나머지 캡션 내용
+                                page_content = f"[이미지: {image_url}]\n원본 파일: {extracted_file_name}\n캡션: {caption_content}"
+                            else:
+                                # [ ] 형식이 아닌 경우 기존 방식 유지
+                                page_content = f"[이미지: {image_url}]\n캡션: {image_text}"
+                        else:
+                            page_content = f"[이미지: {image_url}]"
+                        documents.append(Document(page_content=page_content, metadata=doc_meta))
+                        logger.info(f"[Ollama] Added image document (stream): file_no={file_no}, url={image_url[:50]}..., caption={image_text[:50] if image_text else 'N/A'}...")
 
             prompt = self._init_prompt_template(include_history=bool(memory))
             combine_chain = create_stuff_documents_chain(self.llm, prompt)
@@ -664,6 +690,9 @@ class Ollama(BaseGenerationStrategy):
             stream_task = asyncio.create_task(asyncio.to_thread(process_stream))
             
             # 스트리밍 처리 (큐에서 실시간으로 읽기)
+            # SSE 연결이 끊어져도 끝까지 데이터를 받아서 MongoDB에 저장하기 위해
+            # yield 중 에러는 무시하고 스트림 처리는 계속 진행
+            sse_error_occurred = False
             while True:
                 try:
                     # 큐에서 데이터 가져오기 (타임아웃 설정)
@@ -677,93 +706,118 @@ class Ollama(BaseGenerationStrategy):
                     if msg_type == "done":
                         break
                     elif msg_type == "error":
-                        raise Exception(f"Stream error: {chunk}")
+                        logger.warning(f"[Ollama] Stream processing error: {chunk}, but continuing to collect data")
+                        # 에러가 발생해도 스트림은 계속 진행 (MongoDB 저장을 위해)
+                        continue
                     
                     # chunk 처리
-                    if isinstance(chunk, dict):
-                        answer_chunk = chunk.get("answer", "")
-                        if answer_chunk:
-                            full_answer += answer_chunk
-                            # update 메시지로 전송 (JSON 이스케이프 처리)
-                            update_message = {
-                                "content": answer_chunk
-                            }
-                            yield f"event: update\ndata: {json.dumps(update_message, ensure_ascii=False)}\n\n"
-                        
-                        # context 문서 수집 (마지막에 references 빌드용)
-                        if "context" in chunk:
-                            context_docs = chunk.get("context", [])
-                            if context_docs:
-                                source_documents = context_docs
-                    else:
-                        # 단순 문자열인 경우
-                        chunk_str = str(chunk)
-                        full_answer += chunk_str
-                        update_message = {
-                            "content": chunk_str
-                        }
-                        yield f"event: update\ndata: {json.dumps(update_message, ensure_ascii=False)}\n\n"
+                    try:
+                        if isinstance(chunk, dict):
+                            answer_chunk = chunk.get("answer", "")
+                            if answer_chunk:
+                                full_answer += answer_chunk
+                                # update 메시지로 전송 (JSON 이스케이프 처리)
+                                # SSE 전송 중 에러가 발생해도 무시하고 계속 진행
+                                try:
+                                    update_message = {
+                                        "content": answer_chunk
+                                    }
+                                    yield f"event: update\ndata: {json.dumps(update_message, ensure_ascii=False)}\n\n"
+                                except Exception as sse_err:
+                                    # SSE 전송 에러는 로깅만 하고 계속 진행
+                                    if not sse_error_occurred:
+                                        logger.warning(f"[Ollama] SSE send error (will continue silently): {sse_err}")
+                                        sse_error_occurred = True
+                                
+                                # context 문서 수집 (마지막에 references 빌드용)
+                                if "context" in chunk:
+                                    context_docs = chunk.get("context", [])
+                                    if context_docs:
+                                        source_documents = context_docs
+                        else:
+                            # 단순 문자열인 경우
+                            chunk_str = str(chunk)
+                            full_answer += chunk_str
+                            try:
+                                update_message = {
+                                    "content": chunk_str
+                                }
+                                yield f"event: update\ndata: {json.dumps(update_message, ensure_ascii=False)}\n\n"
+                            except Exception as sse_err:
+                                # SSE 전송 에러는 로깅만 하고 계속 진행
+                                if not sse_error_occurred:
+                                    logger.warning(f"[Ollama] SSE send error (will continue silently): {sse_err}")
+                                    sse_error_occurred = True
+                    except Exception as chunk_err:
+                        logger.error(f"[Ollama] Error processing stream chunk: {chunk_err}", exc_info=True)
+                        # chunk 처리 에러는 무시하고 계속 진행
+                        continue
                 except Exception as e:
-                    logger.error(f"[Ollama] Error processing stream chunk: {e}", exc_info=True)
-                    if stream_error:
-                        raise stream_error
-                    raise
+                    logger.error(f"[Ollama] Error in stream loop: {e}", exc_info=True)
+                    # 루프 에러는 무시하고 계속 진행 (MongoDB 저장을 위해)
+                    continue
             
             # 스트림 태스크 완료 대기
-            await stream_task
+            try:
+                await stream_task
+            except Exception as task_err:
+                logger.warning(f"[Ollama] Stream task error (continuing): {task_err}")
 
-            # 스트리밍 완료 후 처리
-            response_time_ms = int((time.time() * 1000) - response_start_time)
-            
-            # references 빌드
-            references = build_references_from_documents(source_documents)
-            
-            # 토큰 사용량 추출 (stream에서는 직접 얻기 어려움)
-            input_tokens = output_tokens = total_tokens = None
-            
-            # MongoDB에 저장
-            if user_id and session_id:
-                try:
-                    # pending payload 설정
-                    memory_manager.set_pending_ai_payload(
-                        user_id,
-                        session_id,
-                        references=references,
-                        input_tokens=input_tokens,
-                        output_tokens=output_tokens,
-                        total_tokens=total_tokens,
-                        response_time_ms=response_time_ms,
-                    )
-                    
-                    # 메시지 저장
-                    memory_manager.save_custom_message(
-                        user_id=user_id,
-                        session_id=session_id,
-                        role="ai",
-                        content=full_answer,
-                        llm_no=self.parameters.get("llmNo"),
-                        input_tokens=input_tokens,
-                        output_tokens=output_tokens,
-                        total_tokens=total_tokens,
-                        response_time_ms=response_time_ms,
-                        references=references,
-                        message_no=message_no,
-                    )
-                    
-                    # memory에 저장
-                    if memory:
-                        try:
-                            memory.save_context({"input": query}, {"answer": full_answer})
-                            logger.debug(f"[Ollama] Successfully saved context to memory")
-                        except Exception as save_error:
-                            logger.warning(f"[Ollama] Failed to save context: {save_error}")
-                    
-                    logger.info(f"[Ollama] Stream answer completed. Length: {len(full_answer)}")
-                    
-                except Exception as e:
-                    logger.error(f"[Ollama] Failed to save stream result to MongoDB: {e}", exc_info=True)
-            else:
-                logger.info(f"[Ollama] Stream answer completed (no user_id/session_id). Length: {len(full_answer)}")
+            # 스트리밍 완료 후 처리 (SSE가 끊어져도 반드시 실행)
+            try:
+                response_time_ms = int((time.time() * 1000) - response_start_time)
+                
+                # references 빌드
+                references = build_references_from_documents(source_documents)
+                
+                # 토큰 사용량 추출 (stream에서는 직접 얻기 어려움)
+                input_tokens = output_tokens = total_tokens = None
+                
+                # MongoDB에 저장 (SSE가 끊어져도 반드시 저장)
+                if user_id and session_id:
+                    try:
+                        # pending payload 설정
+                        memory_manager.set_pending_ai_payload(
+                            user_id,
+                            session_id,
+                            references=references,
+                            input_tokens=input_tokens,
+                            output_tokens=output_tokens,
+                            total_tokens=total_tokens,
+                            response_time_ms=response_time_ms,
+                        )
+                        
+                        # 메시지 저장
+                        memory_manager.save_custom_message(
+                            user_id=user_id,
+                            session_id=session_id,
+                            role="ai",
+                            content=full_answer,
+                            llm_no=self.parameters.get("llmNo"),
+                            input_tokens=input_tokens,
+                            output_tokens=output_tokens,
+                            total_tokens=total_tokens,
+                            response_time_ms=response_time_ms,
+                            references=references,
+                            message_no=message_no,
+                        )
+                        
+                        # memory에 저장
+                        if memory:
+                            try:
+                                memory.save_context({"input": query}, {"answer": full_answer})
+                                logger.debug(f"[Ollama] Successfully saved context to memory")
+                            except Exception as save_error:
+                                logger.warning(f"[Ollama] Failed to save context: {save_error}")
+                        
+                        logger.info(f"[Ollama] Stream answer completed and saved to MongoDB. Length: {len(full_answer)}")
+                        
+                    except Exception as e:
+                        logger.error(f"[Ollama] Failed to save stream result to MongoDB: {e}", exc_info=True)
+                else:
+                    logger.info(f"[Ollama] Stream answer completed (no user_id/session_id). Length: {len(full_answer)}")
+            except Exception as final_err:
+                logger.error(f"[Ollama] Error in final processing: {final_err}", exc_info=True)
 
         except Exception as e:
             logger.error(f"[Ollama] Error during stream generation: {str(e)}", exc_info=True)
