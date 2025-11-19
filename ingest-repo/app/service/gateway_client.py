@@ -1,0 +1,447 @@
+import httpx
+from typing import Dict, Any, List
+from app.core.settings import settings
+import json
+from loguru import logger
+
+
+class GatewayClient:
+    def __init__(self):
+        # settings에서 서비스 URL 로드
+        self.gateway_url = settings.gateway_url
+        self.extract_service_url = settings.extract_service_url
+        self.chunking_service_url = settings.chunking_service_url
+        self.embedding_service_url = settings.embedding_service_url
+        self.query_embedding_service_url = settings.query_embedding_service_url
+        self.search_service_url = settings.search_service_url
+        self.cross_encoder_service_url = settings.cross_encoder_service_url
+        self.generation_service_url = settings.generation_service_url
+        
+        # 서비스 간 직접 통신 URL (Gateway를 거치지 않음)
+        self.extraction_direct_url = f"{self.extract_service_url}/process"
+        self.chunking_direct_url = f"{self.chunking_service_url}/process"
+        self.embedding_direct_url = f"{self.embedding_service_url}/process"
+        self.embedding_image_direct_url = f"{self.embedding_service_url}/process/image"
+        self.query_embedding_direct_url = f"{self.query_embedding_service_url}/process"
+        self.query_embedding_image_direct_url = f"{self.query_embedding_service_url}/process/image"
+        self.search_direct_url = f"{self.search_service_url}/process"
+        self.search_image_direct_url = f"{self.search_service_url}/process/image"
+        self.cross_encoder_direct_url = f"{self.cross_encoder_service_url}/process"
+        self.cross_encoder_image_direct_url = f"{self.cross_encoder_service_url}/process/image"
+        self.generation_direct_url = f"{self.generation_service_url}/process"
+    
+    async def request_extraction(
+        self,
+        file_ids: list,
+        extraction_strategy: str,
+        extraction_params: dict
+    ) -> Dict[Any, Any]:
+        """Extraction 컨테이너로 요청 - 서비스 간 직접 통신"""
+        logger.debug(f"POST {self.extraction_direct_url} | extractionStrategy={extraction_strategy}")
+        async with httpx.AsyncClient(timeout=3600.0) as client:
+            # Extract 서비스에 직접 접근 (서비스 간 통신이므로 인증 불필요)
+            response = await client.post(
+                self.extraction_direct_url,
+                json={
+                    "file": file_ids,
+                    "extractionStrategy": extraction_strategy,
+                    "extractionParameter": extraction_params
+                }
+            )
+            response.raise_for_status()
+            return response.json()
+    
+    async def request_extraction_by_path(
+        self,
+        path: str,
+        extraction_strategy: str,
+        extraction_params: dict
+    ) -> Dict[Any, Any]:
+        """Extraction 컨테이너로 요청 - 경로 기반 /process 사용 (서비스 간 직접 통신)"""
+        logger.debug(f"POST {self.extraction_direct_url} | extractionStrategy={extraction_strategy} path={path}")
+        async with httpx.AsyncClient(timeout=3600.0) as client:
+            response = await client.post(
+                self.extraction_direct_url,
+                json={
+                    "path": path,
+                    "extractionStrategy": extraction_strategy,
+                    "extractionParameter": extraction_params or {}
+                }
+            )
+            response.raise_for_status()
+            return response.json()
+    
+    async def request_extraction_by_file_no(
+        self,
+        file_no: str,
+        extraction_strategy: str,
+        extraction_params: dict,
+        extra_headers: Dict[str, Any] = None,
+        file_name: str = None
+    ) -> Dict[Any, Any]:
+        """Extraction 컨테이너로 요청 - fileNo 기반 /process 사용 (서비스 간 직접 통신)"""
+        logger.debug(f"POST {self.extraction_direct_url} | extractionStrategy={extraction_strategy} fileNo={file_no} fileName={file_name}")
+        async with httpx.AsyncClient(timeout=3600.0) as client:
+            payload = {
+                "fileNo": file_no,
+                "extractionStrategy": extraction_strategy,
+                "extractionParameter": extraction_params or {}
+            }
+            if file_name:
+                payload["fileName"] = file_name
+            response = await client.post(
+                self.extraction_direct_url,
+                headers={k: v for k, v in (extra_headers or {}).items() if v},
+                json=payload
+            )
+            response.raise_for_status()
+            return response.json()
+    
+    async def request_extraction_with_file(
+        self,
+        file_content: bytes,
+        filename: str,
+        extraction_strategy: str,
+        extraction_params: dict,
+        content_type: str = None
+    ) -> Dict[Any, Any]:
+        """파일을 직접 받아서 Extract 서비스로 전송 (multipart/form-data) - 서비스 간 직접 통신"""
+        logger.debug(f"POST {self.extraction_direct_url} (multipart) | filename={filename} extractionStrategy={extraction_strategy}")
+        async with httpx.AsyncClient(timeout=3600.0) as client:
+            # multipart/form-data로 파일과 메타데이터 전송
+            files = {
+                "file": (filename, file_content, content_type or "application/octet-stream")
+            }
+            data = {
+                "extractionStrategy": extraction_strategy,
+                "extractionParameter": json.dumps(extraction_params) if extraction_params else "{}"
+            }
+            
+            # Extract 서비스에 직접 접근 (서비스 간 통신이므로 인증 불필요)
+            logger.info(f"POST {self.extraction_direct_url} (multipart) | filename={filename} extractionStrategy={extraction_strategy}")
+            response = await client.post(
+                self.extraction_direct_url,
+                files=files,
+                data=data
+            )
+            response.raise_for_status()
+            return response.json()
+    
+    async def request_chunking(
+        self,
+        data: Dict[Any, Any],
+        strategy: str,
+        parameters: dict,
+        extra_headers: Dict[str, Any] = None
+    ) -> Dict[Any, Any]:
+        """Chunking 컨테이너로 요청 - 서비스 간 직접 통신"""
+        logger.debug(f"POST {self.chunking_direct_url} | chunkingStrategy={strategy}")
+
+        # extraction_result에서 bucket/path 추출 (pages는 더 이상 사용하지 않음)
+        request_payload: Dict[str, Any] = {
+            "chunkingStrategy": strategy,
+            "chunkingParameter": parameters
+        }
+
+        extraction_data = data.get("result", data) if isinstance(data, dict) else data
+        if not isinstance(extraction_data, dict):
+            raise ValueError("Invalid extraction result for chunking")
+        bucket = extraction_data.get("bucket")
+        path = extraction_data.get("path")
+        if not bucket or not path:
+            raise ValueError("Extraction result missing bucket/path for chunking")
+        request_payload["bucket"] = bucket
+        request_payload["path"] = path
+        request_payload["inline"] = False  # 고정
+        
+        async with httpx.AsyncClient(timeout=3600.0) as client:
+            # Chunking 서비스에 직접 접근 (서비스 간 통신이므로 인증 불필요)
+            response = await client.post(
+                self.chunking_direct_url,
+                json=request_payload,
+                headers={k: v for k, v in (extra_headers or {}).items() if v}
+            )
+            response.raise_for_status()
+            return response.json()
+    
+    async def request_embedding(
+        self,
+        data: Dict[Any, Any],
+        collection_name: str,
+        collection_no: str = None,
+        file_name: str = None,
+        file_no: str = None,
+        strategy: str = None,
+        parameters: dict = None,
+        bucket: str = None,
+        extra_headers: Dict[str, Any] = None
+    ) -> Dict[Any, Any]:
+        """Embedding 컨테이너로 요청 - 서비스 간 직접 통신"""
+        logger.debug(f"POST {self.embedding_direct_url} | embeddingStrategy={strategy}")
+        # chunking_result에서 chunks 형식으로 변환
+        # chunking-repo의 응답 형식: {"chunks": [...], ...}
+        async with httpx.AsyncClient(timeout=3600.0) as client:
+            # Embedding 서비스에 직접 접근 (서비스 간 통신이므로 인증 불필요)
+            request_data = {
+                "chunks": data.get("result", {}).get("chunks", []),
+                "collectionName": collection_name,
+                "collectionNo": collection_no,
+                "fileName": file_name,
+                "fileNo": file_no,
+                "embeddingStrategy": strategy,
+                "embeddingParameter": parameters or {},
+                "bucket": bucket
+            }
+            if file_no:
+                request_data["fileNo"] = file_no
+            
+            response = await client.post(
+                self.embedding_direct_url,
+                json=request_data,
+                headers={k: v for k, v in (extra_headers or {}).items() if v}
+            )
+            response.raise_for_status()
+            return response.json()
+
+    async def request_image_embedding(
+        self,
+        file_no: str,
+        user_no: str,
+        collection_name: str,
+        collection_no: str = None,
+        bucket: str = None,
+        partition: str = None,
+        extra_headers: Dict[str, Any] = None
+    ) -> Dict[Any, Any]:
+        """Image Embedding 컨테이너로 요청 - 서비스 간 직접 통신"""
+        logger.debug(f"POST {self.embedding_image_direct_url} | fileNo={file_no}, userNo={user_no}, collection={collection_name}")
+        async with httpx.AsyncClient(timeout=3600.0) as client:
+            # Embedding 서비스에 직접 접근 (서비스 간 통신이므로 인증 불필요)
+            request_data = {
+                "fileNo": file_no,
+                "userNo": user_no,
+                "collectionName": collection_name,
+                "collectionNo": collection_no,
+                "bucket": bucket,
+                "partition": partition
+            }
+            
+            response = await client.post(
+                self.embedding_image_direct_url,
+                json=request_data,
+                headers={k: v for k, v in (extra_headers or {}).items() if v}
+            )
+            response.raise_for_status()
+            return response.json()
+
+    async def request_query_embedding(
+        self,
+        query: str,
+        strategy: str,
+        parameters: dict
+    ) -> Dict[Any, Any]:
+        """Query Embedding 컨테이너로 요청 - 서비스 간 직접 통신"""
+        logger.debug(f"POST {self.query_embedding_direct_url} | queryEmbeddingStrategy={strategy}")
+        async with httpx.AsyncClient(timeout=3600.0) as client:
+            response = await client.post(
+                self.query_embedding_direct_url,
+                json={
+                    "query": query,
+                    "queryEmbeddingStrategy": strategy,
+                    "queryEmbeddingParameter": parameters
+                }
+            )
+            response.raise_for_status()
+            return response.json()
+    
+    async def request_query_embedding_image(
+        self,
+        query: str,
+        strategy: str,
+        parameters: dict
+    ) -> Dict[Any, Any]:
+        """Query Embedding Image 컨테이너로 요청 - 서비스 간 직접 통신 (이미지 모델 사용)"""
+        logger.debug(f"POST {self.query_embedding_image_direct_url} | queryEmbeddingStrategy={strategy}")
+        async with httpx.AsyncClient(timeout=3600.0) as client:
+            response = await client.post(
+                self.query_embedding_image_direct_url,
+                json={
+                    "query": query,
+                    "queryEmbeddingStrategy": strategy,
+                    "queryEmbeddingParameter": parameters
+                }
+            )
+            response.raise_for_status()
+            return response.json()
+    
+    async def request_search(
+        self,
+        embedding: List[float],
+        collection_name: str,
+        strategy: str = "basic",
+        parameters: dict = None
+    ) -> Dict[Any, Any]:
+        """Search 컨테이너로 요청 - 서비스 간 직접 통신"""
+        logger.debug(f"POST {self.search_direct_url} | searchStrategy={strategy}")
+        async with httpx.AsyncClient(timeout=3600.0) as client:
+            response = await client.post(
+                self.search_direct_url,
+                json={
+                    "embedding": embedding,
+                    "collectionName": collection_name,
+                    "searchStrategy": strategy,
+                    "searchParameter": parameters or {}
+                }
+            )
+            response.raise_for_status()
+            return response.json()
+    
+    async def request_search_image(
+        self,
+        embedding: List[float],
+        collection_name: str,
+        strategy: str = "basic",
+        parameters: dict = None
+    ) -> Dict[Any, Any]:
+        """Search Image 컨테이너로 요청 - 서비스 간 직접 통신 (이미지 컬렉션 사용)"""
+        logger.debug(f"POST {self.search_image_direct_url} | searchStrategy={strategy}")
+        async with httpx.AsyncClient(timeout=3600.0) as client:
+            response = await client.post(
+                self.search_image_direct_url,
+                json={
+                    "embedding": embedding,
+                    "collectionName": collection_name,
+                    "searchStrategy": strategy,
+                    "searchParameter": parameters or {}
+                }
+            )
+            response.raise_for_status()
+            return response.json()
+    
+    async def request_cross_encoder(
+        self,
+        query: str,
+        candidate_embeddings: List[Dict[Any, Any]],
+        strategy: str,
+        parameters: dict
+    ) -> Dict[Any, Any]:
+        """Cross Encoder 컨테이너로 요청 - 서비스 간 직접 통신"""
+        logger.debug(f"POST {self.cross_encoder_direct_url} | crossEncoderStrategy={strategy}")
+        async with httpx.AsyncClient(timeout=3600.0) as client:
+            response = await client.post(
+                self.cross_encoder_direct_url,
+                json={
+                    "query": query,
+                    "candidateEmbeddings": candidate_embeddings,
+                    "crossEncoderStrategy": strategy,
+                    "crossEncoderParameter": parameters
+                }
+            )
+            response.raise_for_status()
+            return response.json()
+    
+    async def request_cross_encoder_image(
+        self,
+        query: str,
+        candidate_embeddings: List[Dict[Any, Any]],
+        strategy: str,
+        parameters: dict
+    ) -> Dict[Any, Any]:
+        """Cross Encoder Image 컨테이너로 요청 - 서비스 간 직접 통신 (이미지 검색 결과의 text 사용)"""
+        logger.debug(f"POST {self.cross_encoder_image_direct_url} | crossEncoderStrategy={strategy}")
+        async with httpx.AsyncClient(timeout=3600.0) as client:
+            response = await client.post(
+                self.cross_encoder_image_direct_url,
+                json={
+                    "query": query,
+                    "candidateEmbeddings": candidate_embeddings,
+                    "crossEncoderStrategy": strategy,
+                    "crossEncoderParameter": parameters
+                }
+            )
+            response.raise_for_status()
+            return response.json()
+    
+    async def request_generation(
+        self,
+        query: str,
+        retrieved_chunks: List[Dict[str, Any]],
+        strategy: str,
+        parameters: dict,
+        extra_headers: Dict[str, Any] = None,
+        retrieved_chunks_image: List[Dict[str, Any]] = None
+    ) -> Dict[Any, Any]:
+        """Generation 컨테이너로 요청 - 서비스 간 직접 통신
+        - retrieved_chunks: text 검색 결과
+        - retrieved_chunks_image: image 검색 결과 (선택적)
+        """
+        logger.debug(f"POST {self.generation_direct_url} | generationStrategy={strategy}")
+        async with httpx.AsyncClient(timeout=3600.0) as client:
+            payload = {
+                "query": query,
+                "retrievedChunks": retrieved_chunks,
+                "generationStrategy": strategy,
+                "generationParameter": parameters
+            }
+            # image 검색 결과가 있으면 따로 추가
+            if retrieved_chunks_image:
+                payload["retrievedChunksImage"] = retrieved_chunks_image
+            
+            response = await client.post(
+                self.generation_direct_url,
+                headers={k: v for k, v in (extra_headers or {}).items() if v},
+                json=payload
+            )
+            response.raise_for_status()
+            return response.json()
+    
+    async def request_generation_stream(
+        self,
+        query: str,
+        retrieved_chunks: List[Dict[str, Any]],
+        strategy: str,
+        parameters: dict,
+        extra_headers: Dict[str, Any] = None,
+        retrieved_chunks_image: List[Dict[str, Any]] = None
+    ):
+        """Generation 컨테이너로 스트리밍 요청 - 서비스 간 직접 통신
+        - retrieved_chunks: text 검색 결과
+        - retrieved_chunks_image: image 검색 결과 (선택적)
+        """
+        logger.debug(f"POST {self.generation_direct_url}/stream | generationStrategy={strategy} (streaming)")
+        stream_url = f"{self.generation_direct_url}/stream"
+        headers = {k: v for k, v in (extra_headers or {}).items() if v}
+        headers["Accept"] = "text/event-stream"
+        
+        payload = {
+            "query": query,
+            "retrievedChunks": retrieved_chunks,
+            "generationStrategy": strategy,
+            "generationParameter": parameters
+        }
+        # image 검색 결과가 있으면 따로 추가
+        if retrieved_chunks_image:
+            payload["retrievedChunksImage"] = retrieved_chunks_image
+        
+        async with httpx.AsyncClient(timeout=httpx.Timeout(connect=30.0, read=None, write=120.0, pool=30.0)) as client:
+            async with client.stream(
+                "POST",
+                stream_url,
+                headers=headers,
+                json=payload
+            ) as response:
+                response.raise_for_status()
+                async for chunk in response.aiter_bytes():
+                    yield chunk
+
+    async def upload_files(self, files: list) -> Dict[Any, Any]:
+        """게이트웨이를 통해 파일 컨테이너로 전송하여 MinIO에 업로드하고 파일 ID 반환"""
+        # files 항목은 (name, fileobj, content_type) 형태의 튜플 리스트를 기대
+        async with httpx.AsyncClient(timeout=3600.0) as client:
+            response = await client.post(
+                self.file_upload_url,
+                files=files
+            )
+            response.raise_for_status()
+            return response.json()
+
