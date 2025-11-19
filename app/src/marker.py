@@ -938,12 +938,20 @@ class Marker(BaseExtractionStrategy):
             uploaded_images: List[Dict[str, Any]] = []
             try:
                 import hashlib
-                for it in det_items:
+                # 원본 파일명 가져오기 (확장자 제거)
+                original_file_name = self.parameters.get("file_name", "") if isinstance(self.parameters, dict) else ""
+                original_doc_name = Path(original_file_name).stem if original_file_name else safe_stem
+                
+                # figure만 필터링하고 순서대로 번호 부여
+                figure_items = [it for it in det_items if it.get("kind") == "fig" and it.get("file_path")]
+                figure_counter = 1
+                
+                for it in figure_items:
                     fp = it.get("file_path")
                     if not fp:
                         continue
                     try:
-                        name_only = Path(fp).name
+                        name_only = Path(fp).name  # MinIO 저장용 (기존 형식 유지)
                         obj_img = f"{user_id}/{name_only}"
                         with open(fp, "rb") as fimg:
                             img_bytes = fimg.read()
@@ -954,9 +962,15 @@ class Marker(BaseExtractionStrategy):
                             content_type="image/png"
                         )
                         sha = hashlib.sha256(img_bytes).hexdigest()
+                        
+                        # DB 저장용 이름 생성: 원본문서명-fig001.png 형식
+                        db_name = f"{original_doc_name}-fig{figure_counter:03d}.png"
+                        figure_counter += 1
+                        
                         uploaded_images.append({
                             "uid": it.get("uid"),
-                            "name": name_only,
+                            "name": name_only,  # MinIO용 (기존 형식)
+                            "db_name": db_name,  # DB용 (원본 문서명 기반)
                             "object_name": obj_img,
                             "bucket": bucket_name,
                             "size": len(img_bytes),
