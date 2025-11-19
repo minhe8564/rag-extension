@@ -1,7 +1,37 @@
 import { useEffect, useRef, useState } from 'react';
 import { EventSourcePolyfill } from 'event-source-polyfill';
 import { useAuthStore } from '@/domains/auth/store/auth.store';
-import type { CurrentGroup, realtimeUserData } from '@/domains/admin/types/rag.dashboard.types';
+import type { realtimeUserData } from '@/domains/admin/types/rag.dashboard.types';
+
+export interface CurrentMetricData {
+  event: string;
+  data: {
+    value: number;
+    total: number;
+    deltaPct: number;
+    direction: string;
+  };
+}
+
+export type NewGroupData = {
+  user: CurrentMetricData;
+  document: CurrentMetricData;
+  error: CurrentMetricData;
+};
+
+export interface MetricStreamPayload {
+  accessUsers?: number;
+  totalAccessUsers?: number;
+
+  uploadedDocs?: number;
+  totalUploadedDocs?: number;
+
+  errorCount?: number;
+  totalError?: number;
+
+  deltaPct?: number;
+  direction?: string;
+}
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null;
@@ -23,18 +53,6 @@ function parseData<T>(raw: string): T | null {
 
 type MetricKey = 'user' | 'document' | 'error';
 
-type RawPayload = {
-  accessUsers?: number;
-  uploadedDocs?: number;
-  errorCount?: number;
-};
-
-const fieldMap: Record<MetricKey, keyof RawPayload> = {
-  user: 'accessUsers',
-  document: 'uploadedDocs',
-  error: 'errorCount',
-};
-
 export type NumberBoardConnected = Record<MetricKey, boolean>;
 export type NumberBoardErrors = Partial<Record<MetricKey, string>>;
 
@@ -42,7 +60,7 @@ export function useNumberBoardStreams() {
   const token = useAuthStore.getState().accessToken;
   const base = import.meta.env.VITE_SPRING_BASE_URL;
 
-  const [currentData, setCurrentData] = useState<CurrentGroup | null>(null);
+  const [currentData, setCurrentData] = useState<NewGroupData | null>(null);
   const [connected, setConnected] = useState<NumberBoardConnected>({
     user: false,
     document: false,
@@ -89,32 +107,58 @@ export function useNumberBoardStreams() {
         handleEvent(evt: Event) {
           if (!isMessageEventString(evt)) return;
 
-          const parsed = parseData<RawPayload>(evt.data);
+          const parsed = parseData<MetricStreamPayload>(evt.data);
           if (!parsed) return;
 
-          const field = fieldMap[key];
-          const value = typeof parsed[field] === 'number' ? (parsed[field] as number) : 0;
+          let value = 0;
+          let total = 0;
+          const deltaPct = parsed.deltaPct ?? 0;
+          const direction = parsed.direction ?? 'flat';
 
+          // key에 따라 값 추출
+          if (key === 'user') {
+            value = parsed.accessUsers ?? 0;
+            total = parsed.totalAccessUsers ?? 0;
+          } else if (key === 'document') {
+            value = parsed.uploadedDocs ?? 0;
+            total = parsed.totalUploadedDocs ?? 0;
+          } else if (key === 'error') {
+            value = parsed.errorCount ?? 0;
+            total = parsed.totalError ?? 0;
+          }
+
+          // state 업데이트
           setCurrentData((prev) => {
-            const baseData =
-              prev ??
-              ({
-                user: { event: '', data: { accessUsers: 0 } },
-                document: { event: '', data: { accessUsers: 0 } },
-                error: { event: '', data: { accessUsers: 0 } },
-              } as CurrentGroup);
+            const baseData: NewGroupData = prev ?? {
+              user: {
+                event: '',
+                data: { value: 0, total: 0, deltaPct: 0, direction: 'flat' },
+              },
+              document: {
+                event: '',
+                data: { value: 0, total: 0, deltaPct: 0, direction: 'flat' },
+              },
+              error: {
+                event: '',
+                data: { value: 0, total: 0, deltaPct: 0, direction: 'flat' },
+              },
+            };
 
             return {
               ...baseData,
               [key]: {
                 event: (evt as MessageEvent).type,
-                data: { accessUsers: value },
+                data: {
+                  value,
+                  total,
+                  deltaPct,
+                  direction,
+                },
               },
             };
           });
 
           hasEverConnectedRef.current[key] = true;
-
           setConnected((c) => ({ ...c, [key]: true }));
           setErrors((e) => ({ ...e, [key]: undefined }));
         },

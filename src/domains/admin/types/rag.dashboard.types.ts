@@ -41,6 +41,12 @@ export type TotalGroup = {
   error: TotalErrorsType;
 };
 
+export type TotalFieldMap = {
+  user: 'totalUser';
+  document: 'totalDocs';
+  error: 'totalErrors';
+};
+
 export type CurrentGroup = {
   user: {
     event: string;
