@@ -1,10 +1,12 @@
 package com.ssafy.hebees.dashboard.controller;
 
 import com.ssafy.hebees.common.response.BaseResponse;
+import com.ssafy.hebees.dashboard.dto.request.ChatbotRandomConfigRequest;
 import com.ssafy.hebees.dashboard.dto.request.ErrorMetricIncrementRequest;
 import com.ssafy.hebees.dashboard.dto.request.MetricIncrementRequest;
 import com.ssafy.hebees.dashboard.dto.request.ModelExpenseUsageRequest;
 import com.ssafy.hebees.dashboard.dto.request.TimeSeriesRequest;
+import com.ssafy.hebees.dashboard.dto.response.ChatbotRandomConfigResponse;
 import com.ssafy.hebees.dashboard.dto.response.Change24hResponse;
 import com.ssafy.hebees.dashboard.model.dto.response.ChatbotTimeSeriesResponse;
 import com.ssafy.hebees.dashboard.chat.dto.response.ChatroomsTodayResponse;
@@ -16,6 +18,7 @@ import com.ssafy.hebees.dashboard.dto.response.TotalDocumentsResponse;
 import com.ssafy.hebees.dashboard.dto.response.TotalErrorsResponse;
 import com.ssafy.hebees.dashboard.dto.response.TotalUsersResponse;
 import com.ssafy.hebees.dashboard.chat.service.DashboardChatService;
+import com.ssafy.hebees.dashboard.model.service.ChatbotUsageStreamService;
 import com.ssafy.hebees.dashboard.model.service.DashboardModelService;
 import com.ssafy.hebees.dashboard.service.DashboardMetricStreamService;
 import com.ssafy.hebees.dashboard.service.DashboardService;
@@ -36,6 +39,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -51,6 +55,7 @@ public class DashboardController {
     private final DashboardMetricStreamService dashboardMetricStreamService;
     private final DashboardChatService dashboardChatService;
     private final DashboardModelService dashboardModelService;
+    private final ChatbotUsageStreamService chatbotUsageStreamService;
 
     @GetMapping("/metrics/access-users/change-24h")
     @Operation(summary = "접속자 수 24시간 변화 조회",
@@ -233,6 +238,28 @@ public class DashboardController {
         @RequestHeader(name = "Last-Event-ID", required = false) String lastEventId
     ) {
         return dashboardModelService.subscribeChatbotStream(lastEventId);
+    }
+
+    @PostMapping("/metrics/chatbot/random-config")
+    @Operation(summary = "챗봇 스트림 난수값 설정",
+        description = "챗봇 스트림에 포함될 난수값의 활성화 여부와 범위(lower ~ upper)를 설정합니다.")
+    @ApiResponse(responseCode = "200", description = "설정 성공")
+    public ResponseEntity<BaseResponse<ChatbotRandomConfigResponse>> setChatbotRandomConfig(
+        @Valid @RequestBody ChatbotRandomConfigRequest request
+    ) {
+        ChatbotRandomConfigResponse response = chatbotUsageStreamService.setRandomConfig(request);
+        return ResponseEntity.ok(
+            BaseResponse.of(HttpStatus.OK, response, "챗봇 스트림 난수값 설정이 업데이트되었습니다."));
+    }
+
+    @GetMapping("/metrics/chatbot/random-config")
+    @Operation(summary = "챗봇 스트림 난수값 설정 조회",
+        description = "현재 챗봇 스트림 난수값 설정을 조회합니다.")
+    @ApiResponse(responseCode = "200", description = "조회 성공")
+    public ResponseEntity<BaseResponse<ChatbotRandomConfigResponse>> getChatbotRandomConfig() {
+        ChatbotRandomConfigResponse response = chatbotUsageStreamService.getRandomConfig();
+        return ResponseEntity.ok(
+            BaseResponse.of(HttpStatus.OK, response, "챗봇 스트림 난수값 설정 조회에 성공하였습니다."));
     }
 
     @PostMapping("/metrics/chatbot/increment")
