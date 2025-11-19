@@ -91,7 +91,7 @@ async def search_process(request: SearchProcessRequest):
         query_embedding_dict = {"embedding": embedding}
         result = strategy.search(query_embedding_dict, collection_name, parameters)
         
-        # candidateEmbeddings 변환
+        # candidateEmbeddings 변환 (텍스트 검색 결과)
         candidate_embeddings = []
         for candidate in result.get("candidateEmbeddings", []):
             metadata_dict = candidate.get("metadata", {})
@@ -153,3 +153,101 @@ async def search_process(request: SearchProcessRequest):
         )
         raise HTTPException(status_code=500, detail=error_response.dict())
 
+
+@router.post("/process/image")
+@with_search_metrics
+async def search_process_image(request: SearchProcessRequest):
+    """
+    Search /process/image 엔드포인트
+    - searchStrategy로 전략 클래스 선택
+    - search() 메서드 호출하여 벡터 검색 수행 (이미지 임베딩)
+    - /process와 동일한 방식으로 검색 및 반환
+    """
+    try:
+        embedding = request.embedding
+        collection_name = request.collectionName
+        strategy_name = request.searchStrategy
+        parameters = request.searchParameter
+
+        logger.info(f"Processing image search: collection={collection_name}, strategy={strategy_name}")
+
+        if not embedding:
+            raise HTTPException(
+                status_code=400,
+                detail="embedding cannot be empty"
+            )
+
+        # 전략 로드
+        strategy = get_strategy(strategy_name, parameters)
+
+        # search() 메서드 호출 (기존 코드와 호환을 위해 Dict 형태로 변환)
+        query_embedding_dict = {"embedding": embedding}
+        result = strategy.search(query_embedding_dict, collection_name, parameters)
+        
+        # candidateEmbeddings 변환 (이미지 검색 결과 - IMAGE_FILE_NO 사용)
+        candidate_embeddings = []
+        for candidate in result.get("candidateEmbeddings", []):
+            metadata_dict = candidate.get("metadata", {})
+            metadata_detail = metadata_dict.get("metadata", {})
+            
+            # metadata_detail이 문자열인 경우 JSON 파싱
+            if isinstance(metadata_detail, str):
+                import json
+                metadata_detail = json.loads(metadata_detail)
+            
+            # 이미지의 경우 IMAGE_FILE_NO를 file_no로 사용
+            # metadata.metadata.IMAGE_FILE_NO가 있으면 그것을 우선 사용
+            file_no = str(metadata_dict.get("file_no", ""))
+            if metadata_detail.get("IMAGE_FILE_NO"):
+                file_no = str(metadata_detail.get("IMAGE_FILE_NO", ""))
+            
+            candidate_embeddings.append(CandidateEmbedding(
+                text=candidate.get("text", ""),
+                metadata=Metadata(
+                    id=str(metadata_dict.get("id", "")),  # id를 string으로 변환
+                    file_no=file_no,
+                    metadata=MetadataDetail(
+                        FILE_NAME=metadata_detail.get("FILE_NAME", ""),
+                        PAGE_NO=metadata_detail.get("PAGE_NO", 1),
+                        INDEX_NO=metadata_detail.get("INDEX_NO", 0),
+                        CREATED_AT=metadata_detail.get("CREATED_AT", ""),
+                        UPDATED_AT=metadata_detail.get("UPDATED_AT", "")
+                    )
+                ),
+                score=candidate.get("score", 0.0)
+            ))
+
+        # Response 생성
+        response = SearchProcessResponse(
+            status=200,
+            code="OK",
+            message="요청에 성공하였습니다.",
+            isSuccess=True,
+            result=SearchProcessResult(
+                collection=result.get("collection", collection_name),
+                candidateEmbeddings=candidate_embeddings,
+                count=result.get("count", len(candidate_embeddings)),
+                strategy=result.get("strategy", strategy_name),
+                parameters=result.get("parameters", parameters)
+            )
+        )
+        return response
+    except HTTPException as e:
+        error_response = ErrorResponse(
+            status=e.status_code,
+            code="VALIDATION_ERROR" if e.status_code == 400 else "NOT_FOUND" if e.status_code == 404 else "INTERNAL_ERROR",
+            message=str(e.detail),
+            isSuccess=False,
+            result={}
+        )
+        raise HTTPException(status_code=e.status_code, detail=error_response.dict())
+    except Exception as e:
+        logger.exception("Error processing image search: {}", e)
+        error_response = ErrorResponse(
+            status=500,
+            code="INTERNAL_ERROR",
+            message=f"Internal server error: {str(e)}",
+            isSuccess=False,
+            result={}
+        )
+        raise HTTPException(status_code=500, detail=error_response.dict())
