@@ -19,6 +19,10 @@ gradle-app.setting
 # Logs
 *.log
 
+# Application configuration files
+src/main/resources/application-local.yml
+src/main/resources/application*.properties
+
 # Local env
 .env
 .env.*

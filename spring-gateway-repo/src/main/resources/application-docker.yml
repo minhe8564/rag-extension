@@ -1,0 +1,25 @@
+spring:
+  data:
+    redis:
+      host: "${REDIS_HOST}"
+      port: "${REDIS_PORT}"
+      password: "${REDIS_PASSWORD}"
+
+server:
+  port: 8080
+
+jwt:
+  secret: "${JWT_SECRET}"
+
+gateway:
+  backend:
+    uri: "${BACKEND_URI}"
+    path: /api/**
+    rewrite-enabled: false
+    rewrite-pattern: /api/(?<segment>.*)
+    rewrite-replacement: /api/$\{segment}
+
+logging:
+  level:
+    org.springframework.cloud.gateway: INFO
+    org.springframework.web.reactive: INFO
