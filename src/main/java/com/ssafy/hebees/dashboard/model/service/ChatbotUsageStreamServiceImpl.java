@@ -2,8 +2,11 @@ package com.ssafy.hebees.dashboard.model.service;
 
 import com.ssafy.hebees.common.util.MonitoringUtils;
 import com.ssafy.hebees.dashboard.dto.request.ChatbotRandomConfigRequest;
+import com.ssafy.hebees.dashboard.dto.request.ChatbotScheduleConfigRequest;
 import com.ssafy.hebees.dashboard.dto.response.ChatbotRandomConfigResponse;
 import com.ssafy.hebees.dashboard.dto.response.ChatbotRequestCountResponse;
+import com.ssafy.hebees.dashboard.dto.response.ChatbotScheduleConfigResponse;
+import jakarta.annotation.PostConstruct;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
@@ -13,12 +16,13 @@ import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -28,13 +32,13 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 //@RequiredArgsConstructor
 public class ChatbotUsageStreamServiceImpl implements ChatbotUsageStreamService {
 
-    private static final long BUCKET_SECONDS = 10L;
-    private static final long BUCKET_MILLIS = BUCKET_SECONDS * 1000L;
+    private static final long DEFAULT_BUCKET_SECONDS = 10L;
     private static final Duration KEY_TTL = Duration.ofMinutes(5);
     private static final String CHATBOT_REQUEST_KEY_PREFIX = "metrics:chatbot:requests:";
     private static final ZoneId ZONE_ID = MonitoringUtils.KST;
 
     private final StringRedisTemplate redisTemplate;
+    private final TaskScheduler taskScheduler;
     private final Set<SseEmitter> subscribers = new CopyOnWriteArraySet<>();
     private final AtomicReference<ChatbotRequestCountResponse> lastSnapshot =
         new AtomicReference<>(new ChatbotRequestCountResponse(
@@ -44,11 +48,21 @@ public class ChatbotUsageStreamServiceImpl implements ChatbotUsageStreamService 
     private final AtomicLong lastProcessedBucket = new AtomicLong(-1L);
     private final AtomicReference<RandomConfig> randomConfig = new AtomicReference<>(
         new RandomConfig(false, 0, 100));
+    private final AtomicReference<Long> bucketSeconds = new AtomicReference<>(
+        DEFAULT_BUCKET_SECONDS);
+    private final AtomicReference<ScheduledFuture<?>> scheduledTask = new AtomicReference<>();
     private final Random random = new Random();
 
     public ChatbotUsageStreamServiceImpl(
-        @Qualifier("dashboardRedisTemplate") StringRedisTemplate redisTemplate) {
+        @Qualifier("dashboardRedisTemplate") StringRedisTemplate redisTemplate,
+        TaskScheduler taskScheduler) {
         this.redisTemplate = redisTemplate;
+        this.taskScheduler = taskScheduler;
+    }
+
+    @PostConstruct
+    void initialize() {
+        startScheduledTask(bucketSeconds.get());
     }
 
     @Override
@@ -119,11 +133,50 @@ public class ChatbotUsageStreamServiceImpl implements ChatbotUsageStreamService 
         return new ChatbotRandomConfigResponse(config.enabled, config.lower, config.upper);
     }
 
-    @Scheduled(initialDelay = BUCKET_MILLIS, fixedRate = BUCKET_MILLIS)
+    @Override
+    public ChatbotScheduleConfigResponse setScheduleConfig(ChatbotScheduleConfigRequest request) {
+        long newIntervalSeconds = request.intervalSeconds();
+        if (newIntervalSeconds < 1) {
+            throw new IllegalArgumentException("intervalSeconds는 1 이상이어야 합니다");
+        }
+
+        bucketSeconds.set(newIntervalSeconds);
+        startScheduledTask(newIntervalSeconds);
+
+        log.info("Chatbot schedule config updated: intervalSeconds={}", newIntervalSeconds);
+
+        return new ChatbotScheduleConfigResponse((int) newIntervalSeconds);
+    }
+
+    @Override
+    public ChatbotScheduleConfigResponse getScheduleConfig() {
+        return new ChatbotScheduleConfigResponse(bucketSeconds.get().intValue());
+    }
+
+    private void startScheduledTask(long intervalSeconds) {
+        // 기존 스케줄 취소
+        ScheduledFuture<?> existingTask = scheduledTask.getAndSet(null);
+        if (existingTask != null) {
+            existingTask.cancel(false);
+        }
+
+        // 새로운 스케줄 시작
+        long intervalMillis = intervalSeconds * 1000L;
+        ScheduledFuture<?> newTask = taskScheduler.scheduleAtFixedRate(
+            this::publishSnapshot,
+            java.time.Instant.now().plusMillis(intervalMillis),
+            Duration.ofSeconds(intervalSeconds)
+        );
+        scheduledTask.set(newTask);
+
+        log.info("Chatbot scheduled task started with interval: {} seconds", intervalSeconds);
+    }
+
     void publishSnapshot() {
+        long bucketSecondsValue = bucketSeconds.get();
         long nowEpoch = Instant.now().getEpochSecond();
-        long currentBucketStart = (nowEpoch / BUCKET_SECONDS) * BUCKET_SECONDS;
-        long latestProcessableStart = currentBucketStart - BUCKET_SECONDS;
+        long currentBucketStart = (nowEpoch / bucketSecondsValue) * bucketSecondsValue;
+        long latestProcessableStart = currentBucketStart - bucketSecondsValue;
 
         if (latestProcessableStart < 0) {
             return;
@@ -131,10 +184,10 @@ public class ChatbotUsageStreamServiceImpl implements ChatbotUsageStreamService 
 
         long previousProcessed = lastProcessedBucket.get();
         if (previousProcessed < 0) {
-            previousProcessed = latestProcessableStart - BUCKET_SECONDS;
+            previousProcessed = latestProcessableStart - bucketSecondsValue;
         }
 
-        long nextBucketStart = previousProcessed + BUCKET_SECONDS;
+        long nextBucketStart = previousProcessed + bucketSecondsValue;
         boolean processedAny = false;
         while (nextBucketStart <= latestProcessableStart) {
             ChatbotRequestCountResponse snapshot = processBucket(nextBucketStart);
@@ -142,7 +195,7 @@ public class ChatbotUsageStreamServiceImpl implements ChatbotUsageStreamService 
             broadcast(snapshot);
             lastProcessedBucket.set(nextBucketStart);
             processedAny = true;
-            nextBucketStart += BUCKET_SECONDS;
+            nextBucketStart += bucketSecondsValue;
         }
 
         if (!processedAny && log.isTraceEnabled()) {
@@ -154,8 +207,9 @@ public class ChatbotUsageStreamServiceImpl implements ChatbotUsageStreamService 
     private ChatbotRequestCountResponse processBucket(long bucketStart) {
         String key = buildBucketKey(bucketStart);
         long count = extractAndDeleteCount(key);
+        long bucketSecondsValue = bucketSeconds.get();
         LocalDateTime timestamp = LocalDateTime.ofInstant(
-            Instant.ofEpochSecond(bucketStart + BUCKET_SECONDS),
+            Instant.ofEpochSecond(bucketStart + bucketSecondsValue),
             ZONE_ID
         );
         ChatbotRequestCountResponse snapshot = new ChatbotRequestCountResponse(timestamp,
@@ -207,8 +261,9 @@ public class ChatbotUsageStreamServiceImpl implements ChatbotUsageStreamService 
             return;
         }
         long count = getCurrentBucketCount(bucketStart);
+        long bucketSecondsValue = bucketSeconds.get();
         LocalDateTime timestamp = LocalDateTime.ofInstant(
-            Instant.ofEpochSecond(bucketStart + BUCKET_SECONDS),
+            Instant.ofEpochSecond(bucketStart + bucketSecondsValue),
             ZONE_ID
         );
         ChatbotRequestCountResponse snapshot = new ChatbotRequestCountResponse(
@@ -301,7 +356,8 @@ public class ChatbotUsageStreamServiceImpl implements ChatbotUsageStreamService 
 
     private long currentBucketStart() {
         long epochSeconds = Instant.now().getEpochSecond();
-        return (epochSeconds / BUCKET_SECONDS) * BUCKET_SECONDS;
+        long bucketSecondsValue = bucketSeconds.get();
+        return (epochSeconds / bucketSecondsValue) * bucketSecondsValue;
     }
 
     private String buildBucketKey(long bucketStart) {
