@@ -12,10 +12,6 @@
 	path = extract-repo
 	url = https://lab.ssafy.com/gd10080008/extract-repo.git
 	branch = develop
-[submodule "chunking-repo"]
-	path = chunking-repo
-	url = https://lab.ssafy.com/gd10080008/chunking-repo.git
-	branch = develop
 [submodule "embedding-repo"]
 	path = embedding-repo
 	url = https://lab.ssafy.com/gd10080008/embedding-repo.git
