@@ -15,15 +15,23 @@ class BaseGenerationStrategy(ABC):
         self,
         query: str,
         retrieved_chunks: List[Dict[str, Any]],
-        memory=None
+        memory=None,
+        user_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+        request_headers: Optional[Dict[str, str]] = None,
+        retrieved_chunks_image: Optional[List[Dict[str, Any]]] = None
     ) -> Dict[Any, Any]:
         """
         쿼리와 검색된 청크를 사용하여 최종 답변 생성
         
         Args:
             query: 검색 쿼리 문자열
-            retrieved_chunks: 검색된 청크 리스트
+            retrieved_chunks: 검색된 텍스트 청크 리스트
             memory: LangChain memory 객체 (선택적, history 기능용)
+            user_id: 사용자 ID
+            session_id: 세션 ID
+            request_headers: 요청 헤더 (presigned URL 요청 시 사용)
+            retrieved_chunks_image: 검색된 이미지 청크 리스트 (선택적)
         
         Returns:
             생성된 답변 딕셔너리
@@ -37,18 +45,20 @@ class BaseGenerationStrategy(ABC):
         memory=None,
         user_id: Optional[str] = None,
         session_id: Optional[str] = None,
-        request_headers: Optional[Dict[str, str]] = None
+        request_headers: Optional[Dict[str, str]] = None,
+        retrieved_chunks_image: Optional[List[Dict[str, Any]]] = None
     ) -> AsyncIterator[str]:
         """
         스트리밍 방식으로 답변 생성 (기본 구현: generate를 호출하고 결과를 스트리밍)
         
         Args:
             query: 검색 쿼리 문자열
-            retrieved_chunks: 검색된 청크 리스트
+            retrieved_chunks: 검색된 텍스트 청크 리스트
             memory: LangChain memory 객체 (선택적)
             user_id: 사용자 ID
             session_id: 세션 ID
             request_headers: 요청 헤더
+            retrieved_chunks_image: 검색된 이미지 청크 리스트 (선택적)
         
         Yields:
             SSE 형식의 문자열 청크
@@ -60,7 +70,8 @@ class BaseGenerationStrategy(ABC):
             memory=memory,
             user_id=user_id,
             session_id=session_id,
-            request_headers=request_headers
+            request_headers=request_headers,
+            retrieved_chunks_image=retrieved_chunks_image
         )
         answer = result.get("answer", "")
         # 답변을 작은 청크로 나누어 스트리밍

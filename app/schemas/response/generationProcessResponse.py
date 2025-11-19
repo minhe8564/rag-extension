@@ -20,6 +20,7 @@ class GenerationProcessResult(BaseModel):
     parameters: Dict[Any, Any]
     messageNo: str | None = None
     createdAt: str | None = None
+    references: List[Dict[str, Any]] = []  # text와 image references 포함
 
 
 class GenerationProcessResponse(BaseModel):

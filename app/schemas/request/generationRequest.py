@@ -11,4 +11,6 @@ class GenerationProcessRequest(BaseModel):
     # History 관련 필드 (항상 memory 사용, userId와 sessionId가 있으면 활성화)
     userId: Optional[str] = None
     sessionId: Optional[str] = None
+    # Image 검색 결과 (별도로 받아서 처리)
+    retrievedChunksImage: Optional[List[Dict[str, Any]]] = None
 
