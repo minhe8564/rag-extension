@@ -15,7 +15,13 @@ import {
   getTotalErrorCount,
   getErrorChangeTrend,
 } from '@/domains/admin/api/rag.dashboard.api';
-import type { TrendGroup, TotalGroup } from '@/domains/admin/types/rag.dashboard.types';
+import type {
+  TrendGroup,
+  TotalGroup,
+  TotalUserType,
+  TotalDocsType,
+  TotalErrorsType,
+} from '@/domains/admin/types/rag.dashboard.types';
 import {
   useNumberBoardStreams,
   useRealtimeUserStream,
@@ -30,6 +36,22 @@ export default function NumberBoard() {
   const { realtimeUserData } = useRealtimeUserStream();
   const [totalData, setTotalData] = useState<TotalGroup | null>(null);
   const [trendData, setTrendData] = useState<TrendGroup | null>(null);
+  const [isSSEReady, setIsSSEReady] = useState(false);
+
+  function getTotalValueByKey(key: keyof TotalGroup, total: TotalGroup[keyof TotalGroup]) {
+    if (key === 'user') return (total as TotalUserType).totalUser;
+    if (key === 'document') return (total as TotalDocsType).totalDocs;
+    if (key === 'error') return (total as TotalErrorsType).totalErrors;
+    return 0;
+  }
+
+  useEffect(() => {
+    if (currentData?.user?.data && currentData?.document?.data && currentData?.error?.data) {
+      setIsSSEReady(true);
+      console.log(isSSEReady);
+    }
+    console.log(currentData);
+  }, [currentData]);
 
   useEffect(() => {
     const fetchTotalData = async () => {
@@ -84,12 +106,6 @@ export default function NumberBoard() {
     fetchTotalData();
   }, []);
 
-  const totalFieldMap = {
-    user: 'totalUser',
-    document: 'totalDocs',
-    error: 'totalErrors',
-  } as const;
-
   const anyConnected = connected?.user || connected?.document || connected?.error || false;
   const anyError = Boolean(errors?.user || errors?.document || errors?.error);
 
@@ -124,18 +140,28 @@ export default function NumberBoard() {
     icon: JSX.Element,
     totalLabel: string
   ) => {
-    const current = currentData?.[key]?.data.accessUsers ?? 0;
-    const trend = trendData?.[key];
-    const total = totalData?.[key];
-    const field = totalFieldMap[key];
-    const totalCount = (total as Record<string, number | string | undefined>)?.[field] ?? 0;
+    const sse = currentData?.[key]?.data;
 
-    const deltaValue =
-      trend?.deltaPct !== undefined ? Number((trend.deltaPct * 100).toFixed(2)) : 0;
-    const direction = trend?.direction ?? 'flat';
+    const current = isSSEReady ? (sse?.value ?? 0) : (trendData?.[key]?.todayTotal ?? 0);
+    const apiTotal = totalData?.[key];
+    const apiTotalValue = apiTotal ? getTotalValueByKey(key, apiTotal) : 0;
+
+    const total = isSSEReady ? (sse?.total ?? apiTotalValue) : apiTotalValue;
+
+    const apiTrend = trendData?.[key];
+    const deltaPct = isSSEReady
+      ? (sse?.deltaPct ?? apiTrend?.deltaPct ?? 0)
+      : (apiTrend?.deltaPct ?? 0);
+
+    const direction = isSSEReady
+      ? (sse?.direction ?? apiTrend?.direction ?? 'flat')
+      : (apiTrend?.direction ?? 'flat');
+
+    const deltaValue = Number((deltaPct * 100).toFixed(2));
+    const sign = deltaValue > 0 ? '+' : '';
 
     const IconArrow = direction === 'up' ? TrendingUp : direction === 'down' ? TrendingDown : null;
-    const sign = deltaValue > 0 ? '+' : '';
+
     const colorClass =
       direction === 'up'
         ? 'text-emerald-600 bg-emerald-50 border-emerald-100'
@@ -143,19 +169,17 @@ export default function NumberBoard() {
           ? 'text-rose-600 bg-rose-50 border-rose-100'
           : 'text-slate-500 bg-slate-50 border-slate-100';
 
-    const asOf = trend?.asOf ?? total?.asOf;
+    const asOf = trendData?.[key]?.asOf ?? totalData?.[key]?.asOf;
 
     return (
-      <article className="flex h-full flex-col rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-sm transition-transform duration-150 hover:-translate-y-0.5 hover:border-slate-300">
+      <article className="flex h-full flex-col rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-sm">
         <header className="mb-6 flex items-center justify-between gap-2">
           <div className="flex items-center gap-3">
             {icon}
             <div className="flex flex-col">
               <span className="text-lg font-medium text-gray-900">{title}</span>
-              {/* <span className="text-[11px] text-slate-400">{subtitle}</span> */}
             </div>
           </div>
-          {/* {key === 'user' && <LiveBadge />} */}
         </header>
 
         <div className="flex flex-1 flex-col gap-2">
@@ -171,7 +195,7 @@ export default function NumberBoard() {
                 {totalLabel}
               </span>
               <span className="text-base font-medium text-slate-600 tabular-nums">
-                {totalCount.toLocaleString()}
+                {total.toLocaleString()}
               </span>
             </div>
           </div>
@@ -181,7 +205,7 @@ export default function NumberBoard() {
             <div
               className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${colorClass}`}
             >
-              {IconArrow && <IconArrow size={11} className="shrink-0" />}
+              {IconArrow && <IconArrow size={11} />}
               <span>
                 {sign}
                 {Math.abs(deltaValue).toFixed(2)}%
