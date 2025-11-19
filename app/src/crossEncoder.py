@@ -101,7 +101,8 @@ class CrossEncoder(BaseCrossEncoderStrategy):
                 if isinstance(meta_outer.get("metadata"), dict):
                     meta_inner = meta_outer.get("metadata") or {}
                 # Attempt to read file_no and file name
-                file_no = meta_outer.get("file_no") or meta_outer.get("FILE_NO") or meta_inner.get("FILE_NO")
+                # 이미지의 경우 IMAGE_FILE_NO를 우선 사용, 없으면 기존 방식 사용
+                file_no = meta_inner.get("IMAGE_FILE_NO") or meta_outer.get("file_no") or meta_outer.get("FILE_NO") or meta_inner.get("FILE_NO")
                 file_name = meta_inner.get("FILE_NAME") or meta_outer.get("file_name")
                 page_no = meta_inner.get("PAGE_NO", 1)
                 index_no = meta_inner.get("INDEX_NO", i)
@@ -110,7 +111,7 @@ class CrossEncoder(BaseCrossEncoderStrategy):
                     "chunk_id": index_no if index_no is not None else i,
                     "text": candidate.get("text", ""),
                     "score": candidate.get("crossEncoderScore", 0.0),
-                    "fileNo": file_no or "",
+                    "fileNo": str(file_no) if file_no else "",
                     "fileName": file_name or "",
                 })
             

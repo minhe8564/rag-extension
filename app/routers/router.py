@@ -123,3 +123,76 @@ async def cross_encoder_process(request: CrossEncoderProcessRequest):
         )
         raise HTTPException(status_code=500, detail=error_response.dict())
 
+
+@router.post("/process/image")
+@with_cross_encoder_metrics
+async def cross_encoder_process_image(request: CrossEncoderProcessRequest):
+    """Cross Encoder /process/image 엔드포인트
+    - /process와 동일한 방식으로 요청 받기
+    - /process와 동일한 방식으로 검색 및 반환
+    """
+    try:
+        query = request.query
+        candidate_embeddings = request.candidateEmbeddings
+        strategy_name = request.crossEncoderStrategy
+        parameters = request.crossEncoderParameter
+
+        logger.info(f"Processing image cross-encoder: {len(candidate_embeddings)} candidates, strategy={strategy_name}")
+
+        if not query:
+            raise HTTPException(status_code=400, detail="query cannot be empty")
+
+        # 전략 로드
+        strategy = get_strategy(strategy_name, parameters)
+
+        # rerank() 메서드 호출 (기존 코드와 호환을 위해 Dict 형태로 변환)
+        query_embedding_dict = {"query": query}
+        result = strategy.rerank(query_embedding_dict, candidate_embeddings)
+
+        # retrievedChunks 변환
+        retrieved_chunks = [
+            RetrievedChunk(
+                page=chunk.get("page", 1),
+                chunk_id=chunk.get("chunk_id", 0),
+                text=chunk.get("text", ""),
+                score=chunk.get("score", 0.0),
+                fileNo=chunk.get("fileNo", ""),
+                fileName=chunk.get("fileName", "")
+            )
+            for chunk in result.get("retrievedChunks", [])
+        ]
+
+        # Response 생성
+        response = CrossEncoderProcessResponse(
+            status=200,
+            code="OK",
+            message="요청에 성공하였습니다.",
+            isSuccess=True,
+            result=CrossEncoderProcessResult(
+                query=result.get("query", query),
+                retrievedChunks=retrieved_chunks,
+                count=result.get("count", len(retrieved_chunks)),
+                strategy=result.get("strategy", strategy_name),
+                parameters=result.get("parameters", parameters)
+            )
+        )
+        return response
+    except HTTPException as e:
+        error_response = ErrorResponse(
+            status=e.status_code,
+            code="VALIDATION_ERROR" if e.status_code == 400 else "NOT_FOUND" if e.status_code == 404 else "INTERNAL_ERROR",
+            message=str(e.detail),
+            isSuccess=False,
+            result={}
+        )
+        raise HTTPException(status_code=e.status_code, detail=error_response.dict())
+    except Exception as e:
+        logger.error(f"Error processing image cross-encoder: {str(e)}", exc_info=True)
+        error_response = ErrorResponse(
+            status=500,
+            code="INTERNAL_ERROR",
+            message=f"Internal server error: {str(e)}",
+            isSuccess=False,
+            result={}
+        )
+        raise HTTPException(status_code=500, detail=error_response.dict())
