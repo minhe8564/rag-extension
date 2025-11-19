@@ -23,12 +23,6 @@ import {
   useDeleteNotificationMutation,
 } from '@/shared/hooks/useNotificationQuery';
 
-// 상단 import 추가
-import { useAuthStore } from '@/domains/auth/store/auth.store';
-import { useIngestNotifyStream } from '@/shared/hooks/useIngestNotifyStream';
-import { useNotificationStore } from '@/shared/store/useNotificationStore';
-import { useIngestStreamStore } from '@/shared/store/useIngestStreamStore';
-
 const labelCls = (isOpen: boolean) =>
   'ml-2 whitespace-nowrap transition-[max-width,opacity,transform] duration-300 ' +
   (isOpen
