@@ -23,8 +23,11 @@ class GatewayClient:
         self.embedding_direct_url = f"{self.embedding_service_url}/process"
         self.embedding_image_direct_url = f"{self.embedding_service_url}/process/image"
         self.query_embedding_direct_url = f"{self.query_embedding_service_url}/process"
+        self.query_embedding_image_direct_url = f"{self.query_embedding_service_url}/process/image"
         self.search_direct_url = f"{self.search_service_url}/process"
+        self.search_image_direct_url = f"{self.search_service_url}/process/image"
         self.cross_encoder_direct_url = f"{self.cross_encoder_service_url}/process"
+        self.cross_encoder_image_direct_url = f"{self.cross_encoder_service_url}/process/image"
         self.generation_direct_url = f"{self.generation_service_url}/process"
     
     async def request_extraction(
@@ -247,6 +250,26 @@ class GatewayClient:
             response.raise_for_status()
             return response.json()
     
+    async def request_query_embedding_image(
+        self,
+        query: str,
+        strategy: str,
+        parameters: dict
+    ) -> Dict[Any, Any]:
+        """Query Embedding Image 컨테이너로 요청 - 서비스 간 직접 통신 (이미지 모델 사용)"""
+        logger.debug(f"POST {self.query_embedding_image_direct_url} | queryEmbeddingStrategy={strategy}")
+        async with httpx.AsyncClient(timeout=3600.0) as client:
+            response = await client.post(
+                self.query_embedding_image_direct_url,
+                json={
+                    "query": query,
+                    "queryEmbeddingStrategy": strategy,
+                    "queryEmbeddingParameter": parameters
+                }
+            )
+            response.raise_for_status()
+            return response.json()
+    
     async def request_search(
         self,
         embedding: List[float],
@@ -259,6 +282,28 @@ class GatewayClient:
         async with httpx.AsyncClient(timeout=3600.0) as client:
             response = await client.post(
                 self.search_direct_url,
+                json={
+                    "embedding": embedding,
+                    "collectionName": collection_name,
+                    "searchStrategy": strategy,
+                    "searchParameter": parameters or {}
+                }
+            )
+            response.raise_for_status()
+            return response.json()
+    
+    async def request_search_image(
+        self,
+        embedding: List[float],
+        collection_name: str,
+        strategy: str = "basic",
+        parameters: dict = None
+    ) -> Dict[Any, Any]:
+        """Search Image 컨테이너로 요청 - 서비스 간 직접 통신 (이미지 컬렉션 사용)"""
+        logger.debug(f"POST {self.search_image_direct_url} | searchStrategy={strategy}")
+        async with httpx.AsyncClient(timeout=3600.0) as client:
+            response = await client.post(
+                self.search_image_direct_url,
                 json={
                     "embedding": embedding,
                     "collectionName": collection_name,
@@ -291,26 +336,57 @@ class GatewayClient:
             response.raise_for_status()
             return response.json()
     
+    async def request_cross_encoder_image(
+        self,
+        query: str,
+        candidate_embeddings: List[Dict[Any, Any]],
+        strategy: str,
+        parameters: dict
+    ) -> Dict[Any, Any]:
+        """Cross Encoder Image 컨테이너로 요청 - 서비스 간 직접 통신 (이미지 검색 결과의 text 사용)"""
+        logger.debug(f"POST {self.cross_encoder_image_direct_url} | crossEncoderStrategy={strategy}")
+        async with httpx.AsyncClient(timeout=3600.0) as client:
+            response = await client.post(
+                self.cross_encoder_image_direct_url,
+                json={
+                    "query": query,
+                    "candidateEmbeddings": candidate_embeddings,
+                    "crossEncoderStrategy": strategy,
+                    "crossEncoderParameter": parameters
+                }
+            )
+            response.raise_for_status()
+            return response.json()
+    
     async def request_generation(
         self,
         query: str,
         retrieved_chunks: List[Dict[str, Any]],
         strategy: str,
         parameters: dict,
-        extra_headers: Dict[str, Any] = None
+        extra_headers: Dict[str, Any] = None,
+        retrieved_chunks_image: List[Dict[str, Any]] = None
     ) -> Dict[Any, Any]:
-        """Generation 컨테이너로 요청 - 서비스 간 직접 통신"""
+        """Generation 컨테이너로 요청 - 서비스 간 직접 통신
+        - retrieved_chunks: text 검색 결과
+        - retrieved_chunks_image: image 검색 결과 (선택적)
+        """
         logger.debug(f"POST {self.generation_direct_url} | generationStrategy={strategy}")
         async with httpx.AsyncClient(timeout=3600.0) as client:
+            payload = {
+                "query": query,
+                "retrievedChunks": retrieved_chunks,
+                "generationStrategy": strategy,
+                "generationParameter": parameters
+            }
+            # image 검색 결과가 있으면 따로 추가
+            if retrieved_chunks_image:
+                payload["retrievedChunksImage"] = retrieved_chunks_image
+            
             response = await client.post(
                 self.generation_direct_url,
                 headers={k: v for k, v in (extra_headers or {}).items() if v},
-                json={
-                    "query": query,
-                    "retrievedChunks": retrieved_chunks,
-                    "generationStrategy": strategy,
-                    "generationParameter": parameters
-                }
+                json=payload
             )
             response.raise_for_status()
             return response.json()
@@ -321,25 +397,34 @@ class GatewayClient:
         retrieved_chunks: List[Dict[str, Any]],
         strategy: str,
         parameters: dict,
-        extra_headers: Dict[str, Any] = None
+        extra_headers: Dict[str, Any] = None,
+        retrieved_chunks_image: List[Dict[str, Any]] = None
     ):
-        """Generation 컨테이너로 스트리밍 요청 - 서비스 간 직접 통신"""
+        """Generation 컨테이너로 스트리밍 요청 - 서비스 간 직접 통신
+        - retrieved_chunks: text 검색 결과
+        - retrieved_chunks_image: image 검색 결과 (선택적)
+        """
         logger.debug(f"POST {self.generation_direct_url}/stream | generationStrategy={strategy} (streaming)")
         stream_url = f"{self.generation_direct_url}/stream"
         headers = {k: v for k, v in (extra_headers or {}).items() if v}
         headers["Accept"] = "text/event-stream"
+        
+        payload = {
+            "query": query,
+            "retrievedChunks": retrieved_chunks,
+            "generationStrategy": strategy,
+            "generationParameter": parameters
+        }
+        # image 검색 결과가 있으면 따로 추가
+        if retrieved_chunks_image:
+            payload["retrievedChunksImage"] = retrieved_chunks_image
         
         async with httpx.AsyncClient(timeout=httpx.Timeout(connect=30.0, read=None, write=120.0, pool=30.0)) as client:
             async with client.stream(
                 "POST",
                 stream_url,
                 headers=headers,
-                json={
-                    "query": query,
-                    "retrievedChunks": retrieved_chunks,
-                    "generationStrategy": strategy,
-                    "generationParameter": parameters
-                }
+                json=payload
             ) as response:
                 response.raise_for_status()
                 async for chunk in response.aiter_bytes():

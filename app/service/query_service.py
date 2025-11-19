@@ -12,7 +12,7 @@ class QueryService:
     def __init__(self):
         self.gateway_client = GatewayClient()
     
-    async def process_query_v2(
+    async def process_query(
         self,
         request: QueryProcessV2Request,
         db: AsyncSession,
@@ -21,7 +21,7 @@ class QueryService:
         authorization: str | None = None
     ) -> Dict[Any, Any]:
         """
-        Query 요청 처리 V2 
+        Query 요청 처리
         - userNo로 OFFER_NO, ROLE 조회
         - ROLE에 따라 컬렉션명 생성 (USER: h{offerNo}_{version}, ADMIN: publicRetina_{version})
         - QUERY_GROUP에서 IS_DEFAULT=TRUE 파라미터 로드 (retrieval, reranking, prompting)
@@ -29,7 +29,7 @@ class QueryService:
         - query-embedding -> search (필요시 public 파티션 추가 검색) -> cross-encoder -> generation(ollama)
         - generation 호출 시 sessionNo/userNo/llmNo 전달 (Mongo 저장 메타)
         """
-        logger.info("Starting query pipeline V2 for query: {}", request.query)
+        logger.info("Starting query pipeline for query: {}", request.query)
 
         # 0) 사용자 정보 조회 (헤더에서 role/uuid, DB에서는 OFFER_NO만 조회)
         user_no = (x_user_uuid or "").strip()
@@ -167,6 +167,24 @@ class QueryService:
             logger.error(f"Query embedding via query-embedding-repo failed: {str(e)}", exc_info=True)
             raise
 
+        # 3-1) Query Embedding Image - query-embedding-repo/image 경유 (이미지 모델 사용)
+        embedding_image = None
+        try:
+            qe_image_strategy = "mclip"  # 같은 전략, 다른 엔드포인트
+            qe_image_param = {"model": "sentence-transformers/clip-ViT-B-32-multilingual-v1"}  # 이미지 모델로 변경 필요할 수 있음
+            qe_image_res = await self.gateway_client.request_query_embedding_image(
+                query=request.query,
+                strategy=qe_image_strategy,
+                parameters=qe_image_param
+            )
+            embedding_image = qe_image_res.get("result", {}).get("embedding", [])
+            if not isinstance(embedding_image, list) or not embedding_image:
+                logger.warning("Invalid query embedding image, skipping image search")
+                embedding_image = None
+        except Exception as e:
+            logger.warning(f"Query embedding image via query-embedding-repo failed: {str(e)}, continuing without image search")
+            embedding_image = None
+
         # 4) Search - 기본 컬렉션
         logger.info("Retrieval param: {}", retrieval_param)
         search_primary = await self.gateway_client.request_search(
@@ -191,6 +209,43 @@ class QueryService:
                 candidates += search_public.get("result", {}).get("candidateEmbeddings", [])
             except Exception as se:
                 logger.warning("Public partition search failed or skipped: {}", se)
+        
+        # 4-1) Search Image - 이미지 컬렉션 (컬렉션 이름에 _image_ 추가)
+        candidates_image = []
+        if embedding_image:
+            try:
+                # 컬렉션 이름 형식: h{offerNo}_image_{versionNo} 또는 publicRetina_image_{versionNo}
+                if is_admin:
+                    image_collection_name = f"publicRetina_image_{version_no}"
+                else:
+                    image_collection_name = f"h{offer_no}_image_{version_no}"
+                search_image_primary = await self.gateway_client.request_search_image(
+                    embedding=embedding_image,
+                    collection_name=image_collection_name,
+                    strategy=retrieval_strategy,
+                    parameters=retrieval_param or {}
+                )
+                candidates_image = search_image_primary.get("result", {}).get("candidateEmbeddings", [])
+                
+                # USER의 경우 publicRetina 이미지 컬렉션도 추가 검색
+                if not is_admin:
+                    public_image_collection_name = f"publicRetina_image_{public_version}"
+                    public_image_params = dict(retrieval_param or {})
+                    public_image_params.setdefault("partition", "public")
+                    try:
+                        search_image_public = await self.gateway_client.request_search_image(
+                            embedding=embedding_image,
+                            collection_name=public_image_collection_name,
+                            strategy=retrieval_strategy,
+                            parameters=public_image_params
+                        )
+                        candidates_image += search_image_public.get("result", {}).get("candidateEmbeddings", [])
+                    except Exception as se:
+                        logger.warning("Public image partition search failed or skipped: {}", se)
+            except Exception as e:
+                logger.warning(f"Image search failed: {str(e)}, continuing without image results")
+                candidates_image = []
+        
         # 5) Cross-Encoder
         cross_res = await self.gateway_client.request_cross_encoder(
             query=request.query,
@@ -200,8 +255,23 @@ class QueryService:
         )
         retrieved_chunks = cross_res.get("result", {}).get("retrievedChunks", [])
         
+        # 5-1) Cross-Encoder Image - 같은 방식으로 candidates_image 전달
+        retrieved_chunks_image = []
+        if candidates_image:
+            try:
+                cross_image_res = await self.gateway_client.request_cross_encoder_image(
+                    query=request.query,
+                    candidate_embeddings=candidates_image,
+                    strategy=reranking_strategy,
+                    parameters=reranking_param or {}
+                )
+                retrieved_chunks_image = cross_image_res.get("result", {}).get("retrievedChunks", [])
+            except Exception as e:
+                logger.warning(f"Image cross-encoder failed: {str(e)}, continuing without image reranking")
+                retrieved_chunks_image = []
 
         # 6) Generation (provider 전략) - Mongo 저장 메타 포함
+        # text와 image 결과를 따로 전달 (generation에서 구분 가능하도록)
         gen_params = dict(generation_param or {})
         # Inject prompting templates
         try:
@@ -220,7 +290,8 @@ class QueryService:
         })
         gen_res = await self.gateway_client.request_generation(
             query=request.query,
-            retrieved_chunks=retrieved_chunks,
+            retrieved_chunks=retrieved_chunks,  # text 검색 결과
+            retrieved_chunks_image=retrieved_chunks_image if retrieved_chunks_image else None,  # image 검색 결과 (별도 전달)
             strategy=generation_strategy,
             parameters=gen_params,
             extra_headers={
@@ -237,7 +308,7 @@ class QueryService:
             "createdAt": gen_result.get("createdAt"),
         }
     
-    async def process_query_v2_stream(
+    async def process_query_stream(
         self,
         request: QueryProcessV2Request,
         db: AsyncSession,
@@ -246,12 +317,12 @@ class QueryService:
         authorization: str | None = None
     ):
         """
-        Query 요청 처리 V2 (스트리밍 버전)
-        - process_query_v2와 동일하지만 generation을 스트리밍으로 호출
+        Query 요청 처리 (스트리밍 버전)
+        - process_query와 동일하지만 generation을 스트리밍으로 호출
         - QUERY_GROUP에서 기본 파라미터 로드 (retrieval, reranking, prompting)
         - STRATEGY 테이블에서 LLM_NO로 generation_parameter 로드
         """
-        logger.info("Starting query pipeline V2 (stream) for query: {}", request.query)
+        logger.info("Starting query pipeline (stream) for query: {}", request.query)
 
         # 0) 사용자 정보 조회 (헤더에서만 가져옴)
         user_no = (x_user_uuid or "").strip()
@@ -387,6 +458,24 @@ class QueryService:
             logger.error(f"Query embedding via query-embedding-repo failed: {str(e)}", exc_info=True)
             raise
 
+        # 3-1) Query Embedding Image - query-embedding-repo/image 경유 (이미지 모델 사용)
+        embedding_image = None
+        try:
+            qe_image_strategy = "mclip"  # 같은 전략, 다른 엔드포인트
+            qe_image_param = {"model": "sentence-transformers/clip-ViT-B-32-multilingual-v1"}  # 이미지 모델로 변경 필요할 수 있음
+            qe_image_res = await self.gateway_client.request_query_embedding_image(
+                query=request.query,
+                strategy=qe_image_strategy,
+                parameters=qe_image_param
+            )
+            embedding_image = qe_image_res.get("result", {}).get("embedding", [])
+            if not isinstance(embedding_image, list) or not embedding_image:
+                logger.warning("Invalid query embedding image, skipping image search")
+                embedding_image = None
+        except Exception as e:
+            logger.warning(f"Query embedding image via query-embedding-repo failed: {str(e)}, continuing without image search")
+            embedding_image = None
+
         # 4) Search
         logger.info("Retrieval param: {}", retrieval_param)
         search_primary = await self.gateway_client.request_search(
@@ -411,6 +500,42 @@ class QueryService:
             except Exception as se:
                 logger.warning("Public partition search failed or skipped: {}", se)
         
+        # 4-1) Search Image - 이미지 컬렉션 (컬렉션 이름에 _image_ 추가)
+        candidates_image = []
+        if embedding_image:
+            try:
+                # 컬렉션 이름 형식: h{offerNo}_image_{versionNo} 또는 publicRetina_image_{versionNo}
+                if is_admin:
+                    image_collection_name = f"publicRetina_image_{version_no}"
+                else:
+                    image_collection_name = f"h{offer_no}_image_{version_no}"
+                search_image_primary = await self.gateway_client.request_search_image(
+                    embedding=embedding_image,
+                    collection_name=image_collection_name,
+                    strategy=retrieval_strategy,
+                    parameters=retrieval_param or {}
+                )
+                candidates_image = search_image_primary.get("result", {}).get("candidateEmbeddings", [])
+                
+                # USER의 경우 publicRetina 이미지 컬렉션도 추가 검색
+                if not is_admin:
+                    public_image_collection_name = f"publicRetina_image_{public_version}"
+                    public_image_params = dict(retrieval_param or {})
+                    public_image_params.setdefault("partition", "public")
+                    try:
+                        search_image_public = await self.gateway_client.request_search_image(
+                            embedding=embedding_image,
+                            collection_name=public_image_collection_name,
+                            strategy=retrieval_strategy,
+                            parameters=public_image_params
+                        )
+                        candidates_image += search_image_public.get("result", {}).get("candidateEmbeddings", [])
+                    except Exception as se:
+                        logger.warning("Public image partition search failed or skipped: {}", se)
+            except Exception as e:
+                logger.warning(f"Image search failed: {str(e)}, continuing without image results")
+                candidates_image = []
+        
         # 5) Cross-Encoder
         cross_res = await self.gateway_client.request_cross_encoder(
             query=request.query,
@@ -419,8 +544,24 @@ class QueryService:
             parameters=reranking_param or {}
         )
         retrieved_chunks = cross_res.get("result", {}).get("retrievedChunks", [])
+        
+        # 5-1) Cross-Encoder Image - 같은 방식으로 candidates_image 전달
+        retrieved_chunks_image = []
+        if candidates_image:
+            try:
+                cross_image_res = await self.gateway_client.request_cross_encoder_image(
+                    query=request.query,
+                    candidate_embeddings=candidates_image,
+                    strategy=reranking_strategy,
+                    parameters=reranking_param or {}
+                )
+                retrieved_chunks_image = cross_image_res.get("result", {}).get("retrievedChunks", [])
+            except Exception as e:
+                logger.warning(f"Image cross-encoder failed: {str(e)}, continuing without image reranking")
+                retrieved_chunks_image = []
 
         # 6) Generation (스트리밍)
+        # text와 image 결과를 따로 전달 (generation에서 구분 가능하도록)
         gen_params = dict(generation_param or {})
         try:
             up = (user_prompting_param or {}).get("content")
@@ -440,7 +581,8 @@ class QueryService:
         # 스트리밍 응답 반환
         async for chunk in self.gateway_client.request_generation_stream(
             query=request.query,
-            retrieved_chunks=retrieved_chunks,
+            retrieved_chunks=retrieved_chunks,  # text 검색 결과
+            retrieved_chunks_image=retrieved_chunks_image if retrieved_chunks_image else None,  # image 검색 결과 (별도 전달)
             strategy=generation_strategy,
             parameters=gen_params,
             extra_headers={
