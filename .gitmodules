@@ -20,10 +20,6 @@
 	path = search-repo
 	url = https://lab.ssafy.com/gd10080008/search-repo.git
 	branch = develop
-[submodule "cross-encoder-repo"]
-	path = cross-encoder-repo
-	url = https://lab.ssafy.com/gd10080008/cross-encoder-repo.git
-	branch = develop
 [submodule "generation-repo"]
 	path = generation-repo
 	url = https://lab.ssafy.com/gd10080008/generation-repo.git
