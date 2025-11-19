@@ -22,3 +22,4 @@ public class CustomJwtException extends RuntimeException {
         this.errorCode = errorCode;
     }
 }
+

@@ -83,8 +83,9 @@ public class JwtAuthenticationGatewayFilterFactory extends
         return path.startsWith("/v3/api-docs") ||
             path.startsWith("/swagger-ui") ||
             path.startsWith("/swagger-ui.html") ||
-            path.startsWith("/api/user/signup") ||
-            path.startsWith("/api/auth");
+            path.startsWith("/api/v1/user/signup") ||
+            path.startsWith("/api/v1/user/check-") ||
+            path.startsWith("/api/v1/auth");
     }
 
     /**
