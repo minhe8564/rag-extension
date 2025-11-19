@@ -1,6 +1,10 @@
 import { fastApi, springApi } from '@/shared/lib/apiInstance';
 import type { ApiEnvelope } from '@/shared/lib/api.types';
-import type { collectionType } from '@/domains/admin/types/documents.types';
+import type {
+  collectionType,
+  paginationType,
+  VectorizationProgressResult,
+} from '@/domains/admin/types/documents.types';
 
 // 컬렉션 목록 조회
 export const getCollections = async (params?: {
@@ -8,16 +12,15 @@ export const getCollections = async (params?: {
   pageSize?: number;
   filter?: boolean;
 }) => {
-  const { data } = await fastApi.get<ApiEnvelope<{ data: collectionType[]; pagination: any }>>(
-    '/api/v1/collections',
-    {
-      params: {
-        ...(params?.pageNum ? { pageNum: params.pageNum } : {}),
-        ...(params?.pageSize ? { pageSize: params.pageSize } : {}),
-        ...(params?.filter ? { filter: params.filter } : {}),
-      },
-    }
-  );
+  const { data } = await fastApi.get<
+    ApiEnvelope<{ data: collectionType[]; pagination: paginationType }>
+  >('/api/v1/collections', {
+    params: {
+      ...(params?.pageNum ? { pageNum: params.pageNum } : {}),
+      ...(params?.pageSize ? { pageSize: params.pageSize } : {}),
+      ...(params?.filter ? { filter: params.filter } : {}),
+    },
+  });
   return data.result;
 };
 
@@ -37,11 +40,14 @@ export const getDocInCollections = async (
 
 // 진행률 최초 조회
 export const getVectorizationProgress = async (pageNum: number, pageSize: number) => {
-  const { data } = await springApi.get<ApiEnvelope<any>>('/api/v1/ingest/progress', {
-    params: {
-      pageNum: String(pageNum),
-      pageSize: String(pageSize),
-    },
-  });
+  const { data } = await springApi.get<ApiEnvelope<VectorizationProgressResult>>(
+    '/api/v1/ingest/progress',
+    {
+      params: {
+        pageNum: String(pageNum),
+        pageSize: String(pageSize),
+      },
+    }
+  );
   return data.result;
 };

@@ -1,49 +1,58 @@
 import { create } from 'zustand';
 import type { IngestSummaryResponse } from '@/shared/types/ingest.types';
 
-export type NotificationType = 'INGEST_SUMMARY';
-
 export interface NotificationItem {
-  id: string;
-  type: NotificationType;
+  notificationNo: string;
+  category: string;
+  eventType: string;
+  referenceId: string;
   title: string;
-  message: string;
+  total: number;
+  successCount: number;
+  failedCount: number;
+  isRead: boolean;
   createdAt: string;
-  read: boolean;
-  payload?: IngestSummaryResponse;
 }
 
 interface NotificationState {
-  notifications: NotificationItem[];
-  hasUnread: boolean;
-  markAllRead: () => void;
+  realtime: NotificationItem[];
+  hasUnreadRealtime: boolean;
   addIngestNotification: (data: IngestSummaryResponse) => void;
+
+  clearRealtime: () => void;
 }
 
-export const useNotificationStore = create<NotificationState>((set, _get) => ({
-  notifications: [],
-  hasUnread: false,
-  markAllRead: () => set({ hasUnread: false }),
-  addIngestNotification: (data) => {
-    const { result } = data;
-    const now = new Date().toISOString();
+export const useNotificationStore = create<NotificationState>((set) => ({
+  realtime: [],
+  hasUnreadRealtime: false,
 
-    const title = '문서 인입이 완료되었습니다.';
-    const message = `전체 ${result.total}개 중 ${result.successCount}개 성공, ${result.failedCount}개 실패`;
+  addIngestNotification: (data) => {
+    const now = new Date().toISOString();
+    const r = data.result;
 
     const item: NotificationItem = {
-      id: `${now}-${Math.random().toString(36).slice(2, 8)}`,
-      type: 'INGEST_SUMMARY',
-      title,
-      message,
+      notificationNo: `SSE-${now}`,
+      category: 'INGEST',
+      eventType: 'INGEST_SUMMARY_COMPLETED',
+      referenceId: '',
+      title: '문서 수집이 완료되었습니다.',
+      total: r.total,
+      successCount: r.successCount,
+      failedCount: r.failedCount,
+      isRead: false,
       createdAt: now,
-      read: false,
-      payload: data,
     };
 
     set((state) => ({
-      notifications: [item, ...state.notifications],
-      hasUnread: true,
+      realtime: [item, ...state.realtime],
+      hasUnreadRealtime: true,
     }));
   },
+
+  // SSE 실시간 알림 전체 초기화
+  clearRealtime: () =>
+    set({
+      realtime: [],
+      hasUnreadRealtime: false,
+    }),
 }));

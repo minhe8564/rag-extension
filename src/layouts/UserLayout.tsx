@@ -10,12 +10,18 @@ import type { Option } from '@/shared/components/controls/Select';
 import { getMyLlmKeys } from '@/shared/api/llm.api';
 import type { MyLlmKeyResponse, MyLlmKeyListResponse } from '@/shared/types/llm.types';
 import { useChatModelStore } from '@/shared/store/useChatModelStore';
+import { AlertModal } from '@/layouts/AlertModal';
 
 import { useAuthStore } from '@/domains/auth/store/auth.store';
 import { useIngestNotifyStream } from '@/shared/hooks/useIngestNotifyStream';
 import type { IngestSummaryResponse } from '@/shared/types/ingest.types';
 import { useNotificationStore } from '@/shared/store/useNotificationStore';
 import { useIngestStreamStore } from '@/shared/store/useIngestStreamStore';
+import {
+  useNotificationsQuery,
+  useMarkReadMutation,
+  useDeleteNotificationMutation,
+} from '@/shared/hooks/useNotificationQuery';
 
 const labelCls = (isOpen: boolean) =>
   'ml-2 whitespace-nowrap transition-[max-width,opacity,transform] duration-300 ' +
@@ -60,6 +66,7 @@ export default function UserLayout() {
 
   const [modelOptions, setModelOptions] = useState<Option[]>([]);
   const { selectedModel, setSelectedModel } = useChatModelStore();
+  const [alertModal, setAlertModal] = useState(false);
 
   const loadLlmKeys = useCallback(async () => {
     try {
@@ -111,19 +118,20 @@ export default function UserLayout() {
 
   const accessToken = useAuthStore((s) => s.accessToken);
   const addIngestNotification = useNotificationStore((s) => s.addIngestNotification);
-  const hasUnread = useNotificationStore((s) => s.hasUnread);
-  const markAllRead = useNotificationStore((s) => s.markAllRead);
 
   const enabled = useIngestStreamStore((s) => s.enabled);
   const setEnabled = useIngestStreamStore((s) => s.setEnabled);
 
+  // 알림 쿼리
+  const { data } = useNotificationsQuery({ cursor: '', limit: '20' }, alertModal);
+  const notifications = data?.data ?? []; // 리스트
+  const { mutate: markAsRead } = useMarkReadMutation();
+  const { mutate: deleteNoti } = useDeleteNotificationMutation();
+
   const handleBellClick = () => {
-    if (hasUnread) {
-      markAllRead();
-    }
-    // 완료 뱃지 초기화
+    // 완료 뱃지도 초기화
     setCompletedCount(0);
-    // TODO: Admin용 알림 리스트 열기 등
+    setAlertModal((prev) => !prev);
   };
 
   function extractCompleted(data: IngestSummaryResponse): number | null {
@@ -336,7 +344,6 @@ export default function UserLayout() {
                   size={22}
                   className="text-gray-600 hover:text-gray-800 cursor-pointer transition-colors shake-hover"
                 />
-
                 {completedCount > 0 && (
                   <span
                     className="
@@ -350,6 +357,13 @@ export default function UserLayout() {
                     {completedCount}
                   </span>
                 )}
+                <AlertModal
+                  isOpen={alertModal}
+                  onClose={() => setAlertModal(false)}
+                  notifications={notifications} // 알림 데이터 배열
+                  onRead={(no) => markAsRead(no)} // 개별 읽음 처리
+                  onDelete={(no) => deleteNoti(no)} // 개별 삭제 처리
+                />
               </div>
             </button>
           </Tooltip>

@@ -45,8 +45,10 @@ export default function VecProcess({
   const queryClient = useQueryClient();
 
   // 타입 가드
-  const isValidStep = (step: any): step is keyof FileState['steps'] => {
-    return validSteps.includes(step);
+  const isValidStep = (step: unknown): step is keyof FileState['steps'] => {
+    if (typeof step !== 'string') return false;
+
+    return (validSteps as readonly string[]).includes(step);
   };
 
   useEffect(() => {
