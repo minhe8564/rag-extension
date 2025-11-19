@@ -41,7 +41,6 @@ export function useChatLogic() {
   const sessionPromiseRef = useRef<Promise<string> | null>(null);
 
   const { selectedModel, selectedLlmNo, setSelectedModel } = useChatModelStore();
-  const [llmNo, setLlmNo] = useState<string | null>(null);
 
   const [mode, setMode] = useState<ChatMode>('llm');
 
@@ -143,7 +142,7 @@ export function useChatLogic() {
 
     (async () => {
       if (!derivedSessionNo) {
-        if (!selectedModel) setSelectedModel('Qwen3-vl:8B', selectedLlmNo);
+        if (!selectedModel) setSelectedModel('GPT-4o', selectedLlmNo);
         setInitialLoading(false);
         return;
       }
@@ -163,7 +162,6 @@ export function useChatLogic() {
         const llmNoFromSession = sessionInfo?.llmNo ?? selectedLlmNo;
 
         setSelectedModel(llmName, llmNoFromSession);
-        setLlmNo(llmNoFromSession ?? null);
 
         const mapped: UiMsg[] =
           (page.data ?? []).map(
@@ -245,7 +243,7 @@ export function useChatLogic() {
       const sessionNo: string = await getOrCreateSessionNo(llmName, msg);
 
       if (mode === 'rag') {
-        const effectiveLlmNo = llmNo ?? selectedLlmNo;
+        const effectiveLlmNo = selectedLlmNo;
         if (!effectiveLlmNo) {
           toast.error('LLM 정보가 없습니다. 세션 정보를 다시 불러와 주세요.');
           throw new Error('LLM 정보가 없습니다.');

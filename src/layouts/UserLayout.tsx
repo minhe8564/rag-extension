@@ -127,6 +127,7 @@ export default function UserLayout() {
   const notifications = data?.data ?? []; // 리스트
   const { mutate: markAsRead } = useMarkReadMutation();
   const { mutate: deleteNoti } = useDeleteNotificationMutation();
+  const hasUnreadRealtime = useNotificationStore((s) => s.hasUnreadRealtime);
 
   const handleBellClick = () => {
     // 완료 뱃지도 초기화
@@ -344,17 +345,17 @@ export default function UserLayout() {
                   size={22}
                   className="text-gray-600 hover:text-gray-800 cursor-pointer transition-colors shake-hover"
                 />
-                {completedCount > 0 && (
+                {(completedCount > 0 || hasUnreadRealtime) && (
                   <span
                     className="
-                absolute -top-[4px] -right-[6px]
-                min-w-[16px] h-[16px]
-                rounded-full bg-red-500 text-white text-[10px]
-                flex items-center justify-center
-                leading-none px-[4px]
-              "
+                      absolute -top-[4px] -right-[6px]
+                      min-w-[16px] h-[16px]
+                      rounded-full bg-red-500 text-white text-[10px]
+                      flex items-center justify-center
+                      leading-none px-[4px]
+                    "
                   >
-                    {completedCount}
+                    {completedCount || 1}
                   </span>
                 )}
                 <AlertModal
