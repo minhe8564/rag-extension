@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Option } from '@/shared/components/controls/Select';
 import { Save, Check } from 'lucide-react';
 import { toast } from 'react-toastify';
@@ -20,6 +20,8 @@ export function QuerySettingsForm({
   loading = false,
   anchors,
   preset,
+  onDirtyChange,
+  registerSaveHandler,
 }: QuerySettingsFormProps) {
   const queryClient = useQueryClient();
 
@@ -200,14 +202,17 @@ export function QuerySettingsForm({
     baseline,
   ]);
 
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
+
   const scrollTo = (id: FlowStepId) => {
     anchors?.[id]?.current?.scrollIntoView({
       behavior: 'smooth',
       block: 'start',
     });
   };
-
-  const invalidateAllQueryQueries = async () => {
+  const invalidateAllQueryQueries = useCallback(async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['admin', 'ragSettings', 'query', 'templates'] }),
       queryClient.invalidateQueries({ queryKey: ['admin', 'ragSettings', 'query', 'current'] }),
@@ -215,9 +220,9 @@ export function QuerySettingsForm({
         queryKey: ['admin', 'ragSettings', 'query', 'detail', template],
       }),
     ]);
-  };
+  }, [queryClient, template]);
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     const payload: SavePayload = {
       template,
       templateName,
@@ -262,7 +267,31 @@ export function QuerySettingsForm({
     setSaved(true);
     setTimeout(() => setSaved(false), 900);
     setSaving(false);
-  };
+  }, [
+    template,
+    templateName,
+    transformation,
+    searchAlgorithm,
+    reranking,
+    llmModel,
+    temperature,
+    multimodal,
+    isDefault,
+    semanticTopK,
+    semanticThreshold,
+    keywordTopK,
+    rerankerTopK,
+    rerankerType,
+    rerankerWeight,
+    isCreateMode,
+    onSave,
+    invalidateAllQueryQueries,
+  ]);
+
+  useEffect(() => {
+    if (!registerSaveHandler) return;
+    registerSaveHandler(handleSave);
+  }, [registerSaveHandler, handleSave]);
 
   const SaveBtn = (
     <button

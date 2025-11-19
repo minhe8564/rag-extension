@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Option } from '@/shared/components/controls/Select';
 import { QuerySettingsForm } from '@/domains/admin/components/rag-settings/query/QuerySettingsForm';
 import TemplateList from '@/domains/admin/components/rag-settings/TemplateList';
@@ -42,6 +42,9 @@ export default function QueryTab({
   const [tplLoading, setTplLoading] = useState(false);
   const [preset, setPreset] = useState<QueryPreset | null>(null);
   const [isCreateMode, setIsCreateMode] = useState(false);
+  const [hasDirtyChanges, setHasDirtyChanges] = useState(false);
+
+  const saveRef = useRef<(() => void | Promise<void>) | null>(null);
 
   useEffect(() => {
     const run = async () => {
@@ -244,13 +247,18 @@ export default function QueryTab({
           loading={optionsLoading || tplLoading}
           preset={preset ?? undefined}
           onSave={handleQuerySave}
+          onDirtyChange={(dirty) => setHasDirtyChanges(dirty)}
+          registerSaveHandler={(fn) => {
+            saveRef.current = fn;
+          }}
         />
       </div>
 
-      <aside className="space-y-4">
+      <aside className="space-y-4 sticky top-20 h-fit">
         <TemplateList
           kind="query"
           active={templateId}
+          activeIsDirty={!isCreateMode && !!templateId && hasDirtyChanges}
           onSelect={(id) => {
             setIsCreateMode(false);
             setTemplateId(id);
@@ -261,6 +269,9 @@ export default function QueryTab({
           }}
           onDelete={onRequestDelete}
           onCreate={handleCreateNew}
+          onSaveActiveTemplate={() => {
+            saveRef.current?.();
+          }}
         />
       </aside>
     </section>

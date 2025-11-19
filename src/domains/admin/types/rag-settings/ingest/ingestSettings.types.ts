@@ -36,6 +36,8 @@ export type IngestSettingsFormProps = {
   loading?: boolean;
   anchors?: Anchors;
   preset?: IngestPreset;
+  onDirtyChange?: (dirty: boolean) => void;
+  registerSaveHandler?: (handler: () => void | Promise<void>) => void;
 };
 
 export type CommonSelects = {

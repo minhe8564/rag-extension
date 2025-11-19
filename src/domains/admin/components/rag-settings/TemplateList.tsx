@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { Pencil, Trash2, Plus } from 'lucide-react';
+import { Pencil, Trash2, Plus, Save } from 'lucide-react';
 import Tooltip from '@/shared/components/controls/Tooltip';
 import { getIngestTemplates } from '@/domains/admin/api/rag-settings/ingest-templates.api';
 import { getQueryTemplates } from '@/domains/admin/api/rag-settings/query-templates.api';
@@ -13,6 +13,8 @@ type Props = {
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
   onCreate?: () => void;
+  activeIsDirty?: boolean;
+  onSaveActiveTemplate?: () => void;
 };
 
 type IngestItem = { ingestNo: string; name: string; isDefault: boolean };
@@ -30,6 +32,8 @@ export default function TemplateList({
   onEdit,
   onDelete,
   onCreate,
+  activeIsDirty = false,
+  onSaveActiveTemplate,
 }: Props) {
   const {
     data: items = [],
@@ -95,6 +99,7 @@ export default function TemplateList({
             const name = t.name;
             const isActive = id === active;
             const isDefault = t.isDefault === true;
+            const showSaveIcon = isActive && activeIsDirty;
 
             return (
               <li key={id} className="group">
@@ -135,24 +140,39 @@ export default function TemplateList({
                     )}
                   >
                     {onEdit && (
-                      <Tooltip content="편집" side="bottom">
+                      <Tooltip content={showSaveIcon ? '저장' : '편집'} side="bottom">
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            onEdit(id);
+                            if (showSaveIcon && onSaveActiveTemplate) {
+                              onSaveActiveTemplate();
+                            } else {
+                              onEdit?.(id);
+                            }
                           }}
                           className={clsx(
-                            'h-9 w-9 rounded-lg border bg-white',
-                            'inline-flex items-center justify-center',
-                            'border-gray-200 hover:bg-gray-100',
-                            'focus:outline-none '
+                            'h-9 rounded-lg border px-2',
+                            'inline-flex items-center justify-center gap-1',
+                            'focus:outline-none',
+                            showSaveIcon
+                              ? 'bg-[var(--color-hebees)] border-[var(--color-hebees)] text-white shadow-sm hover:opacity-90'
+                              : 'bg-white border-gray-200 hover:bg-gray-100'
                           )}
                         >
-                          <Pencil size={16} strokeWidth={2} className="text-gray-700" />
+                          {showSaveIcon ? (
+                            <>
+                              <Save size={16} strokeWidth={2} className="text-white" />
+                            </>
+                          ) : (
+                            <>
+                              <Pencil size={16} strokeWidth={2} className="text-gray-700" />
+                            </>
+                          )}
                         </button>
                       </Tooltip>
                     )}
+
                     {onDelete && (
                       <Tooltip content="삭제" side="bottom">
                         <button

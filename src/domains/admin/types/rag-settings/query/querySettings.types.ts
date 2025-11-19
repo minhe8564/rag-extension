@@ -50,6 +50,8 @@ export type QuerySettingsFormProps = {
   loading?: boolean;
   anchors?: Anchors;
   preset?: QueryPreset;
+  onDirtyChange?: (dirty: boolean) => void;
+  registerSaveHandler?: (handler: () => void | Promise<void>) => void;
 };
 
 export type CommonSelects = {

@@ -15,7 +15,7 @@ export type UiMsg = {
   content: string;
   createdAt?: string;
   messageNo?: string;
-  referencedDocuments?: ReferencedDocument[];
+  references?: ReferencedDocument[];
 };
 
 type Props = {
@@ -81,6 +81,8 @@ export default function ChatMessageItem({
       console.error('Copy failed:', e);
     }
   };
+
+  const hasInlineReferences = !!msg.references && msg.references.length > 0;
 
   return (
     <div
@@ -156,7 +158,7 @@ export default function ChatMessageItem({
           </Tooltip>
         )}
 
-        {!isUser && !isPendingAssistant && (
+        {!isPendingAssistant && (
           <Tooltip content={copied ? '복사 완료' : '답변 복사'} side="bottom">
             <button
               onClick={handleCopy}
@@ -167,12 +169,18 @@ export default function ChatMessageItem({
           </Tooltip>
         )}
       </div>
-      {!isUser && msg.messageNo && currentSessionNo && !isPendingAssistant && enableDocuments && (
-        <ReferencedDocsPanel
-          sessionNo={currentSessionNo}
-          messageNo={msg.messageNo}
-          collapsedByDefault={false}
-        />
+      {!isUser && enableDocuments && (
+        <>
+          {hasInlineReferences ? (
+            <ReferencedDocsPanel references={msg.references} collapsedByDefault={false} />
+          ) : msg.messageNo && currentSessionNo ? (
+            <ReferencedDocsPanel
+              sessionNo={currentSessionNo}
+              messageNo={msg.messageNo}
+              collapsedByDefault={false}
+            />
+          ) : null}
+        </>
       )}
     </div>
   );

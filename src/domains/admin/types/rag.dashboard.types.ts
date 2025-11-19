@@ -179,11 +179,8 @@ export type chatbotRealtimeInit = {
 };
 
 export type initData = {
-  bucketIntervalMs: string;
-  buckets: {
-    timestamp: string;
-    requestCount: number;
-  }[];
+  timestamp: string;
+  requestCount: number;
 };
 
 export type chatbotRealtimeLive = {

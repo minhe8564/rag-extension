@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Option } from '@/shared/components/controls/Select';
 import { IngestSettingsForm } from '@/domains/admin/components/rag-settings/ingest/IngestSettingsForm';
 import TemplateList from '@/domains/admin/components/rag-settings/TemplateList';
@@ -36,6 +36,9 @@ export default function IngestTab({
   const [tplLoading, setTplLoading] = useState(false);
   const [preset, setPreset] = useState<IngestPreset | null>(null);
   const [isCreateMode, setIsCreateMode] = useState(false);
+  const [hasDirtyChanges, setHasDirtyChanges] = useState(false);
+
+  const saveRef = useRef<(() => void | Promise<void>) | null>(null);
 
   useEffect(() => {
     const run = async () => {
@@ -136,6 +139,7 @@ export default function IngestTab({
       setTemplateId(created.ingestNo);
       setIsCreateMode(false);
       applyDetailToPreset(detail, created.ingestNo);
+      setHasDirtyChanges(false);
       onCreate?.();
       return;
     }
@@ -147,6 +151,7 @@ export default function IngestTab({
     ]);
     applyDetailToPreset(detail, payload.template);
     setTplOpts(mapIngestTemplatesToOptions(list.data ?? []));
+    setHasDirtyChanges(false);
   };
 
   return (
@@ -163,13 +168,18 @@ export default function IngestTab({
           loading={optionsLoading || tplLoading}
           preset={preset ?? undefined}
           onSave={handleIngestSave}
+          onDirtyChange={(dirty) => setHasDirtyChanges(dirty)}
+          registerSaveHandler={(fn) => {
+            saveRef.current = fn;
+          }}
         />
       </div>
 
-      <aside className="space-y-4">
+      <aside className="space-y-4 sticky top-20 h-fit">
         <TemplateList
           kind="ingest"
           active={templateId}
+          activeIsDirty={!isCreateMode && !!templateId && hasDirtyChanges}
           onSelect={(id) => {
             setIsCreateMode(false);
             setTemplateId(id);
@@ -180,6 +190,9 @@ export default function IngestTab({
           }}
           onDelete={onRequestDelete}
           onCreate={handleCreateNew}
+          onSaveActiveTemplate={() => {
+            saveRef.current?.();
+          }}
         />
       </aside>
     </section>

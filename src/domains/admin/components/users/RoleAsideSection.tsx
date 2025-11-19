@@ -6,9 +6,10 @@ import {
   updateRole,
   deleteRole,
 } from '@/domains/admin/api/roles.api';
-import { RotateCw, Trash2 } from 'lucide-react';
+import { RefreshCw, Trash2 } from 'lucide-react';
 import Tooltip from '@/shared/components/controls/Tooltip';
 import ConfirmModal from '@/shared/components/ConfirmModal';
+import { Loader2 } from 'lucide-react';
 
 type Role = {
   uuid: string;
@@ -110,14 +111,17 @@ export default function RoleAsideSection() {
                text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
           onClick={loadRoles}
         >
-          <RotateCw size={16} strokeWidth={2} />
+          <RefreshCw size={16} strokeWidth={2} />
           새로고침
         </button>
       </div>
 
       <div className="rounded-xl border bg-white p-2 space-y-2">
         {loading ? (
-          <div className="p-4 text-center text-sm text-gray-500">불러오는 중…</div>
+          <div className="flex items-center justify-center py-8 text-gray-500">
+            <Loader2 size={18} className="mr-2 animate-spin" />
+            불러오는 중…
+          </div>
         ) : (
           roles.map((r) => (
             <div

@@ -12,3 +12,15 @@ export interface IngestSummaryResponse {
   isSuccess: boolean;
   result: IngestSummaryResult;
 }
+
+export type IngestNotifyMessage =
+  | { completed: number }
+  | {
+      status?: number;
+      result?: {
+        total?: number;
+        completed?: number;
+        successCount?: number;
+        failedCount?: number;
+      };
+    };
