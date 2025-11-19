@@ -27,7 +27,6 @@ import org.springframework.stereotype.Service;
 public class GenerationHistoryStreamSubscriber extends BaseRedisStreamSubscriber {
 
     private static final String STREAM_KEY = "generation:history:metrics";
-    private static final String GROUP_NAME = "backend-generation-history";
 
     private final AnalyticsExpenseStreamService analyticsExpenseStreamService;
     private final UsageAggregateHourlyRepository usageAggregateHourlyRepository;
@@ -45,7 +44,7 @@ public class GenerationHistoryStreamSubscriber extends BaseRedisStreamSubscriber
         UsageAggregateHourlyRepository usageAggregateHourlyRepository,
         ChatbotUsageStreamService chatbotUsageStreamService
     ) {
-        super(redisTemplate, STREAM_KEY, GROUP_NAME, "히스토리 스트림");
+        super(redisTemplate, STREAM_KEY, "히스토리 스트림");
         this.analyticsExpenseStreamService = analyticsExpenseStreamService;
         this.usageAggregateHourlyRepository = usageAggregateHourlyRepository;
         this.chatbotUsageStreamService = chatbotUsageStreamService;

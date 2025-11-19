@@ -14,7 +14,6 @@ import org.springframework.stereotype.Service;
 public class FileUploadStreamSubscriber extends BaseRedisStreamSubscriber {
 
     private static final String STREAM_KEY = "upload:files";
-    private static final String GROUP_NAME = "backend-upload-files";
 
     private final DashboardMetricStreamService dashboardMetricStreamService;
 
@@ -28,7 +27,7 @@ public class FileUploadStreamSubscriber extends BaseRedisStreamSubscriber {
         @Qualifier("dashboardRedisTemplate") StringRedisTemplate redisTemplate,
         DashboardMetricStreamService dashboardMetricStreamService
     ) {
-        super(redisTemplate, STREAM_KEY, GROUP_NAME, "파일 업로드 스트림");
+        super(redisTemplate, STREAM_KEY, "파일 업로드 스트림");
         this.dashboardMetricStreamService = dashboardMetricStreamService;
     }
 
