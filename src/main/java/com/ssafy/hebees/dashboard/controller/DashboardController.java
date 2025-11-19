@@ -2,11 +2,13 @@ package com.ssafy.hebees.dashboard.controller;
 
 import com.ssafy.hebees.common.response.BaseResponse;
 import com.ssafy.hebees.dashboard.dto.request.ChatbotRandomConfigRequest;
+import com.ssafy.hebees.dashboard.dto.request.ChatbotScheduleConfigRequest;
 import com.ssafy.hebees.dashboard.dto.request.ErrorMetricIncrementRequest;
 import com.ssafy.hebees.dashboard.dto.request.MetricIncrementRequest;
 import com.ssafy.hebees.dashboard.dto.request.ModelExpenseUsageRequest;
 import com.ssafy.hebees.dashboard.dto.request.TimeSeriesRequest;
 import com.ssafy.hebees.dashboard.dto.response.ChatbotRandomConfigResponse;
+import com.ssafy.hebees.dashboard.dto.response.ChatbotScheduleConfigResponse;
 import com.ssafy.hebees.dashboard.dto.response.Change24hResponse;
 import com.ssafy.hebees.dashboard.model.dto.response.ChatbotTimeSeriesResponse;
 import com.ssafy.hebees.dashboard.chat.dto.response.ChatroomsTodayResponse;
@@ -260,6 +262,28 @@ public class DashboardController {
         ChatbotRandomConfigResponse response = chatbotUsageStreamService.getRandomConfig();
         return ResponseEntity.ok(
             BaseResponse.of(HttpStatus.OK, response, "챗봇 스트림 난수값 설정 조회에 성공하였습니다."));
+    }
+
+    @PostMapping("/metrics/chatbot/schedule-config")
+    @Operation(summary = "챗봇 스트림 스케줄링 주기 설정",
+        description = "챗봇 스트림의 스케줄링 주기(초 단위)를 설정합니다.")
+    @ApiResponse(responseCode = "200", description = "설정 성공")
+    public ResponseEntity<BaseResponse<ChatbotScheduleConfigResponse>> setChatbotScheduleConfig(
+        @Valid @RequestBody ChatbotScheduleConfigRequest request
+    ) {
+        ChatbotScheduleConfigResponse response = chatbotUsageStreamService.setScheduleConfig(request);
+        return ResponseEntity.ok(
+            BaseResponse.of(HttpStatus.OK, response, "챗봇 스트림 스케줄링 주기 설정이 업데이트되었습니다."));
+    }
+
+    @GetMapping("/metrics/chatbot/schedule-config")
+    @Operation(summary = "챗봇 스트림 스케줄링 주기 설정 조회",
+        description = "현재 챗봇 스트림 스케줄링 주기 설정을 조회합니다.")
+    @ApiResponse(responseCode = "200", description = "조회 성공")
+    public ResponseEntity<BaseResponse<ChatbotScheduleConfigResponse>> getChatbotScheduleConfig() {
+        ChatbotScheduleConfigResponse response = chatbotUsageStreamService.getScheduleConfig();
+        return ResponseEntity.ok(
+            BaseResponse.of(HttpStatus.OK, response, "챗봇 스트림 스케줄링 주기 설정 조회에 성공하였습니다."));
     }
 
     @PostMapping("/metrics/chatbot/increment")

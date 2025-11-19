@@ -1,7 +1,9 @@
 package com.ssafy.hebees.dashboard.model.service;
 
 import com.ssafy.hebees.dashboard.dto.request.ChatbotRandomConfigRequest;
+import com.ssafy.hebees.dashboard.dto.request.ChatbotScheduleConfigRequest;
 import com.ssafy.hebees.dashboard.dto.response.ChatbotRandomConfigResponse;
+import com.ssafy.hebees.dashboard.dto.response.ChatbotScheduleConfigResponse;
 import java.util.UUID;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -16,5 +18,9 @@ public interface ChatbotUsageStreamService {
     ChatbotRandomConfigResponse setRandomConfig(ChatbotRandomConfigRequest request);
 
     ChatbotRandomConfigResponse getRandomConfig();
+
+    ChatbotScheduleConfigResponse setScheduleConfig(ChatbotScheduleConfigRequest request);
+
+    ChatbotScheduleConfigResponse getScheduleConfig();
 }
 
