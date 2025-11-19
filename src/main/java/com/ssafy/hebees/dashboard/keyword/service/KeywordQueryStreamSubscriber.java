@@ -16,7 +16,6 @@ import org.springframework.util.StringUtils;
 public class KeywordQueryStreamSubscriber extends BaseRedisStreamSubscriber {
 
     private static final String STREAM_KEY = "generation:history:queries";
-    private static final String GROUP_NAME = "backend-generation-queries";
 
     private final DashboardKeywordService dashboardKeywordService;
 
@@ -30,7 +29,7 @@ public class KeywordQueryStreamSubscriber extends BaseRedisStreamSubscriber {
         @Qualifier("dashboardRedisTemplate") StringRedisTemplate redisTemplate,
         DashboardKeywordService dashboardKeywordService
     ) {
-        super(redisTemplate, STREAM_KEY, GROUP_NAME, "키워드 스트림");
+        super(redisTemplate, STREAM_KEY, "키워드 스트림");
         this.dashboardKeywordService = dashboardKeywordService;
     }
 

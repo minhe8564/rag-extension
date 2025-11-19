@@ -23,7 +23,6 @@ import org.springframework.util.StringUtils;
 public class ErrorStreamSubscriber extends BaseRedisStreamSubscriber {
 
     private static final String STREAM_KEY = "generation:history:errors";
-    private static final String GROUP_NAME = "backend-generation-errors";
 
     private final DashboardMetricStreamService dashboardMetricStreamService;
     private final MessageErrorService messageErrorService;
@@ -39,7 +38,7 @@ public class ErrorStreamSubscriber extends BaseRedisStreamSubscriber {
         DashboardMetricStreamService dashboardMetricStreamService,
         MessageErrorService messageErrorService
     ) {
-        super(redisTemplate, STREAM_KEY, GROUP_NAME, "에러 스트림");
+        super(redisTemplate, STREAM_KEY, "에러 스트림");
         this.dashboardMetricStreamService = dashboardMetricStreamService;
         this.messageErrorService = messageErrorService;
     }
