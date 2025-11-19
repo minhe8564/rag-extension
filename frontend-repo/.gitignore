@@ -1,0 +1,157 @@
+# ==========================================================
+# Universal .gitignore for React + Vite + Tailwind + TypeScript
+# OS: macOS + Windows | IDE: VSCode | Env: Node 20+ | SCM: Git
+# ==========================================================
+
+### macOS ###
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+*.icloud
+
+### Windows ###
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+### Node ###
+# Logs and reports
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Runtime and cache files
+pids
+*.pid
+*.seed
+*.pid.lock
+lib-cov
+coverage
+*.lcov
+.nyc_output
+
+# Dependency directories
+node_modules/
+bower_components
+jspm_packages/
+web_modules/
+
+# Build caches
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+*.tsbuildinfo
+.npm
+.eslintcache
+.stylelintcache
+
+# Misc
+.node_repl_history
+*.tgz
+.yarn-integrity
+
+# Environment variables
+.env
+.env.development
+.env.production
+.env.test.local
+.env.local
+
+# Bundler / Framework output
+.cache
+.parcel-cache
+.next
+out
+.nuxt
+dist
+.vuepress/dist
+.temp
+.docusaurus
+.serverless/
+.fusebox/
+.dynamodb/
+.tern-port
+.vscode-test
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+### React ###
+.DS_*
+**/*.backup.*
+**/*.back.*
+node_modules
+*.sublime*
+psd
+thumb
+sketch
+
+### Visual Studio Code ###
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
+.history/
+*.vsix
+.ionide
+
+### Custom Project Additions ###
+# Build outputs
+build/
+dist/
+
+# Test and temp files
+coverage/
+*.tmp
+*.temp
+*.swp
+*.swx
+
+# IDEs
+.idea/
+
+# Personal Git config (never share)
+.gitconfig
+.git-credentials
+.gitattributes
+
+# Local environment variables
+.env.local
+.env.*.local
+.envrc
+.env.development
+.env.production
