@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Outlet, NavLink, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { Menu, MessageSquare, Image, FolderCog, LogOut, Bell, UserCog, Search } from 'lucide-react';
 import Tooltip from '@/shared/components/controls/Tooltip';
@@ -10,12 +10,18 @@ import type { Option } from '@/shared/components/controls/Select';
 import { getMyLlmKeys } from '@/shared/api/llm.api';
 import type { MyLlmKeyResponse, MyLlmKeyListResponse } from '@/shared/types/llm.types';
 import { useChatModelStore } from '@/shared/store/useChatModelStore';
+import { AlertModal } from '@/layouts/AlertModal';
 
-// 상단 import 추가
 import { useAuthStore } from '@/domains/auth/store/auth.store';
 import { useIngestNotifyStream } from '@/shared/hooks/useIngestNotifyStream';
+import type { IngestSummaryResponse } from '@/shared/types/ingest.types';
 import { useNotificationStore } from '@/shared/store/useNotificationStore';
 import { useIngestStreamStore } from '@/shared/store/useIngestStreamStore';
+import {
+  useNotificationsQuery,
+  useMarkReadMutation,
+  useDeleteNotificationMutation,
+} from '@/shared/hooks/useNotificationQuery';
 
 const labelCls = (isOpen: boolean) =>
   'ml-2 whitespace-nowrap transition-[max-width,opacity,transform] duration-300 ' +
@@ -42,6 +48,8 @@ export default function UserLayout() {
   const [q, setQ] = useState('');
   const navigate = useNavigate();
 
+  const [completedCount, setCompletedCount] = useState(0);
+
   const [sp] = useSearchParams();
   const location = useLocation();
   const { pathname } = location;
@@ -58,38 +66,36 @@ export default function UserLayout() {
 
   const [modelOptions, setModelOptions] = useState<Option[]>([]);
   const { selectedModel, setSelectedModel } = useChatModelStore();
+  const [alertModal, setAlertModal] = useState(false);
 
-  // 모델 목록 불러오기 함수
-  const loadLlmKeys = async () => {
+  const loadLlmKeys = useCallback(async () => {
     try {
       const res = await getMyLlmKeys();
       const result = res.data.result as MyLlmKeyListResponse;
       const list: MyLlmKeyResponse[] = result?.data ?? [];
 
-      // qwen 모델 체크 함수
       const isQwen = (llmName: string | null | undefined): boolean => {
         if (!llmName) return false;
         const name = llmName.toLowerCase();
         return name.includes('qwen');
       };
 
-      // qwen은 항상 표시, 다른 모델은 hasKey=true인 것만 표시
       const filteredList = list.filter((k) => isQwen(k.llmName) || k.hasKey);
-      
-      const options = filteredList
+
+      const options: Option[] = filteredList
         .map((k) => ({
           value: k.llmName ?? '',
           label: k.llmName ?? '',
-          desc: k.llmName
-            ? (MODEL_DESCRIPTIONS[k.llmName] ?? '모델 설명 없음')
-            : '모델 정보 없음',
+          desc: k.llmName ? (MODEL_DESCRIPTIONS[k.llmName] ?? '모델 설명 없음') : '모델 정보 없음',
         }))
         .filter((o) => o.value);
 
       setModelOptions(options);
 
-      // 필터링된 리스트를 기준으로 모델 선택
-      let final = selectedModel;
+      const { selectedModel: currentSelectedModel, setSelectedModel: setModel } =
+        useChatModelStore.getState();
+
+      let final = currentSelectedModel;
       const found = filteredList.find((k) => k.llmName === final);
 
       if (!found) {
@@ -98,37 +104,52 @@ export default function UserLayout() {
 
       if (final) {
         const matched = filteredList.find((k) => k.llmName === final);
-        setSelectedModel(final, matched?.llmNo);
+        setModel(final, matched?.llmNo);
       } else {
-        setSelectedModel(undefined, undefined);
+        setModel(undefined, undefined);
       }
     } catch (err) {
       console.error(err);
       setModelOptions([]);
-      setSelectedModel(undefined, undefined);
+      const { setSelectedModel: setModel } = useChatModelStore.getState();
+      setModel(undefined, undefined);
     }
-  };
+  }, []);
 
   const accessToken = useAuthStore((s) => s.accessToken);
   const addIngestNotification = useNotificationStore((s) => s.addIngestNotification);
-  const hasUnread = useNotificationStore((s) => s.hasUnread);
-  const markAllRead = useNotificationStore((s) => s.markAllRead);
 
   const enabled = useIngestStreamStore((s) => s.enabled);
   const setEnabled = useIngestStreamStore((s) => s.setEnabled);
 
+  // 알림 쿼리
+  const { data } = useNotificationsQuery({ cursor: '', limit: '20' }, alertModal);
+  const notifications = data?.data ?? []; // 리스트
+  const { mutate: markAsRead } = useMarkReadMutation();
+  const { mutate: deleteNoti } = useDeleteNotificationMutation();
+
   const handleBellClick = () => {
-    if (hasUnread) {
-      markAllRead();
-    }
-    // TODO: 알림 리스트 열기 등
+    // 완료 뱃지도 초기화
+    setCompletedCount(0);
+    setAlertModal((prev) => !prev);
   };
+
+  function extractCompleted(data: IngestSummaryResponse): number | null {
+    const completed = data.result?.completed;
+    return typeof completed === 'number' ? completed : null;
+  }
 
   useIngestNotifyStream({
     accessToken: accessToken ?? '',
     enabled,
     onMessage: (data) => {
       addIngestNotification(data);
+
+      const completed = extractCompleted(data);
+      if (completed !== null) {
+        setCompletedCount(completed);
+      }
+
       setEnabled(false);
     },
     onError: (e) => {
@@ -137,17 +158,10 @@ export default function UserLayout() {
     },
   });
 
-  // 초기 로드 시 모델 목록 불러오기
   useEffect(() => {
-    loadLlmKeys();
-  }, []); // 컴포넌트 마운트 시 한 번만 실행
-
-  // 채팅 화면으로 돌아올 때 모델 목록 갱신
-  useEffect(() => {
-    if (isChatRoute) {
-      loadLlmKeys();
-    }
-  }, [isChatRoute]);
+    if (!isChatRoute) return;
+    void loadLlmKeys();
+  }, [isChatRoute, loadLlmKeys]);
 
   return (
     <div className="flex min-h-screen bg-transparent">
@@ -315,19 +329,44 @@ export default function UserLayout() {
             />
           )}
 
-          <button
-            type="button"
-            onClick={handleBellClick}
-            className="relative flex items-center justify-center"
+          <Tooltip
+            content={completedCount > 0 ? `Ingest 완료: ${completedCount}건` : '알림'}
+            side="bottom"
+            shiftX={completedCount > 0 ? -20 : 0}
           >
-            <Bell
-              size={22}
-              className="text-gray-600 hover:text-gray-800 cursor-pointer transition-colors shake-hover"
-            />
-            {hasUnread && (
-              <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-red-500 shadow-sm" />
-            )}
-          </button>
+            <button
+              type="button"
+              onClick={handleBellClick}
+              className="flex items-center justify-center"
+            >
+              <div className="relative">
+                <Bell
+                  size={22}
+                  className="text-gray-600 hover:text-gray-800 cursor-pointer transition-colors shake-hover"
+                />
+                {completedCount > 0 && (
+                  <span
+                    className="
+                absolute -top-[4px] -right-[6px]
+                min-w-[16px] h-[16px]
+                rounded-full bg-red-500 text-white text-[10px]
+                flex items-center justify-center
+                leading-none px-[4px]
+              "
+                  >
+                    {completedCount}
+                  </span>
+                )}
+                <AlertModal
+                  isOpen={alertModal}
+                  onClose={() => setAlertModal(false)}
+                  notifications={notifications} // 알림 데이터 배열
+                  onRead={(no) => markAsRead(no)} // 개별 읽음 처리
+                  onDelete={(no) => deleteNoti(no)} // 개별 삭제 처리
+                />
+              </div>
+            </button>
+          </Tooltip>
         </div>
 
         <div className="flex w-full flex-col gap-3 px-8">

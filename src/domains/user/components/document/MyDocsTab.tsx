@@ -4,13 +4,11 @@ import { fetchMyDocumentsNormalized, getPresignedUrl, deleteFile } from '@/share
 import type { MyDoc } from '@/shared/types/file.types';
 import UploadedFileList from '@/shared/components/file/UploadedFileList';
 import type { UploadedDoc } from '@/shared/types/file.types';
-import Pagination from '@/shared/components/Pagination';
 import { RefreshCw } from 'lucide-react';
 import { toast } from 'react-toastify';
 import ConfirmModal from '@/shared/components/ConfirmModal';
 import { formatCreatedAt } from '@/shared/utils/date';
-
-const PAGE_SIZE = 20;
+import { Loader2 } from 'lucide-react';
 
 export default function MyDocsTab() {
   const [myDocs, setMyDocs] = useState<MyDoc[]>([]);
@@ -41,7 +39,7 @@ export default function MyDocsTab() {
       try {
         const { items, total, totalPages, hasNext } = await fetchMyDocumentsNormalized({
           pageNum,
-          pageSize: PAGE_SIZE,
+          pageSize: 20,
         });
         if (!active || myReqId !== reqSeq.current) return;
 
@@ -70,7 +68,7 @@ export default function MyDocsTab() {
         id: d.fileNo,
         fileNo: d.fileNo,
         name: d.name,
-        sizeKB: d.sizeKB,
+        sizeKB: d.sizeKB / 1024,
         createdAt: formatCreatedAt(d.createdAt),
         category: d.bucket ?? '기타',
         categoryId: d.categoryNo != null ? String(d.categoryNo) : undefined,
@@ -180,36 +178,34 @@ export default function MyDocsTab() {
         </div>
 
         {loading ? (
-          <div className="py-12 text-center text-gray-500">불러오는 중…</div>
+          <div className="flex items-center justify-center py-8 text-gray-500">
+            <Loader2 size={18} className="mr-2 animate-spin" />
+            불러오는 중…
+          </div>
         ) : (
           <UploadedFileList
             docs={uploadedDocs}
-            pageSize={Math.max(1, uploadedDocs.length || 1)}
+            pageSize={20}
             brand="retina"
-            // hideFooter
             onDownload={handleDownload}
             onDelete={requestDelete}
             showStatus={true}
-          />
-        )}
+            pagination={{
+              pageNum,
+              totalPages,
+              hasPrev: pageNum > 1,
+              hasNext: hasNext || pageNum < totalPages,
+              isLoading: loading || deleting,
+              onPageChange: (newPage: number) => {
+                const isNextClick = newPage === pageNum + 1;
+                if (newPage < 1) return;
+                if (!isNextClick && newPage > totalPages) return;
+                if (isNextClick && !(hasNext || pageNum < totalPages)) return;
 
-        {totalPages > 1 && (
-          <Pagination
-            pageNum={pageNum}
-            totalPages={totalPages}
-            hasPrev={pageNum > 1}
-            hasNext={hasNext || pageNum < totalPages}
-            isLoading={loading || deleting}
-            onPageChange={(newPage) => {
-              const isNextClick = newPage === pageNum + 1;
-              if (newPage < 1) return;
-              if (!isNextClick && newPage > totalPages) return;
-              if (isNextClick && !(hasNext || pageNum < totalPages)) return;
-
-              setPageNum(newPage);
-              window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+                setPageNum(newPage);
+                window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+              },
             }}
-            className="mt-4"
           />
         )}
       </div>

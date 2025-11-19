@@ -186,7 +186,6 @@ export function useRealtimeUserStream() {
         if (!isMessageEventString(evt)) return;
         const parsed = parseData<realtimeUserData>(evt.data);
         if (!parsed) return;
-        console.log('🔥 realtimeUserData SSE onmessage RAW:', evt);
         setRealtimeUserData(parsed);
       },
     };

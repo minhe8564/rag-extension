@@ -1,8 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import clsx from 'clsx';
 import type { Collection } from '@/domains/admin/components/rag-test/types';
-import { Folder, RefreshCw } from 'lucide-react';
+import { getDocInCollections } from '@/domains/admin/api/documents.api';
+import type { documentDatatype } from '@/domains/admin/types/documents.types';
+import { FolderOpen, RefreshCw } from 'lucide-react';
 import UploadedFileList from '@/shared/components/file/UploadedFileList';
+import { formatCreatedAt } from '@/shared/utils/date';
 
 export type DocItem = {
   id: string;
@@ -16,22 +20,55 @@ export type DocItem = {
 
 type Props = {
   collection: Collection;
-  docs: DocItem[];
-  onUpload?: (files: File[]) => void;
   onDownload?: (id: string) => void;
   onReindex?: (id: string) => void;
   onDelete?: (ids: string[]) => void;
   onRefresh?: () => void;
+  setSelectedDocs?: (docs: DocItem[]) => void;
 };
 
 export default function CollectionDocumentsAdm({
   collection,
-  docs,
   onDownload,
   onDelete,
   onRefresh,
+  setSelectedDocs,
 }: Props) {
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [pageNum, setPageNum] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [hasNext, setHasNext] = useState(false);
+
+  const [docsList, setDocsList] = useState<DocItem[]>([]);
+
+  const convertToDocItems = (docs: documentDatatype[]): DocItem[] => {
+    return docs.map((doc) => ({
+      id: doc.fileNo,
+      name: doc.name,
+      sizeKB: Number(doc.size) / 1024,
+      createdAt: formatCreatedAt(doc.createdAt),
+      categoryNo: doc.categoryNo || undefined,
+      type: doc.type || 'txt',
+      status: doc.status,
+    }));
+  };
+
+  // 선택된 컬렉션의 문서 쿼리
+  const { data: result } = useQuery({
+    queryKey: ['docs', collection.id, pageNum],
+    queryFn: () => getDocInCollections(collection.id, { pageNum, pageSize: 20 }),
+    enabled: !!collection,
+  });
+
+  useEffect(() => {
+    if (!result) return;
+
+    setTotalPages(result.pagination.totalPages);
+    setHasNext(result.pagination.hasNext);
+
+    setDocsList(convertToDocItems(result.data));
+    setSelectedDocs?.(convertToDocItems(result.data));
+  }, [result]);
 
   return (
     <div className="rounded-2xl border bg-white p-8 shadow-sm">
@@ -45,10 +82,8 @@ export default function CollectionDocumentsAdm({
               setIsRefreshing(true);
 
               try {
-                // invalidateQueries가 비동기이긴 하지만 Promise를 반환하지 않으므로 직접 await 필요 없음
                 await Promise.resolve(onRefresh());
               } finally {
-                // 약간의 지연 필요 (UI가 안 바뀌는 경우 방지)
                 setTimeout(() => setIsRefreshing(false), 300);
               }
             }}
@@ -67,7 +102,7 @@ export default function CollectionDocumentsAdm({
       <div className="flex items-center justify-between border border-gray-200 p-4 rounded-lg">
         <div className="flex items-center gap-4">
           <div className="flex p-4 items-center justify-center rounded-lg bg-[var(--color-hebees)] text-white">
-            <Folder size={24} />
+            <FolderOpen size={24} />
           </div>
           <span className="text-xl font-semibold text-gray-900">{collection.name}</span>
         </div>
@@ -79,11 +114,28 @@ export default function CollectionDocumentsAdm({
       </p>
 
       <UploadedFileList
-        docs={docs}
+        docs={docsList}
         onDownload={onDownload}
+        pageSize={20}
         onDelete={onDelete}
         brand="hebees"
         showStatus={true}
+        pagination={{
+          pageNum,
+          totalPages,
+          hasPrev: pageNum > 1,
+          hasNext: hasNext || pageNum < totalPages,
+          isLoading: false,
+          onPageChange: (newPage: number) => {
+            const isNextClick = newPage === pageNum + 1;
+            if (newPage < 1) return;
+            if (!isNextClick && newPage > totalPages) return;
+            if (isNextClick && !(hasNext || pageNum < totalPages)) return;
+
+            setPageNum(newPage);
+            window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+          },
+        }}
       />
     </div>
   );

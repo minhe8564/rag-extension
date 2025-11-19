@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Option } from '@/shared/components/controls/Select';
 import { Save, Check } from 'lucide-react';
 import { toast } from 'react-toastify';
@@ -20,6 +20,8 @@ export function IngestSettingsForm({
   loading = false,
   anchors,
   preset,
+  onDirtyChange,
+  registerSaveHandler,
 }: IngestSettingsFormProps) {
   const queryClient = useQueryClient();
   const templateOpts: Option[] = options?.ingestTemplate ?? [];
@@ -123,6 +125,10 @@ export function IngestSettingsForm({
     baseline,
   ]);
 
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
+
   const scrollTo = (id: FlowStepId) => {
     anchors?.[id]?.current?.scrollIntoView({
       behavior: 'smooth',
@@ -130,7 +136,7 @@ export function IngestSettingsForm({
     });
   };
 
-  const invalidateAllIngestQueries = async () => {
+  const invalidateAllIngestQueries = useCallback(async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['admin', 'ragSettings', 'ingest', 'templates'] }),
       queryClient.invalidateQueries({ queryKey: ['admin', 'ragSettings', 'ingest', 'current'] }),
@@ -138,9 +144,9 @@ export function IngestSettingsForm({
         queryKey: ['admin', 'ragSettings', 'ingest', 'detail', template],
       }),
     ]);
-  };
+  }, [queryClient, template]);
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     const payload: SavePayload = {
       template,
       templateName,
@@ -173,7 +179,25 @@ export function IngestSettingsForm({
     setSaved(true);
     setTimeout(() => setSaved(false), 900);
     setSaving(false);
-  };
+  }, [
+    template,
+    templateName,
+    extractEngine,
+    chunkStrategy,
+    chunkSize,
+    overlap,
+    embedModel,
+    embedSparse,
+    isDefault,
+    isCreateMode,
+    onSave,
+    invalidateAllIngestQueries,
+  ]);
+
+  useEffect(() => {
+    if (!registerSaveHandler) return;
+    registerSaveHandler(handleSave);
+  }, [registerSaveHandler, handleSave]);
 
   const SaveBtn = (
     <button

@@ -73,13 +73,12 @@ export default function SelectVectorization({
         });
       });
 
-      const uploadResults = await Promise.all(uploadPromises);
+      await Promise.all(uploadPromises);
       toast.success('파일 업로드 완료!');
       // 초기화
       setLocalFiles([]);
       setSelectedFile(null);
       setCurrentPage(1);
-      console.log('🔥 벡터화 시작 요청 결과:', uploadResults);
 
       onUploadComplete();
     } catch (err) {
