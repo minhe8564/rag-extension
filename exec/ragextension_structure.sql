@@ -1,0 +1,690 @@
+CREATE DATABASE  IF NOT EXISTS `hebees-test` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
+USE `hebees-test`;
+-- MySQL dump 10.13  Distrib 8.0.44, for Win64 (x86_64)
+--
+-- Host: k13s407.p.ssafy.io    Database: hebees-test
+-- ------------------------------------------------------
+-- Server version	8.0.44
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!50503 SET NAMES utf8 */;
+/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
+/*!40103 SET TIME_ZONE='+00:00' */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+
+--
+-- Table structure for table `AGENT_PROMPT`
+--
+
+DROP TABLE IF EXISTS `AGENT_PROMPT`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `AGENT_PROMPT` (
+  `AGENT_PROMPT_NO` binary(16) NOT NULL,
+  `CREATED_AT` datetime(6) NOT NULL,
+  `UPDATED_AT` datetime(6) NOT NULL,
+  `CONTENT` text NOT NULL,
+  `DESCRIPTION` varchar(255) DEFAULT NULL,
+  `NAME` varchar(100) NOT NULL,
+  `LLM_NO` binary(16) NOT NULL,
+  PRIMARY KEY (`AGENT_PROMPT_NO`),
+  UNIQUE KEY `UKok5uulw0wa48ps431cxv6ushj` (`NAME`),
+  KEY `FK8cy7vonsrt15vkiv1c7hmika7` (`LLM_NO`),
+  CONSTRAINT `FK8cy7vonsrt15vkiv1c7hmika7` FOREIGN KEY (`LLM_NO`) REFERENCES `STRATEGY` (`STRATEGY_NO`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `CHATBOT_AGGREGATE_HOURLY`
+--
+
+DROP TABLE IF EXISTS `CHATBOT_AGGREGATE_HOURLY`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `CHATBOT_AGGREGATE_HOURLY` (
+  `AGGREGATE_DATETIME` datetime(6) NOT NULL,
+  `CREATED_AT` datetime(6) NOT NULL,
+  `UPDATED_AT` datetime(6) NOT NULL,
+  `INPUT_TOKENS` bigint NOT NULL,
+  `OUTPUT_TOKENS` bigint NOT NULL,
+  `RESPONSE_COUNT` bigint NOT NULL,
+  `TOTAL_RESPONSE_TIME_MS` float NOT NULL,
+  `TOTAL_TOKENS` bigint NOT NULL,
+  PRIMARY KEY (`AGGREGATE_DATETIME`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `CHUNK`
+--
+
+DROP TABLE IF EXISTS `CHUNK`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `CHUNK` (
+  `CHUNK_NO` binary(16) NOT NULL COMMENT '청크 고유 번호 (UUID)',
+  `COLLECTION_NO` binary(16) NOT NULL COMMENT '소속 컬렉션 번호',
+  `FILE_NO` binary(16) NOT NULL COMMENT '원본 파일 번호',
+  `FILE_NAME` varchar(255) NOT NULL COMMENT '파일 이름',
+  `PAGE_NO` int NOT NULL COMMENT '페이지 번호',
+  `INDEX_NO` int NOT NULL COMMENT '페이지 내 청크 인덱스',
+  `CREATED_AT` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '생성 일시',
+  `UPDATED_AT` datetime NOT NULL COMMENT '수정 일시',
+  PRIMARY KEY (`CHUNK_NO`),
+  KEY `IDX_CHUNK_COLLECTION` (`COLLECTION_NO`),
+  KEY `IDX_CHUNK_FILE` (`FILE_NO`),
+  KEY `IDX_CHUNK_PAGE` (`PAGE_NO`),
+  CONSTRAINT `FK_CHUNK_COLLECTION` FOREIGN KEY (`COLLECTION_NO`) REFERENCES `COLLECTION` (`COLLECTION_NO`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `FK_CHUNK_FILE` FOREIGN KEY (`FILE_NO`) REFERENCES `FILE` (`FILE_NO`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `COLLECTION`
+--
+
+DROP TABLE IF EXISTS `COLLECTION`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `COLLECTION` (
+  `COLLECTION_NO` binary(16) NOT NULL,
+  `OFFER_NO` char(10) NOT NULL,
+  `NAME` varchar(255) NOT NULL,
+  `VERSION` int NOT NULL,
+  `INGEST_GROUP_NO` binary(16) NOT NULL,
+  `CREATED_AT` datetime(6) NOT NULL,
+  `UPDATED_AT` datetime(6) NOT NULL,
+  PRIMARY KEY (`COLLECTION_NO`),
+  UNIQUE KEY `UK_COLLECTION_NAME` (`NAME`),
+  KEY `IDX_COLLECTION_OFFER` (`OFFER_NO`),
+  KEY `IDX_COLLECTION_INGEST_GROUP` (`INGEST_GROUP_NO`),
+  CONSTRAINT `FK_COLLECTION_OFFER` FOREIGN KEY (`OFFER_NO`) REFERENCES `OFFER` (`OFFER_NO`) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `DOCUMENT_AGGREGATE_HOURLY`
+--
+
+DROP TABLE IF EXISTS `DOCUMENT_AGGREGATE_HOURLY`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `DOCUMENT_AGGREGATE_HOURLY` (
+  `AGGREGATE_DATETIME` datetime(6) NOT NULL,
+  `CREATED_AT` datetime(6) NOT NULL,
+  `UPDATED_AT` datetime(6) NOT NULL,
+  `UPLOAD_COUNT` bigint NOT NULL,
+  PRIMARY KEY (`AGGREGATE_DATETIME`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `EMBEDDING_GROUP`
+--
+
+DROP TABLE IF EXISTS `EMBEDDING_GROUP`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `EMBEDDING_GROUP` (
+  `EMBEDDING_GROUP_NO` binary(16) NOT NULL,
+  `INGEST_GROUP_NO` binary(16) NOT NULL,
+  `NAME` varchar(100) NOT NULL,
+  `EMBEDDING_STRATEGY_NO` binary(16) NOT NULL,
+  `EMBEDDING_PARAMETER` json NOT NULL,
+  `CREATED_AT` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `UPDATED_AT` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`EMBEDDING_GROUP_NO`),
+  KEY `IDX_EMB_INGEST` (`INGEST_GROUP_NO`),
+  KEY `IDX_EMB_STRATEGY` (`EMBEDDING_STRATEGY_NO`),
+  CONSTRAINT `FK_EMB_INGEST_GROUP` FOREIGN KEY (`INGEST_GROUP_NO`) REFERENCES `INGEST_GROUP` (`INGEST_GROUP_NO`) ON DELETE CASCADE ON UPDATE RESTRICT,
+  CONSTRAINT `FK_EMB_STRATEGY_TEMPLATE` FOREIGN KEY (`EMBEDDING_STRATEGY_NO`) REFERENCES `STRATEGY` (`STRATEGY_NO`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `EMBEDDING_TEST_FILE`
+--
+
+DROP TABLE IF EXISTS `EMBEDDING_TEST_FILE`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `EMBEDDING_TEST_FILE` (
+  `EMBEDDING_TEST_FILE_NO` binary(16) NOT NULL,
+  `TEST_COLLECTION_NO` binary(16) NOT NULL COMMENT 'TEST_COLLECTION 참조',
+  `TEST_FILE_NO` binary(16) NOT NULL COMMENT 'TEST_FILE 참조',
+  `CREATED_AT` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `UPDATED_AT` datetime NOT NULL,
+  PRIMARY KEY (`EMBEDDING_TEST_FILE_NO`),
+  KEY `FK_EMBEDDING_TEST_FILE_COLLECTION` (`TEST_COLLECTION_NO`),
+  KEY `FK_EMBEDDING_TEST_FILE_FILE` (`TEST_FILE_NO`),
+  CONSTRAINT `FK_EMBEDDING_TEST_FILE_COLLECTION` FOREIGN KEY (`TEST_COLLECTION_NO`) REFERENCES `TEST_COLLECTION` (`TEST_COLLECTION_NO`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `FK_EMBEDDING_TEST_FILE_FILE` FOREIGN KEY (`TEST_FILE_NO`) REFERENCES `TEST_FILE` (`TEST_FILE_NO`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `ERROR_AGGREGATE_HOURLY`
+--
+
+DROP TABLE IF EXISTS `ERROR_AGGREGATE_HOURLY`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `ERROR_AGGREGATE_HOURLY` (
+  `ERROR_AGGREGATE_DATETIME` datetime(6) NOT NULL,
+  `CREATED_AT` datetime(6) NOT NULL,
+  `UPDATED_AT` datetime(6) NOT NULL,
+  `RESPONSE_ERROR_COUNT` bigint NOT NULL,
+  `SYSTEM_ERROR_COUNT` bigint NOT NULL,
+  `TOTAL_ERROR_COUNT` bigint NOT NULL,
+  PRIMARY KEY (`ERROR_AGGREGATE_DATETIME`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `EXTRACTION_GROUP`
+--
+
+DROP TABLE IF EXISTS `EXTRACTION_GROUP`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `EXTRACTION_GROUP` (
+  `EXTRACTION_GROUP_NO` binary(16) NOT NULL,
+  `INGEST_GROUP_NO` binary(16) NOT NULL,
+  `NAME` varchar(100) NOT NULL,
+  `EXTRACTION_STRATEGY_NO` binary(16) NOT NULL,
+  `EXTRACTION_PARAMETER` json NOT NULL,
+  `CREATED_AT` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `UPDATED_AT` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`EXTRACTION_GROUP_NO`),
+  KEY `IDX_EXG_INGEST` (`INGEST_GROUP_NO`),
+  KEY `IDX_EXG_STRATEGY` (`EXTRACTION_STRATEGY_NO`),
+  CONSTRAINT `FK_EXG_INGEST_GROUP` FOREIGN KEY (`INGEST_GROUP_NO`) REFERENCES `INGEST_GROUP` (`INGEST_GROUP_NO`) ON DELETE CASCADE ON UPDATE RESTRICT,
+  CONSTRAINT `FK_EXG_STRATEGY_TEMPLATE` FOREIGN KEY (`EXTRACTION_STRATEGY_NO`) REFERENCES `STRATEGY` (`STRATEGY_NO`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `FILE`
+--
+
+DROP TABLE IF EXISTS `FILE`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `FILE` (
+  `FILE_NO` binary(16) NOT NULL,
+  `USER_NO` binary(16) NOT NULL,
+  `NAME` varchar(255) NOT NULL,
+  `SIZE` int NOT NULL,
+  `TYPE` varchar(20) NOT NULL,
+  `HASH` varchar(255) NOT NULL,
+  `DESCRIPTION` text NOT NULL,
+  `BUCKET` varchar(255) NOT NULL,
+  `PATH` varchar(255) NOT NULL,
+  `STATUS` varchar(20) NOT NULL DEFAULT 'PENDING',
+  `FILE_CATEGORY_NO` binary(16) NOT NULL,
+  `OFFER_NO` char(10) NOT NULL,
+  `SOURCE_NO` binary(16) DEFAULT NULL,
+  `COLLECTION_NO` binary(16) DEFAULT NULL,
+  `CREATED_AT` datetime(6) NOT NULL,
+  `UPDATED_AT` datetime(6) NOT NULL,
+  PRIMARY KEY (`FILE_NO`),
+  KEY `IDX_FILE_USER` (`USER_NO`),
+  KEY `IDX_FILE_FILE_CATEGORY` (`FILE_CATEGORY_NO`),
+  KEY `IDX_FILE_OFFER` (`OFFER_NO`),
+  KEY `IDX_FILE_COLLECTION` (`COLLECTION_NO`),
+  KEY `IDX_FILE_SOURCE` (`SOURCE_NO`),
+  KEY `IDX_FILE_TYPE` (`TYPE`),
+  CONSTRAINT `FK_FILE_COLLECTION` FOREIGN KEY (`COLLECTION_NO`) REFERENCES `COLLECTION` (`COLLECTION_NO`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `FK_FILE_FILE_CATEGORY` FOREIGN KEY (`FILE_CATEGORY_NO`) REFERENCES `FILE_CATEGORY` (`FILE_CATEGORY_NO`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `FK_FILE_OFFER` FOREIGN KEY (`OFFER_NO`) REFERENCES `OFFER` (`OFFER_NO`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `FK_FILE_SOURCE` FOREIGN KEY (`SOURCE_NO`) REFERENCES `FILE` (`FILE_NO`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `FK_FILE_USER` FOREIGN KEY (`USER_NO`) REFERENCES `USER` (`USER_NO`) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `FILE_CATEGORY`
+--
+
+DROP TABLE IF EXISTS `FILE_CATEGORY`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `FILE_CATEGORY` (
+  `FILE_CATEGORY_NO` binary(16) NOT NULL,
+  `NAME` varchar(50) NOT NULL,
+  `CREATED_AT` datetime(6) NOT NULL,
+  `UPDATED_AT` datetime(6) NOT NULL,
+  `IS_IMAGE` tinyint(1) NOT NULL DEFAULT '0' COMMENT '이미지 카테고리 여부',
+  PRIMARY KEY (`FILE_CATEGORY_NO`),
+  UNIQUE KEY `UK_FILE_CATEGORY_NAME` (`NAME`),
+  KEY `IDX_FILE_CATEGORY_NAME` (`NAME`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `INGEST_GROUP`
+--
+
+DROP TABLE IF EXISTS `INGEST_GROUP`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `INGEST_GROUP` (
+  `INGEST_GROUP_NO` binary(16) NOT NULL,
+  `NAME` varchar(100) NOT NULL COMMENT 'Ingest 템플릿 이름',
+  `IS_DEFAULT` tinyint(1) NOT NULL COMMENT 'TRUE는 단 하나',
+  `CHUNKING_STRATEGY_NO` binary(16) NOT NULL COMMENT 'Chunking 전략',
+  `CHUNKING_PARAMETER` json NOT NULL,
+  `SPARSE_EMBEDDING_STRATEGY_NO` binary(16) DEFAULT NULL,
+  `SPARSE_EMBEDDING_PARAMETER` json DEFAULT NULL,
+  `CREATED_AT` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `UPDATED_AT` datetime NOT NULL,
+  PRIMARY KEY (`INGEST_GROUP_NO`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `KEYWORD_AGGREGATE_DAILY`
+--
+
+DROP TABLE IF EXISTS `KEYWORD_AGGREGATE_DAILY`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `KEYWORD_AGGREGATE_DAILY` (
+  `AGGREGATE_NO` binary(16) NOT NULL,
+  `CREATED_AT` datetime(6) NOT NULL,
+  `UPDATED_AT` datetime(6) NOT NULL,
+  `AGGREGATE_DATE` date NOT NULL,
+  `FREQUENCY` bigint NOT NULL,
+  `KEYWORD` varchar(255) NOT NULL,
+  PRIMARY KEY (`AGGREGATE_NO`),
+  UNIQUE KEY `UK_KEYWORD_DAILY__AGGREGATE_DATE__KEYWORD` (`AGGREGATE_DATE`,`KEYWORD`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `LLM_KEY`
+--
+
+DROP TABLE IF EXISTS `LLM_KEY`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `LLM_KEY` (
+  `LLM_KEY_NO` binary(16) NOT NULL,
+  `API_KEY` varchar(255) DEFAULT NULL,
+  `STRATEGY_NO` binary(16) NOT NULL,
+  `USER_NO` binary(16) DEFAULT NULL,
+  PRIMARY KEY (`LLM_KEY_NO`),
+  UNIQUE KEY `UK_LLM_KEY_USER_STRATEGY` (`USER_NO`,`STRATEGY_NO`),
+  UNIQUE KEY `UK_LLM_KEY__USER_NO__STRATEGY_NO` (`USER_NO`,`STRATEGY_NO`),
+  KEY `FK3pehi81meibvo64don2mr0pqm` (`STRATEGY_NO`),
+  CONSTRAINT `FK3pehi81meibvo64don2mr0pqm` FOREIGN KEY (`STRATEGY_NO`) REFERENCES `STRATEGY` (`STRATEGY_NO`),
+  CONSTRAINT `FKo2tbk7qv37qfda4k2gbouefyu` FOREIGN KEY (`USER_NO`) REFERENCES `USER` (`USER_NO`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `MESSAGE_ERROR`
+--
+
+DROP TABLE IF EXISTS `MESSAGE_ERROR`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `MESSAGE_ERROR` (
+  `MESSAGE_ERROR_NO` binary(16) NOT NULL,
+  `CREATED_AT` datetime(6) NOT NULL,
+  `UPDATED_AT` datetime(6) NOT NULL,
+  `REQUEST_NO` binary(16) DEFAULT NULL,
+  `SESSION_NO` binary(16) NOT NULL,
+  `TYPE` enum('RESPONSE','SYSTEM') NOT NULL,
+  `MESSAGE` varchar(1023) NOT NULL,
+  `USER_NO` binary(16) NOT NULL,
+  PRIMARY KEY (`MESSAGE_ERROR_NO`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `MODEL_AGGREGATE_HOURLY`
+--
+
+DROP TABLE IF EXISTS `MODEL_AGGREGATE_HOURLY`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `MODEL_AGGREGATE_HOURLY` (
+  `AGGREGATE_NO` binary(16) NOT NULL,
+  `CREATED_AT` datetime(6) NOT NULL,
+  `UPDATED_AT` datetime(6) NOT NULL,
+  `AGGREGATE_DATETIME` datetime(6) NOT NULL,
+  `INPUT_TOKENS` bigint NOT NULL,
+  `LLM_NO` binary(16) NOT NULL,
+  `OUTPUT_TOKENS` bigint NOT NULL,
+  `RESPONSE_COUNT` bigint NOT NULL,
+  `TOTAL_RESPONSE_TIME_MS` float NOT NULL,
+  `TOTAL_TOKENS` bigint NOT NULL,
+  PRIMARY KEY (`AGGREGATE_NO`),
+  UNIQUE KEY `UK_MODEL_HOURLY__LLM_NO__AGGREGATE_DATETIME` (`LLM_NO`,`AGGREGATE_DATETIME`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `MODEL_PRICE`
+--
+
+DROP TABLE IF EXISTS `MODEL_PRICE`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `MODEL_PRICE` (
+  `LLM_NO` binary(16) NOT NULL,
+  `CREATED_AT` datetime(6) NOT NULL,
+  `UPDATED_AT` datetime(6) NOT NULL,
+  `INPUT_TOKEN_PRICE_PER_1K_USD` decimal(10,6) NOT NULL,
+  `OUTPUT_TOKEN_PRICE_PER_1K_USD` decimal(10,6) NOT NULL,
+  PRIMARY KEY (`LLM_NO`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `NOTIFICATION`
+--
+
+DROP TABLE IF EXISTS `NOTIFICATION`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `NOTIFICATION` (
+  `NOTIFICATION_NO` binary(16) NOT NULL,
+  `USER_NO` binary(16) NOT NULL,
+  `CATEGORY` varchar(50) NOT NULL,
+  `EVENT_TYPE` varchar(100) NOT NULL,
+  `REFERENCE_ID` varchar(50) NOT NULL,
+  `TITLE` varchar(255) NOT NULL,
+  `TOTAL` int NOT NULL,
+  `SUCCESS_COUNT` int NOT NULL,
+  `FAILED_COUNT` int NOT NULL,
+  `IS_READ` tinyint(1) NOT NULL DEFAULT '0',
+  `CREATED_AT` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `UPDATED_AT` datetime DEFAULT NULL,
+  `DELETED_AT` datetime DEFAULT NULL,
+  PRIMARY KEY (`NOTIFICATION_NO`),
+  UNIQUE KEY `UX_NOTIFICATION_USER_EVT_REF` (`USER_NO`,`EVENT_TYPE`,`REFERENCE_ID`),
+  KEY `IDX_NOTIFICATION_USER_CREATED` (`USER_NO`,`CREATED_AT`),
+  CONSTRAINT `FK_NOTIFICATION_USER` FOREIGN KEY (`USER_NO`) REFERENCES `USER` (`USER_NO`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `OFFER`
+--
+
+DROP TABLE IF EXISTS `OFFER`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `OFFER` (
+  `OFFER_NO` char(10) NOT NULL,
+  `CREATED_AT` datetime(6) NOT NULL,
+  `UPDATED_AT` datetime(6) NOT NULL,
+  `VERSION` int NOT NULL,
+  PRIMARY KEY (`OFFER_NO`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `QUERY_GROUP`
+--
+
+DROP TABLE IF EXISTS `QUERY_GROUP`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `QUERY_GROUP` (
+  `QUERY_GROUP_NO` binary(16) NOT NULL,
+  `NAME` varchar(100) NOT NULL COMMENT 'Query 템플릿 이름',
+  `IS_DEFAULT` tinyint(1) NOT NULL COMMENT 'TRUE는 단 하나',
+  `TRANSFORMATION_STRATEGY_NO` binary(16) NOT NULL COMMENT 'Transformation 전략',
+  `RETRIEVAL_STRATEGY_NO` binary(16) NOT NULL COMMENT 'Retrieval 전략',
+  `RERANKING_STRATEGY_NO` binary(16) NOT NULL COMMENT 'Reranking 전략',
+  `SYSTEM_PROMPTING_STRATEGY_NO` binary(16) NOT NULL COMMENT 'System Prompting 전략',
+  `USER_PROMPTING_STRATEGY_NO` binary(16) NOT NULL COMMENT 'User Prompting 전략',
+  `GENERATION_STRATEGY_NO` binary(16) NOT NULL COMMENT 'Generation 전략',
+  `TRANSFORMATION_PARAMETER` json NOT NULL,
+  `RETRIEVAL_PARAMETER` json NOT NULL,
+  `RERANKING_PARAMETER` json NOT NULL,
+  `SYSTEM_PROMPTING_PARAMETER` json NOT NULL,
+  `USER_PROMPTING_PARAMETER` json NOT NULL,
+  `GENERATION_PARAMETER` json NOT NULL,
+  `CREATED_AT` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `UPDATED_AT` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`QUERY_GROUP_NO`),
+  KEY `IDX_QUERY_GROUP_NAME` (`NAME`),
+  KEY `IDX_QUERY_GROUP_TRANSFORMATION` (`TRANSFORMATION_STRATEGY_NO`),
+  KEY `IDX_QUERY_GROUP_RETRIEVAL` (`RETRIEVAL_STRATEGY_NO`),
+  KEY `IDX_QUERY_GROUP_RERANKING` (`RERANKING_STRATEGY_NO`),
+  KEY `IDX_QUERY_GROUP_SYSTEM_PROMPTING` (`SYSTEM_PROMPTING_STRATEGY_NO`),
+  KEY `IDX_QUERY_GROUP_USER_PROMPTING` (`USER_PROMPTING_STRATEGY_NO`),
+  KEY `IDX_QUERY_GROUP_GENERATION` (`GENERATION_STRATEGY_NO`),
+  CONSTRAINT `FK2sc4mtotvnw1gmdubyl2dkrod` FOREIGN KEY (`SYSTEM_PROMPTING_STRATEGY_NO`) REFERENCES `STRATEGY` (`STRATEGY_NO`),
+  CONSTRAINT `FKgmy80w42qoj7miix30e6rmpb` FOREIGN KEY (`RERANKING_STRATEGY_NO`) REFERENCES `STRATEGY` (`STRATEGY_NO`),
+  CONSTRAINT `FKkvp65hyflfv22hj7rm269uqbd` FOREIGN KEY (`GENERATION_STRATEGY_NO`) REFERENCES `STRATEGY` (`STRATEGY_NO`),
+  CONSTRAINT `FKnixb9ocwgt8q3u53k08bj8qoy` FOREIGN KEY (`RETRIEVAL_STRATEGY_NO`) REFERENCES `STRATEGY` (`STRATEGY_NO`),
+  CONSTRAINT `FKrhme1cqoo0v9g25k1045d0r6s` FOREIGN KEY (`USER_PROMPTING_STRATEGY_NO`) REFERENCES `STRATEGY` (`STRATEGY_NO`),
+  CONSTRAINT `FKt4xcpc3kiy9paq51twaafis0o` FOREIGN KEY (`TRANSFORMATION_STRATEGY_NO`) REFERENCES `STRATEGY` (`STRATEGY_NO`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `RUNPOD`
+--
+
+DROP TABLE IF EXISTS `RUNPOD`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `RUNPOD` (
+  `RUNPOD_NO` binary(16) NOT NULL COMMENT 'Runpod UUID (Primary Key)',
+  `NAME` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Runpod 이름',
+  `ADDRESS` varchar(500) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Runpod 주소',
+  `CREATED_AT` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '생성 시간',
+  `UPDATED_AT` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '수정 시간',
+  PRIMARY KEY (`RUNPOD_NO`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Runpod 정보 테이블';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `SESSION`
+--
+
+DROP TABLE IF EXISTS `SESSION`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `SESSION` (
+  `SESSION_NO` binary(16) NOT NULL,
+  `CREATED_AT` datetime(6) NOT NULL,
+  `UPDATED_AT` datetime(6) NOT NULL,
+  `DELETED_AT` datetime(6) DEFAULT NULL,
+  `LAST_REQUESTED_AT` datetime(6) DEFAULT NULL,
+  `LLM_NO` binary(16) NOT NULL,
+  `TITLE` varchar(50) NOT NULL,
+  `USER_NO` binary(16) NOT NULL,
+  PRIMARY KEY (`SESSION_NO`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `STRATEGY`
+--
+
+DROP TABLE IF EXISTS `STRATEGY`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `STRATEGY` (
+  `STRATEGY_NO` binary(16) NOT NULL,
+  `STRATEGY_TYPE_NO` binary(16) NOT NULL,
+  `NAME` varchar(50) NOT NULL,
+  `DESCRIPTION` varchar(255) NOT NULL,
+  `PARAMETER` json NOT NULL,
+  `CREATED_AT` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `UPDATED_AT` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `CODE` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`STRATEGY_NO`),
+  UNIQUE KEY `uk_strategy_type_name` (`STRATEGY_TYPE_NO`,`NAME`),
+  KEY `IDX_STRATEGY_TYPE_NO` (`STRATEGY_TYPE_NO`),
+  KEY `IDX_STRATEGY_NAME` (`NAME`),
+  KEY `IDX_STRATEGY_CODE` (`CODE`),
+  CONSTRAINT `fk_strategy__strategy_type` FOREIGN KEY (`STRATEGY_TYPE_NO`) REFERENCES `STRATEGY_TYPE` (`STRATEGY_TYPE_NO`) ON DELETE RESTRICT ON UPDATE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `STRATEGY_TYPE`
+--
+
+DROP TABLE IF EXISTS `STRATEGY_TYPE`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `STRATEGY_TYPE` (
+  `STRATEGY_TYPE_NO` binary(16) NOT NULL,
+  `NAME` varchar(255) NOT NULL,
+  `CREATED_AT` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `UPDATED_AT` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`STRATEGY_TYPE_NO`),
+  UNIQUE KEY `uk_strategy_type_name` (`NAME`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `TEST_CHUNK`
+--
+
+DROP TABLE IF EXISTS `TEST_CHUNK`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `TEST_CHUNK` (
+  `TEST_CHUNK_NO` binary(16) NOT NULL,
+  `EMBEDDING_TEST_FILE_NO` binary(16) NOT NULL COMMENT 'EMBEDDING_TEST_FILE 참조',
+  `PAGE_NO` int NOT NULL COMMENT '페이지 번호',
+  `RANK` int NOT NULL COMMENT '페이지 내 순서',
+  PRIMARY KEY (`TEST_CHUNK_NO`),
+  KEY `FK_TEST_CHUNK_EMBEDDING_TEST_FILE` (`EMBEDDING_TEST_FILE_NO`),
+  CONSTRAINT `FK_TEST_CHUNK_EMBEDDING_TEST_FILE` FOREIGN KEY (`EMBEDDING_TEST_FILE_NO`) REFERENCES `EMBEDDING_TEST_FILE` (`EMBEDDING_TEST_FILE_NO`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `TEST_COLLECTION`
+--
+
+DROP TABLE IF EXISTS `TEST_COLLECTION`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `TEST_COLLECTION` (
+  `TEST_COLLECTION_NO` binary(16) NOT NULL,
+  `NAME` varchar(255) NOT NULL COMMENT 'UNIQUE',
+  `INGEST_GROUP_NO` binary(16) NOT NULL COMMENT 'INGEST_GROUP 참조, 불변',
+  `CREATED_AT` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `UPDATED_AT` datetime NOT NULL,
+  PRIMARY KEY (`TEST_COLLECTION_NO`),
+  UNIQUE KEY `UK_TEST_COLLECTION_NAME` (`NAME`),
+  KEY `FK_TEST_COLLECTION_INGEST_GROUP` (`INGEST_GROUP_NO`),
+  CONSTRAINT `FK_TEST_COLLECTION_INGEST_GROUP` FOREIGN KEY (`INGEST_GROUP_NO`) REFERENCES `INGEST_GROUP` (`INGEST_GROUP_NO`) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `TEST_FILE`
+--
+
+DROP TABLE IF EXISTS `TEST_FILE`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `TEST_FILE` (
+  `TEST_FILE_NO` binary(16) NOT NULL,
+  `TEST_COLLECTION_NO` binary(16) NOT NULL COMMENT '테스트 컬렉션 참조',
+  `NAME` varchar(255) NOT NULL,
+  `SIZE` int NOT NULL COMMENT 'byte 단위',
+  `TYPE` varchar(20) NOT NULL COMMENT 'pdf, jpg, xlsx',
+  `HASH` varchar(255) NOT NULL,
+  `DESCRIPTION` text NOT NULL,
+  `BUCKET` varchar(255) NOT NULL COMMENT 'MinIO bucket 이름',
+  `PATH` varchar(255) NOT NULL COMMENT '객체 경로',
+  `STATUS` varchar(20) NOT NULL DEFAULT 'PENDING',
+  `CREATED_AT` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `UPDATED_AT` datetime NOT NULL,
+  `SOURCE_NO` binary(16) NOT NULL COMMENT '원본 파일 참조 (없으면 자기 자신)',
+  PRIMARY KEY (`TEST_FILE_NO`),
+  KEY `FK_TEST_FILE_TEST_COLLECTION` (`TEST_COLLECTION_NO`),
+  CONSTRAINT `FK_TEST_FILE_TEST_COLLECTION` FOREIGN KEY (`TEST_COLLECTION_NO`) REFERENCES `TEST_COLLECTION` (`TEST_COLLECTION_NO`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `USER`
+--
+
+DROP TABLE IF EXISTS `USER`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `USER` (
+  `USER_NO` binary(16) NOT NULL,
+  `CREATED_AT` datetime(6) NOT NULL,
+  `UPDATED_AT` datetime(6) NOT NULL,
+  `DELETED_AT` datetime(6) DEFAULT NULL,
+  `BUSINESS_TYPE` int DEFAULT NULL,
+  `EMAIL` varchar(254) NOT NULL,
+  `NAME` varchar(50) NOT NULL,
+  `PASSWORD` varchar(255) NOT NULL,
+  `OFFER_NO` char(10) NOT NULL,
+  `USER_ROLE_NO` binary(16) NOT NULL,
+  PRIMARY KEY (`USER_NO`),
+  UNIQUE KEY `UK_USER_EMAIL` (`EMAIL`),
+  KEY `IDX_USER_OFFER` (`OFFER_NO`),
+  KEY `IDX_USER_ROLE` (`USER_ROLE_NO`),
+  CONSTRAINT `FK_USER_OFFER` FOREIGN KEY (`OFFER_NO`) REFERENCES `OFFER` (`OFFER_NO`),
+  CONSTRAINT `FK_USER_USER_ROLE` FOREIGN KEY (`USER_ROLE_NO`) REFERENCES `USER_ROLE` (`USER_ROLE_NO`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `USER_AGGREGATE_HOURLY`
+--
+
+DROP TABLE IF EXISTS `USER_AGGREGATE_HOURLY`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `USER_AGGREGATE_HOURLY` (
+  `AGGREGATE_DATETIME` datetime(6) NOT NULL,
+  `CREATED_AT` datetime(6) NOT NULL,
+  `UPDATED_AT` datetime(6) NOT NULL,
+  `ACCESS_USER_COUNT` bigint NOT NULL,
+  PRIMARY KEY (`AGGREGATE_DATETIME`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `USER_ROLE`
+--
+
+DROP TABLE IF EXISTS `USER_ROLE`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `USER_ROLE` (
+  `USER_ROLE_NO` binary(16) NOT NULL,
+  `CREATED_AT` datetime(6) NOT NULL,
+  `UPDATED_AT` datetime(6) NOT NULL,
+  `MODE` int NOT NULL,
+  `NAME` varchar(20) NOT NULL,
+  PRIMARY KEY (`USER_ROLE_NO`),
+  UNIQUE KEY `UK_USER_ROLE_NAME` (`NAME`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+-- Dump completed on 2025-11-20  2:18:48
