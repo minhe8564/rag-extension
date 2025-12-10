@@ -621,27 +621,27 @@
 <table>
   <tr>
     <td align="center" width="33%"><b>🧩 Jenkins Pipeline</b></td>
-    <td align="center" width="50%"><b>🗨️ Jira Issue Created</b></td>
+    <td align="center" width="33%"><b>🗨️ Jira Issue Created</b></td>
     <td align="center" width="33%"><b>🔀 Merge Code Review</b></td>
   </tr>
   <tr>
     <td align="center">
-      <img src="./readme-assets/jenkins_pipeline.png" width="100%" alt="Jenkins Pipeline"/>
+      <img src="./readme-assets/jenkins_pipeline.png" width="100%" height="220px" style="object-fit: cover;" />
     </td>
     <td align="center">
-      <img src="./readme-assets/jira_issue.png" width="100%" alt="DLP Process"/>
+      <img src="./readme-assets/jira_issue.png" width="100%" height="220px" style="object-fit: cover;" />
     </td>
     <td align="center">
-      <img src="./readme-assets/code_review.png" width="100%" alt="DLP Process"/>
+      <img src="./readme-assets/code_review.png" width="100%" height="220px" style="object-fit: cover;" />
     </td>
   </tr>
 </table>
 
-</div>
+</div><br>
 
 ### 📊 주요 기능
 
-<div align="center">
+<div>
 
 | **기능** | **설명** |
 | :------- | :------- |
