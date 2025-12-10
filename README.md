@@ -17,194 +17,137 @@
 - **기관** : 삼성 청년 SW·AI 아카데미 13기 <br><br>
 
 ## 👥 팀원 소개
-
 <div align="center">
 
 <table>
-<tr>
-<td width="33%" align="center"></td>
-<td width="33%" align="center">
-
-<img src="./readme-assets/최민석.jpg" width="160" height="180" />
-
-### 👑 최민석
-
-**`Infra`** | [GitHub](https://github.com/m0304s)
-
-📞 010-6641-8955
-
-✉️ gd10080008@gmail.com
-
-📍 1352879
-
-<div align="left">
-
-**담당 업무**
-- MSA 기반 시스템 아키텍처 설계 및 구현
-- MARKER 프로세스 구현
-- 프로젝트 전체 일정 관리 및 팀 리딩
-
-</div>
-
-</td>
-<td width="33%" align="center"></td>
-</tr>
-<tr>
-<td width="33%" align="center">
-
-<img src="./readme-assets/김태윤.jpg" width="160" height="180" />
-
-### 김태윤
-
-**`Back-End`** | [GitHub](https://github.com/TaeYun-K)
-
-📞 010-8321-2470
-
-✉️ kty860084@gmail.com
-
-📍 1350665
-
-<div align="left">
-
-**담당 업무**
-- 로그인/인증 시스템 개발
-- 문서 업로드/삭제/조회 기능 개발
-- 문서 업로드 실시간 진행률 시스템 개발
-- 알림 기능 개발
-
-</div>
-
-</td>
-<td width="33%" align="center">
-
-<img src="./readme-assets/이민희.jpg" width="160" height="180" />
-
-### 이민희
-
-**`Front-End`** | [GitHub](https://github.com/minhe8564)
-
-📞 010-8564-4860
-
-✉️ minhe8564@gmail.com
-
-📍 1354647
-
-<div align="left">
-
-**담당 업무**
-- RAG 채팅 기능 + SSE 기반 실시간 응답 처리 훅 개발
-- 비용·CPU·메모리·트래픽 등 실시간 인프라 대시보드 개발
-- 재사용 가능한 공통 UI 컴포넌트 구축
-- 여러 서버 API의 응답/에러 처리 규칙을 하나로 통합
-
-</div>
-
-</td>
-<td width="33%" align="center">
-
-<img src="./readme-assets/이재원.jpg" width="160" height="180" />
-
-### 이재원
-
-**`Back-End`** **`AI`** | [GitHub](https://github.com/LJW9354)
-
-📞 010-4553-9354
-
-✉️ dlwodnjs9354@naver.com
-
-📍 1352265
-
-<div align="left">
-
-**담당 업무**
-- 전체 문서 처리 흐름 제어 및 AI 파이프라인 오케스트레이션 시스템 구현
-- 다양한 문서 형식 파싱 및 Marker 기반 레이아웃 분석 구현
-- 데이터 분할·임베딩 생성 및 벡터 유사도 검색·Cross-Encoder 재정렬 파이프라인 구축
-- 스트리밍 기반 AI 답변 생성 시스템 구현
-
-</div>
-
-</td>
-</tr>
-<tr>
-<td width="33%" align="center">
-
-<img src="./readme-assets/배준수.jpg" width="160" height="180" />
-
-### 배준수
-
-**`Back-End`** **`AI`** | [GitHub](https://github.com/hashilyze)
-
-📞 010-9804-3326
-
-✉️ jsbae1023@gmail.com
-
-📍 1354581
-
-<div align="left">
-
-**담당 업무**
-- ERD 및 API 명세 설계/문서화 관리
-- 대시보드 도메인 및 실시간 집계/스트림 기능 개발
-- LLM 채팅 및 히스토리 관리 기능 개발
-- RAG 커스터마이징 기능 개발
-
-</div>
-
-</td>
-<td width="33%" align="center">
-
-<img src="./readme-assets/이진모.jpg" width="160" height="180" />
-
-### 이진모
-
-**`Front-End`** | [GitHub](https://github.com/OPENARMS1027)
-
-📞 010-8573-7568
-
-✉️ lsoul1028@gmail.com
-
-📍 1350143
-
-<div align="left">
-
-**담당 업무**
-- RAG 운영 데이터 시각화 (SSE 기반 대시보드 구현)
-- RAG 문서 업로드 시스템 구현 및 Ingest 실시간 현황 구현
-- 벡터화 전역 알림 기능 구현
-
-</div>
-
-</td>
-<td width="33%" align="center">
-
-<img src="./readme-assets/백종석.jpg" width="160" height="180" />
-
-### 백종석
-
-**`Back-End`** **`AI`** | [GitHub](https://github.com/baekjs0123)
-
-📞 010-2075-8023
-
-✉️ baekjs0123@naver.com
-
-📍 1356874
-
-<div align="left">
-
-**담당 업무**
-- RAG 파이프라인 설정 템플릿 CRUD API 구현 (Ingest, Query, Prompt)
-- 개인 안경원 매출 요약 페이지 구현
-- 개인 안경원 매출 요약 보고서 생성 API 개발 (LLM 활용)
-- 체인 안경원 매출 요약 및 비교 분석 API 개발
-
-</div>
-
-</td>
-</tr>
+  <tr>
+    <td width="33%" align="center">
+      <a href="https://github.com/m0304s">
+        <img src="./readme-assets/최민석.jpg" width="160px" /> <br>
+        👑 최민석 <br>[Infra · Leader]
+      </a>
+    </td>
+  </tr>
+
+  <tr>
+    <td width="300px">
+      <sub>
+        - MSA 기반 시스템 아키텍처 설계 및 구현 <br>
+        - Marker 프로세스 구현 <br>
+        - 전체 일정 관리 및 팀 리딩 <br>
+        - 인프라 구조 안정화 <br>
+      </sub>
+    </td>
+  </tr>
 </table>
 
-</div> <br>
+<br>
+
+<table>
+  <tr>
+    <td width="33%" align="center">
+      <a href="https://github.com/TaeYun-K">
+        <img src="./readme-assets/김태윤.jpg" width="160px" /> <br>
+        김태윤 <br>[Backend]
+      </a>
+    </td>
+    <td width="33%" align="center">
+      <a href="https://github.com/minhe8564">
+        <img src="./readme-assets/이민희.jpg" width="170px" /> <br>
+        이민희 <br>[Frontend]
+      </a>
+    </td>
+    <td width="33%" align="center">
+      <a href="https://github.com/LJW9354">
+        <img src="./readme-assets/이재원.jpg" width="160px" /> <br>
+        이재원 <br>[Backend · AI]
+      </a>
+    </td>
+  </tr>
+
+  <tr>
+    <td width="300px">
+      <sub>
+        - 로그인/인증 시스템 개발 <br>
+        - 문서 업로드/삭제/조회 기능 개발 <br>
+        - 업로드 진행률 실시간 처리 <br>
+        - 알림 시스템 구축 <br>
+      </sub>
+    </td>
+    <td width="300px">
+      <sub>
+        - RAG 채팅 + SSE 실시간 응답 훅 개발 <br>
+        - 실시간 인프라 대시보드 개발 <br>
+        - 공통 UI 컴포넌트 구축 <br>
+        - 서버 API/에러 처리 규칙 통합 <br>
+      </sub>
+    </td>
+    <td width="300px">
+      <sub>
+        - AI 파이프라인 오케스트레이션 <br>
+        - Marker 기반 문서 파싱/레이아웃 분석 <br>
+        - Embedding · 유사도 검색 · Re-ranking 구현 <br>
+        - 스트리밍 AI 응답 시스템 구축 <br>
+      </sub>
+    </td>
+  </tr>
+</table>
+
+<br>
+
+<table>
+  <tr>
+    <td width="33%" align="center">
+      <a href="https://github.com/hashilyze">
+        <img src="./readme-assets/배준수.jpg" width="160px" /> <br>
+        배준수 <br>[Backend · AI]
+      </a>
+    </td>
+    <td width="33%" align="center">
+      <a href="https://github.com/OPENARMS1027">
+        <img src="./readme-assets/이진모.jpg" width="160px" /> <br>
+        이진모 <br>[Frontend]
+      </a>
+    </td>
+    <td width="33%" align="center">
+      <a href="https://github.com/baekjs0123">
+        <img src="./readme-assets/백종석.jpg" width="160px" /> <br>
+        백종석 <br>[Backend · AI]
+      </a>
+    </td>
+  </tr>
+
+  <tr>
+    <td width="300px">
+      <sub>
+        - ERD & API 명세 설계/관리 <br>
+        - 실시간 대시보드 스트림 개발 <br>
+        - LLM 채팅 및 히스토리 기능 <br>
+        - RAG 커스터마이징 기능 개발
+      </sub>
+    </td>
+    <td width="300px">
+      <sub>
+        - RAG 운영 데이터 대시보드(SSE) 개발 <br>
+        - Ingest 업로드·처리 실시간 현황 구현 <br>
+        - 벡터화 알림 시스템 구축 <br>
+        - FE 구조개선 및 품질 개선
+      </sub>
+    </td>
+    <td width="300px">
+      <sub>
+        - RAG 설정 템플릿 CRUD 개발 <br>
+        - 개인 안경원 매출 요약 페이지 개발 <br>
+        - LLM 기반 보고서 생성 API <br>
+        - 체인 안경원 매출 비교 분석 로직 개발
+      </sub>
+    </td>
+  </tr>
+</table>
+
+</div>
+
+
 
 ## 🔎 목차
 
@@ -612,7 +555,7 @@
 
 ### 📐 와이어프레임
 
-<div align="center">
+<div>
 
 <img src="./readme-assets/와이어프레임.png" width="800" />
 
@@ -620,34 +563,81 @@
 
 ### 🗄️ ERD
 
-<div align="center">
+<div>
 
 <img src="./readme-assets/erd.png" width="800" />
 
 </div><br>
 
-### ✅ API Documentation
+<h3>✅ Swagger API Docs</h3>
+<details align="left">
+  <summary>
+    <strong>Backend</strong>
+  </summary>
+
+  <div align="center">
+
+  <img src="./readme-assets/swagger.png.png"/>
+  </div>
+</details>
+
+<h3>📅 Jira Issues</h3>
+<details align="left">
+  <summary>
+    <strong>자세히</strong>
+  </summary>
+
+  <div align="center">
+    <img src="./readme-assets/jira.png.png"/>
+  </div>
+</details>
+
+<h3>📋 기능 명세서</h3>
+<details align="left">
+  <summary>
+    <strong>자세히</strong>
+  </summary>
+
+  <div align="center">
+    <img src="./readme-assets/functional.png.png"/>
+  </div>
+</details>
+
+<h3>📡 API 명세서</h3>
+<details align="left">
+  <summary>
+    <strong>자세히</strong>
+  </summary>
+
+  <div align="center">
+    <img src="./readme-assets/api.png.png"/>
+  </div>
+</details><br>
+
+### 📢 Collaboration & Event Notification
 
 <div align="center">
 
-**Swagger UI를 통한 API 문서 제공**
+<table>
+  <tr>
+    <td align="center" width="33%"><b>🧩 Jenkins Pipeline</b></td>
+    <td align="center" width="50%"><b>🗨️ Jira Issue Created</b></td>
+    <td align="center" width="33%"><b>🔀 Merge Code Review</b></td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="./readme-assets/jenkins_pipeline.png" width="100%" alt="Jenkins Pipeline"/>
+    </td>
+    <td align="center">
+      <img src="./readme-assets/jira_issue.png" width="100%" alt="DLP Process"/>
+    </td>
+    <td align="center">
+      <img src="./readme-assets/code_review.png" width="100%" alt="DLP Process"/>
+    </td>
+  </tr>
+</table>
 
-- Backend API: `/swagger-ui.html`
-- FastAPI Services: 각 서비스별 `/docs` 엔드포인트
-
-</div><br>
-
-### 🔄 CI/CD Pipeline
-
-<div align="center">
-
-**Jenkins를 통한 자동화된 빌드 및 배포**
-
-- Docker 이미지 빌드
-- 자동 테스트 실행
-- 컨테이너 배포
-
-</div><br>
+</div>
 
 ### 📊 주요 기능
 
