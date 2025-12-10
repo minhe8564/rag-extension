@@ -577,7 +577,7 @@
 
   <div align="center">
 
-  <img src="./readme-assets/swagger.png.png"/>
+  <img src="./readme-assets/swagger.png"/>
   </div>
 </details>
 
@@ -588,7 +588,7 @@
   </summary>
 
   <div align="center">
-    <img src="./readme-assets/jira.png.png"/>
+    <img src="./readme-assets/jira.png"/>
   </div>
 </details>
 
@@ -599,7 +599,7 @@
   </summary>
 
   <div align="center">
-    <img src="./readme-assets/functional.png.png"/>
+    <img src="./readme-assets/functional.png"/>
   </div>
 </details>
 
@@ -610,7 +610,7 @@
   </summary>
 
   <div align="center">
-    <img src="./readme-assets/api.png.png"/>
+    <img src="./readme-assets/api.png"/>
   </div>
 </details><br>
 
